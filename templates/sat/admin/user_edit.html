@@ -1,0 +1,23 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-pencil"></i> Edit Groups: {{ target_user.username }}</h2>
+
+<div class="admin-card">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label>Select Groups</label>
+      <div style="column-count: 3; column-gap: 20px;">
+        {% for checkbox in form.groups %}
+          <div style="margin-bottom: 6px;">{{ checkbox }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="margin-top: 15px;">
+      <button type="submit" class="btn-admin btn-primary">Save Changes</button>
+      <a href="{% url 'admin_user_detail' target_user.pk %}" class="btn-admin btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock admin_content %}

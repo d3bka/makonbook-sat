@@ -1,0 +1,172 @@
+{% extends 'template.html' %}
+
+{% block title-main %}Review Time Over{% endblock title-main %}
+{% block title %}Review Time Over{% endblock title %}
+
+{% block style %}
+<style>
+  .review-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 40px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+  
+  .review-header {
+    color: #fd7e14;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+  
+  .review-message {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 30px;
+    line-height: 1.6;
+  }
+  
+  .review-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background-color: #fd7e14;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 40px;
+  }
+  
+  .review-info {
+    background-color: #fff3cd;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border-left: 4px solid #fd7e14;
+  }
+  
+  .review-info h4 {
+    color: #fd7e14;
+    margin-bottom: 10px;
+  }
+  
+  .review-info p {
+    margin: 5px 0;
+    color: #666;
+  }
+  
+  .time-details {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+  }
+  
+  .time-details span {
+    font-weight: bold;
+    color: #fd7e14;
+  }
+  
+  .btn-primary {
+    background-color: #324dc7;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(50, 77, 199, 0.25);
+    margin: 10px;
+  }
+  
+  .btn-primary:hover {
+    background-color: #273ca3;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(50, 77, 199, 0.3);
+  }
+  
+  .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(108, 117, 125, 0.25);
+    margin: 10px;
+  }
+  
+  .btn-secondary:hover {
+    background-color: #5a6268;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(108, 117, 125, 0.3);
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.8s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="review-container fade-in">
+  <div class="review-icon">
+    <i class="fa fa-clock-o"></i>
+  </div>
+  
+  <h1 class="review-header">Review Time Expired</h1>
+  
+  <p class="review-message">
+    The review period for this test has expired. You can no longer access the detailed review 
+    of your answers and explanations for this test.
+  </p>
+  
+  <div class="review-info">
+    <h4>Review Session Information</h4>
+    <p><strong>Test:</strong> {{ test_name }}</p>
+    <p><strong>Review Started:</strong> {{ review_started }}</p>
+    <p><strong>Review Duration:</strong> {{ review_duration }}</p>
+    <p><strong>Expired:</strong> {{ expired_time }}</p>
+  </div>
+  
+  <div class="time-details">
+    <p>Review sessions are limited to <span>{{ review_duration }}</span> after test completion to ensure security and fairness.</p>
+  </div>
+  
+  <div class="review-message">
+    <p>You can still view your overall test results and scores, but detailed question reviews are no longer available.</p>
+  </div>
+  
+  <div>
+    <a href="{% url 'results' test_name %}" class="btn-primary">
+      <i class="fa fa-chart-line"></i> View Test Results
+    </a>
+    <a href="{% url 'dashboard' %}" class="btn-secondary">
+      <i class="fa fa-home"></i> Back to Dashboard
+    </a>
+  </div>
+</div>
+{% endblock content %} 

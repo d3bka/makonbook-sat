@@ -1,0 +1,59 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-magic"></i> Mock: {{ mock.name }}</h2>
+
+<div class="admin-card">
+  <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+    <div>
+      <p><strong>Name:</strong> {{ mock.name }}</p>
+      <p><strong>Test:</strong> {{ mock.test|default:"-" }}</p>
+      <p><strong>Group:</strong>
+        {% if mock.group %}
+          <a href="{% url 'admin_group_detail' mock.group.pk %}">{{ mock.group.name }}</a>
+        {% else %}
+          -
+        {% endif %}
+      </p>
+    </div>
+    <div>
+      <p><strong>Mode:</strong>
+        {% if mock.mode == 'secret_code' %}
+          <span class="badge badge-warning">Secret Code</span>
+        {% else %}
+          <span class="badge badge-success">Direct</span>
+        {% endif %}
+      </p>
+      <p><strong>Users Created:</strong> {{ mock.user_count }}</p>
+      <p><strong>Created:</strong> {{ mock.created_at|date:"M d, Y H:i" }}</p>
+      <p><strong>Created By:</strong> {{ mock.created_by|default:"-" }}</p>
+    </div>
+  </div>
+</div>
+
+{% if mock.secret_code %}
+<div class="admin-card">
+  <h4>Secret Code</h4>
+  <div class="secret-code-display">
+    {{ mock.secret_code.code }}
+  </div>
+  <p style="text-align: center; color: #64748b; margin-top: 10px;">
+    Share this code with users. They enter it at login to join the group and access the test.
+  </p>
+</div>
+{% endif %}
+
+<div class="admin-card">
+  <h4>Credentials</h4>
+  <a href="{% url 'admin_mock_download' mock.pk %}" class="btn-admin btn-success" style="margin-bottom: 15px;">
+    <i class="fa fa-download"></i> Download Credentials File
+  </a>
+  {% if mock.credentials %}
+  <pre style="background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto; font-size: 0.85rem;">{{ mock.credentials }}</pre>
+  {% endif %}
+</div>
+
+<div style="margin-top: 10px;">
+  <a href="{% url 'admin_mocks' %}" class="btn-admin btn-secondary">Back to Mocks</a>
+</div>
+{% endblock admin_content %}

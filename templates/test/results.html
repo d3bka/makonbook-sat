@@ -1,0 +1,476 @@
+{% extends 'template.html' %}
+
+{% block title-main %} Results {% endblock title-main %}
+{% block title %} Results {% endblock title %}
+
+{% load sat_extras %}
+
+{% block style %}
+<style>
+  .sat_left[data-v-27935a7a] {
+    display: flex;
+    color: var(--themeColor);
+    text-decoration: none;
+    ;
+  }
+
+  .sat_left>p[data-v-27935a7a]:first-child {
+    font-size: 140px;
+    font-weight: 700;
+    line-height: 140px;
+    margin-bottom: 0;
+  }
+
+  .total .score+p[data-v-049b5cac] {
+    width: auto;
+    margin-top: 25px;
+    height: 40px;
+    line-height: 40px;
+    padding-left: 20px;
+    border-left: 4px solid #ccc;
+  }
+
+  li {
+    text-align: -webkit-match-parent;
+  }
+
+  .sat_right ul li[data-v-27935a7a] {
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  ul {
+    list-style: none;
+  }
+
+  .sat_right[data-v-27935a7a] {
+
+    padding-left: 0;
+    padding-top: 30px;
+  }
+
+  b,
+  strong {
+    font-weight: bolder;
+  }
+
+  .sat_left>span[data-v-27935a7a] {
+    font-size: 52px;
+  }
+
+  a,
+  div,
+  p,
+  span,
+  textarea {
+    word-break: normal !important;
+  }
+
+  *,
+  :after,
+  :before {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, Liberation Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: left;
+    background-color: #fff;
+  }
+
+  :root {
+    --themeColor: #324dc7;
+    --layout-padding: 60px;
+  }
+
+  .total_above .score[data-v-049b5cac] {
+    width: auto;
+    font-size: 60px;
+    color: #222;
+    font-weight: 700;
+    line-height: 70px;
+    height: 70px;
+    margin-right: 1rem;
+  }
+
+  .total .title[data-v-049b5cac] {
+    font-weight: 500;
+    line-height: 1.2;
+    margin-top: 0;
+    margin-bottom: .5rem;
+    font-size: 30px;
+    color: var(--themeColor);
+  }
+
+  .total_above[data-v-049b5cac] {
+    padding: 0 15px;
+    margin-bottom: .5rem;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -15px;
+    margin-left: -15px;
+  }
+
+  .incorrect {
+    background-color: red;
+    color: white;
+  }
+
+  .correct {
+    background-color: green;
+    color: white;
+  }
+
+  .rect-question {
+    font-size: smaller;
+    margin: 10px 10px 0 0;
+    text-align: center;
+    border: 1px solid #000;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+  }
+
+  .chart-container {
+    width: 100%;
+    margin: 20px auto;
+  }
+
+  .chart-container canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  .restart-btn-container {
+    margin-top: 10px;
+  }
+  
+  .btn {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: .375rem .75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    text-decoration: none;
+  }
+  
+  .btn-sm {
+    padding: .25rem .5rem;
+    font-size: .875rem;
+    line-height: 1.5;
+    border-radius: .2rem;
+  }
+  
+  .btn-warning {
+    color: #212529;
+    background-color: #ffc107;
+    border-color: #ffc107;
+  }
+  
+  .btn-danger {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="mx-auto" style="width:90%;">
+  <!-- Overall Results Header -->
+  <div data-v-27935a7a="" class="row mx-auto sat">
+    <a data-v-27935a7a="" href="/practices" class="col-md-4 sat_left print_div">
+      <p data-v-27935a7a="">SAT</p><span data-v-27935a7a="">®</span>
+    </a>
+    <div data-v-27935a7a="" class="col-md-4 sat_right row">
+      <div data-v-27935a7a="" class="ml-3">
+        <ul data-v-27935a7a="">
+          <li data-v-27935a7a=""><b data-v-27935a7a="">Name: </b><span data-v-27935a7a="">{{ user }}</span></li>
+          <li data-v-27935a7a="">
+            <b data-v-27935a7a="">Total Score: </b>
+            <b data-v-27935a7a="" style="color: var(--themeColor);">{{ score.total }}</b>
+          </li>
+          <li data-v-27935a7a=""><b data-v-27935a7a="">Test Name: </b><span data-v-27935a7a="">{{ stats.test }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-1" style="padding-top: 30px; padding-right: 30px;">
+      <div class="button-container">
+        <a href="/sat/results/certificate/{{stats.test}}/" style="text-decoration:none; color:inherit; margin-left:10px;">
+          <i class="fa fa-vcard" style="font-size: -webkit-xxx-large;"></i> Certificate
+        </a>
+      </div>        
+    </div>
+  </div>
+
+  <!-- Overall Score Section -->
+  <div data-v-049b5cac="" class="row mx-auto total">
+    <div data-v-049b5cac="" class="col-md-6 col-sm-12 total_score print_div">
+      {% if status.total %}
+      <h4 data-v-049b5cac="" class="title"> Your Total Score </h4>
+      <div data-v-049b5cac="" class="row total_above">
+        <p data-v-049b5cac="" class="col-xs-8 score"> {{score.total}}</p>
+        <p data-v-049b5cac="" class="col-xs-4 t_score"> 400 to 1600 </p>
+      </div>
+      <div class="restart-btn-container">
+        <a href="{% url 'restart' pk=stats.test %}" class="btn btn-danger btn-sm">
+          <i class="fa fa-refresh"></i> Retake Full Test
+        </a>
+      </div>
+      {% else %}
+      <h4 data-v-049b5cac="" class="title" style="color: red;"> You need to complete all sections </h4>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Module Results Section -->
+  <hr style="margin-top: 10px; margin-bottom: 30px;">
+  <div class="row">
+    <div class="col-md-6">
+      <div data-v-049b5cac="" class="col-md-10 col-sm-12 total_score print_div">
+        <h4 data-v-049b5cac="" class="title"> Your English Score </h4>
+        <div data-v-049b5cac="" class="row total_above">
+          <p data-v-049b5cac="" class="col-xs-8 score"> {{score.sections.english.score}} </p>
+          <p data-v-049b5cac="" class="col-xs-4 t_score"> {{score.sections.english.range.lower}} to
+            {{score.sections.english.range.upper}} </p>
+        </div>
+        <!-- Add English Reset Button -->
+        <div class="restart-btn-container">
+          <a href="{% url 'restart_section' pk=stats.test section='english' %}" class="btn btn-warning btn-sm">
+            <i class="fa fa-refresh"></i> Retake English Section
+          </a>
+        </div>
+      </div>
+    </div>  
+    <div class="col-md-6">
+      <div data-v-049b5cac="" class="col-md-10 col-sm-12 total_score print_div">
+        <h4 data-v-049b5cac="" class="title"> Your Mathematics Score </h4>
+        <div data-v-049b5cac="" class="row total_above">
+          <p data-v-049b5cac="" class="col-xs-8 score"> {{score.sections.math.score}} </p>
+          <p data-v-049b5cac="" class="col-xs-4 t_score"> {{score.sections.math.range.lower}} to
+            {{score.sections.math.range.upper}} </p>
+        </div>
+        <!-- Add Math Reset Button -->
+        <div class="restart-btn-container">
+          <a href="{% url 'restart_section' pk=stats.test section='math' %}" class="btn btn-warning btn-sm">
+            <i class="fa fa-refresh"></i> Retake Math Section
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+   <hr style="margin-top: 10px; margin-bottom: 30px;">
+  <div class="row">
+    <div class="col-md-3">
+      <h5>English Module 1</h5>
+      <div class="navigation" style="display: flex; flex-wrap: wrap;">
+        {% for q in questions.english.m1 %}
+        <div class="rect-question {{ q.status }}">
+          <a href="/sat/question/{{ key }}/english/m1/{{ q.id }}">{{ q.number }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-md-3">
+      <h5>English Module 2</h5>
+      <div class="navigation" style="display: flex; flex-wrap: wrap;">
+        {% for q in questions.english.m2 %}
+        <div class="rect-question {{ q.status }}">
+          <a href="/sat/question/{{ key }}/english/m2/{{ q.id }}">{{ q.number }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Math Module 1 -->
+    <div class="col-md-3">
+      <h5>Math Module 1</h5>
+      <div class="navigation" style="display: flex; flex-wrap: wrap;">
+        {% for q in questions.math.m1 %}
+        <div class="rect-question {{ q.status }}">
+          <a href="/sat/question/{{ key }}/math/m1/{{ q.id }}">{{ q.number }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <!-- Math Module 2 -->
+    <div class="col-md-3">
+      <h5>Math Module 2</h5>
+      <div class="navigation" style="display: flex; flex-wrap: wrap;">
+        {% for q in questions.math.m2 %}
+        <div class="rect-question {{ q.status }}">
+          <a href="/sat/question/{{ key }}/math/m2/{{ q.id }}">{{ q.number }}</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Section for Detailed Module Time Spent -->
+  <div class="chart-container">
+    <h4>Time Spent Per Question for Each Module</h4>
+    <div class="row" style="margin-bottom: 30px;">
+      <div class="col-md-6">
+        <h5>English Module 1</h5>
+        <canvas id="chart-english-m1"></canvas>
+      </div>
+      <div class="col-md-6">
+        <h5>English Module 2</h5>
+        <canvas id="chart-english-m2"></canvas>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Math Module 1</h5>
+        <canvas id="chart-math-m1"></canvas>
+      </div>
+      <div class="col-md-6">
+        <h5>Math Module 2</h5>
+        <canvas id="chart-math-m2"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // For each module, build arrays of question numbers and time_spent
+
+    // English Module 1
+    var englishM1Labels = [
+      {% for q in questions.english.m1 %}
+    "{{ q.number }}",
+      {% endfor %}
+    ];
+    var englishM1Time = [
+      {% for q in questions.english.m1 %}
+    {{ q.time_spent }},
+    {% endfor %}
+    ];
+    var ctx1 = document.getElementById('chart-english-m1').getContext('2d');
+    var chartEnglishM1 = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: englishM1Labels,
+        datasets: [{
+          label: 'Time (seconds)',
+          data: englishM1Time,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true } },
+        plugins: { title: { display: true, text: 'English Module 1' } }
+      }
+    });
+
+    // English Module 2
+    var englishM2Labels = [
+      {% for q in questions.english.m2 %}
+    "{{ q.number }}",
+      {% endfor %}
+    ];
+    var englishM2Time = [
+      {% for q in questions.english.m2 %}
+    {{ q.time_spent }},
+    {% endfor %}
+    ];
+    var ctx2 = document.getElementById('chart-english-m2').getContext('2d');
+    var chartEnglishM2 = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: englishM2Labels,
+        datasets: [{
+          label: 'Time (seconds)',
+          data: englishM2Time,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true } },
+        plugins: { title: { display: true, text: 'English Module 2' } }
+      }
+    });
+
+    // Math Module 1
+    var mathM1Labels = [
+      {% for q in questions.math.m1 %}
+    "{{ q.number }}",
+      {% endfor %}
+    ];
+    var mathM1Time = [
+      {% for q in questions.math.m1 %}
+    {{ q.time_spent }},
+    {% endfor %}
+    ];
+    var ctx3 = document.getElementById('chart-math-m1').getContext('2d');
+    var chartMathM1 = new Chart(ctx3, {
+      type: 'bar',
+      data: {
+        labels: mathM1Labels,
+        datasets: [{
+          label: 'Time (seconds)',
+          data: mathM1Time,
+          backgroundColor: 'rgba(255, 206, 86, 0.7)',
+          borderColor: 'rgba(255, 206, 86, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true } },
+        plugins: { title: { display: true, text: 'Math Module 1' } }
+      }
+    });
+
+    // Math Module 2
+    var mathM2Labels = [
+      {% for q in questions.math.m2 %}
+    "{{ q.number }}",
+      {% endfor %}
+    ];
+    var mathM2Time = [
+      {% for q in questions.math.m2 %}
+    {{ q.time_spent }},
+    {% endfor %}
+    ];
+    var ctx4 = document.getElementById('chart-math-m2').getContext('2d');
+    var chartMathM2 = new Chart(ctx4, {
+      type: 'bar',
+      data: {
+        labels: mathM2Labels,
+        datasets: [{
+          label: 'Time (seconds)',
+          data: mathM2Time,
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true } },
+        plugins: { title: { display: true, text: 'Math Module 2' } }
+      }
+    });
+  </script>
+{% endblock content %}

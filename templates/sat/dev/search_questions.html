@@ -1,0 +1,212 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ page_title }}{% endblock title-main %}
+{% block title %}{{ page_title }}{% endblock title %}
+
+{% block style %}
+<style>
+  /* Basic form styling */
+  .dev-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  .dev-header {
+    color: #343a40;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px; /* Spacing between form elements */
+      margin-bottom: 15px;
+      align-items: flex-end; /* Align items at the bottom */
+  }
+  .form-group {
+      flex: 1; /* Allow groups to grow */
+      min-width: 150px; /* Minimum width for smaller screens */
+  }
+  label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #495057;
+  }
+  .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      box-sizing: border-box; /* Include padding and border in element's total width and height */
+      transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+  }
+  .form-control:focus {
+      border-color: #80bdff;
+      outline: 0;
+      box-shadow: 0 0 0 .2rem rgba(0,123,255,.25);
+  }
+  .btn-submit {
+    background-color: #324dc7;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 10px; /* Add space above button */
+    height: fit-content; /* Fit button height to content */
+  }
+  .btn-submit:hover {
+      background-color: #273ca3;
+  }
+  /* Results Table */
+  .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .results-table th, .results-table td {
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      text-align: left;
+      font-size: 0.9rem;
+      vertical-align: top;
+  }
+  .results-table th {
+      background-color: #e9ecef;
+      font-weight: 600;
+      position: sticky;
+      top: 0; /* Make header sticky */
+  }
+  .results-table tr:nth-child(even) {
+      background-color: #f8f9fa;
+  }
+  .results-table tr:hover {
+      background-color: #e2e6ea;
+  }
+  .results-count {
+      margin-top: 15px;
+      font-weight: bold;
+  }
+  .question-text {
+    max-height: 150px;
+    overflow-y: auto;
+    display: block;
+    font-size: 0.85rem;
+    white-space: pre-wrap; /* Preserve whitespace and wrap */
+    word-break: break-word;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="dev-container">
+  <h1 class="dev-header"><i class="fa fa-search"></i> {{ page_title }}</h1>
+
+  <form method="get">
+    <div class="form-row">
+      <div class="form-group" style="flex-grow: 2;">
+        {{ form.query.label_tag }}
+        {{ form.query }}
+      </div>
+      <div class="form-group">
+        {{ form.test.label_tag }}
+        {{ form.test }}
+      </div>
+       <div class="form-group">
+        {{ form.section.label_tag }}
+        {{ form.section }}
+      </div>
+      <div class="form-group">
+        {{ form.domain.label_tag }}
+        {{ form.domain }}
+      </div>
+      <div class="form-group">
+        {{ form.question_type.label_tag }}
+        {{ form.question_type }}
+      </div>
+      <div class="form-group">
+          <button type="submit" class="btn-submit">Search</button>
+      </div>
+    </div>
+  </form>
+
+  <hr>
+
+  <div class="results-count">
+    Found {{ english_count }} English and {{ math_count }} Math questions matching criteria. (Displaying top 100 of each)
+  </div>
+
+  {% if english_questions %}
+    <h2>English Questions</h2>
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>Test</th>
+          <th>Module</th>
+          <th>#</th>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Question Text</th>
+          <th>Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in english_questions %}
+          <tr>
+            <td>{{ q.test.name|default:"N/A" }}</td>
+            <td>{{ q.module|default:"N/A" }}</td>
+            <td>{{ q.number|default:"N/A" }}</td>
+            <td>{{ q.domain.name|default:"N/A" }}</td>
+            <td>{{ q.type.name|default:"N/A" }}</td>
+            <td><pre class="question-text">{{ q.question|default:"(No text)" }}</pre></td>
+            <td>{{ q.answer|default:"N/A" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if math_questions %}
+    <h2>Math Questions</h2>
+    <table class="results-table">
+      <thead>
+        <tr>
+          <th>Test</th>
+          <th>Module</th>
+          <th>#</th>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Question Text</th>
+          <th>Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in math_questions %}
+          <tr>
+            <td>{{ q.test.name|default:"N/A" }}</td>
+            <td>{{ q.module|default:"N/A" }}</td>
+            <td>{{ q.number|default:"N/A" }}</td>
+            <td>{{ q.domain.name|default:"N/A" }}</td>
+            <td>{{ q.type.name|default:"N/A" }}</td>
+            <td><pre class="question-text">{{ q.question|default:"(No text)" }}</pre></td>
+            <td>{{ q.answer|default:"N/A" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if not english_questions and not math_questions %}
+    <p>No questions found matching your criteria.</p>
+  {% endif %}
+
+</div>
+{% endblock content %} 

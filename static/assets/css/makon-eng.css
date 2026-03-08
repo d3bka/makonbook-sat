@@ -1,0 +1,420 @@
+.rect-question.answered {
+    background-color: blue;
+    color: white;
+}
+
+body {
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: left;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -o-user-select: none;
+}
+
+.scroll-hide::-webkit-scrollbar {
+    display: none !important;
+}
+
+p {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+}
+
+/* The outer container fills the viewport */
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Main area scrolls if content overflows */
+/* Add padding-bottom equal to or greater than the footer height */
+main {
+    display: flex;
+    height: calc(100vh - 100px - 80px);
+    /* 100px header, 80px footer */
+}
+
+footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    /* adjust as needed */
+    background-color: #c7b0ff;
+    border-top: 2px solid #000;
+    box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.1);
+    border-top: 2px solid;
+    border-image: repeating-linear-gradient(to right, black 0px, black 10px, transparent 0px, transparent 12px) 282;
+    /* We want to position .footer-center absolutely. */
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    box-sizing: border-box;
+    z-index: 999;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+}
+
+.footer-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    /* spacing between button and question-progress text */
+}
+
+.footer-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    /* Hidden by default */
+    position: fixed;
+    z-index: 101;
+    /* Above the footer */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+    /* Black background with opacity */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 10px;
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    right: 10px;
+    top: 5px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+}
+
+.question-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 10px;
+    margin-top: 40px;
+    /* Provide space for the close button */
+}
+
+.rect-question {
+    display: flex;
+    justify-content: center;
+    height: 40px;
+    font-family: sans-serif;
+    font-size: 20px;
+    font-weight: bold;
+    border: 1px solid #000;
+    align-content: center;
+    cursor: pointer;
+    border-radius: 16px;
+    flex-wrap: wrap;
+}
+
+
+header {
+    background-color: #c7b0ff;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid;
+    border-image: repeating-linear-gradient(to right, black 0px, black 10px, transparent 0px, transparent 12px) 282;
+    padding-bottom: 10px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.timer {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 20px;
+    font: bold;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    margin-top: 20px;
+}
+
+.question-container {
+    padding: 20px;
+    overflow-y: scroll;
+    flex: 1;
+    padding-right: 20px;
+    border-right: 1px dashed #cccccc;
+}
+
+.answers-container {
+    padding: 20px;
+    overflow-y: scroll;
+    flex: 1;
+    padding-left: 20px;
+}
+
+.question-title {
+    width: 100%;
+    height: 40px;
+    background-color: #eee;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: relative;
+}
+
+.question-number {
+    width: 40px;
+    height: 40px;
+    background-color: #141414;
+    font-weight: 900;
+    font-size: 20px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.question-text {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.nav-button {
+    padding: 0 26px;
+    background-color: #3d008e;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    height: 48px;
+    border-radius: 23px;
+    box-sizing: border-box;
+    font-weight: 700;
+}
+
+.choice-container {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    padding: 10px;
+    border: 1px #505050 solid;
+    color: #505050;
+    display: flow-root;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border-radius: 10px;
+    min-height: 50px;
+    align-items: center;
+}
+
+.choice-container input[type="radio"] {
+    display: none;
+}
+
+.choice-container label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-left: 35px;
+    color: #505050;
+}
+
+.choice-container .mark::before {
+    content: attr(data-letter);
+    position: absolute;
+    left: 0;
+    top: 10px;
+    transform: translateY(-50%);
+    width: 25px;
+    height: 25px;
+    border: 1px solid #000;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 23px;
+    background-color: #fff;
+}
+
+.choice-container input[type="radio"]:checked+.mark::before {
+    background-color: #0056b3;
+    border: 2px solid #000;
+    color: #fff;
+}
+
+.choice-container input[type="radio"]:checked+.mark+label {
+    color: black;
+    font-weight: bold;
+}
+
+
+.hid {
+    display: none;
+}
+.bookmark {
+    height: 36px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    margin-left: 10px;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.crossing-options {
+    margin-left: auto;
+    height: 36px;
+    box-sizing: border-box;
+    margin-right: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.big-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.cross-label {
+    position: absolute;
+    width: 21px;
+    height: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: solid #000 1px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+    box-sizing: border-box;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.crossing-zone {
+    width: 40px;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    display: none;
+}
+
+.cross-btn-line {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px;
+    border: solid #000 1px;
+    margin: 0;
+}
+
+.crossed {
+    opacity: 0.3;
+}
+
+.cross-line {
+    display: none;
+    box-sizing: content-box;
+    height: 0;
+    position: absolute;
+    width: calc(102%);
+    border: solid #000 1px;
+    left: -5px;
+}
+
+.active {
+    display: block;
+}
+
+.marked {
+    border: orangered 3px solid;
+}
+
+.here {
+    color: green !important;
+    font-weight: bolder;
+}
+
+/* Highlighter Styles */
+body.pen-mode {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="10" height="10" fill="yellow" opacity="0.5"/></svg>') 10 10, auto !important;
+}
+
+#drawing-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 990; /* Above footer but below modal */
+    pointer-events: none; /* Allows interaction with content below when not drawing */
+}
+
+#pen-button.active {
+    background-color: #ffff99; /* Light yellow when active */
+}

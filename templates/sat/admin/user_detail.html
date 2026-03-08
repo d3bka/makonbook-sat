@@ -1,0 +1,75 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-user"></i> {{ target_user.username }}</h2>
+
+<div class="admin-card">
+  <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+    <div>
+      <p><strong>Username:</strong> {{ target_user.username }}</p>
+      <p><strong>Name:</strong> {{ target_user.first_name }} {{ target_user.last_name }}</p>
+      <p><strong>Email:</strong> {{ target_user.email|default:"-" }}</p>
+    </div>
+    <div>
+      <p><strong>Joined:</strong> {{ target_user.date_joined|date:"M d, Y H:i" }}</p>
+      <p><strong>Last Login:</strong> {{ target_user.last_login|date:"M d, Y H:i"|default:"Never" }}</p>
+      <p>
+        <strong>Status:</strong>
+        {% if target_user.is_active %}
+          <span class="badge badge-success">Active</span>
+        {% else %}
+          <span class="badge badge-danger">Inactive</span>
+        {% endif %}
+        {% if target_user.is_staff %}
+          <span class="badge badge-warning">Staff</span>
+        {% endif %}
+        {% if target_user.is_superuser %}
+          <span class="badge badge-danger">Superuser</span>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  <div style="margin-top: 15px;">
+    <a href="{% url 'admin_user_edit' target_user.pk %}" class="btn-admin btn-primary">Edit Groups</a>
+    <form method="post" action="{% url 'admin_user_delete' target_user.pk %}" style="display: inline;" onsubmit="return confirm('Delete user {{ target_user.username }}? This cannot be undone.');">
+      {% csrf_token %}
+      <button type="submit" class="btn-admin btn-danger">Delete User</button>
+    </form>
+  </div>
+</div>
+
+<div class="admin-card">
+  <h4>Groups</h4>
+  {% for g in groups %}
+    <span class="badge badge-info" style="font-size: 0.85rem; margin: 2px;">{{ g.name }}</span>
+  {% empty %}
+    <p style="color: #94a3b8;">Not in any groups.</p>
+  {% endfor %}
+</div>
+
+<div class="admin-card">
+  <h4>Test History (Recent 20)</h4>
+  {% if reviews %}
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Test</th>
+        <th>Score</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reviews %}
+      <tr>
+        <td>{{ r.test|default:r.makeup_test }}</td>
+        <td><strong>{{ r.score }}</strong></td>
+        <td>{{ r.created_at|date:"M d, Y H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="color: #94a3b8;">No test history.</p>
+  {% endif %}
+</div>
+{% endblock admin_content %}

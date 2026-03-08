@@ -1,0 +1,27 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-file-text"></i> Test: {{ test.name }}</h2>
+
+<div class="admin-card">
+  <div style="display: flex; gap: 30px; flex-wrap: wrap;">
+    <div>
+      <p><strong>Name:</strong> {{ test.name }}</p>
+      <p><strong>Created:</strong> {{ test.created|date:"M d, Y" }}</p>
+    </div>
+    <div>
+      <p><strong>Completions:</strong> {{ completion_count }}</p>
+      <p><strong>Groups:</strong>
+        {% for g in groups %}
+          <span class="badge badge-info">{{ g.name }}</span>
+        {% empty %}
+          <span style="color: #94a3b8;">Not assigned to any group</span>
+        {% endfor %}
+      </p>
+    </div>
+  </div>
+  <div style="margin-top: 15px;">
+    <a href="{% url 'rankings' test.name %}" class="btn-admin btn-primary">View Rankings</a>
+  </div>
+</div>
+{% endblock admin_content %}

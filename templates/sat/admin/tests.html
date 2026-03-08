@@ -1,0 +1,39 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-file-text"></i> Tests</h2>
+
+<div class="admin-card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Test Name</th>
+        <th>Groups</th>
+        <th>Completions</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in test_data %}
+      <tr>
+        <td><a href="{% url 'admin_test_detail' item.test.name %}">{{ item.test.name }}</a></td>
+        <td>
+          {% for g in item.groups %}
+            <span class="badge badge-info">{{ g.name }}</span>
+          {% empty %}
+            <span style="color: #94a3b8;">-</span>
+          {% endfor %}
+        </td>
+        <td>{{ item.completion_count }}</td>
+        <td>
+          <a href="{% url 'admin_test_detail' item.test.name %}" class="btn-admin btn-sm btn-primary">Details</a>
+          <a href="{% url 'rankings' item.test.name %}" class="btn-admin btn-sm btn-secondary">Rankings</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" style="text-align:center; color:#94a3b8;">No tests found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock admin_content %}

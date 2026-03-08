@@ -1,0 +1,116 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Developer Dashboard{% endblock title-main %}
+{% block title %}Developer Dashboard{% endblock title %}
+
+{% block style %}
+<style>
+  .dev-container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  .dev-header {
+    color: #343a40;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .dev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+  .dev-card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .dev-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  }
+  .dev-card h3 {
+    margin-top: 0;
+    color: #324dc7;
+  }
+  .dev-card p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+  }
+  .dev-card .btn-primary {
+    background-color: #324dc7;
+    color: white;
+    padding: 10px 15px;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    display: inline-block;
+  }
+  .dev-card .btn-primary:hover {
+    background-color: #273ca3;
+  }
+  .dev-card i {
+    font-size: 2rem;
+    color: #324dc7;
+    margin-bottom: 10px;
+    display: block;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="dev-container">
+  <h1 class="dev-header"><i class="fa fa-cogs"></i> {{ page_title }}</h1>
+
+  <div class="dev-grid">
+    <!-- Search Questions Card -->
+    <div class="dev-card">
+      <i class="fa fa-search"></i>
+      <h3>Search Questions</h3>
+      <p>Find English and Math questions using various filters like text, test, domain, or type.</p>
+      <a href="{% url 'dev_search_questions' %}" class="btn-primary">Go to Search</a>
+    </div>
+
+    <!-- Manage Groups Card -->
+    <div class="dev-card">
+      <i class="fa fa-users"></i>
+      <h3>Manage Groups</h3>
+      <p>View existing user groups and create new ones.</p>
+      <a href="{% url 'dev_manage_groups' %}" class="btn-primary">Manage Groups</a>
+    </div>
+
+    <!-- Create Bulk Users Card -->
+    <div class="dev-card">
+      <i class="fa fa-user-plus"></i>
+      <h3>Create Bulk Users</h3>
+      <p>Generate multiple user accounts for a specific group and download their credentials.</p>
+      <a href="{% url 'dev_create_bulk_users' %}" class="btn-primary">Create Users</a>
+    </div>
+
+    <!-- Assign Test / Create Code Card -->
+    <div class="dev-card">
+      <i class="fa fa-tasks"></i>
+      <h3>Assign Test / Code</h3>
+      <p>Assign regular or makeup tests to groups and optionally generate secret access codes.</p>
+      <a href="{% url 'dev_assign_test' %}" class="btn-primary">Assign Test/Code</a>
+    </div>
+    
+    <!-- Test Statistics Card -->
+    <div class="dev-card">
+      <i class="fa fa-bar-chart"></i>
+      <h3>Test Statistics</h3>
+      <p>Generate detailed statistics and analysis for a specific regular test.</p>
+      <a href="{% url 'dev_test_statistics' %}" class="btn-primary">View Stats</a>
+    </div>
+
+  </div>
+</div>
+{% endblock content %} 

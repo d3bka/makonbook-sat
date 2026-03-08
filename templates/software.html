@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>MakonBook Software Distribution</title>
+  <!-- Optional: Load a Google Font -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,700&display=swap" rel="stylesheet">
+  <style>
+    /* Global Styles */
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    header {
+      background-color: #324dc7;
+      padding: 20px;
+      text-align: center;
+      color: #fff;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2.5em;
+    }
+    header p {
+      margin: 10px 0 0;
+      font-size: 1.2em;
+    }
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 40px auto;
+    }
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 20px;
+    }
+    .card {
+      background-color: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      flex: 1 1 300px;
+      max-width: 400px;
+      padding: 20px;
+      text-align: center;
+    }
+    .card h2 {
+      margin-top: 0;
+      color: #324dc7;
+    }
+    .card p {
+      font-size: 1.1em;
+      margin: 20px 0;
+    }
+    .download-button {
+      display: inline-block;
+      background-color: #324dc7;
+      color: #fff;
+      padding: 12px 24px;
+      text-decoration: none;
+      font-size: 1.2em;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+      border: none;
+    }
+    .download-button:hover {
+      background-color: #263a9b;
+    }
+    .download-button:disabled,
+    .download-button.disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .footer {
+        position: absolute;
+        bottom: 0;
+        width: -webkit-fill-available;
+      text-align: center;
+      padding: 20px;
+      background-color: #324dc7;
+      color: #fff;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MakonBook Software Distribution</h1>
+    <p>Download the latest version for Windows. macOS version coming soon.</p>
+  </header>
+  <div class="container">
+    <div class="cards">
+      <!-- Windows Software Card -->
+      <div class="card">
+        <h2>MakonBook for Windows</h2>
+        <p>Compatible with Windows 10 and 11. Secure, fully featured and ready to use.</p>
+        <a class="download-button" href="/static/app/windows/MakonBook.zip" download>Download for Windows</a>
+      </div>
+      <!-- macOS Software Card (disabled) -->
+      <div class="card">
+        <h2>MakonBook for macOS</h2>
+        <p>Our macOS version is under development and will be available soon.</p>
+        <button class="download-button disabled" disabled>Coming Soon</button>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    &copy; 2025 MakonBook. All rights reserved.
+  </div>
+</body>
+</html>

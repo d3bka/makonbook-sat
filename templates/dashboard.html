@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Makon Book Dashboard</title>
+  {% load static %}
+  {% load sat_extras %}
+  {% load dev_tags %}
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static '/assets/css/makon-dashboard.css' %}">
+  <link rel="stylesheet" href="/static/font-awesome-4.7.0/css/font-awesome.min.css">
+  <style>
+    .card {
+      max-width: 250px;
+    }
+    .card > h3 {
+      margin-top: 10px;
+    }
+    .card > h1 {
+      font-size: 50px;
+      font-family: math;
+    }
+    .card > p {
+      margin-bottom: 10px;
+    }
+    /* Dropdown styles (no Bootstrap) */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-toggle {
+      cursor: pointer;
+    }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      min-width: 120px;
+      z-index: 1000;
+    }
+    .dropdown-menu a {
+      display: block;
+      padding: 8px 12px;
+      color: inherit;
+      text-decoration: none;
+    }
+    .dropdown-menu a:hover {
+      background-color: #f2f2f2;
+    }
+    .dropdown:hover .dropdown-menu {
+      display: block;
+    }
+    /* Score badge styles */
+    .score-badge {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .score-badge h1 {
+      color: #324dc7;
+      margin: 0;
+      font-size: 48px;
+      font-weight: bold;
+    }
+    .score-badge span {
+      font-size: 14px;
+      color: #666;
+    }
+    .dropdown-menu a.dev-link {
+      color: #dc3545;
+      font-weight: bold;
+    }
+    .dropdown-menu a.dev-link:hover {
+      background-color: #f8d7da;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="top-header">
+    <div class="header-container">
+      <div class="logo-section">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="Makon Book Logo" class="logo" />
+        <span class="brand-name">Makon Book</span>
+      </div>
+      <div class="profile-section">
+        <div class="dropdown">
+          <span class="dropdown-toggle">
+            {{ user.first_name }} {{ user.last_name }} <i class="icon fa fa-user-circle-o" style="font-size: x-large;"></i>
+          </span>
+          <div class="dropdown-menu">
+            {% if request.user|is_in_group:"Admin" or request.user.is_staff or request.user.is_superuser %}
+              <a class="dropdown-item dev-link" href="{% url 'admin_dashboard' %}"><i class="fa fa-shield"></i> Admin Panel</a>
+            {% endif %}
+            {% if request.user|is_in_group:"dev" %}
+              <a class="dropdown-item dev-link" href="{% url 'dev_dashboard' %}"><i class="fa fa-cogs"></i> Dev Mode</a>
+            {% endif %}
+            <a class="dropdown-item" href="{% url 'enter_secret_code' %}">Code</a>
+            <a class="dropdown-item" href="{% url 'edit_profile' %}">Edit Profile</a>
+            <a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Welcome Banner -->
+  <section class="welcome-banner">
+    <div class="banner-container">
+      <h1>Welcome, {{ user.first_name }}! Explore our available lessons and tests.</h1>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Lessons Section (comes first) -->
+    <section class="lessons-section" style="margin-bottom: 20px;">
+      <div class="section-header">
+        <h2>Your Lessons</h2>
+      </div>
+      {% if purchased %}
+        <!-- If purchased, show active and completed lessons -->
+        <div class="tabs">
+          <button class="tab-button active" onclick="showLessons('active')">Active Lessons</button>
+          <button class="tab-button" onclick="showLessons('past')">Completed Lessons</button>
+        </div>
+        <div id="active-lessons" class="lesson-cards">
+          {% if active_lessons %}
+            {% for lesson in active_lessons %}
+              <div class="card practice-card">
+                {% if lesson.package.image %}
+                  <img src="{{ lesson.package.image.url }}" alt="{{ lesson.package.name }}" class="test-logo" style="padding:6px;"/>
+                {% else %}
+                  <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                {% endif %}
+                <hr>
+                <h3>{{ lesson.name }}</h3>
+                <div class="button-container">
+                  <a href="{% url 'lesson_detail' lesson.pk %}" style="text-decoration:none; color:inherit;">Start Lesson</a>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="no-cards">
+              <h3>No Active Lessons</h3>
+              <p>You have no lessons to study right now.</p>
+            </div>
+          {% endif %}
+        </div>
+        <div id="past-lessons" class="lesson-cards" style="display:none;">
+          {% if past_lessons %}
+            {% for lesson in past_lessons %}
+              <div class="card practice-card">
+                {% if lesson.package.image %}
+                  <img src="{{ lesson.package.image.url }}" alt="{{ lesson.package.name }}" class="test-logo" style="padding:6px;"/>
+                {% else %}
+                  <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                {% endif %}
+                <hr>
+                <h3>{{ lesson.name }}</h3>
+                <div class="button-container">
+                  <a href="{% url 'lesson_detail' lesson.pk %}" style="text-decoration:none; color:inherit;">Review Lesson</a>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="no-cards">
+              <h3>No Completed Lessons</h3>
+              <p>You have not finished any lessons yet.</p>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <!-- If not purchased, show available lesson packages -->
+        <div class="lesson-cards">
+          {% if available_packages %}
+            {% for package in available_packages %}
+              <div class="card practice-card">
+                {% if package.image %}
+                  <img src="{{ package.image.url }}" alt="{{ package.name }}" class="test-logo" style="padding:6px;"/>
+                {% else %}
+                  <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                {% endif %}
+                <hr>
+                <h3>{{ package.name }}</h3>
+                <p>{{ package.description|truncatewords:20 }}</p>
+                <div class="button-container">
+                  <a href="#" style="text-decoration:none; color:inherit;">Buy Now</a>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="no-cards">
+              <h3>No Lesson Packages Available</h3>
+              <p>Please check back later.</p>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- Tests Section (comes after lessons) -->
+    <section class="tests-section">
+      <div class="section-header">
+        <h2>Your Practice Tests</h2>
+        <div class="tabs">
+          <button class="tab-button active" onclick="showTests('active')">Active</button>
+          <button class="tab-button" onclick="showTests('past')">Past</button>
+        </div>
+      </div>
+      <div id="active-tests" class="practice-cards">
+        {% if active_tests %}
+          {% for test in active_tests %}
+            <div class="card practice-card">
+              {% with test_num=test.name|slice:"3:" %}
+                <img src="{% static 'assets/img/tests/'|add:test_num|add:'.png' %}" alt="Test Image" class="test-logo" style="padding:6px;"/>
+              {% endwith %}
+              <hr>
+              <h3>{{ test.name }}</h3>
+              <div class="button-container">
+                <a href="{% url 'practise' test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="no-cards">
+            <h3>No Active Tests</h3>
+            <p>You have no unsolved tests at the moment.</p>
+          </div>
+        {% endif %}
+      </div>
+      <!-- In the past-tests section, replace the existing score display with our custom tag -->
+      <div id="past-tests" class="practice-cards" style="display:none;">
+        {% if past_tests %}
+          {% for test in past_tests %}
+            <div class="card practice-card">
+              {% show_test_score test user %}
+              <hr>
+              <h3>{{ test.name }}</h3>
+              <div class="button-container">
+                <a href="{% url 'results' test.name %}" style="text-decoration:none; color:inherit;">View Results</a>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="no-cards">
+            <h3>No Past Tests</h3>
+            <p>You haven't solved any tests yet.</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function showTests(tab) {
+      if(tab === 'active'){
+        document.getElementById('active-tests').style.display = 'grid';
+        document.getElementById('past-tests').style.display = 'none';
+      } else {
+        document.getElementById('active-tests').style.display = 'none';
+        document.getElementById('past-tests').style.display = 'grid';
+      }
+    }
+    function showLessons(tab) {
+      if(tab === 'active'){
+        document.getElementById('active-lessons').style.display = 'grid';
+        document.getElementById('past-lessons').style.display = 'none';
+      } else {
+        document.getElementById('active-lessons').style.display = 'none';
+        document.getElementById('past-lessons').style.display = 'grid';
+      }
+    }
+  </script>
+</body>
+</html>

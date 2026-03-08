@@ -1,0 +1,49 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-magic"></i> Mocks</h2>
+
+<div style="margin-bottom: 15px;">
+  <a href="{% url 'admin_mock_create' %}" class="btn-admin btn-primary">
+    <i class="fa fa-plus"></i> Create Mock
+  </a>
+</div>
+
+<div class="admin-card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Test</th>
+        <th>Mode</th>
+        <th>Users</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mock in mocks %}
+      <tr>
+        <td><a href="{% url 'admin_mock_detail' mock.pk %}">{{ mock.name }}</a></td>
+        <td>{{ mock.test|default:"-" }}</td>
+        <td>
+          {% if mock.mode == 'secret_code' %}
+            <span class="badge badge-warning">Secret Code</span>
+          {% else %}
+            <span class="badge badge-success">Direct</span>
+          {% endif %}
+        </td>
+        <td>{{ mock.user_count }}</td>
+        <td>{{ mock.created_at|date:"M d, Y" }}</td>
+        <td>
+          <a href="{% url 'admin_mock_detail' mock.pk %}" class="btn-admin btn-sm btn-primary">View</a>
+          <a href="{% url 'admin_mock_download' mock.pk %}" class="btn-admin btn-sm btn-success">Download</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center; color:#94a3b8;">No mocks created yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock admin_content %}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Makon Book - Verify Email</title>
+  {% load static %}
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600&display=swap');
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .top-banner {
+      width: 100%;
+      background: #3d008e;
+      padding: 20px;
+      text-align: center;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .title-field {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .icon {
+      margin-right: 10px;
+      width: 40px;
+      height: 40px;
+    }
+    .app-title {
+      font-size: 36px;
+      color: #ffffff;
+      margin: 0;
+      font-weight: 600;
+    }
+    .alert-box {
+      background: #ffffff;
+      color: #3d008e;
+      padding: 15px;
+      margin: 20px auto;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(61, 0, 142, 0.2);
+      max-width: 400px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .alert-box ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .alert-box li {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .alert-box .success { color: #28a745; }
+    .alert-box .error { color: #dc3545; }
+    .signin-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .signin-box {
+      background: #3d008e;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+      color: #ffffff;
+    }
+    .signin-box h2 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .signin-box p {
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .signin-form {
+      display: flex;
+      flex-direction: column;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      background: #ffffff;
+      color: #3d008e;
+      transition: all 0.3s ease;
+    }
+    .form-group input:focus {
+      outline: none;
+      box-shadow: 0 0 8px rgba(61, 0, 142, 0.5);
+    }
+    .primary-btn {
+      background: #ffffff;
+      color: #3d008e;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+    .primary-btn:hover {
+      background: #e0e0e0;
+      color: #3d008e;
+    }
+    .footer-links {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .footer-links a {
+      color: #ffffff;
+      text-decoration: none;
+      margin: 0 15px;
+      font-size: 14px;
+      transition: color 0.3s ease;
+    }
+    .footer-links a:hover {
+      color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-banner">
+    <div class="title-field">
+      <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class='icon' alt="Makon Book Logo" />
+      <h1 class="app-title">MakonBook</h1>
+    </div>
+    {% if messages %}
+    <div class="alert-box">
+      <ul class="messages">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="signin-container">
+    <div class="signin-box">
+      <h2>Verify Your Email</h2>
+      <p>Please enter the verification code sent to your email.</p>
+
+      <form action="" method="POST" class="signin-form">
+        {% csrf_token %}
+        <div class="form-group">
+          <input 
+            type="text" 
+            name="code" 
+            placeholder="Verification Code" 
+            required
+          >
+        </div>
+        <div class="form-group">
+          <button type="submit" class="primary-btn">
+            Verify
+          </button>
+        </div>
+      </form>
+
+      <div class="footer-links">
+        <a href="/software/">Check out Software</a>
+        <a href="/register/">Resend Code</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

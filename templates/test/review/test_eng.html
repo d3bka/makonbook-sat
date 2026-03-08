@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -o-user-select: none;
+        }
+
+        .scroll-hide::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        p {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: 10px auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px dashed black;
+            padding-bottom: 10px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+
+        main {
+            height: 400px;
+            display: flex;
+            margin-top: 20px;
+        }
+
+        .question-container {
+            overflow-y: scroll;
+            flex: 1;
+            padding-right: 20px;
+            border-right: 1px dashed #cccccc;
+        }
+
+        .answers-container {
+            overflow-y: scroll;
+            flex: 1;
+            padding-left: 20px;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #cccccc;
+            padding-bottom: 10px;
+        }
+
+        .question-number {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .mark-for-review {
+            font-size: 14px;
+            cursor: pointer;
+            color: #007bff;
+        }
+
+        .question-text {
+            margin-top: 10px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            border-top: 3px dashed black;
+            padding-top: 10px;
+        }
+
+        .nav-button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+
+        .nav-button:hover {
+            background-color: #0056b3;
+        }
+
+        .choice-container {
+            cursor: pointer;
+            display: flex;
+            padding: 10px;
+            border: 1px #505050 solid;
+            color: #505050;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+            border-radius: 10px;
+            min-height: 50px;
+            align-items: center;
+        }
+
+        .choice-container input[type="radio"] {
+            display: none;
+        }
+
+        .choice-container label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-left: 35px;
+            width: 100%;
+            color: #505050;
+        }
+
+        .choice-container .mark::before {
+            content: attr(data-letter);
+            position: absolute;
+            left: 0;
+            top: 10px;
+            transform: translateY(-50%);
+            width: 25px;
+            height: 25px;
+            border: 1px solid #000;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 23px;
+            background-color: #fff;
+        }
+
+
+        .{{answered}} > label{
+            color: red;
+            font-weight: bold;
+        }
+
+        .{{question.answer}} > label{
+            color: green !important;
+            font-weight: bold;
+        }
+
+        .hid {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            <a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            <h1 style="color: green;">Answer: {{question.answer}}</h1>
+            <h1 style="color: gray;">Your Answer: {{answered}}</h1>
+        </header>
+        <form class="fm" id="quiz-form" >
+            {% csrf_token %}
+            <main>
+                <div class="question-container scroll-hide">
+                    <div class="just-div"></div>
+                    <p id="passage"></p>
+                    <h3>Domain:{{question.domain }}</h3>
+                    <h3>Type:{{question.type }}</h3>
+                    <p>Explanation: <br>{{question.explained}}</p>
+                </div>
+                <div class="answers-container scroll-hide">
+                    <div class="question-header">
+                        <div class="question-number">Question Number: <span id="question-number"></span></div>
+                    </div>
+                    <div class="question-text" id="question-text"></div>
+                    <div class="answers" id="answers"></div>
+                </div>
+            </main>
+            <footer>
+                {% if prev %}
+                <a href="{{prev}}"><button type="button" class="nav-button">Back</button></a>
+                {% else %}
+                <a href="/sat/results/{{test}}"><button type="button" class="nav-button">Back</button></a>
+                {% endif %}
+
+                {% if next %}
+                <a href="{{next}}"><button type="button" class="nav-button" style="margin-left: 50px;">Next</button></a>
+                {% endif %}
+            </footer>
+        </form>
+    </div>
+
+    <script>
+        let currentQuestionIndex = 0;
+        let answers = ['{{answered}}']
+        const questions = [
+        {
+            passage: `{{ question.passage|safe }}`,
+                number: Number("{{ question.number }}"),
+                    question: `{{ question.question }}`,
+                        a: `{{ question.a | safe}}`,
+                            b: `{{ question.b | safe}}`,
+                                c: `{{ question.c | safe}}`,
+                                    d: `{{ question.d | safe}}`,
+                                        id: `{{ question.id }}`,
+                                            graph: `{{question.graph_url}}`,
+
+        }
+];
+
+        function loadQuestion(index) {
+            currentQuestionIndex = index
+            const question = questions[index];
+            document.getElementById('passage').innerHTML = question.passage;
+            document.getElementById('question-number').innerHTML = question.number;
+            document.getElementById('question-text').innerHTML = question.question;
+            const graphContainer = document.querySelector('.just-div');
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = `
+        <label class="choice-container A">
+            <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
+            <label class='mark' data-letter="A"></label>
+            <label for="choice1">${question.a}</label>
+        </label>
+        <label class="choice-container B">
+            <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
+            <label class='mark' data-letter="B"></label>
+            <label for="choice2">${question.b}</label>
+        </label>
+        <label class="choice-container C">
+            <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
+            <label class='mark' data-letter="C"></label>
+            <label for="choice3">${question.c}</label>
+        </label>
+        <label class="choice-container D">
+            <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
+            <label class='mark' data-letter="D"></label>
+            <label for="choice4">${question.d}</label>
+        </label>
+    `;
+            if (question.graph) {
+                graphContainer.innerHTML = `<div class='graph' ><img src="${question.graph}" alt="Graph" style="width: 100%; height: 100%;"></div>`;
+            } else {
+                graphContainer.innerHTML = ''
+            }
+        }
+
+        // Disable right-click and text selection
+        // Disable right-click and text selection
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('selectstart', event => event.preventDefault());
+
+        // Disable common inspect shortcuts
+        document.addEventListener('keydown', event => {
+            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+                event.preventDefault();
+            }
+            if (event.key === 'F12') {
+                event.preventDefault();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuestion(currentQuestionIndex);
+        });
+    </script>
+</body>
+
+</html>

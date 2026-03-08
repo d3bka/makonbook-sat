@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Progress</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -o-user-select: none;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        .clear-button {
+            padding: 10px 20px;
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+
+        .clear-button:hover {
+            background-color: #cc0000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Clear Progress</h1>
+        <p>Click the button below to clear your test progress.</p>
+        <button class="clear-button" onclick="clearProgress()">Clear Progress</button>
+    </div>
+
+    <script>
+        const testName = "{{test}}"; // Replace with your test name
+        const moduleName = "{{module}}"; // Replace with your module name
+        const sectionName = "{{section}}"; // Replace with your section name
+        
+        function clearProgress() {
+            const key = `${testName}_${moduleName}_${sectionName}`;
+            localStorage.removeItem(`${key}_answers`);
+            localStorage.removeItem(`${key}_currentQuestionIndex`);
+            localStorage.removeItem(`${key}_timeRemaining`);
+            alert('Progress cleared!');
+            // Redirect to the desired page
+            window.location.href = '/sat/practises'; // Replace with the URL you want to redirect to
+        }
+
+        // Disable right-click and text selection
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('selectstart', event => event.preventDefault());
+
+        // Disable common inspect shortcuts
+        document.addEventListener('keydown', event => {
+            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+                event.preventDefault();
+            }
+            if (event.key === 'F12') {
+                event.preventDefault();
+            }
+        });
+    </script>
+</body>
+
+</html>

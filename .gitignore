@@ -1,0 +1,119 @@
+
+# Byte-compiled / optimized / DLL files
+# C extensions
+# Database backups and migration files
+# Distribution / packaging
+# Django stuff:
+# Environment variables
+# IDE
+# Large database files
+# Log files
+# Media files
+# OS generated files
+# Process ID files
+# Static files (collected by Django)
+# Temporary files
+*$py.class
+*.sock
+*.backup
+*.db
+*.dump
+*.egg
+*.egg-info/
+*.log
+*.pid
+*.py[cod]
+*.so
+*.sql
+*.sqlite
+*.sqlite*
+*.sqlite3
+*.swo
+*.swp
+*~
+.DS_Store
+.DS_Store?
+.Python
+.Spotlight-V100
+.Trashes
+._*
+.eggs/
+.env
+.idea/
+.installed.cfg
+.tmp/production_migration_backup/
+.venv
+.vscode/
+ENV/
+MANIFEST
+Thumbs.db
+__pycache__/
+build/
+db.sqlite3
+db.sqlite3-journal
+db_backups/
+develop-eggs/
+dist/
+downloads/
+eggs/
+ehthumbs.db
+env.bak/
+env/
+lib/
+lib64/
+local_settings.py
+logs/
+media/
+parts/
+pip-wheel-metadata/
+production_migration_backup/
+sdist/
+share/python-wheels/
+static_collected/
+staticfiles/
+temp/
+tmp/
+var/
+venv.bak/
+venv/
+wheels/
+
+# Telegram bot request files (contains sensitive user credentials)
+apps/telegram_bot/requests/
+
+# Database backups
+backups/
+
+# Docker
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+!nginx/ssl/.gitkeep
+
+# Secret key file
+satmakon/config.ini
+
+# python
+__pycache__/
+*.py[cod]
+
+# venv
+.venv/
+venv/
+
+# env variables
+.env
+
+# django
+db.sqlite3
+media/
+staticfiles/
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

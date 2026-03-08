@@ -1,0 +1,35 @@
+[Unit]
+Description=MakonBook SAT Practice System
+Documentation=https://github.com/satmakon/makonbook
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=satmakon
+Group=satmakon
+RuntimeDirectory=makonbook
+WorkingDirectory=/home/satmakon/makonbook
+Environment=PATH="/home/satmakon/makonbook/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/satmakon/makonbook/venv/bin/gunicorn --config /home/satmakon/makonbook/scripts/configs/gunicorn.conf.py satmakon.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+RestartSec=2
+Restart=always
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/satmakon/makonbook
+ReadWritePaths=/tmp
+
+# Log settings
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=makonbook
+
+[Install]
+WantedBy=multi-user.target

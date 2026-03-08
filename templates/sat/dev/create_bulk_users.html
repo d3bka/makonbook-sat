@@ -1,0 +1,132 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ page_title }}{% endblock title-main %}
+{% block title %}{{ page_title }}{% endblock title %}
+
+{% block style %}
+<style>
+  /* Reusing styles */
+  .dev-container {
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  .dev-header {
+    color: #343a40;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #495057;
+  }
+  .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      box-sizing: border-box;
+  }
+  .form-group {
+      margin-bottom: 15px;
+  }
+  .help-text {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 4px;
+  }
+  .btn-submit {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  .btn-submit:hover {
+      background-color: #0056b3;
+  }
+  /* Basic message styling */
+  .messages {
+      list-style: none;
+      padding: 0;
+      margin: 15px 0;
+  }
+  .messages li {
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+  }
+  .messages li.success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+  }
+  .messages li.error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+  }
+    .messages li.warning {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+  }
+    .messages li.info {
+      color: #0c5460;
+      background-color: #d1ecf1;
+      border-color: #bee5eb;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="dev-container">
+  <h1 class="dev-header"><i class="fa fa-user-plus"></i> {{ page_title }}</h1>
+
+  {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      {{ form.group.label_tag }}
+      {{ form.group }}
+      {% if form.group.errors %}<div class="errorlist">{{ form.group.errors }}</div>{% endif %}
+    </div>
+    <div class="form-group">
+      {{ form.username_prefix.label_tag }}
+      {{ form.username_prefix }}
+      <div class="help-text">{{ form.username_prefix.help_text }}</div>
+      {% if form.username_prefix.errors %}<div class="errorlist">{{ form.username_prefix.errors }}</div>{% endif %}
+    </div>
+    <div class="form-group">
+      {{ form.count.label_tag }}
+      {{ form.count }}
+       <div class="help-text">{{ form.count.help_text }}</div>
+      {% if form.count.errors %}<div class="errorlist">{{ form.count.errors }}</div>{% endif %}
+    </div>
+     <div class="form-group">
+      {{ form.password_length.label_tag }}
+      {{ form.password_length }}
+      {% if form.password_length.errors %}<div class="errorlist">{{ form.password_length.errors }}</div>{% endif %}
+    </div>
+    
+    <button type="submit" class="btn-submit">Create Users & Download Credentials</button>
+  </form>
+
+</div>
+{% endblock content %} 

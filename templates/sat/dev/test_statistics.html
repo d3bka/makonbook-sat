@@ -1,0 +1,278 @@
+{% extends 'template.html' %}
+{% load static %}
+{% load humanize %} <!-- To format numbers nicely -->
+
+{% block title-main %}{{ page_title }}{% endblock title-main %}
+{% block title %}{{ page_title }}{% endblock title %}
+
+{% block style %}
+<style>
+  /* Reusing styles */
+  .dev-container {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  .dev-header {
+    color: #343a40;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #495057;
+  }
+  .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      box-sizing: border-box;
+  }
+  .form-group {
+      margin-bottom: 15px;
+  }
+  .btn-submit {
+    background-color: #324dc7;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  .btn-submit:hover {
+      background-color: #273ca3;
+  }
+  /* Report styling */
+  .report-section {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    margin-top: 30px;
+  }
+  .report-section h2 {
+    color: #324dc7;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .stat-item {
+    background-color: #f1f3f5;
+    padding: 15px;
+    border-radius: 5px;
+    text-align: center;
+  }
+  .stat-item .value {
+    display: block;
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #343a40;
+  }
+  .stat-item .label {
+    font-size: 0.9em;
+    color: #6c757d;
+  }
+  .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+  }
+  .report-table th, .report-table td {
+      border: 1px solid #dee2e6;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 0.85rem;
+      vertical-align: middle;
+  }
+  .report-table th {
+      background-color: #e9ecef;
+      font-weight: 600;
+  }
+  .report-table tr:nth-child(even) {
+      background-color: #f8f9fa;
+  }
+  .report-table .number-col {
+      text-align: right;
+      min-width: 80px;
+  }
+  .question-text-preview {
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: inline-block; /* Needed for text-overflow */
+  }
+    /* Basic message styling */
+  .messages {
+      list-style: none;
+      padding: 0;
+      margin: 15px 0;
+  }
+  .messages li {
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+  }
+  .messages li.warning {
+      color: #856404;
+      background-color: #fff3cd;
+      border-color: #ffeeba;
+  }
+
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="dev-container">
+  <h1 class="dev-header"><i class="fa fa-bar-chart"></i> {{ page_title }}</h1>
+
+  {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      {{ form.test.label_tag }}
+      {{ form.test }}
+    </div>
+    <button type="submit" class="btn-submit">Generate Report</button>
+  </form>
+
+  {% if report_data %}
+  <div class="report-section">
+    <h2>Overall Statistics for Test: {{ report_data.test.name }}</h2>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="value">{{ report_data.overall.student_count }}</span>
+        <span class="label">Students Completed</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ report_data.overall.average_score|floatformat:1 }}</span>
+        <span class="label">Average Score</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ report_data.overall.median_score|floatformat:0 }}</span>
+        <span class="label">Median Score</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ report_data.overall.highest_score }}</span>
+        <span class="label">Highest Score</span>
+      </div>
+      <div class="stat-item">
+        <span class="value">{{ report_data.overall.lowest_score }}</span>
+        <span class="label">Lowest Score</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-section">
+    <h2>Top 10 Performers</h2>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>Score</th>
+          <th>Date Completed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for review in report_data.top_performers %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ review.user.username }}</td>
+            <td>{{ review.user.get_full_name|default:review.user.username }}</td>
+            <td class="number-col"><b>{{ review.score }}</b></td>
+            <td>{{ review.created_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">No results found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="report-section">
+    <h2>Question Analysis</h2>
+    
+    <h3>Hardest Questions (Lowest % Correct)</h3>
+    <table class="report-table">
+        <thead><tr><th>#</th><th>Section</th><th>Module</th><th>Question Text</th><th class="number-col">% Correct</th><th class="number-col">Avg Time (s)</th><th class="number-col">Attempts</th></tr></thead>
+        <tbody>
+            {% for q in report_data.questions.hardest %}<tr><td>{{ q.info.number }}</td><td>{{ q.info.section }}</td><td>{{ q.info.module }}</td><td><span class="question-text-preview" title="{{ q.info.text }}">{{ q.info.text }}</span></td><td class="number-col">{{ q.percentage_correct|floatformat:1 }}%</td><td class="number-col">{{ q.average_time|floatformat:1 }}</td><td class="number-col">{{ q.attempts }}</td></tr>{% empty %}<tr><td colspan="7">N/A</td></tr>{% endfor %}
+        </tbody>
+    </table>
+
+    <h3 style="margin-top: 20px;">Easiest Questions (Highest % Correct)</h3>
+    <table class="report-table">
+        <thead><tr><th>#</th><th>Section</th><th>Module</th><th>Question Text</th><th class="number-col">% Correct</th><th class="number-col">Avg Time (s)</th><th class="number-col">Attempts</th></tr></thead>
+        <tbody>
+            {% for q in report_data.questions.easiest %}<tr><td>{{ q.info.number }}</td><td>{{ q.info.section }}</td><td>{{ q.info.module }}</td><td><span class="question-text-preview" title="{{ q.info.text }}">{{ q.info.text }}</span></td><td class="number-col">{{ q.percentage_correct|floatformat:1 }}%</td><td class="number-col">{{ q.average_time|floatformat:1 }}</td><td class="number-col">{{ q.attempts }}</td></tr>{% empty %}<tr><td colspan="7">N/A</td></tr>{% endfor %}
+        </tbody>
+    </table>
+    
+    <h3 style="margin-top: 20px;">Longest Average Time</h3>
+    <table class="report-table">
+        <thead><tr><th>#</th><th>Section</th><th>Module</th><th>Question Text</th><th class="number-col">% Correct</th><th class="number-col">Avg Time (s)</th><th class="number-col">Attempts</th></tr></thead>
+        <tbody>
+            {% for q in report_data.questions.longest %}<tr><td>{{ q.info.number }}</td><td>{{ q.info.section }}</td><td>{{ q.info.module }}</td><td><span class="question-text-preview" title="{{ q.info.text }}">{{ q.info.text }}</span></td><td class="number-col">{{ q.percentage_correct|floatformat:1 }}%</td><td class="number-col"><b>{{ q.average_time|floatformat:1 }}</b></td><td class="number-col">{{ q.attempts }}</td></tr>{% empty %}<tr><td colspan="7">N/A</td></tr>{% endfor %}
+        </tbody>
+    </table>
+
+    <h3 style="margin-top: 20px;">Shortest Average Time</h3>
+    <table class="report-table">
+        <thead><tr><th>#</th><th>Section</th><th>Module</th><th>Question Text</th><th class="number-col">% Correct</th><th class="number-col">Avg Time (s)</th><th class="number-col">Attempts</th></tr></thead>
+        <tbody>
+            {% for q in report_data.questions.shortest %}<tr><td>{{ q.info.number }}</td><td>{{ q.info.section }}</td><td>{{ q.info.module }}</td><td><span class="question-text-preview" title="{{ q.info.text }}">{{ q.info.text }}</span></td><td class="number-col">{{ q.percentage_correct|floatformat:1 }}%</td><td class="number-col"><b>{{ q.average_time|floatformat:1 }}</b></td><td class="number-col">{{ q.attempts }}</td></tr>{% empty %}<tr><td colspan="7">N/A</td></tr>{% endfor %}
+        </tbody>
+    </table>
+  </div>
+
+  <div class="report-section">
+    <h2>Score Statistics by Time Interval</h2>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Interval</th>
+                <th class="number-col">Students</th>
+                <th class="number-col">Average Score</th>
+                <th class="number-col">Median Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for interval_key, stats in report_data.time_intervals.items %}
+            <tr>
+                <td>{{ stats.display_name }}</td>
+                <td class="number-col">{{ stats.count }}</td>
+                <td class="number-col">{{ stats.average_score|floatformat:1 }}</td>
+                <td class="number-col">{{ stats.median_score|floatformat:0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+
+</div>
+{% endblock content %} 

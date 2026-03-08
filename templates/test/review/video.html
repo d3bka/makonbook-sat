@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Video Streaming</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            margin: 0;
+        }
+        video {
+            max-width: 70%;
+            height: auto;
+            background-color: #000;
+        }
+    </style>
+    <script>
+        // Disable right-click context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Disable common keyboard shortcuts for developer tools
+        document.addEventListener('keydown', function(e) {
+            if (
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J' || e.key === 'U')) || 
+                (e.ctrlKey && e.key === 'U') || 
+                (e.key === 'F12')
+            ) {
+                e.preventDefault();
+            }
+        });
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var video = document.getElementById('video');
+            var videoSrc = "{{path}}";
+
+            if (Hls.isSupported()) {
+                var hls = new Hls();
+                hls.loadSource(videoSrc);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
+                video.addEventListener('canplay', function () {
+                    video.play();
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <video id="video" controls oncontextmenu="return false;"></video>
+</body>
+</html>

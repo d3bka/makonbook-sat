@@ -1,0 +1,45 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-object-group"></i> Groups</h2>
+
+<div class="admin-card">
+  <h4>Create New Group</h4>
+  <form method="post" style="display: flex; gap: 10px; align-items: flex-end;">
+    {% csrf_token %}
+    <div class="form-group" style="margin-bottom:0; flex:1;">
+      {{ form.name }}
+    </div>
+    <button type="submit" class="btn-admin btn-primary">Create Group</button>
+  </form>
+</div>
+
+<div class="admin-card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Group Name</th>
+        <th>Members</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in groups %}
+      <tr>
+        <td><a href="{% url 'admin_group_detail' group.pk %}">{{ group.name }}</a></td>
+        <td>{{ group.member_count }}</td>
+        <td>
+          <a href="{% url 'admin_group_detail' group.pk %}" class="btn-admin btn-sm btn-primary">View</a>
+          <form method="post" action="{% url 'admin_group_delete' group.pk %}" style="display: inline;" onsubmit="return confirm('Delete group {{ group.name }}?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-admin btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" style="text-align:center; color:#94a3b8;">No groups.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock admin_content %}

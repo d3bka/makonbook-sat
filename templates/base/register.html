@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Makon Book - Register</title>
+  {% load static %}
+  <!-- Link your custom CSS -->
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .icon {
+      margin-right: 5px;
+      width: 40px;
+      height: 42px;
+    }
+    .title-field {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex-wrap: nowrap;
+    }
+    .app-title { 
+      font-size: 40px; 
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top banner area -->
+  <div class="top-banner">
+    <!-- Replace with your own logo or brand title -->
+    <div class="title-field">
+      <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class='icon' alt="Makon Book Logo" /><h1 class="app-title">MakonBook</h1>
+    </div>
+
+    <!-- Example announcement/alert box -->
+    {% if messages %}
+    <div class="alert-box">
+      <ul class="messages">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Main container for form box -->
+  <div class="signin-container">
+    <div class="signin-box" style="max-width: 450px;">
+      <h2>Create an Account</h2>
+      
+      <!-- Registration form -->
+      <form action="" method="POST" class="signin-form">
+        {% csrf_token %}
+        
+        <!-- Username -->
+        <div class="form-group">
+          <input 
+            type="text" 
+            name="username" 
+            placeholder="Username" 
+            value="{{ form.username.value|default_if_none:'' }}"
+            required
+          >
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <input 
+            type="email" 
+            name="email" 
+            placeholder="Email" 
+            value="{{ form.email.value|default_if_none:'' }}"
+            required
+          >
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <input 
+            id="password1-field" 
+            type="password" 
+            name="password" 
+            placeholder="Password" 
+            required
+          >
+          <!-- Optional eye icon if you have JS to toggle password -->
+          <span toggle="#password1-field" class="fa fa-fw fa-eye field-icon toggle-password"></span>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="form-group">
+          <input 
+            id="password2-field" 
+            type="password" 
+            name="confirm_password" 
+            placeholder="Confirm Password" 
+            required
+          >
+          <!-- Optional eye icon if you have JS to toggle password -->
+          <span toggle="#password2-field" class="fa fa-fw fa-eye field-icon toggle-password"></span>
+        </div>
+
+        <!-- Submit button -->
+        <div class="form-group">
+          <button type="submit" class="primary-btn">
+            Register
+          </button>
+        </div>
+      </form>
+
+      <!-- Footer links at the bottom of the sign-in box (optional) -->
+      <div class="footer-links">
+        <a href="/software/">Check out Software</a>
+        <a href="/login/">Already have an account? Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Include your script for toggling password visibility, etc. -->
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

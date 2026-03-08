@@ -1,0 +1,57 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-plus"></i> Create Mock</h2>
+
+<div class="admin-card">
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label for="id_name">Mock Name</label>
+      {{ form.name }}
+    </div>
+
+    <div class="form-group">
+      <label for="id_test">Test</label>
+      {{ form.test }}
+    </div>
+
+    <div class="form-group">
+      <label for="id_user_count">Number of Users</label>
+      {{ form.user_count }}
+    </div>
+
+    <div class="form-group">
+      <label>Mode</label>
+      <div style="display: flex; gap: 20px; margin-top: 5px;">
+        {% for radio in form.mode %}
+          <label style="font-weight: normal; display: flex; align-items: center; gap: 5px;">
+            {{ radio.tag }} {{ radio.choice_label }}
+          </label>
+        {% endfor %}
+      </div>
+      <small style="color: #64748b;">
+        <strong>Direct:</strong> Users are added to the group immediately and see the test on login.<br>
+        <strong>Secret Code:</strong> Users must enter a code to join the group and access the test.
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label for="id_username_prefix">Username Prefix</label>
+      {{ form.username_prefix }}
+      <small style="color: #64748b;">Usernames will be: prefix_1, prefix_2, prefix_3, ...</small>
+    </div>
+
+    <div class="form-group">
+      <label for="id_password_length">Password Length</label>
+      {{ form.password_length }}
+    </div>
+
+    <div style="margin-top: 20px;">
+      <button type="submit" class="btn-admin btn-primary">Create Mock</button>
+      <a href="{% url 'admin_mocks' %}" class="btn-admin btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock admin_content %}

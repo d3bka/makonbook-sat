@@ -1,0 +1,148 @@
+/* Basic reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* Body styling - match Bluebook's big solid color background */
+  body {
+    font-family: Arial, sans-serif;
+    background-color:  #3d008e; /* Change to your preferred brand color */
+  }
+  
+  /* Top banner area */
+  .top-banner {
+    text-align: center;
+    color: #fff;
+    padding: 2rem 1rem;
+  }
+  
+  /* Title or logo text */
+  .app-title {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Announcement/alert box */
+  .alert-box {
+    display: inline-block;
+    max-width: 600px;
+    width: 100%;
+    padding: 1rem;
+    background-color: rgba(255,255,255,0.15);
+    border-radius: 0.5rem;
+    text-align: left;
+    margin: 0 auto; /* Optional: center it more neatly */
+  }
+  
+  .alert-box h2 {
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+  }
+  
+  /* Container that holds the sign-in form box */
+  .signin-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 3rem 1rem;
+  }
+  
+  /* Sign-in box styling (white box in the center) */
+  .signin-box {
+    background-color: #fff;
+    max-width: 400px;
+    width: 100%;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .signin-box h2 {
+    font-size: 1.4rem;
+    margin-bottom: 1.5rem;
+    color: #333;
+  }
+  
+  /* Django messages list (optional) */
+  .messages {
+    margin-bottom: 1rem;
+    list-style-type: none;
+  }
+  
+  .messages li {
+    margin: 0.25rem 0;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: #fef3cd;
+    border-left: 4px solid #ffeeba;
+    color: #856404;
+  }
+  
+  /* Form group containers for consistent spacing */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  /* Inputs styling */
+  .signin-form input {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 0.25rem;
+  }
+  
+  .signin-form input:focus {
+    outline: none;
+    border-color: #1a73e8; /* Adjust if needed */
+  }
+  
+  /* Toggle password icon, if you use the JS for it */
+  .field-icon {
+    position: relative;
+    float: right;
+    margin-right: 0.75rem;
+    margin-top: -2rem;
+    cursor: pointer;
+    color: #999;
+  }
+  
+  /* Primary button (Sign In) */
+  .primary-btn {
+    display: inline-block;
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #f4b400; /* Adjust to your brand color */
+    color: #fff;
+    font-weight: bold;
+    font-size: 1rem;
+    text-align: center;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+  
+  .primary-btn:hover {
+    background-color: #d99f00; /* Darken on hover */
+  }
+  
+  /* Footer links inside sign-in box */
+  .footer-links {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .footer-links a {
+    text-decoration: none;
+    font-size: 0.9rem;
+    color: #1a73e8;
+  }
+  
+  .footer-links a:hover {
+    text-decoration: underline;
+  }
+  

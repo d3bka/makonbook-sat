@@ -1,0 +1,32 @@
+[Unit]
+Description=MakonBook Telegram Bot for User Management
+Documentation=https://github.com/satmakon/makonbook
+After=network.target postgresql.service makonbook.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=satmakon
+Group=satmakon
+WorkingDirectory=/home/satmakon/makonbook
+Environment=PATH="/home/satmakon/makonbook/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment=DJANGO_SETTINGS_MODULE=satmakon.settings
+ExecStart=/home/satmakon/makonbook/venv/bin/python manage.py run_telegram_bot
+Restart=always
+RestartSec=3
+TimeoutStopSec=10
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/satmakon/makonbook
+ReadWritePaths=/tmp
+
+# Log settings
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=makonbook-bot
+
+[Install]
+WantedBy=multi-user.target

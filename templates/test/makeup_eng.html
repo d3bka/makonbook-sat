@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Makeup Test</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/font-awesome-4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+
+    <style>
+        main p,
+        main h1,
+        main h2,
+        main h3,
+        main h4,
+        main h5,
+        main h6 {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        main {
+            font-family: 'Times New Roman', Times, serif;  
+        }
+        .question-title .bookmark {
+            background-image: url({% static '/assets/img/bookmark_empty.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+            font-family: Roboto;
+        }
+
+        .filledbook {
+            background-image: url({% static '/assets/img/bookmark_filled.png' %}) !important;
+        }
+
+        .question-title .crossing-options {
+            background-image: url({% static '/assets/img/crossAbc.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+        }
+
+        .active-options {
+            background-image: url({% static "/assets/img/crossAbcActive.png" %}) !important;
+        }
+
+        /* Style for the passage to preserve formatting */
+        #passage {
+            margin-bottom: 20px;
+            padding: 10px;
+            line-height: 1.5;
+            font-family: 'Times New Roman', Times, serif;
+        }
+    </style>
+</head>
+
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            <h1>Section 1: Reading and Writing (Makeup Test)</h1>
+            <div class="timer" id="timer">0:00</div>
+            <a href="{% url 'dashboard' %}" style="text-decoration: none;">
+                <div>Home <i class="fa fa-home fa-2" style="font-size: x-large;" aria-hidden="true"></i></div>
+            </a>
+        </header>
+        <form class="fm" id="quiz-form" action="{% url 'check_the_answers' %}" method="post">
+            {% csrf_token %}
+            <main>
+                <div class="question-container scroll-hide">
+                    <div class="just-div"></div>
+                    <p id="passage"></p>
+                </div>
+                <div class="answers-container scroll-hide">
+                    <div class="question-title">
+                        <div class="question-number"></div>
+                        <div class="bookmark" onclick="markForReview()">Mark for Review</div>
+                        <div class="crossing-options" onclick="show_eliminate()"></div>
+                    </div>
+                    <div class="question-text" id="question-text"></div>
+                    <div class="answers" id="answers"></div>
+                </div>
+            </main>
+        </form>
+        <footer>
+            <div class="footer-left">
+                {{ request.user.first_name }} {{ request.user.last_name }}
+            </div>
+            <div class="footer-center">
+                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">Question
+                    <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">{{ questions.count }}</span></button>
+            </div>
+            <div class="footer-right">
+                <button id="clear-button" type="button" class="nav-button" title="Clear Highlights">
+                    <i class="fa fa-eraser" aria-hidden="true"></i>
+                </button>
+                <button id="pen-button" type="button" class="nav-button" title="Toggle Highlighter">
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                </button>
+                <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
+                <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+            </div>
+        </footer>
+    </div>
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="toggleQuestionModal()">×</span>
+            <div class="question-grid">
+                {% for q in questions %}
+                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); toggleQuestionModal();">
+                    {{ forloop.counter }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <!-- Canvas for drawing -->
+    <canvas id="drawing-canvas"></canvas>
+
+    <script>
+        let currentQuestionIndex = 0;
+        const questions = [
+            {% for question in questions %}
+            {
+                passage: `{{ question.passage|safe }}`,
+                number: {{ forloop.counter }},  // Use forloop.counter for numbering based on order
+                question: `{{ question.question|safe }}`,
+                a: `{{ question.a|safe }}`,
+                b: `{{ question.b|safe }}`,
+                c: `{{ question.c|safe }}`,
+                d: `{{ question.d|safe }}`,
+                id: '{{ question.id }}',
+                graph: `{{ question.graph_url|default_if_none:"" }}`
+            },
+            {% endfor %}
+        ];
+        let eliminate_options = false;
+        let answers = Array(questions.length).fill(null);
+        let eliminatedChoices = Array(questions.length).fill().map(() => []); // New array for eliminated choices
+        let markedForReview = Array(questions.length).fill(false);
+        let timeRemaining = 32 * 60; // Example: 32 minutes in seconds
+        let timeSpent = Array(questions.length).fill(0); // time in seconds per question
+        const testName = "{{ test }}";
+        const moduleName = "{{ module }}";
+        const sectionName = "{{ section }}";
+        const testType = "makeup";  // Add test type for makeup tests
+
+        function toggleQuestionModal() {
+            var modal = document.getElementById("questionModal");
+            if (modal.style.display === "block") {
+                modal.style.display = "none";
+            } else {
+                modal.style.display = "block";
+            }
+        }
+
+        function updateQuestionProgress() {
+            document.getElementById("currentQuestionIndex").textContent = currentQuestionIndex + 1;
+            document.getElementById("totalQuestions").textContent = questions.length;
+            updateNavigationButtons();
+        }
+
+        function updateNavigationButtons() {
+            if (currentQuestionIndex == 0) {
+                document.getElementById("backButton").style.display = "none";
+                document.getElementById("finishButton").style.display = "none";
+                document.getElementById("nextButton").style.display = "inline-block";
+            } else if (currentQuestionIndex == questions.length - 1) {
+                document.getElementById("backButton").style.display = "inline-block";
+                document.getElementById("finishButton").style.display = "inline-block";
+                document.getElementById("nextButton").style.display = "none";
+            } else {
+                document.getElementById("backButton").style.display = "inline-block";
+                document.getElementById("nextButton").style.display = "inline-block";
+                document.getElementById("finishButton").style.display = "none";
+            }
+        }
+
+        function saveProgress() {
+            const key = `${testName}_${moduleName}_${sectionName}_${testType}`;
+            localStorage.setItem(`${key}_timeSpent`, JSON.stringify(timeSpent));
+            localStorage.setItem(`${key}_answers`, JSON.stringify(answers));
+            localStorage.setItem(`${key}_eliminatedChoices`, JSON.stringify(eliminatedChoices));
+            localStorage.setItem(`${key}_currentQuestionIndex`, currentQuestionIndex);
+            localStorage.setItem(`${key}_timeRemaining`, timeRemaining);
+            localStorage.setItem(`${key}_markedForReview`, JSON.stringify(markedForReview));
+        }
+
+        function loadProgress() {
+            const key = `${testName}_${moduleName}_${sectionName}_${testType}`;
+            const savedAnswers = localStorage.getItem(`${key}_answers`);
+            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
+            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
+            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
+            const savedReview = localStorage.getItem(`${key}_markedForReview`);
+            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+
+            if (savedTimeSpent) {
+                timeSpent = JSON.parse(savedTimeSpent);
+            }
+            if (savedAnswers) {
+                answers = JSON.parse(savedAnswers);
+            }
+            if (savedEliminatedChoices) {
+                eliminatedChoices = JSON.parse(savedEliminatedChoices);
+            }
+            if (savedReview) {
+                markedForReview = JSON.parse(savedReview);
+            }
+            if (savedIndex) {
+                currentQuestionIndex = parseInt(savedIndex, 10);
+            } else {
+                currentQuestionIndex = 0;
+            }
+            if (savedTime) {
+                timeRemaining = parseInt(savedTime, 10);
+            }
+            updateAnsweredStatus();
+        }
+
+        function clearProgress() {
+            const key = `${testName}_${moduleName}_${sectionName}_${testType}`;
+            localStorage.removeItem(`${key}_answers`);
+            localStorage.removeItem(`${key}_currentQuestionIndex`);
+            localStorage.removeItem(`${key}_timeRemaining`);
+            localStorage.removeItem(`${key}_eliminatedChoices`);
+            localStorage.removeItem(`${key}_markedForReview`);
+            localStorage.removeItem(`${key}_timeSpent`);
+        }
+
+        function loadQuestion(index) {
+            currentQuestionIndex = index;
+            const question = questions[index];
+            updateQuestionProgress();
+
+            // Display passage and question directly as plain text
+            document.getElementById('passage').innerHTML = question.passage;
+            document.getElementsByClassName('question-number')[0].innerHTML = question.number;
+            document.getElementById('question-text').innerHTML = question.question;
+
+            const graphContainer = document.querySelector('.just-div');
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = `
+                <div class='big-container'>
+                    <label class="choice-container">
+                        <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
+                        <label class='mark' data-letter="A"></label>
+                        <label for="choice1">${question.a}</label>
+                    </label>
+                    <hr class="cross-line Azone ${eliminatedChoices[index].includes("A") ? 'active' : ''}">
+                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("A",${index})'>
+                        <div class="cross-label">A</div>
+                        <hr class="cross-btn-line">
+                    </div>
+                </div>
+                <div class='big-container'>
+                    <label class="choice-container">
+                        <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
+                        <label class='mark' data-letter="B"></label>
+                        <label for="choice2">${question.b}</label>
+                    </label>
+                    <hr class="cross-line Bzone ${eliminatedChoices[index].includes("B") ? 'active' : ''}">
+                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("B",${index})'>
+                        <div class="cross-label">B</div>
+                        <hr class="cross-btn-line">
+                    </div>
+                </div>
+                <div class='big-container'>
+                    <label class="choice-container">
+                        <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
+                        <label class='mark' data-letter="C"></label>
+                        <label for="choice3">${question.c}</label>
+                    </label>
+                    <hr class="cross-line Czone ${eliminatedChoices[index].includes("C") ? 'active' : ''}">
+                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("C",${index})'>
+                        <div class="cross-label">C</div>
+                        <hr class="cross-btn-line">
+                    </div>
+                </div>
+                <div class='big-container'>
+                    <label class="choice-container">
+                        <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
+                        <label class='mark' data-letter="D"></label>
+                        <label for="choice4">${question.d}</label>
+                    </label>
+                    <hr class="cross-line Dzone ${eliminatedChoices[index].includes("D") ? 'active' : ''}">
+                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("D",${index})'>
+                        <div class="cross-label">D</div>
+                        <hr class="cross-btn-line">
+                    </div>
+                </div>
+            `;
+
+            if (question.graph) {
+                graphContainer.innerHTML = `<div class='graph'><img src="${question.graph}" alt="Graph" style="width: 100%; height: 100%;"></div>`;
+            } else {
+                graphContainer.innerHTML = '';
+            }
+
+            updateAnsweredStatus();
+            document.querySelectorAll('input[name="answer"]').forEach((input) => {
+                input.addEventListener('change', (event) => {
+                    answers[currentQuestionIndex] = event.target.value;
+                    saveProgress();
+                    updateAnsweredStatus();
+                });
+            });
+        }
+
+        function show_eliminate() {
+            eliminate_options = !eliminate_options;
+            let button = document.querySelector('.crossing-options');
+            button.classList.toggle("active-options");
+            let btns = document.querySelectorAll('.crossing-zone');
+            btns.forEach(element => {
+                element.classList.toggle('active');
+            });
+        }
+
+        function eliminate(choice, index) {
+            let line = document.querySelector(`.${choice}zone`);
+            line.classList.toggle('active');
+            if (eliminatedChoices[index].includes(choice)) {
+                const choiceIndex = eliminatedChoices[index].indexOf(choice);
+                eliminatedChoices[index].splice(choiceIndex, 1);
+            } else {
+                eliminatedChoices[index].push(choice);
+            }
+            saveProgress();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                loadQuestion(currentQuestionIndex);
+            }
+            saveProgress();
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                loadQuestion(currentQuestionIndex);
+            }
+            saveProgress();
+        }
+
+        function updateTimer() {
+            if (timeRemaining > 0) {
+                timeRemaining--;
+                timeSpent[currentQuestionIndex] += 1;
+                document.querySelector('.timer').innerText = formatTime(timeRemaining);
+            } else {
+                finishTest(true);
+            }
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            saveProgress();
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function finishTest(confirmation) {
+            if (!confirmation) {
+                confirmation = confirm("Are you sure you want to finish the test? Make sure you are ready.");
+            }
+            if (confirmation) {
+                const form = document.getElementById('quiz-form');
+                const answerData = answers.map((answer, index) => ({
+                    questionID: questions[index] ? questions[index].id : 'default',
+                    answer: answer,
+                    time_spent: timeSpent[index]
+                }));
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        answers: answerData,
+                        section: sectionName,
+                        test: testName,
+                        module: moduleName,
+                        test_type: testType  // Include test_type
+                    })
+                }).then(response => {
+                    if (response.ok) {
+                        clearProgress();
+                        window.location.href = '{% url "dashboard" %}';  // Redirect to dashboard after submission
+                    }
+                });
+            }
+        }
+
+        function markForReview() {
+            markedForReview[currentQuestionIndex] = !markedForReview[currentQuestionIndex];
+            updateAnsweredStatus();
+            saveProgress();
+        }
+
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('selectstart', event => event.preventDefault());
+
+        document.addEventListener('keydown', event => {
+            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+                event.preventDefault();
+            }
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                prevQuestion();
+            }
+            if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                nextQuestion();
+            }
+            if (event.key === 'F12') {
+                event.preventDefault();
+            }
+        });
+
+        function updateAnsweredStatus(n = -999) {
+            let mark = document.querySelector('.bookmark');
+            if (markedForReview[currentQuestionIndex]) {
+                mark.classList.add('filledbook');
+            } else {
+                mark.classList.remove('filledbook');
+            }
+            const rectQuestions = document.querySelectorAll('.rect-question');
+            rectQuestions.forEach((rect, index) => {
+                if (index == currentQuestionIndex) {
+                    rect.classList.add('here');
+                } else {
+                    rect.classList.remove('here');
+                }
+                if (markedForReview[index]) {
+                    rect.classList.add('marked');
+                } else {
+                    rect.classList.remove('marked');
+                }
+                if (answers[index]) {
+                    rect.classList.add('answered');
+                } else {
+                    rect.classList.remove('answered');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProgress();
+            loadQuestion(currentQuestionIndex);
+            setInterval(updateTimer, 1000);
+
+            // Highlighter Logic
+            const penButton = document.getElementById('pen-button');
+            const canvas = document.getElementById('drawing-canvas');
+            const ctx = canvas.getContext('2d');
+            const body = document.body;
+
+            let isPenMode = false;
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            function togglePenMode() {
+                isPenMode = !isPenMode;
+                console.log('Pen Mode:', isPenMode);
+                body.classList.toggle('pen-mode', isPenMode);
+                penButton.classList.toggle('active', isPenMode);
+                canvas.style.pointerEvents = isPenMode ? 'auto' : 'none';
+            }
+
+            if (penButton) {
+                penButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    togglePenMode();
+                });
+            } else {
+                console.error('Pen button not found');
+            }
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.05)';
+
+            canvas.addEventListener('mousedown', (e) => {
+                if (!isPenMode) return;
+                isDrawing = true;
+                [lastX, lastY] = [e.clientX, e.clientY];
+                console.log('Drawing started at:', lastX, lastY);
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing || !isPenMode) return;
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(e.clientX, e.clientY);
+                ctx.stroke();
+                [lastX, lastY] = [e.clientX, e.clientY];
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isDrawing = false;
+            });
+
+            const clearButton = document.getElementById('clear-button');
+            if (clearButton) {
+                clearButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    console.log('Canvas cleared');
+                });
+            } else {
+                console.error('Clear button not found');
+            }
+        });
+    </script>
+</body>
+
+</html>

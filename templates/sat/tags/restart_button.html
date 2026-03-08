@@ -1,0 +1,11 @@
+{% if is_allowed and can_restart %}
+  {% if section %}
+    <a href="{% url 'restart_section' pk=test.name section=section %}" class="btn btn-warning btn-sm">
+      <i class="fa fa-refresh"></i> Retake {{ section|title }} Section
+    </a>
+  {% else %}
+    <a href="{% url 'restart' pk=test.name %}" class="btn btn-danger btn-sm">
+      <i class="fa fa-refresh"></i> Retake Full Test
+    </a>
+  {% endif %}
+{% endif %} 

@@ -1,0 +1,27 @@
+from django.contrib.auth.models import User, Group
+
+# Specify the group name
+group_name = 'MakonBookExam'  # Replace with your group name
+output_file = f"{group_name}_emails.txt"
+
+# Get the group
+try:
+    group = Group.objects.get(name=group_name)
+except Group.DoesNotExist:
+    print(f"Group '{group_name}' does not exist.")
+    exit()
+
+# Get users in the group
+users = User.objects.filter(groups=group)
+
+if not users.exists():
+    print(f"No users found in group '{group_name}'.")
+    exit()
+
+# Write to file
+with open(output_file, 'w') as f:
+    for user in users:
+        full_name = f"{user.first_name} {user.last_name}".strip() or user.username
+        f.write(f"{user.email},{full_name}\n")
+
+print(f"Successfully exported {users.count()} users to {output_file}")

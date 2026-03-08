@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% load static %}
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    {% load auth_extras %}
+    <title>Practice {{ test }}</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+
+    <!-- Favicons -->
+    <link href="{% static 'assets/img/favicon.png' %}" rel="icon">
+    <link href="{% static 'assets/img/apple-touch-icon.png' %}" rel="apple-touch-icon">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600;1,700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Raleway:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+        rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Roboto&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@300;400&display=swap');
+        @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
+
+        html,
+        body,
+        #app {
+            position: relative;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+            font-family: Roboto;
+            font-size: 1rem;
+        }
+
+        #app {
+            min-width: 680px;
+        }
+
+        #app .body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+
+        .ready-test {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background-color: #f8f8f8;
+            align-items: center;
+        }
+
+        .title {
+            font-size: 2.2rem;
+            font-weight: 500;
+            margin-top: 40px;
+        }
+
+        .section {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .description {
+            padding: 40px;
+            box-sizing: border-box;
+            box-shadow: #00000026 0 0 10px;
+            border-radius: 10px;
+            margin-top: 50px;
+            background-color: #fff;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 80px;
+        }
+
+        .single-desc {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 10px;
+        }
+
+        .desc-title {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 15px;
+            font-size: 23px;
+            font-weight: 700;
+        }
+
+        .desc-cont {
+            margin-left: 55px;
+            line-height: 1.5em;
+        }
+
+        .desc-icon {
+            width: 40px;
+            height: 40px;
+            background-color: #ccc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .desc-icon-img {
+            width: 30px;
+            height: 30px;
+        }
+
+        .footer {
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            height: 80px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            background-color: #fff;
+            justify-content: flex-end;
+            padding: 30px;
+            gap: 15px;
+            box-sizing: border-box;
+            box-shadow: #0000001a 0 0 10px;
+        }
+
+        .btn {
+            padding: 0 26px;
+            background-color: #324dc6;
+            height: 48px;
+            border-radius: 23px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            cursor: initial;
+            user-select: none;
+            cursor: pointer;
+            transition: all .2s 0s ease;
+        }
+
+        .footer a:hover {
+            color: #fff
+        }
+
+        .footer a:active {
+            text-decoration: underline
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // Clear local storage for the specific test when the page loads
+        window.addEventListener('load', () => {
+            try {
+                // Get the test name from the template (e.g., 'DAY40_m1_english')
+                const testName = '{{ test | safe }}'.trim();
+
+                // Check if testName is empty
+                if (!testName) {
+                    return;
+                }
+
+                // Define the prefix for local storage keys (e.g., 'DAY40_m1_english_')
+                const prefix = `${testName}_`;
+
+                // Loop through all local storage keys and remove those matching the prefix
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(prefix)) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            } catch (error) {
+                // Silently handle errors in production
+            }
+        });
+    </script>
+    <div class="ready-test">
+        <span class="title">Digital SAT® Practice {{test}}</span>
+        <div class="description">
+            <div class="single-desc">
+                <div class="desc-title">
+                    <div class="desc-icon"><i class="bi bi-clock"></i></div>
+                    <span>Timing</span>
+                </div>
+                <span class="desc-cont">Full-length practice tests are timed like real exams, but you can save and exit
+                    the test any time. If you continue on a different device, you’ll need to start over.</span>
+            </div>
+            <div class="single-desc">
+                <div class="desc-title">
+                    <div class="desc-icon"><i class="bi bi-list-check"></i></div>
+                    <span>Scores</span>
+                </div>
+                <span class="desc-cont">When you finish the practice test, go to <b>{{test}}</b> to see your scores and
+                    get personalized study tips.</span>
+            </div>
+            <div class="single-desc">
+                <div class="desc-title">
+                    <div class="desc-icon"><i class="bi bi-universal-access"></i></div>
+                    <span>Assistive Technology</span>
+                </div>
+                <span class="desc-cont">If you use assistive technology, you should try it out on the practice test so
+                    you know what to expect on test day.</span>
+            </div>
+            <div class="single-desc">
+                <div class="desc-title">
+                    <div class="desc-icon"><i class="bi bi-unlock"></i></div>
+                    <span>No Lockdown Mode</span>
+                </div>
+                <span class="desc-cont">We don’t lock down practice tests. On test day, Bluebook prevents you from
+                    accessing other programs or apps.</span>
+            </div>
+        </div>
+        <footer class="footer">
+            <a href="/sat/practises" class="btn">Back</a>
+            <a class="btn" href="/sat/practise/{{test}}/start">Next</a>
+        </footer>
+    </div>
+</body>
+
+</html>

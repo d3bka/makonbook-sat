@@ -1,0 +1,37 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-tachometer"></i> Dashboard</h2>
+
+<div class="stat-cards">
+  <div class="stat-card">
+    <h3>{{ user_count }}</h3>
+    <p>Total Users</p>
+  </div>
+  <div class="stat-card">
+    <h3>{{ group_count }}</h3>
+    <p>Groups</p>
+  </div>
+  <div class="stat-card">
+    <h3>{{ test_count }}</h3>
+    <p>Tests</p>
+  </div>
+  <div class="stat-card">
+    <h3>{{ mock_count }}</h3>
+    <p>Mocks Created</p>
+  </div>
+</div>
+
+<div class="admin-card">
+  <h4>Quick Actions</h4>
+  <a href="{% url 'admin_mock_create' %}" class="btn-admin btn-primary" style="margin-right: 10px;">
+    <i class="fa fa-plus"></i> Create Mock
+  </a>
+  <a href="{% url 'admin_users' %}" class="btn-admin btn-secondary" style="margin-right: 10px;">
+    <i class="fa fa-users"></i> View Users
+  </a>
+  <a href="{% url 'admin_groups' %}" class="btn-admin btn-secondary">
+    <i class="fa fa-object-group"></i> View Groups
+  </a>
+</div>
+{% endblock admin_content %}
