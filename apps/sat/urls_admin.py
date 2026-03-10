@@ -31,4 +31,7 @@ urlpatterns = [
     
     # User Create
     path('users/create/', views_admin.admin_user_create, name='admin_user_create'),
+
+    #Mock Deletion
+    path('mocks/<int:mock_id>/delete/', views_admin.admin_mock_delete, name='admin_mock_delete'),
 ]

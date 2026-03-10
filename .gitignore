@@ -93,27 +93,3 @@ nginx/ssl/*.crt
 # Secret key file
 satmakon/config.ini
 
-# python
-__pycache__/
-*.py[cod]
-
-# venv
-.venv/
-venv/
-
-# env variables
-.env
-
-# django
-db.sqlite3
-media/
-staticfiles/
-logs/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db

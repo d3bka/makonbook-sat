@@ -417,3 +417,54 @@ def edit_group_tests(request, group_id):
         'group': group,
         'form': form,
     })
+
+# Mock Deletion
+@login_required
+def admin_mock_delete(request, mock_id):
+    mock = get_object_or_404(Mock, pk=mock_id)
+    group = mock.group
+    secret_code = mock.secret_code
+
+    if request.method == 'POST':
+        confirmation_name = request.POST.get('confirmation_name', '').strip()
+
+        if confirmation_name != mock.name:
+            messages.error(request, 'Mock name confirmation does not match.')
+            return render(request, 'sat/admin/mock_delete.html', {
+                'mock': mock,
+                'group': group,
+            })
+
+        # Save related users before deleting anything
+        users_to_delete = list(group.user_set.all()) if group else []
+
+        mock_name = mock.name
+        group_name = group.name if group else 'No group'
+        users_count = len(users_to_delete)
+
+        with transaction.atomic():
+            # delete secret code if attached
+            if secret_code:
+                secret_code.delete()
+
+            # delete the mock itself
+            mock.delete()
+
+            # delete generated users
+            for user in users_to_delete:
+                user.delete()
+
+            # delete the group
+            if group:
+                group.delete()
+
+        messages.success(
+            request,
+            f'Mock "{mock_name}" was deleted together with group "{group_name}" and {users_count} users.'
+        )
+        return redirect('admin_mocks')
+
+    return render(request, 'sat/admin/mock_delete.html', {
+        'mock': mock,
+        'group': group,
+    })
