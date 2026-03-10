@@ -1,0 +1,50 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-trash"></i> Delete Mock</h2>
+
+<div class="admin-card" style="border-left: 5px solid #dc3545;">
+    <h4 style="color:#dc3545;">Warning: This action is irreversible</h4>
+
+    <p>
+        You are about to delete the mock
+        <strong>"{{ mock.name }}"</strong>.
+    </p>
+
+    <p>This will also delete:</p>
+    <ul>
+        <li>The related group: <strong>{{ group.name }}</strong></li>
+        <li>All users inside that group</li>
+        <li>Any credentials associated with this mock</li>
+    </ul>
+
+    <p>
+        To confirm deletion, type the mock name exactly:
+        <strong>{{ mock.name }}</strong>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="confirmation_name">Type mock name to confirm</label>
+            <input
+                type="text"
+                name="confirmation_name"
+                id="confirmation_name"
+                class="form-control"
+                placeholder="Enter mock name exactly"
+                required
+            >
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button type="submit" class="btn-admin btn-danger">
+                Permanently Delete Mock
+            </button>
+            <a href="{% url 'admin_mock_detail' mock.id %}" class="btn-admin btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock admin_content %}

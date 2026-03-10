@@ -37,6 +37,7 @@
         <td>{{ mock.created_at|date:"M d, Y" }}</td>
         <td>
           <a href="{% url 'admin_mock_detail' mock.pk %}" class="btn-admin btn-sm btn-primary">View</a>
+          <a href="{% url 'admin_mock_delete' mock.id %}" class="btn-admin btn-sm btn-danger">Delete</a>
           <a href="{% url 'admin_mock_download' mock.pk %}" class="btn-admin btn-sm btn-success">Download</a>
         </td>
       </tr>
