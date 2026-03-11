@@ -226,12 +226,37 @@ def admin_group_detail(request, group_id):
 @login_required
 @admin_panel_required
 def admin_group_delete(request, group_id):
-    if request.method == 'POST':
-        group = get_object_or_404(Group, pk=group_id)
-        name = group.name
-        group.delete()
-        messages.success(request, f"Group '{name}' deleted.")
-    return redirect('admin_groups')
+    group = get_object_or_404(Group, pk=group_id)
+    users_to_delete = list(group.user_set.all())
+
+    if request.method == "POST":
+        confirmation_name = request.POST.get("confirmation_name", "").strip()
+
+        if confirmation_name != group.name:
+            messages.error(request, "Group name confirmation does not match.")
+            return render(request, "sat/admin/group_delete.html", {
+                "group": group,
+                "users_count": len(users_to_delete),
+            })
+
+        group_name = group.name
+        users_count = len(users_to_delete)
+
+        with transaction.atomic():
+            for user in users_to_delete:
+                user.delete()
+            group.delete()
+
+        messages.success(
+            request,
+            f'Group "{group_name}" and {users_count} users were deleted successfully.'
+        )
+        return redirect("admin_groups")
+
+    return render(request, "sat/admin/group_delete.html", {
+        "group": group,
+        "users_count": len(users_to_delete),
+    })
 
 
 @login_required

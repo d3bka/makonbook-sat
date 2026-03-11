@@ -1,0 +1,54 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<h2><i class="fa fa-trash"></i> Delete Group</h2>
+
+<div class="admin-card" style="border-left: 5px solid #dc3545;">
+    <h4 style="color:#dc3545;">Warning: This action is irreversible</h4>
+
+    <p>
+        You are about to delete the group
+        <strong>"{{ group.name }}"</strong>.
+    </p>
+
+    <p>This will also delete:</p>
+    <ul>
+        <li>All users in this group</li>
+        <li>Total users to be deleted: <strong>{{ users_count }}</strong></li>
+    </ul>
+
+    <p style="color:#854d0e; background:#fef3c7; border:1px solid #fcd34d; padding:12px; border-radius:6px; margin-top:15px;">
+        <strong>Important:</strong> This group may be linked to mock exam accounts.
+        Deleting it will permanently remove all associated users.
+    </p>
+
+    <p>
+        To confirm deletion, type the group name exactly:
+        <strong>{{ group.name }}</strong>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="confirmation_name">Type group name to confirm</label>
+            <input
+                type="text"
+                name="confirmation_name"
+                id="confirmation_name"
+                class="form-control"
+                placeholder="Enter group name exactly"
+                required
+            >
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button type="submit" class="btn-admin btn-danger">
+                Permanently Delete Group
+            </button>
+            <a href="{% url 'admin_group_detail' group.id %}" class="btn-admin btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock admin_content %}
