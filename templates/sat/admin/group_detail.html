@@ -45,11 +45,16 @@
       </p>
     </div>
 
-    <div>
-      <button type="button" class="btn-purple" data-bs-toggle="modal" data-bs-target="#editTestsModal">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button type="button" class="btn-equal btn-purple" data-bs-toggle="modal" data-bs-target="#editTestsModal">
         Edit Assigned Tests
       </button>
+      
+      <a href="{% url 'admin_group_delete' group.id %}" class="btn-equal btn-danger-link">
+        Delete Group
+      </a>
     </div>
+
   </div>
 </div>
 
@@ -93,10 +98,7 @@
         <td><a href="{% url 'admin_user_detail' member.pk %}">{{ member.username }}</a></td>
         <td>{{ member.first_name }} {{ member.last_name }}</td>
         <td>
-          <form method="post" action="{% url 'admin_group_remove_user' group.pk member.pk %}" style="display: inline;" onsubmit="return confirm('Remove {{ member.username }} from {{ group.name }}?');">
-            {% csrf_token %}
-            <button type="submit" class="btn-admin btn-sm btn-danger">Remove</button>
-          </form>
+          <button type="submit" class="btn-admin btn-sm btn-danger">Remove</button>
         </td>
       </tr>
       {% empty %}

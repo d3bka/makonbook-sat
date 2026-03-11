@@ -30,10 +30,7 @@
         <td>{{ group.member_count }}</td>
         <td>
           <a href="{% url 'admin_group_detail' group.pk %}" class="btn-admin btn-sm btn-primary">View</a>
-          <form method="post" action="{% url 'admin_group_delete' group.pk %}" style="display: inline;" onsubmit="return confirm('Delete group {{ group.name }}?');">
-            {% csrf_token %}
-            <button type="submit" class="btn-admin btn-sm btn-danger">Delete</button>
-          </form>
+          <a href="{% url 'admin_group_delete' group.id %}" class="btn-admin btn-sm btn-danger">Delete</a>
         </td>
       </tr>
       {% empty %}

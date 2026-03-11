@@ -187,15 +187,42 @@
     .admin-main { border-radius: 0 0 8px 8px; padding: 15px; }
     .stat-cards { grid-template-columns: repeat(2, 1fr); }
   }
-  .btn-purple {
-    background: #6f42c1;
-    color: #fff;
-    border: none;
-  }
-  .btn-purple:hover {
-    background: #5a32a3;
-    color: #fff;
-  }
+.btn-equal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 210px;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.btn-purple {
+  background-color: #6f42c1;
+  color: white;
+  border: none;
+}
+
+.btn-purple:hover {
+  background-color: #5a32a3;
+  color: white;
+}
+
+.btn-danger-link {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+}
+
+.btn-danger-link:hover {
+  background-color: #b02a37;
+  color: white;
+}
 </style>
 {% endblock style %}
 
