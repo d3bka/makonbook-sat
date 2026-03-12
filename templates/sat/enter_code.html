@@ -1,263 +1,241 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Start Code</title>
-    <style>
-        /* Reset and Base Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Enter Code{% endblock title-main %}
+{% block title %}Enter Code{% endblock title %}
+
+{% block style %}
+<style>
+  .enter-code-wrapper {
+    max-width: 720px;
+    margin: 40px auto 80px;
+    padding: 0 20px;
+  }
+
+  .enter-code-card {
+    background: linear-gradient(135deg, #3d008e 0%, #5b21b6 100%);
+    border-radius: 24px;
+    padding: 50px 35px;
+    text-align: center;
+    box-shadow: 0 16px 40px rgba(61, 0, 142, 0.28);
+  }
+
+  .enter-code-card h1 {
+    color: #fff;
+    font-size: 34px;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+
+  .enter-code-card p {
+    color: rgba(255,255,255,0.92);
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .messages {
+    margin-bottom: 22px;
+    text-align: left;
+  }
+
+  .alert {
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+
+  .alert-success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+  }
+
+  .alert-info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+
+  .alert-error,
+  .alert-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  .code-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 30px 0 35px;
+    flex-wrap: wrap;
+  }
+
+  .code-input {
+    width: 58px;
+    height: 62px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    background: #fff;
+    transition: all 0.2s ease;
+  }
+
+  .code-input:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(147,197,253,0.25);
+    transform: translateY(-2px);
+  }
+
+  .code-input:valid {
+    border-color: #22c55e;
+    background-color: #f0fdf4;
+  }
+
+  .enter-code-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .enter-code-btn,
+  .enter-code-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 170px;
+    height: 48px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .enter-code-btn {
+    border: none;
+    background: #fff;
+    color: #3d008e;
+    cursor: pointer;
+  }
+
+  .enter-code-btn:hover {
+    background: #f3f4f6;
+    transform: translateY(-2px);
+  }
+
+  .enter-code-link {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.35);
+    color: #fff;
+  }
+
+  .enter-code-link:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  @media (max-width: 576px) {
+    .enter-code-card {
+      padding: 35px 20px;
+    }
+
+    .code-input {
+      width: 50px;
+      height: 56px;
+      font-size: 22px;
+    }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="enter-code-wrapper">
+  <div class="enter-code-card">
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <h1>Start Code</h1>
+    <p>Once the proctor shares the start code, enter it here to begin testing.</p>
+    <p>The start code contains numbers only.</p>
+
+    <form method="post" action="{% url 'enter_secret_code' %}">
+      {% csrf_token %}
+
+      <div class="code-inputs">
+        {% for i in "123456" %}
+          <input type="text" class="code-input" maxlength="1" pattern="[0-9]" name="code_{{ i }}" required>
+        {% endfor %}
+      </div>
+
+      <div class="enter-code-actions">
+        <button type="submit" class="enter-code-btn">Start Test</button>
+        <a href="{% url 'sat_menu' %}" class="enter-code-link">Return to SAT Menu</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const inputs = document.querySelectorAll('.code-input');
+
+  if (inputs.length) {
+    inputs[0].focus();
+  }
+  inputs.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      const value = e.target.value;
+      if (value.length === 1 && /[0-9]/.test(value)) {
+        if (index < inputs.length - 1) {
+          inputs[index + 1].focus();
         }
+      } else {
+        e.target.value = '';
+      }
+    });
 
-        body {
-            background-color: #3d008e; /* Light mint green background */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-            text-align: center;
-            position: relative;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (input.value === '' && index > 0) {
+          inputs[index - 1].focus();
+          inputs[index - 1].value = '';
         }
+      }
 
-        /* Header Section - Fixed to Top Corners */
-        .header {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            justify-content: space-between;
-            width: auto;
-            z-index: 1000;
-        }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+      }
+    });
+  });
 
-        .header a {
-            text-decoration: none;
-            color: #333;
-            font-size: 16px;
-            padding: 10px 20px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            background-color: #fff; /* White background for contrast */
-        }
+  document.querySelector('form').addEventListener('submit', (e) => {
+    const allFilled = Array.from(inputs).every(input => input.value.length === 1 && /[0-9]/.test(input.value));
+    if (!allFilled) {
+      e.preventDefault();
+      alert('Please fill all fields with numbers only.');
+      return;
+    }
 
-        .header a:hover {
-            background-color: #f0f0f0;
-            transform: translateY(-2px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Main Content - Adjusted to Account for Fixed Header */
-        .content {
-            background-color: #3d008e; /* Match body background */
-            padding: 40px;
-            width: 100%;
-            max-width: 600px;
-            margin-top: 80px; /* Push content down to avoid overlap with fixed header */
-        }
-
-        /* Messages Styling */
-        .messages {
-            margin-bottom: 20px;
-        }
-
-        .alert {
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            font-size: 16px;
-            color: #333;
-        }
-
-        .alert-success {
-            background-color: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
-
-        .alert-info {
-            background-color: #cce5ff;
-            border: 1px solid #b8daff;
-            color: #004085;
-        }
-
-        .alert-error {
-            background-color: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
-
-        h1 {
-            font-family: 'Georgia', serif;
-            font-size: 32px;
-            color: white;
-            margin-bottom: 20px;
-        }
-
-        p {
-            font-family: 'Arial', sans-serif;
-            font-size: 16px;
-            color: white;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .code-inputs {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 30px;
-            margin-top: 20px; /* Raise the code inputs slightly higher */
-        }
-
-        .code-input {
-            width: 50px;
-            height: 50px;
-            border: 2px solid #ccc;
-            border-radius: 5px;
-            font-size: 20px;
-            text-align: center;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .code-input:focus {
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-            transform: scale(1.1);
-        }
-
-        .code-input:valid {
-            border-color: #28a745;
-            background-color: #e9f5e9;
-        }
-
-        button {
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            padding: 12px 30px;
-            font-size: 18px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Arial', sans-serif;
-        }
-
-        button:hover {
-            background-color: #e0e0e0;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <a href="#" title="Help">?</a>
-        <a href="{% url 'dashboard' %}" title="Return to Home">Return to Home 🏠</a>
-    </div>
-
-    <div class="content">
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-
-        <h1>Start Code</h1>
-        <p>Once the proctor shares the start code, enter it here to begin testing.</p>
-        <p>The start code contains numbers only.</p>
-
-        <form method="post" action="{% url 'enter_secret_code' %}">
-            {% csrf_token %}
-            <div class="code-inputs" id="codeInputs">
-                {% for i in "123456" %}
-                    <input type="text" class="code-input" maxlength="1" pattern="[0-9]" name="code_{{ i }}" required>
-                {% endfor %}
-            </div>
-            <button type="submit">Start Test</button>
-        </form>
-    </div>
-
-    <script>
-        const inputs = document.querySelectorAll('.code-input');
-        let currentIndex = 0;
-
-        // Focus on the first input
-        inputs[0].focus();
-
-        inputs.forEach((input, index) => {
-            input.addEventListener('input', (e) => {
-                const value = e.target.value;
-                if (value.length === 1 && /[0-9]/.test(value)) {
-                    // Move to next input if current is filled
-                    if (index < inputs.length - 1) {
-                        inputs[index + 1].focus();
-                        currentIndex = index + 1;
-                    }
-                } else {
-                    e.target.value = ''; // Clear if not a number
-                }
-            });
-
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Backspace' || e.key === 'Delete') {
-                    if (input.value === '' && index > 0) {
-                        // Move to previous input if current is empty
-                        inputs[index - 1].focus();
-                        inputs[index - 1].value = '';
-                        currentIndex = index - 1;
-                    } else if (e.repeat) {
-                        // Handle long press of backspace
-                        let prevIndex = index;
-                        while (prevIndex >= 0 && (inputs[prevIndex].value === '' || e.repeat)) {
-                            inputs[prevIndex].value = '';
-                            if (prevIndex > 0) {
-                                inputs[prevIndex - 1].focus();
-                                prevIndex--;
-                            } else {
-                                break;
-                            }
-                        }
-                        currentIndex = prevIndex;
-                    } else {
-                        input.value = ''; // Clear current input
-                    }
-                }
-            });
-
-            // Prevent manual cursor movement to maintain flow
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                    e.preventDefault();
-                }
-            });
-        });
-
-        // Submit form when all inputs are filled
-        document.querySelector('form').addEventListener('submit', (e) => {
-            const allFilled = Array.from(inputs).every(input => input.value.length === 1 && /[0-9]/.test(input.value));
-            if (!allFilled) {
-                e.preventDefault();
-                alert('Please fill all fields with numbers only.');
-            } else {
-                const secretCode = Array.from(inputs).map(input => input.value).join('');
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'secret_code';
-                hiddenInput.value = secretCode;
-                e.target.appendChild(hiddenInput);
-            }
-        });
-    </script>
-</body>
-</html>
+    const secretCode = Array.from(inputs).map(input => input.value).join('');
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.name = 'secret_code';
+    hiddenInput.value = secretCode;
+    e.target.appendChild(hiddenInput);
+  });
+</script>
+{% endblock content %}

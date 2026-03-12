@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Makon Book Dashboard</title>
+    {% extends 'template.html' %}
+    {% load static %}
+    {% block content %}
+    <style>
+      .menu-page-wrapper {
+        max-width: 1400px;
+        margin: 60px auto;
+        padding: 0 20px;
+      }
+    
+      .section-cards-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 24px;
+        flex-wrap: nowrap;
+      }
+    
+      .section-card {
+        width: 350px;
+        height: 430px;
+        border-radius: 22px;
+        text-decoration: none;
+        color: #fff;
+        font-size: 30px;
+        font-weight: 700;
+    
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+    
+        padding: 24px;
+        box-sizing: border-box;
+    
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+      }
+    
+      .section-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.50), rgba(0,0,0,0.15));
+      }
+    
+      .section-card span {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+      }
+    
+      .section-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+        color: #fff;
+      }
+    
+      .section-card-practice {
+        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
+      }
+    
+      .section-card-vocabulary {
+        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
+      }
+    
+      .section-card-admissions {
+        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
+      }
+    
+      @media (max-width: 1200px) {
+        .section-cards-wrapper {
+          flex-wrap: wrap;
+        }
+    
+        .section-card {
+          width: 340px;
+        }
+      }
+    
+      @media (max-width: 768px) {
+        .section-cards-wrapper {
+          flex-direction: column;
+          align-items: center;
+        }
+    
+        .section-card {
+          width: 90%;
+          max-width: 420px;
+        }
+      }
+    </style>
+    
+    <div class="menu-page-wrapper">
+      <div class="section-cards-wrapper">
+        <a href="{% url 'practice_tests' %}" class="section-card section-card-practice">
+          <span>Practice Tests</span>
+        </a>
+    
+        <a href="{% url 'vocabulary' %}" class="section-card section-card-vocabulary">
+          <span>Vocabulary</span>
+        </a>
+    
+        <a href="{% url 'admissions' %}" class="section-card section-card-admissions">
+          <span>Admissions</span>
+        </a>
+      </div>
+    </div>
+    {% endblock content %}
+  </head>
+</html>

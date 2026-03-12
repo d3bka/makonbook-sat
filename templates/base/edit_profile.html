@@ -1,27 +1,13 @@
-{% extends 'base/template.html' %}
-
-{% block title %}Edit Profile - Makon Book Dashboard{% endblock title %}
+{% extends 'template.html' %}
 
 {% load static %}
 {% load dev_tags %}
 
+{% block title-main %}Edit Profile{% endblock title-main %}
+{% block title %}Profile{% endblock title %}
+
 {% block style %}
 <style>
-  /* Header Navbar */
-  .navbar {
-    background-color: #3d008e;
-    padding: 10px 20px;
-  }
-  .navbar .navbar-brand,
-  .navbar .nav-link {
-    color: #ffffff !important;
-    font-weight: bold;
-  }
-  .navbar .nav-link:hover {
-    color: #c7b0ff !important;
-  }
-  
-  /* Container for the form */
   .edit-profile-container {
     max-width: 700px;
     margin: 40px auto;
@@ -31,12 +17,12 @@
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
+
   .edit-profile-container h2 {
     color: #3d008e;
     margin-bottom: 20px;
   }
-  
-  /* Section headers */
+
   .section-header {
     color: #3d008e;
     font-size: 18px;
@@ -45,8 +31,7 @@
     padding-bottom: 8px;
     border-bottom: 2px solid #c7b0ff;
   }
-  
-  /* Offline user notice */
+
   .offline-notice {
     background-color: #e8f4fd;
     border: 1px solid #4caf50;
@@ -55,8 +40,7 @@
     margin-bottom: 20px;
     color: #2e7d32;
   }
-  
-  /* Styling form elements */
+
   .edit-profile-container form input,
   .edit-profile-container form textarea,
   .edit-profile-container form select {
@@ -66,16 +50,14 @@
     border: 1px solid #c7b0ff;
     border-radius: 4px;
   }
-  
-  /* Help text styling */
+
   .helptext {
     font-size: 12px;
     color: #666;
     margin-top: -10px;
     margin-bottom: 15px;
   }
-  
-  /* Submit button */
+
   .edit-profile-container form button {
     background-color: #3d008e;
     color: #ffffff;
@@ -86,66 +68,48 @@
     cursor: pointer;
     margin-top: 20px;
   }
+
   .edit-profile-container form button:hover {
     background-color: #2a0068;
   }
-  
-  /* Time settings specific styling */
+
   .time-setting-row {
     display: flex;
     gap: 20px;
     align-items: center;
     margin-bottom: 15px;
   }
-  
+
   .time-setting-row label {
     min-width: 150px;
     font-weight: bold;
     color: #3d008e;
   }
-  
+
   .time-setting-row input {
     flex: 1;
     max-width: 200px;
+    margin-bottom: 0 !important;
   }
 </style>
 {% endblock style %}
 
-{% block header %}
-<header class="top-header">
-    <div class="header-container">
-      <div class="logo-section">
-        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="Makon Book Logo" class="logo" />
-        <span class="brand-name">Makon Book</span>
-      </div>
-      <div class="profile-section">
-        <div class="dropdown">
-          <span class="dropdown-toggle">
-            {{ user.first_name }} {{ user.last_name }} <i class="icon fa fa-user-circle-o" style="font-size: x-large;"></i>
-          </span>
-        </div>
-      </div>
-    </div>
-  </header>
-{% endblock header %}
-
 {% block content %}
 <div class="edit-profile-container">
   <h2>Edit Profile</h2>
-  
+
   {% if request.user|is_in_group:"OFFLINE" %}
   <div class="offline-notice">
-    <i class="fa fa-info-circle"></i> 
+    <i class="fa fa-info-circle"></i>
     <strong>Offline User:</strong> You can customize your test time limits below to better suit your learning needs.
   </div>
   {% endif %}
-  
+
   <form method="post">
     {% csrf_token %}
-    
-    <!-- Basic Profile Information -->
+
     <div class="section-header">Basic Information</div>
-    
+
     <div>
       <label for="{{ form.first_name.id_for_label }}">First Name:</label>
       {{ form.first_name }}
@@ -153,7 +117,7 @@
         <div class="helptext">{{ form.first_name.help_text }}</div>
       {% endif %}
     </div>
-    
+
     <div>
       <label for="{{ form.last_name.id_for_label }}">Last Name:</label>
       {{ form.last_name }}
@@ -161,7 +125,7 @@
         <div class="helptext">{{ form.last_name.help_text }}</div>
       {% endif %}
     </div>
-    
+
     <div>
       <label for="{{ form.email.id_for_label }}">Email:</label>
       {{ form.email }}
@@ -169,11 +133,10 @@
         <div class="helptext">{{ form.email.help_text }}</div>
       {% endif %}
     </div>
-    
-    <!-- Time Settings (only for offline users) -->
+
     {% if form.english_time_minutes and form.math_time_minutes %}
     <div class="section-header">Test Time Settings</div>
-    
+
     <div class="time-setting-row">
       <label for="{{ form.english_time_minutes.id_for_label }}">English Section:</label>
       {{ form.english_time_minutes }}
@@ -182,7 +145,7 @@
     {% if form.english_time_minutes.help_text %}
       <div class="helptext">{{ form.english_time_minutes.help_text }}</div>
     {% endif %}
-    
+
     <div class="time-setting-row">
       <label for="{{ form.math_time_minutes.id_for_label }}">Math Section:</label>
       {{ form.math_time_minutes }}
@@ -192,7 +155,7 @@
       <div class="helptext">{{ form.math_time_minutes.help_text }}</div>
     {% endif %}
     {% endif %}
-    
+
     <button type="submit">Save Changes</button>
   </form>
 </div>

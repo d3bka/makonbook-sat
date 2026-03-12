@@ -1,29 +1,72 @@
-  <!-- ======= Header ======= -->
-  {% load auth_extras %}
-  
-  <header id="header" class="header d-flex align-items-center">
+{% load auth_extras %}
+{% load static %}
 
-    <div class="container-fluid container-xl d-flex align-items-center justify-content-between">
-      <a href="/welcome" class="logo d-flex align-items-center">
-        <!-- Uncomment the line below if you also wish to use an image logo -->
-        <!-- <img src="{% static 'assets/img/logo.png" alt=""> -->
-        <h1>MAKON BOOK</h1>
-      </a>
-      <nav id="navbar" class="navbar">
-        <ul>
-          <li><a href="/">Home</a></li>
-          {% if request.user.is_authenticated %}
-          <li><a href="/logout/">Logout</a></li>
+<header id="header" class="header d-flex align-items-center">
+  <div class="container-fluid container-xl d-flex align-items-center justify-content-between">
 
-          {% else %}
-          <li><a href="/login/">Login</a></li>
-          <li><a href="/register/">Register</a></li>
-          {% endif %}
-        </ul>
-      </nav><!-- .navbar -->
+    <a href="{% url 'home' %}" class="logo d-flex align-items-center">
+      <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="Makon Book Logo" style="height: 42px; margin-right: 10px;">
+      <h1 style="margin: 0;">MAKON BOOK</h1>
+    </a>
 
-      <i class="mobile-nav-toggle mobile-nav-show bi bi-list"></i>
-      <i class="mobile-nav-toggle mobile-nav-hide d-none bi bi-x"></i>
+    <nav id="navbar" class="navbar">
+      <ul>
+        <li><a href="{% url 'home' %}">Home</a></li>
 
-    </div>
-  </header>
+        {% if request.user.is_authenticated %}
+          <li class="dropdown">
+            <a href="#">
+              <span>
+                {{ user.first_name }} {{ user.last_name }}
+                <i class="fa fa-user-circle-o" style="margin-left: 6px;"></i>
+              </span>
+              <i class="bi bi-chevron-down dropdown-indicator"></i>
+            </a>
+
+            <ul>
+              <li>
+                <a href="{% url 'edit_profile' %}">
+                  <i class="fa fa-user"></i> Profile
+                </a>
+              </li>
+
+              <li>
+                <a href="{% url 'enter_secret_code' %}">
+                  <i class="fa fa-key"></i> Enter Code
+                </a>
+              </li>
+
+              {% if request.user.is_staff or request.user.is_superuser %}
+              <li>
+                <a href="{% url 'admin_dashboard' %}">
+                  <i class="fa fa-shield"></i> Admin Panel
+                </a>
+              </li>
+              {% endif %}
+
+              {% if request.user|has_group:"dev" %}
+              <li>
+                <a href="{% url 'dev_dashboard' %}">
+                  <i class="fa fa-cogs"></i> Dev Mode
+                </a>
+              </li>
+              {% endif %}
+
+              <li>
+                <a href="{% url 'logout' %}">
+                  <i class="fa fa-sign-out"></i> Logout
+                </a>
+              </li>
+            </ul>
+          </li>
+        {% else %}
+          <li><a href="{% url 'login' %}">Login</a></li>
+          <li><a href="{% url 'register' %}">Register</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+
+    <i class="mobile-nav-toggle mobile-nav-show bi bi-list"></i>
+    <i class="mobile-nav-toggle mobile-nav-hide d-none bi bi-x"></i>
+  </div>
+</header>

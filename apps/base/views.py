@@ -21,14 +21,14 @@ def edit_profile(request):
         form = EditProfileForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return redirect('dashboard')
+            return redirect('sat_menu')
     else:
         form = EditProfileForm(instance=user)
     return render(request, 'base/edit_profile.html', {'form': form})
 
 @login_required(login_url='/login/')
 def home(request):
-    return redirect('dashboard')
+    return redirect('sat_menu')
 
 @unauthenticated_user
 def loginUser(request):
@@ -39,7 +39,7 @@ def loginUser(request):
         if user is not None:
             if user.is_active:
                 login(request, user)
-                return redirect("dashboard")
+                return redirect("sat_menu")
             else:
                 messages.error(request, "Your account is not active. Please check your email for the activation link.")
         else:

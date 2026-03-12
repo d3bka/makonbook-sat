@@ -76,29 +76,24 @@ def is_member(user, names):
 # Create your views here.
 
 @login_required(login_url='/login/')
-def dashboard(request):
+def practice_tests(request):
     user = request.user
     user_groups = user.groups.all()
 
-    # -----------------------------
-    # Retrieve Tests Assigned by Group
-    # -----------------------------
     tests = Test.objects.filter(groups__in=user_groups).distinct()
 
-    # Sort tests assuming test.name is like "DAY1", "DAY2", etc.
     def get_day_number(test):
         try:
-            # Extract the numeric part after "DAY"
             return int(test.name[3:])
         except Exception:
             return 0
+
     tests = sorted(tests, key=get_day_number)
 
-    # Partition tests into active (unsolved) and past (solved)
     active_tests = []
     past_tests = []
+
     for test in tests:
-        # If a TestReview exists for the user with a non-null score, consider it solved (past)
         if TestReview.objects.filter(test=test, user=user).exists():
             review = TestReview.objects.filter(test=test, user=user)[0]
             if review.score == 0:
@@ -108,47 +103,39 @@ def dashboard(request):
         else:
             active_tests.append(test)
 
-    # -----------------------------
-    # Process Lesson Packages / Lessons
-    # -----------------------------
     purchased_packages = PurchasedLessonPackage.objects.filter(user=user)
+
     if purchased_packages.exists():
-        # User has purchased one or more lesson packages.
-        # Retrieve lessons from the purchased packages.
         lessons = Lesson.objects.filter(package__in=[p.package for p in purchased_packages])
         active_lessons = []
         past_lessons = []
+
         for lesson in lessons:
-            # A lesson is considered "learned" if a LessonProgress record exists and is marked as completed.
             lp = LessonProgress.objects.filter(user=user, lesson=lesson).first()
             if lp and lp.completed:
                 past_lessons.append(lesson)
             else:
                 active_lessons.append(lesson)
+
         lessons_context = {
             'active_lessons': active_lessons,
             'past_lessons': past_lessons,
             'purchased': True,
         }
     else:
-        # No lesson package has been purchased.
-        # Show available lesson packages for purchase.
         available_packages = LessonPackage.objects.all()
         lessons_context = {
             'available_packages': available_packages,
             'purchased': False,
         }
 
-    # -----------------------------
-    # Compose Context and Render Template
-    # -----------------------------
     context = {
         'active_tests': active_tests,
         'past_tests': past_tests,
     }
     context.update(lessons_context)
-    
-    return render(request, 'dashboard.html', context)
+
+    return render(request, 'sat/practice_tests.html', context)
 
 
 def check_the_answers(request):
@@ -325,7 +312,7 @@ def results(request, test):
     })
     
 
-@login_required(login_url='/welcome')
+@login_required(login_url='/login/')
 def start_Practise(request, pk):
     user_groups = request.user.groups.all()
     test = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
@@ -341,7 +328,7 @@ def start_Practise(request, pk):
     return HttpResponse('Test is Not Found')
 
 
-@login_required(login_url='/welcome')
+@login_required(login_url='/login/')
 def question(request, key, section, module, id):
     try:
         group = Group.objects.get(name='OFFLINE')
@@ -392,7 +379,7 @@ def clear(request, module, test, section):
 # Make UP tests goes here 
 #
 
-@login_required(login_url='/welcome')
+@login_required(login_url='/login/')
 def start_makeup_test(request, pk):
     user = request.user
     user_groups = user.groups.all()
@@ -408,7 +395,7 @@ def start_makeup_test(request, pk):
     return render(request, 'test/makeup_test_start.html', {'makeup_test': makeup_test})
 
 
-@login_required(login_url='/welcome')
+@login_required(login_url='/login/')
 def makeup_test_module(request, pk):
     user = request.user
     user_groups = user.groups.all()
@@ -455,7 +442,7 @@ def makeup_test_module(request, pk):
     return HttpResponse("No questions available for this module")
 
 
-@login_required(login_url='/welcome')
+@login_required(login_url='/login/')
 def module_test(request, pk):
     user = request.user
     user_groups = request.user.groups.all()
@@ -1007,3 +994,17 @@ def restart_section(request, pk, section):
             })
     
     return HttpResponse("You do not have permission to restart sections")
+
+@login_required
+def menu_page(request):
+    return render(request, 'sat/menu_page.html')
+
+
+@login_required
+def vocabulary(request):
+    return render(request, 'sat/vocabulary.html')
+
+
+@login_required
+def admissions(request):
+    return render(request, 'sat/admissions.html')
