@@ -1,9 +1,9 @@
 from django.urls import path, include
-
 from . import views
 
 urlpatterns = [
-    path('practises/', views.dashboard, name='dashboard'),
+    path('', views.menu_page, name='sat_menu'),
+
     path('clear/<str:test>/<str:section>/<str:module>/', views.clear),
     path('practise/<str:pk>', views.start_Practise, name='practise'),
     path('restart/<str:pk>', views.restart, name='restart'),
@@ -20,10 +20,12 @@ urlpatterns = [
     path('enter-code/', views.enter_secret_code, name='enter_secret_code'),
     path('start-makeup-test/<str:pk>/', views.start_makeup_test, name='start_makeup_test'),
     path('makeup-test-module/<str:pk>/', views.makeup_test_module, name='makeup_test_module'),
-    
-    # Include Dev Mode URLs under /dev/ prefix
-    path('dev/', include('apps.sat.urls_dev')),
 
-    # Include Admin Panel URLs
+    path('dev/', include('apps.sat.urls_dev')),
     path('admin-panel/', include('apps.sat.urls_admin')),
+
+
+    path('practice_tests/', views.practice_tests, name='practice_tests'),
+    path('vocabulary/', views.vocabulary, name='vocabulary'),
+    path('admissions/', views.admissions, name='admissions'),
 ]

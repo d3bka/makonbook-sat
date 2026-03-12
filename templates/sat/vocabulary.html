@@ -1,0 +1,70 @@
+{% extends 'template.html' %}
+{% load static %}
+{% load sat_extras %}
+{% load dev_tags %}
+
+{% block title-main %}
+Makon Book
+<div style="font-size:28px; font-weight:500; margin-top:10px;">
+    Vocabulary
+</div>
+{% endblock title-main %}
+{% block title %}Vocabulary{% endblock title %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/makon-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+<style>
+  .section-page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-card-large {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    padding: 40px 30px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+  }
+
+  .section-card-large h2 {
+    color: #324dc7;
+    font-size: 34px;
+    margin-bottom: 16px;
+    font-weight: 700;
+  }
+
+  .section-card-large p {
+    font-size: 18px;
+    color: #4b5563;
+    margin-bottom: 12px;
+    line-height: 1.7;
+  }
+
+  .coming-soon-badge {
+    display: inline-block;
+    margin-top: 18px;
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 15px;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="section-page">
+    <div class="section-card-large">
+      <h2>Vocabulary</h2>
+      <p>This section is under construction.</p>
+      <p>Vocabulary practice, word lists, and learning tools will appear here.</p>
+      <div class="coming-soon-badge">Coming Soon</div>
+    </div>
+  </div>
+</main>
+{% endblock content %}
