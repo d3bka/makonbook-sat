@@ -1,122 +1,192 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Makon Book Dashboard</title>
-    {% extends 'template.html' %}
-    {% load static %}
-    {% block content %}
-    <style>
-      .menu-page-wrapper {
-        max-width: 1400px;
-        margin: 60px auto;
-        padding: 0 20px;
-      }
-    
-      .section-cards-wrapper {
-        display: flex;
-        justify-content: center;
-        align-items: stretch;
-        gap: 24px;
-        flex-wrap: nowrap;
-      }
-    
-      .section-card {
-        width: 350px;
-        height: 430px;
-        border-radius: 22px;
-        text-decoration: none;
-        color: #fff;
-        font-size: 30px;
-        font-weight: 700;
-    
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-    
-        padding: 24px;
-        box-sizing: border-box;
-    
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-    
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
-      }
-    
-      .section-card::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to top, rgba(0,0,0,0.50), rgba(0,0,0,0.15));
-      }
-    
-      .section-card span {
-        position: relative;
-        z-index: 1;
-        text-align: center;
-      }
-    
-      .section-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-        color: #fff;
-      }
-    
-      .section-card-practice {
-        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
-      }
-    
-      .section-card-vocabulary {
-        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
-      }
-    
-      .section-card-admissions {
-        background-image: url("{% static 'assets/img/icon_dashboard.png' %}");
-      }
-    
-      @media (max-width: 1200px) {
-        .section-cards-wrapper {
-          flex-wrap: wrap;
-        }
-    
-        .section-card {
-          width: 340px;
-        }
-      }
-    
-      @media (max-width: 768px) {
-        .section-cards-wrapper {
-          flex-direction: column;
-          align-items: center;
-        }
-    
-        .section-card {
-          width: 90%;
-          max-width: 420px;
-        }
-      }
-    </style>
-    
-    <div class="menu-page-wrapper">
-      <div class="section-cards-wrapper">
-        <a href="{% url 'practice_tests' %}" class="section-card section-card-practice">
-          <span>Practice Tests</span>
-        </a>
-    
-        <a href="{% url 'vocabulary' %}" class="section-card section-card-vocabulary">
-          <span>Vocabulary</span>
-        </a>
-    
-        <a href="{% url 'admissions' %}" class="section-card section-card-admissions">
-          <span>Admissions</span>
-        </a>
-      </div>
+{% extends 'template.html' %}
+{% load static %}
+{% load sat_extras %}
+{% load dev_tags %}
+
+{% block title-main %}
+Makon Book
+{% endblock title-main %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/makon-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+<style>
+  .sat-menu-wrapper {
+    max-width: 1250px;
+    margin: 0 auto;
+  }
+
+  .sat-menu-intro {
+    text-align: center;
+    margin-bottom: 34px;
+  }
+
+  .sat-menu-intro h2 {
+    font-size: 36px;
+    font-weight: 700;
+    color: #324dc7;
+    margin-bottom: 12px;
+  }
+
+  .sat-menu-intro p {
+    font-size: 18px;
+    color: #64748b;
+    margin: 0;
+  }
+
+  .sat-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .sat-menu-card {
+    position: relative;
+    min-height: 340px;
+    border-radius: 24px;
+    overflow: hidden;
+    text-decoration: none;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: flex-end;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: #1f1f1f;
+  }
+
+  .sat-menu-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 38px rgba(0,0,0,0.18);
+  }
+
+  .sat-menu-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transform: scale(1.02);
+  }
+
+  .sat-menu-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,0.08) 0%,
+      rgba(0,0,0,0.24) 35%,
+      rgba(17,24,39,0.82) 100%
+    );
+  }
+
+  .sat-menu-card.practice::before {
+    background-image: url("{% static 'assets/img/icons/icon_dashboard.png' %}");
+  }
+
+  .sat-menu-card.vocabulary::before {
+    background-image: url("{% static 'assets/img/icons/icon_dashboard.png' %}");
+  }
+
+  .sat-menu-card.admissions::before {
+    background-image: url("{% static 'assets/img/icons/icon_dashboard.png' %}");
+  }
+
+  .sat-menu-card-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 28px 24px 24px;
+    color: #fff;
+  }
+
+  .sat-menu-badge {
+    display: inline-block;
+    margin-bottom: 14px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    backdrop-filter: blur(6px);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  .sat-menu-card h3 {
+    font-size: 30px;
+    margin-bottom: 10px;
+    color: #fff;
+    font-weight: 800;
+  }
+
+  .sat-menu-card p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 20px;
+    max-width: 95%;
+  }
+
+  .sat-menu-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .sat-menu-link i {
+    font-size: 14px;
+  }
+
+  @media (max-width: 992px) {
+    .sat-menu-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .sat-menu-card {
+      min-height: 300px;
+    }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="sat-menu-wrapper">
+    <div class="sat-menu-intro">
+      <h2>Choose Your Section</h2>
+      <p>Select the area you want to work on today.</p>
     </div>
-    {% endblock content %}
-  </head>
-</html>
+
+    <div class="sat-menu-grid">
+      <a href="{% url 'practice_tests' %}" class="sat-menu-card practice">
+        <div class="sat-menu-card-content">
+          <span class="sat-menu-badge">Core Section</span>
+          <h3>Practice Tests</h3>
+          <p>Access your assigned SAT practice tests, review solved tests, and continue your preparation.</p>
+          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+        </div>
+      </a>
+      <a href="{% url 'vocabulary' %}" class="sat-menu-card vocabulary">
+        <div class="sat-menu-card-content">
+          <span class="sat-menu-badge">Language Skills</span>
+          <h3>Vocabulary</h3>
+          <p>Build stronger word knowledge through word lists, flashcards, and future vocabulary drills.</p>
+          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+        </div>
+      </a>
+      <a href="{% url 'admissions' %}" class="sat-menu-card admissions">
+        <div class="sat-menu-card-content">
+          <span class="sat-menu-badge">Future Planning</span>
+          <h3>Admissions</h3>
+          <p>Explore university guidance, applications, and scholarship support in one place.</p>
+          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+        </div>
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock content %}

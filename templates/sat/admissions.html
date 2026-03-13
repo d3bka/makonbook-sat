@@ -5,66 +5,137 @@
 
 {% block title-main %}
 Makon Book
-<div style="font-size:28px; font-weight:500; margin-top:10px;">
-    Admissions
+<div style="font-size:28px;font-weight:500;margin-top:10px;">
+  Admissions
 </div>
 {% endblock title-main %}
+
 {% block title %}Admissions{% endblock title %}
 
 {% block style %}
 <link rel="stylesheet" href="{% static 'assets/css/makon-dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+
 <style>
-  .section-page {
-    max-width: 1100px;
-    margin: 0 auto;
+  
+  .adm-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:22px;
+    align-items:stretch;
+  }
+  
+  .adm-card{
+    background:#fff;
+    border-radius:18px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.08);
+    border:1px solid #e5e7eb;
+    padding:28px 24px;
+    transition:transform .2s ease,box-shadow .2s ease;
+    min-height:320px;
+    display:flex;
+    flex-direction:column;
+  }
+  
+  .adm-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 14px 28px rgba(0,0,0,0.12);
+  }
+  
+  .adm-icon{
+    width:68px;
+    height:68px;
+    border-radius:16px;
+    background:#eef2ff;
+    color:#4338ca;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:30px;
+    margin-bottom:18px;
+  }
+  
+  .adm-card h3{
+    font-size:24px;
+    color:#324dc7;
+    margin-bottom:12px;
+    font-weight:700;
+  }
+  
+  .adm-card p{
+    color:#4b5563;
+    font-size:16px;
+    line-height:1.6;
+    margin-bottom:22px;
+  }
+  
+  .adm-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:150px;
+    height:44px;
+    padding:0 22px;
+    border-radius:999px;
+    background:#324dc7;
+    color:#fff!important;
+    text-decoration:none;
+    font-weight:600;
+    transition:.2s;
+  }
+  
+  .adm-btn:hover{
+    background:#273ca3;
   }
 
-  .section-card-large {
-    background: #fff;
-    border-radius: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    padding: 40px 30px;
-    text-align: center;
-    border: 1px solid #e5e7eb;
-  }
-
-  .section-card-large h2 {
-    color: #324dc7;
-    font-size: 34px;
-    margin-bottom: 16px;
-    font-weight: 700;
-  }
-
-  .section-card-large p {
-    font-size: 18px;
-    color: #4b5563;
-    margin-bottom: 12px;
-    line-height: 1.7;
-  }
-
-  .coming-soon-badge {
-    display: inline-block;
-    margin-top: 18px;
-    background: #eef2ff;
-    color: #4338ca;
-    padding: 10px 18px;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 15px;
-  }
 </style>
 {% endblock style %}
 
 {% block content %}
+
 <main class="main-content">
-  <div class="section-page">
-    <div class="section-card-large">
-      <h2>Admissions</h2>
-      <p>This section is under construction.</p>
-      <p>Admissions guidance, application support, and university-related resources will appear here.</p>
-      <div class="coming-soon-badge">Coming Soon</div>
+  <section class="tests-section">
+    <div class="section-header">
+      <h2>University Admissions</h2>
     </div>
-  </div>
+    <div class="adm-grid">
+      <div class="adm-card">
+        <div class="adm-icon">
+          <i class="fa fa-university"></i>
+        </div>
+        <h3>University Guide</h3>
+        <p>
+          Explore universities, majors, and requirements for international students.
+        </p>
+        <div style="margin-top:auto">
+          <a href="#" class="adm-btn">Coming Soon</a>
+        </div>
+      </div>
+      <div class="adm-card">
+        <div class="adm-icon">
+          <i class="fa fa-file-text"></i>
+        </div>
+        <h3>Application Help</h3>
+        <p>
+          Guidance for preparing applications, essays, and required documents.
+        </p>
+        <div style="margin-top:auto">
+          <a href="#" class="adm-btn">Coming Soon</a>
+        </div>
+      </div>
+      <div class="adm-card">
+        <div class="adm-icon">
+          <i class="fa fa-graduation-cap"></i>
+        </div>
+        <h3>Scholarships</h3>
+        <p>
+          Information about scholarships and financial aid opportunities.
+        </p>
+        <div style="margin-top:auto">
+          <a href="#" class="adm-btn">Coming Soon</a>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
 {% endblock content %}
