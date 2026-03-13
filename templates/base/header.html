@@ -5,8 +5,9 @@
   <div class="container-fluid container-xl d-flex align-items-center justify-content-between">
 
     <a href="{% url 'home' %}" class="logo d-flex align-items-center">
-      <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="Makon Book Logo" style="height: 42px; margin-right: 10px;">
-      <h1 style="margin: 0;">MAKON BOOK</h1>
+      <!-- <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" alt="Makon Book Logo" style="height: 42px; margin-right: 10px;">
+      <h1 style="margin: 0;">MAKON BOOK</h1> -->
+      <img src="{% static 'assets/img/icons/SAT MAKON logo 3.png' %}" alt="SatMakonLogo" style="margin: 0;">
     </a>
 
     <nav id="navbar" class="navbar">
@@ -18,15 +19,15 @@
             <a href="#">
               <span>
                 {{ user.first_name }} {{ user.last_name }}
-                <i class="fa fa-user-circle-o" style="margin-left: 6px;"></i>
+                <i class="fa fa-user-circle-o" style="margin-left: 18px;"></i>
               </span>
-              <i class="bi bi-chevron-down dropdown-indicator"></i>
+              <i class="bi bi-chevron-down dropdown-indicator" style="margin-right: 44px;"></i>
             </a>
 
             <ul>
               <li>
                 <a href="{% url 'edit_profile' %}">
-                  <i class="fa fa-user"></i> Profile
+                  <i class="fa fa-user"></i>My Profile
                 </a>
               </li>
 
