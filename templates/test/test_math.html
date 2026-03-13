@@ -6,15 +6,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Quiz</title>
+
     <!-- Desmos Calculator -->
     <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"
         onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'assets/css/makon-math.css' %}">
+
     <!-- KaTeX CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
+
     <!-- KaTeX JS -->
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
@@ -25,11 +30,11 @@
             background-size: contain;
             background-repeat: no-repeat;
             padding-left: 36px;
-            font-family: 'Times New Roman', Times, serif; /* Changed font to Times New Roman */
+            font-family: 'Times New Roman', Times, serif;
         }
-        
+
         main {
-            font-family: 'Times New Roman', Times, serif; /* Changed font to Times New Roman */
+            font-family: 'Times New Roman', Times, serif;
         }
 
         .filledbook {
@@ -58,8 +63,8 @@
             background: white;
             z-index: 1000;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            cursor: move;
             border-radius: 8px;
+            overflow: hidden;
         }
 
         #calculator-header {
@@ -67,6 +72,23 @@
             background: #007bff;
             color: white;
             cursor: move;
+            user-select: none;
+        }
+
+        #calculator-body {
+            width: 100%;
+            height: calc(100% - 44px);
+        }
+
+        #calculator {
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: auto !important;
+        }
+
+        #calculator .dcg-container,
+        #calculator .dcg-grapher {
+            pointer-events: auto !important;
         }
 
         mjx-container {
@@ -93,6 +115,7 @@
                 </a>
             </div>
         </header>
+
         <form class="fm" id="math-quiz-form" method="post" action="{% url 'check_the_answers' %}">
             {% csrf_token %}
             <main>
@@ -100,25 +123,31 @@
                     <div class="just-div"></div>
                     <p id="passage"></p>
                 </div>
+
                 <div class="answers-container scroll-hide">
                     <div class="question-title">
                         <div class="question-number"></div>
                         <div class="bookmark" onclick="markForReview()">Mark for Review</div>
                         <div class="crossing-options" onclick="show_eliminate()"></div>
                     </div>
+
                     <div class="question-text" id="question-text"></div>
                     <div class="answers" id="answers"></div>
                 </div>
             </main>
         </form>
+
         <footer>
             <div class="footer-left">
                 {{ request.user.first_name }} {{ request.user.last_name }}
             </div>
+
             <div class="footer-center">
-                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">Question
-                    <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">27</span></button>
+                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">
+                    Question <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">27</span>
+                </button>
             </div>
+
             <div class="footer-right">
                 <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
                 <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
@@ -128,19 +157,20 @@
     </div>
 
     <div id="calculator-popup">
-        <div id="calculator-header">Desmos Calculator
+        <div id="calculator-header">
+            Desmos Calculator
             <button onclick="Close()" class="btn btn-primary danger" style="float: right;">Close</button>
         </div>
         <div id="calculator-body">
-            <div id="calculator" style="width: 400px; height: 540px;">
-                <div id="calculator-fallback" style="display: none; padding: 20px; text-align: center; color: #666;">
-                    <h3>Calculator Unavailable</h3>
-                    <p>The graphing calculator could not be loaded. Please check your internet connection and reload the page.</p>
-                    <p>You can still complete the test using external calculation tools.</p>
-                </div>
+            <div id="calculator"></div>
+            <div id="calculator-fallback" style="display: none; padding: 20px; text-align: center; color: #666;">
+                <h3>Calculator Unavailable</h3>
+                <p>The graphing calculator could not be loaded. Please check your internet connection and reload the page.</p>
+                <p>You can still complete the test using external calculation tools.</p>
             </div>
         </div>
     </div>
+
     <div id="questionModal" class="modal">
         <div class="modal-content">
             <span class="close-button" onclick="toggleQuestionModal()">×</span>
@@ -155,6 +185,7 @@
     </div>
 
     {{ custom_time_seconds|json_script:"custom-time" }}
+
     <script>
         const testName = "{{ test }}";
         const moduleName = "{{ module }}";
@@ -162,23 +193,24 @@
 
         let currentQuestionIndex = 0;
         const customTimeData = JSON.parse(document.getElementById('custom-time').textContent);
-        let timeRemaining = customTimeData || (35 * 60); // Use custom time or default 35 minutes
+        let timeRemaining = customTimeData || (35 * 60);
+
         const questions = [
             {% for question in questions %}
-        {
-            id: '{{question.id}}',
-                passage: `{{question.passage|safe}}`,
-                    number: Number(`{{question.number}}`),
-                        question: `{{question.question|safe}}`,
-                            a: `{{question.get_a|safe}}`,
-                                b: `{{question.get_b|safe}}`,
-                                    c: `{{question.get_c|safe}}`,
-                                        d: `{{question.get_d|safe}}`,
-                                            type: `{{question.written}}`,
-                                                graph: `{{question.get_graph|safe}}`
-        },
-        {% endfor %}
-    ];
+            {
+                id: '{{ question.id }}',
+                passage: `{{ question.passage|safe }}`,
+                number: Number(`{{ question.number }}`),
+                question: `{{ question.question|safe }}`,
+                a: `{{ question.get_a|safe }}`,
+                b: `{{ question.get_b|safe }}`,
+                c: `{{ question.get_c|safe }}`,
+                d: `{{ question.get_d|safe }}`,
+                type: `{{ question.written }}`,
+                graph: `{{ question.get_graph|safe }}`
+            },
+            {% endfor %}
+        ];
 
         let eliminate_options = false;
         let answers = Array(questions.length).fill(null);
@@ -186,13 +218,10 @@
         let markedForReview = Array(questions.length).fill(false);
         let timeSpent = Array(questions.length).fill(0);
 
-        // Global function to fix LaTeX syntax issues
         function fixLatex(text) {
             if (!text) return text;
-            
+
             let cleaned = text.toString();
-            
-            // Fix common LaTeX issues
             cleaned = cleaned.replace(/\\\$/g, '$');
             cleaned = cleaned.replace(/\\\\/g, '\\');
             cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, '\\text{$1}');
@@ -202,94 +231,91 @@
             cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
             cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
             cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
-            
+
             return cleaned;
         }
 
-            function initializeQuiz() {
-                loadProgress();
-                loadQuestion(currentQuestionIndex);
-                setInterval(updateTimer, 1000);
+        function initializeQuiz() {
+            loadProgress();
+            loadQuestion(currentQuestionIndex);
+            setInterval(updateTimer, 1000);
+        }
+
+        var elt = document.getElementById('calculator');
+        var calculator = null;
+
+        function initDesmos() {
+            if (window.desmosLoadError) {
+                console.error('Desmos script failed to load');
+                showCalculatorFallback();
+                return;
             }
 
-            // Initialize Desmos calculator with better error handling
-            var elt = document.getElementById('calculator');
-            var calculator = null;
-            
-            function initDesmos() {
-                if (window.desmosLoadError) {
-                    console.error('Desmos script failed to load');
-                    showCalculatorFallback();
-                    return;
-                }
-                
-                if (elt && typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function') {
-                    try {
-                        calculator = Desmos.GraphingCalculator(elt);
-                        console.log('Desmos calculator initialized successfully');
-                        hideCalculatorFallback();
-                    } catch (error) {
-                        console.error('Error initializing Desmos calculator:', error);
-                        showCalculatorFallback();
-                    }
-                } else {
-                    console.error('Desmos calculator failed to initialize. Element:', elt, 'Desmos type:', typeof Desmos, 'GraphingCalculator available:', typeof Desmos?.GraphingCalculator);
+            if (elt && typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function') {
+                try {
+                    calculator = Desmos.GraphingCalculator(elt);
+                    console.log('Desmos calculator initialized successfully');
+                    hideCalculatorFallback();
+                } catch (error) {
+                    console.error('Error initializing Desmos calculator:', error);
                     showCalculatorFallback();
                 }
-            }
-            
-            function showCalculatorFallback() {
-                const fallback = document.getElementById('calculator-fallback');
-                if (fallback) {
-                    fallback.style.display = 'block';
-                }
-            }
-            
-            function hideCalculatorFallback() {
-                const fallback = document.getElementById('calculator-fallback');
-                if (fallback) {
-                    fallback.style.display = 'none';
-                }
-            }
-            
-            // Try to initialize immediately, or wait for script to load
-            if (typeof Desmos !== 'undefined') {
-                initDesmos();
             } else {
-                // Wait a bit for the script to load
-                setTimeout(initDesmos, 1000);
+                console.error(
+                    'Desmos calculator failed to initialize.',
+                    'Element:', elt,
+                    'Desmos type:', typeof Desmos,
+                    'GraphingCalculator available:', typeof Desmos?.GraphingCalculator
+                );
+                showCalculatorFallback();
             }
+        }
 
-            document.getElementById('open-calculator').addEventListener('click', function () {
-                if (calculator || (typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function')) {
-                    document.getElementById('calculator-popup').style.display = 'block';
-                    // Try to initialize if not already done
-                    if (!calculator) {
-                        initDesmos();
-                    }
-                } else {
-                    alert('Calculator is not available. Please check your internet connection and reload the page.');
+        function showCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) {
+                fallback.style.display = 'block';
+            }
+        }
+
+        function hideCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) {
+                fallback.style.display = 'none';
+            }
+        }
+
+        if (typeof Desmos !== 'undefined') {
+            initDesmos();
+        } else {
+            setTimeout(initDesmos, 1000);
+        }
+
+        document.getElementById('open-calculator').addEventListener('click', function () {
+            if (calculator || (typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function')) {
+                document.getElementById('calculator-popup').style.display = 'block';
+                if (!calculator) {
+                    initDesmos();
                 }
-            });
-
-            dragElement(document.getElementById("calculator-popup"));
-
-            // Directly initialize quiz (KaTeX is already loaded)
-            initializeQuiz();
-
-        function dragElement(elmnt) {
-            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-            if (document.getElementById(elmnt.id + "header")) {
-                document.getElementById(elmnt.id + "header").onmousedown = dragMouseDown;
             } else {
-                elmnt.onmousedown = dragMouseDown;
+                alert('Calculator is not available. Please check your internet connection and reload the page.');
+            }
+        });
+
+        function dragElement(elmnt, header) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            if (header) {
+                header.onmousedown = dragMouseDown;
             }
 
             function dragMouseDown(e) {
                 e = e || window.event;
                 e.preventDefault();
+
                 pos3 = e.clientX;
                 pos4 = e.clientY;
+
                 document.onmouseup = closeDragElement;
                 document.onmousemove = elementDrag;
             }
@@ -297,10 +323,12 @@
             function elementDrag(e) {
                 e = e || window.event;
                 e.preventDefault();
+
                 pos1 = pos3 - e.clientX;
                 pos2 = pos4 - e.clientY;
                 pos3 = e.clientX;
                 pos4 = e.clientY;
+
                 elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
                 elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
             }
@@ -310,6 +338,11 @@
                 document.onmousemove = null;
             }
         }
+
+        dragElement(
+            document.getElementById("calculator-popup"),
+            document.getElementById("calculator-header")
+        );
 
         function Close() {
             document.getElementById('calculator-popup').style.display = 'none';
@@ -379,9 +412,7 @@
             currentQuestionIndex = index;
             const question = questions[index];
             updateQuestionProgress();
-            
 
-            // Use the global fixLatex function here
             question.passage = fixLatex(question.passage);
             question.question = fixLatex(question.question);
             question.a = fixLatex(question.a);
@@ -398,59 +429,62 @@
 
             if (question.type === 'True') {
                 answersContainer.innerHTML = `
-                <input type="text" id="written-answer" name="answer" value="${answers[index] || ''}" oninput="updateWrittenAnswer(this.value)">
-            `;
+                    <input type="text" id="written-answer" name="answer" value="${answers[index] || ''}" oninput="updateWrittenAnswer(this.value)">
+                `;
             } else {
                 answersContainer.innerHTML = `
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
-                        <label class='mark' data-letter="A"></label>
-                        <label for="choice1" class="choice1">${question.a}</label>
-                    </label>
-                    <hr class="cross-line Azone ${eliminatedChoices[index].includes('A') ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("A", ${index})'>
-                        <div class="cross-label">A</div>
-                        <hr class="cross-btn-line">
+                    <div class='big-container'>
+                        <label class="choice-container">
+                            <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
+                            <label class='mark' data-letter="A"></label>
+                            <label for="choice1" class="choice1">${question.a}</label>
+                        </label>
+                        <hr class="cross-line Azone ${eliminatedChoices[index].includes('A') ? 'active' : ''}">
+                        <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("A", ${index})'>
+                            <div class="cross-label">A</div>
+                            <hr class="cross-btn-line">
+                        </div>
                     </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
-                        <label class='mark' data-letter="B"></label>
-                        <label for="choice2" class="choice2">${question.b}</label>
-                    </label>
-                    <hr class="cross-line Bzone ${eliminatedChoices[index].includes('B') ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("B", ${index})'>
-                        <div class="cross-label">B</div>
-                        <hr class="cross-btn-line">
+
+                    <div class='big-container'>
+                        <label class="choice-container">
+                            <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
+                            <label class='mark' data-letter="B"></label>
+                            <label for="choice2" class="choice2">${question.b}</label>
+                        </label>
+                        <hr class="cross-line Bzone ${eliminatedChoices[index].includes('B') ? 'active' : ''}">
+                        <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("B", ${index})'>
+                            <div class="cross-label">B</div>
+                            <hr class="cross-btn-line">
+                        </div>
                     </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
-                        <label class='mark' data-letter="C"></label>
-                        <label for="choice3" class="choice3">${question.c}</label>
-                    </label>
-                    <hr class="cross-line Czone ${eliminatedChoices[index].includes('C') ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("C", ${index})'>
-                        <div class="cross-label">C</div>
-                        <hr class="cross-btn-line">
+
+                    <div class='big-container'>
+                        <label class="choice-container">
+                            <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
+                            <label class='mark' data-letter="C"></label>
+                            <label for="choice3" class="choice3">${question.c}</label>
+                        </label>
+                        <hr class="cross-line Czone ${eliminatedChoices[index].includes('C') ? 'active' : ''}">
+                        <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("C", ${index})'>
+                            <div class="cross-label">C</div>
+                            <hr class="cross-btn-line">
+                        </div>
                     </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
-                        <label class='mark' data-letter="D"></label>
-                        <label for="choice4" class="choice4">${question.d}</label>
-                    </label>
-                    <hr class="cross-line Dzone ${eliminatedChoices[index].includes('D') ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("D", ${index})'>
-                        <div class="cross-label">D</div>
-                        <hr class="cross-btn-line">
+
+                    <div class='big-container'>
+                        <label class="choice-container">
+                            <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
+                            <label class='mark' data-letter="D"></label>
+                            <label for="choice4" class="choice4">${question.d}</label>
+                        </label>
+                        <hr class="cross-line Dzone ${eliminatedChoices[index].includes('D') ? 'active' : ''}">
+                        <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("D", ${index})'>
+                            <div class="cross-label">D</div>
+                            <hr class="cross-btn-line">
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
                 let a = document.querySelector('.choice1');
                 let b = document.querySelector('.choice2');
@@ -458,18 +492,15 @@
                 let d = document.querySelector('.choice4');
 
                 function setContent(element, content) {
-                    // Clean the content with fixLatex before processing
                     content = fixLatex(content);
 
-                    // Check if the content is an image
                     if (content.startsWith('IMAGE::')) {
                         element.innerHTML = `<img class='choice-image' src='${content.split('IMAGE::')[1]}'></img>`;
                     } else {
-                        // Ensure the content is wrapped in KaTeX delimiters
                         if (!content.startsWith('\\(') && !content.endsWith('\\)') && content.length < 20) {
                             content = `\\(${content}\\)`;
                         }
-                        // Set the inner HTML and render KaTeX
+
                         element.innerHTML = content;
                         renderMathInElement(element, {
                             delimiters: [
@@ -508,6 +539,7 @@
                     }
                 }
             }
+
             renderMathJax();
 
             document.querySelectorAll('input[name="answer"]').forEach((input) => {
@@ -534,12 +566,14 @@
         function eliminate(choice, index) {
             let line = document.querySelector(`.${choice}zone`);
             line.classList.toggle('active');
+
             if (eliminatedChoices[index].includes(choice)) {
                 const choiceIndex = eliminatedChoices[index].indexOf(choice);
                 eliminatedChoices[index].splice(choiceIndex, 1);
             } else {
                 eliminatedChoices[index].push(choice);
             }
+
             saveProgress();
         }
 
@@ -568,6 +602,7 @@
             if (!confirmation) {
                 confirmation = confirm("Are you sure you want to finish the test? Make sure you are ready.");
             }
+
             if (confirmation) {
                 const form = document.getElementById('math-quiz-form');
                 const answerData = answers.map((answer, index) => ({
@@ -577,13 +612,19 @@
                 }));
 
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
                 fetch(form.action, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ answers: answerData, section: sectionName, test: testName, module: moduleName })
+                    body: JSON.stringify({
+                        answers: answerData,
+                        section: sectionName,
+                        test: testName,
+                        module: moduleName
+                    })
                 }).then(response => {
                     if (response.ok) {
                         clearProgress();
@@ -605,6 +646,7 @@
             document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
             timeSpent[currentQuestionIndex] += 1;
             saveProgress();
+
             if (timeRemaining <= 0) {
                 finishTest(true);
             } else {
@@ -623,33 +665,55 @@
             localStorage.removeItem(`${key}_markedForReview`);
         }
 
+        function isDesmosFocused() {
+            const active = document.activeElement;
+            return !!(
+                active &&
+                (
+                    active.closest('#calculator-popup') ||
+                    active.closest('.dcg-container')
+                )
+            );
+        }
+
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('selectstart', event => event.preventDefault());
 
         document.addEventListener('keydown', event => {
-            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
+                return;
             }
+
+            if (event.key === 'F12') {
+                event.preventDefault();
+                return;
+            }
+
+            if (isDesmosFocused()) {
+                return;
+            }
+
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 prevQuestion();
             }
+
             if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 nextQuestion();
-            }
-            if (event.key === 'F12') {
-                event.preventDefault();
             }
         });
 
         function updateAnsweredStatus() {
             let mark = document.querySelector('.bookmark');
+
             if (markedForReview[currentQuestionIndex]) {
                 mark.classList.add('filledbook');
             } else {
                 mark.classList.remove('filledbook');
             }
+
             const rectQuestions = document.querySelectorAll('.rect-question');
             rectQuestions.forEach((rect, index) => {
                 if (index === currentQuestionIndex) {
@@ -657,11 +721,13 @@
                 } else {
                     rect.classList.remove('here');
                 }
+
                 if (markedForReview[index]) {
                     rect.classList.add('marked');
                 } else {
                     rect.classList.remove('marked');
                 }
+
                 if (answers[index]) {
                     rect.classList.add('answered');
                 } else {
@@ -669,6 +735,8 @@
                 }
             });
         }
+
+        initializeQuiz();
     </script>
 </body>
 
