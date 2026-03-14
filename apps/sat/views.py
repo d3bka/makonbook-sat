@@ -443,27 +443,32 @@ def makeup_test_module(request, pk):
 
 
 @login_required(login_url='/login/')
+@login_required(login_url='/login/')
 def module_test(request, pk):
     user = request.user
     user_groups = request.user.groups.all()
+
     try:
         test = Test.objects.filter(name=pk, groups__in=user_groups).distinct()[0]
-    except:
+    except Exception:
         return HttpResponse('Permission Error')
-    # Use get_or_create to prevent race conditions and ensure no duplicates
-    test_stage, created = TestStage.objects.get_or_create(user=user, test=test, defaults={'stage': 1})
+
+    test_stage, created = TestStage.objects.get_or_create(
+        user=user,
+        test=test,
+        defaults={'stage': 1}
+    )
 
     test, section, module = test_stage.get_models()
     m = TestModule.objects.filter(test=test, section=section, module=module, user=user)
+
     if m.exists():
         if test_stage.next_stage():
             return redirect('results', test=test)
         return module_test(request, pk=test.pk)
 
-    # Get user's custom time settings for offline users
     custom_time_seconds = None
     if user.groups.filter(name='OFFLINE').exists():
-        # Use get_or_create to prevent race conditions
         profile, created = UserProfile.objects.get_or_create(user=user)
         if section == 'english':
             custom_time_seconds = profile.get_english_time_seconds()
@@ -471,34 +476,55 @@ def module_test(request, pk):
             custom_time_seconds = profile.get_math_time_seconds()
 
     if section == 'english':
-        questions = English_Question.objects.filter(test=test, module=f'module_{module[1]}').order_by('number')
+        questions = English_Question.objects.filter(
+            test=test,
+            module=f'module_{module[1]}'
+        ).order_by('number')
+
         if questions.exists():
-            context = {
-                'questions': questions, 
-                'module': module, 
-                'test': test, 
+            return render(request, 'test/test_eng.html', {
+                'questions': questions,
+                'module': module,
+                'test': test,
                 'section': section,
                 'custom_time_seconds': custom_time_seconds
-            }
-            return render(request, 'test/test_eng.html', context)
-        else:
-            return HttpResponse('Questions are not found')
+            })
+        return HttpResponse('Questions are not found')
 
     if section == 'math':
-        questions = Math_Question.objects.filter(test=test, module=f'module_{module[1]}').order_by('number')
-        if questions.exists():
-            context = {
-                'questions': questions, 
-                'module': module, 
-                'test': test, 
-                'section': section,
-                'custom_time_seconds': custom_time_seconds
-            }
-            return render(request, 'test/test_math.html', context)
-        else:
+        questions = Math_Question.objects.filter(
+            test=test,
+            module=f'module_{module[1]}'
+        ).order_by('number')
+
+        if not questions.exists():
             return HttpResponse('Questions are not found')
 
-    return HttpResponse("You dont have permission my guy")
+        questions_data = []
+        for q in questions:
+            questions_data.append({
+                "id": q.id,
+                "passage": q.passage or "",
+                "number": q.number,
+                "question": q.question or "",
+                "a": q.get_a() if hasattr(q, "get_a") else "",
+                "b": q.get_b() if hasattr(q, "get_b") else "",
+                "c": q.get_c() if hasattr(q, "get_c") else "",
+                "d": q.get_d() if hasattr(q, "get_d") else "",
+                "type": str(q.written),
+                "graph": q.get_graph() if hasattr(q, "get_graph") else "",
+            })
+
+        return render(request, 'test/test_math.html', {
+            'questions': questions,
+            'questions_data': questions_data,
+            'module': module,
+            'test': test,
+            'section': section,
+            'custom_time_seconds': custom_time_seconds
+        })
+
+    return HttpResponse("You dont have permission")
 
 
 def rankings(request, pk):
