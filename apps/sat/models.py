@@ -630,3 +630,70 @@ class Mock(BaseModel):
 @receiver(pre_delete, sender=TestStage)
 def delete_related_objects(sender, instance, **kwargs):
     instance.delete_related()
+
+class VocabularyUnit(models.Model):
+    title = models.CharField(max_length=200, unique=True)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def words_count(self):
+        return self.words.filter(is_active=True).count()
+
+
+class VocabularyWord(models.Model):
+    unit = models.ForeignKey(
+        VocabularyUnit,
+        on_delete=models.CASCADE,
+        related_name='words'
+    )
+    word = models.CharField(max_length=255)
+    meaning = models.TextField()
+    example = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        unique_together = ('unit', 'word')
+
+    def __str__(self):
+        return f"{self.unit.title} - {self.word}"
+
+
+class VocabularyQuestion(models.Model):
+    unit = models.ForeignKey(
+        VocabularyUnit,
+        on_delete=models.CASCADE,
+        related_name='questions'
+    )
+    question = models.TextField()
+    choice_a = models.CharField(max_length=255)
+    choice_b = models.CharField(max_length=255)
+    choice_c = models.CharField(max_length=255)
+    choice_d = models.CharField(max_length=255)
+    correct_answer = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def str(self):
+        return f"{self.unit.title} - {self.question[:60]}"
+
+    def get_choices(self):
+        return [
+            self.choice_a,
+            self.choice_b,
+            self.choice_c,
+            self.choice_d,
+        ]

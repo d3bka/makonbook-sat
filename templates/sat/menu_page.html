@@ -162,30 +162,36 @@ Makon Book
     </div>
 
     <div class="sat-menu-grid">
-      <a href="{% url 'practice_tests' %}" class="sat-menu-card practice">
-        <div class="sat-menu-card-content">
-          <span class="sat-menu-badge">Core Section</span>
-          <h3>Practice Tests</h3>
-          <p>Access your assigned SAT practice tests, review solved tests, and continue your preparation.</p>
-          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
-        </div>
-      </a>
-      <a href="{% url 'vocabulary' %}" class="sat-menu-card vocabulary">
-        <div class="sat-menu-card-content">
-          <span class="sat-menu-badge">Language Skills</span>
-          <h3>Vocabulary</h3>
-          <p>Build stronger word knowledge through word lists, flashcards, and future vocabulary drills.</p>
-          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
-        </div>
-      </a>
-      <a href="{% url 'admissions' %}" class="sat-menu-card admissions">
-        <div class="sat-menu-card-content">
-          <span class="sat-menu-badge">Future Planning</span>
-          <h3>College Application</h3>
-          <p>Explore university guidance, applications, and scholarship support in one place.</p>
-          <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
-        </div>
-      </a>
+      {% if can_access_practice_tests %}
+        <a href="{% url 'practice_tests' %}" class="sat-menu-card practice">
+          <div class="sat-menu-card-content">
+            <span class="sat-menu-badge">Core Section</span>
+            <h3>Practice Tests</h3>
+            <p>Access your assigned SAT practice tests, review solved tests, and continue your preparation.</p>
+            <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+          </div>
+        </a>
+      {% endif %}
+      {% if can_access_vocabulary %}
+        <a href="{% url 'vocabulary' %}" class="sat-menu-card vocabulary">
+          <div class="sat-menu-card-content">
+            <span class="sat-menu-badge">Language Skills</span>
+            <h3>Vocabulary</h3>
+            <p>Build stronger word knowledge through word lists, flashcards, and future vocabulary drills.</p>
+            <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+          </div>
+        </a>
+      {% endif %}
+      {% if can_access_admissions %}
+        <a href="{% url 'admissions' %}" class="sat-menu-card admissions">
+          <div class="sat-menu-card-content">
+            <span class="sat-menu-badge">Future Planning</span>
+            <h3>College Application</h3>
+            <p>Explore university guidance, applications, and scholarship support in one place.</p>
+            <span class="sat-menu-link">Open Section <i class="fa fa-arrow-right"></i></span>
+          </div>
+        </a>
+      {% endif %}
     </div>
   </div>
 </main>

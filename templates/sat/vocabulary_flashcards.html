@@ -1,0 +1,163 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endblock breadcrumb_parent %}
+
+{% block title %}Flashcards{% endblock title %}
+
+{% block style %}
+<style>
+  .page-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .unit-block {
+    margin-bottom: 30px;
+  }
+
+  .unit-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #324dc7;
+    margin-bottom: 16px;
+  }
+
+  .flashcards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 22px;
+  }
+
+  .flashcard {
+    background: #fff;
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+    padding: 24px;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .flashcard-label {
+    display: inline-block;
+    width: fit-content;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #324dc7;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .flashcard-front {
+    font-size: 28px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.3;
+    margin-bottom: 18px;
+  }
+
+  .flashcard-answer {
+    display: none;
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  .flashcard-answer.show {
+    display: block;
+  }
+
+  .flashcard-actions {
+    margin-top: auto;
+    padding-top: 18px;
+  }
+
+  .flashcard-btn {
+    border: none;
+    cursor: pointer;
+    border-radius: 999px;
+    height: 42px;
+    padding: 0 18px;
+    font-weight: 700;
+    font-size: 14px;
+    background: #324dc7;
+    color: #fff;
+  }
+
+  .flashcard-btn:hover {
+    background: #273ca3;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="page-wrap">
+    {% for unit in units %}
+      <div class="unit-block">
+        <div class="unit-title">{{ unit.title }}</div>
+
+        <div class="flashcards-grid">
+          {% for word in unit.words.all %}
+            {% if word.is_active %}
+              <div class="flashcard">
+                <span class="flashcard-label">Flashcard</span>
+
+                <div class="flashcard-front">
+                  {{ word.word }}
+                </div>
+
+                <div class="flashcard-answer" id="flashcard-answer-{{ word.id }}">
+                  <strong>Meaning:</strong> {{ word.meaning }}
+                  {% if word.example %}
+                    <br><br>
+                    <strong>Example:</strong> {{ word.example }}
+                  {% endif %}
+                </div>
+
+                <div class="flashcard-actions">
+                  <button type="button" class="flashcard-btn" onclick="toggleFlashcardAnswer('{{ word.id }}', this)">
+                    Show Answer
+                  </button>
+                </div>
+              </div>
+            {% endif %}
+          {% empty %}
+            <div>No words added yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div>No units available yet.</div>
+    {% endfor %}
+  </div>
+</main>
+
+<script>
+  function toggleFlashcardAnswer(id, button) {
+    const answer = document.getElementById(`flashcard-answer-${id}`);
+    const isShown = answer.classList.contains('show');
+
+    if (isShown) {
+      answer.classList.remove('show');
+      button.textContent = 'Show Answer';
+    } else {
+      answer.classList.add('show');
+      button.textContent = 'Hide Answer';
+    }
+  }
+</script>
+{% endblock content %}

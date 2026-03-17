@@ -1,0 +1,82 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endblock breadcrumb_parent %}
+
+{% block title %}Word Lists{% endblock title %}
+
+{% block style %}
+<style>
+  .page-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .unit-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 24px;
+    margin-bottom: 22px;
+  }
+
+  .unit-card h3 {
+    color: #324dc7;
+    margin-bottom: 10px;
+  }
+
+  .word-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .word-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #f9fafb;
+  }
+
+  .word-item strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #111827;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="page-wrap">
+    {% for unit in units %}
+      <div class="unit-card">
+        <h3>{{ unit.title }}</h3>
+        {% if unit.description %}
+          <p>{{ unit.description }}</p>
+        {% endif %}
+
+        <div class="word-list">
+          {% for word in unit.words.all %}
+            {% if word.is_active %}
+              <div class="word-item">
+                <strong>{{ word.word }}</strong>
+                <span>{{ word.meaning }}</span>
+              </div>
+            {% endif %}
+          {% empty %}
+            <div class="word-item">No words added yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="unit-card">No units available yet.</div>
+    {% endfor %}
+  </div>
+</main>
+{% endblock content %}

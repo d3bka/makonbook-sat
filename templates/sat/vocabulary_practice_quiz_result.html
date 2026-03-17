@@ -1,0 +1,195 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endblock breadcrumb_parent %}
+
+{% block title %}Practice Quiz Result{% endblock title %}
+
+{% block style %}
+<style>
+  .quiz-result-page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .result-hero {
+    background: linear-gradient(135deg, #324dc7 0%, #5b73e8 100%);
+    border-radius: 22px;
+    padding: 32px;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 12px 30px rgba(50, 77, 199, 0.2);
+    text-align: center;
+  }
+
+  .result-hero h2 {
+    margin: 0 0 8px 0;
+    font-size: 34px;
+    font-weight: 800;
+  }
+
+  .result-score {
+    font-size: 54px;
+    font-weight: 900;
+    margin: 12px 0;
+  }
+
+  .result-subtitle {
+    font-size: 17px;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .result-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 26px;
+    margin-bottom: 20px;
+  }
+
+  .result-unit {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #324dc7;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .result-question {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .result-answer {
+    margin-bottom: 10px;
+    font-size: 15px;
+    color: #374151;
+  }
+
+  .result-answer strong {
+    color: #111827;
+  }
+
+  .result-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .result-status.correct {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .result-status.incorrect {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .result-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .result-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 180px;
+    height: 46px;
+    padding: 0 22px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: .2s ease;
+  }
+
+  .result-btn-primary {
+    background: #324dc7;
+    color: #fff !important;
+  }
+
+  .result-btn-primary:hover {
+    background: #273ca3;
+  }
+
+  .result-btn-secondary {
+    background: #eef2ff;
+    color: #324dc7 !important;
+  }
+
+  .result-btn-secondary:hover {
+    background: #dfe7ff;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="quiz-result-page">
+
+    <div class="result-hero">
+      <h2>Your Result</h2>
+      <div class="result-score">{{ score }} / {{ total }}</div>
+      <div class="result-subtitle">
+        {% if total > 0 %}
+          Accuracy: {% widthratio score total 100 %}%
+        {% else %}
+          No questions were submitted.
+        {% endif %}
+      </div>
+    </div>
+
+    {% for item in results %}
+      <div class="result-card">
+        <div class="result-unit">{{ item.unit }}</div>
+        <div class="result-question">{{ forloop.counter }}. {{ item.question }}</div>
+
+        <div class="result-answer">
+          <strong>Your answer:</strong>
+          {% if item.user_answer %}
+            {{ item.user_answer }}
+          {% else %}
+            No answer
+          {% endif %}
+        </div>
+
+        <div class="result-answer">
+          <strong>Correct answer:</strong> {{ item.correct_answer }}
+        </div>
+
+        {% if item.is_correct %}
+          <div class="result-status correct">Correct</div>
+        {% else %}
+          <div class="result-status incorrect">Incorrect</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    <div class="result-actions">
+      <a href="{% url 'vocabulary_practice_quiz' %}" class="result-btn result-btn-secondary">Choose New Units</a>
+      <a href="{% url 'vocabulary' %}" class="result-btn result-btn-primary">Back to Vocabulary</a>
+    </div>
+
+  </div>
+</main>
+{% endblock content %}
