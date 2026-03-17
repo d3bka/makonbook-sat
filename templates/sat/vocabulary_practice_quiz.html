@@ -1,0 +1,518 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endblock breadcrumb_parent %}
+
+{% block title %}Practice Quiz{% endblock title %}
+
+{% block style %}
+<style>
+  .quiz-page {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, #324dc7 0%, #5b73e8 100%);
+    border-radius: 22px;
+    padding: 30px;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 12px 30px rgba(50, 77, 199, 0.2);
+  }
+
+  .hero h2 {
+    margin: 0 0 10px 0;
+    font-size: 34px;
+    font-weight: 800;
+  }
+
+  .hero p {
+    margin: 0;
+    font-size: 16px;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .messages-box {
+    margin-bottom: 18px;
+  }
+
+  .messages-box .alert {
+    padding: 12px 14px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  .messages-box .alert-error {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .messages-box .alert-success {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .messages-box .alert-info {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar input {
+    flex: 1;
+    min-width: 250px;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    padding: 0 16px;
+    font-size: 15px;
+    background: #fff;
+  }
+
+  .toolbar button {
+    height: 46px;
+    border: none;
+    border-radius: 999px;
+    padding: 0 22px;
+    background: #324dc7;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: .2s ease;
+  }
+
+  .toolbar button:hover {
+    background: #273ca3;
+  }
+
+  .unit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+
+  .unit-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    padding: 18px;
+    cursor: pointer;
+    transition: .2s ease;
+  }
+
+  .unit-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.10);
+  }
+
+  .unit-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 10px;
+  }
+
+  .unit-description {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.5;
+    min-height: 42px;
+    margin-bottom: 12px;
+  }
+
+  .unit-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .unit-badge {
+    font-size: 12px;
+    font-weight: 700;
+    color: #324dc7;
+    background: #eef2ff;
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+
+  .modal-wrap {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(17,24,39,0.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-box {
+    width: 100%;
+    max-width: 700px;
+    background: #fff;
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .modal-box h3 {
+    margin-bottom: 16px;
+    font-size: 28px;
+    color: #111827;
+  }
+
+  .modal-row {
+    margin-bottom: 16px;
+  }
+
+  .modal-row label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #111827;
+  }
+
+  .modal-row input[type="number"] {
+    width: 100%;
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    padding: 0 14px;
+    background: #fff;
+  }
+
+  .unit-check-list {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .unit-check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #fafafa;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .modal-btn {
+    min-width: 150px;
+    height: 44px;
+    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: .2s ease;
+  }
+
+  .modal-btn-primary {
+    background: #324dc7;
+    color: #fff;
+  }
+
+  .modal-btn-primary:hover {
+    background: #273ca3;
+  }
+
+  .modal-btn-secondary {
+    background: #eef2ff;
+    color: #324dc7;
+  }
+
+  .modal-btn-secondary:hover {
+    background: #dfe7ff;
+  }
+
+  .word-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .word-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #f9fafb;
+  }
+
+  .word-item strong {
+    display: block;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .word-item span {
+    color: #4b5563;
+    line-height: 1.5;
+  }
+
+  .empty-state {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 30px;
+    text-align: center;
+    color: #6b7280;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="quiz-page">
+    <div class="hero">
+      <h2>Practice Quiz</h2>
+      <p>Search units, open word lists, and build a custom test from vocabulary words.</p>
+    </div>
+
+    {% if messages %}
+      <div class="messages-box">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="toolbar">
+      <input type="text" id="unitSearch" placeholder="Search units..." onkeyup="filterUnits()">
+      <button type="button" onclick="openStartModal()">Start Test</button>
+    </div>
+
+    {% if units %}
+      <div class="unit-grid" id="unitGrid">
+        {% for unit in units %}
+          <div
+            class="unit-card"
+            data-title="{{ unit.title|lower }}"
+            data-unit-id="{{ unit.id }}"
+            data-unit-title="{{ unit.title|escapejs }}"
+            data-unit-description="{{ unit.description|default_if_none:''|escapejs }}"
+            data-words-count="{{ unit.words_count }}"
+            data-words='[
+              {% for word in unit.words.all %}
+                {% if word.is_active %}
+                  {
+                    "word":"{{ word.word|escapejs }}",
+                    "meaning":"{{ word.meaning|escapejs }}"
+                  }{% if not forloop.last %},{% endif %}
+                {% endif %}
+              {% endfor %}
+            ]'
+            onclick="openUnitModal(this)"
+          >
+            <div class="unit-title">{{ unit.title }}</div>
+
+            <div class="unit-description">
+              {% if unit.description %}
+                {{ unit.description|truncatechars:90 }}
+              {% else %}
+                No description provided.
+              {% endif %}
+            </div>
+
+            <div class="unit-meta">
+              <span class="unit-badge">{{ unit.words_count }} words</span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        No vocabulary units available yet.
+      </div>
+    {% endif %}
+  </div>
+</main>
+
+<div class="modal-wrap" id="startTestModal">
+  <div class="modal-box">
+    <h3>Create Practice Test</h3>
+
+    <form method="post" action="{% url 'vocabulary_practice_quiz_start' %}">
+      {% csrf_token %}
+
+      <div class="modal-row">
+        <label>Select Units</label>
+        <div class="unit-check-list">
+          {% for unit in units %}
+            <label class="unit-check-item">
+              <input
+                type="checkbox"
+                name="units"
+                value="{{ unit.id }}"
+                class="start-unit-checkbox"
+                data-word-count="{{ unit.words_count }}"
+                onchange="updateMaxQuestions()"
+              >
+              <span>{{ unit.title }} ({{ unit.words_count }} words)</span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <label>How many questions?</label>
+        <input type="number" id="questionCountInput" name="question_count" min="1" value="1" required>
+        <small id="maxQuestionHint">Select units to calculate max available questions.</small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeStartModal()">Cancel</button>
+        <button type="submit" class="modal-btn modal-btn-primary">Start Test</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-wrap" id="unitModal">
+  <div class="modal-box">
+    <h3 id="unitModalTitle">Unit</h3>
+
+    <p id="unitModalDescription" style="color:#6b7280; margin-bottom: 18px;"></p>
+
+    <div class="modal-row">
+      <label>Words in this unit</label>
+      <div class="word-list" id="unitWordList"></div>
+    </div>
+
+    <form method="post" action="{% url 'vocabulary_practice_quiz_start' %}">
+      {% csrf_token %}
+      <input type="hidden" name="units" id="singleUnitId">
+
+      <div class="modal-row">
+        <label>How many questions from this unit?</label>
+        <input type="number" id="singleUnitQuestionCount" name="question_count" min="1" value="1" required>
+        <small id="singleUnitHint"></small>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn-secondary" onclick="closeUnitModal()">Close</button>
+        <button type="submit" class="modal-btn modal-btn-primary">Create Test From This Unit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function filterUnits() {
+    const query = document.getElementById('unitSearch').value.toLowerCase();
+    const cards = document.querySelectorAll('.unit-card');
+
+    cards.forEach(card => {
+      const title = card.getAttribute('data-title');
+      card.style.display = title.includes(query) ? '' : 'none';
+    });
+  }
+
+  function openStartModal() {
+    document.getElementById('startTestModal').style.display = 'flex';
+    updateMaxQuestions();
+  }
+
+  function closeStartModal() {
+    document.getElementById('startTestModal').style.display = 'none';
+  }
+
+  function updateMaxQuestions() {
+    const checkboxes = document.querySelectorAll('.start-unit-checkbox:checked');
+    let total = 0;
+
+    checkboxes.forEach(cb => {
+      total += parseInt(cb.getAttribute('data-word-count') || '0', 10);
+    });
+
+    const input = document.getElementById('questionCountInput');
+    const hint = document.getElementById('maxQuestionHint');
+
+    if (total > 0) {
+      input.max = total;
+      if (parseInt(input.value || '1', 10) > total) {
+        input.value = total;
+      }
+      hint.textContent = `Maximum available questions: ${total}`;
+    } else {
+      input.max = '';
+      hint.textContent = 'Select units to calculate max available questions.';
+    }
+  }
+
+  function openUnitModal(card) {
+    const title = card.getAttribute('data-unit-title');
+    const description = card.getAttribute('data-unit-description');
+    const unitId = card.getAttribute('data-unit-id');
+    const wordsCount = parseInt(card.getAttribute('data-words-count') || '0', 10);
+    const words = JSON.parse(card.getAttribute('data-words') || '[]');
+
+    document.getElementById('unitModalTitle').textContent = title;
+    document.getElementById('unitModalDescription').textContent = description || 'No description provided.';
+    document.getElementById('singleUnitId').value = unitId;
+
+    const countInput = document.getElementById('singleUnitQuestionCount');
+    countInput.max = wordsCount;
+    countInput.value = 1;
+
+    document.getElementById('singleUnitHint').textContent = `Maximum available questions: ${wordsCount}`;
+
+    const wordList = document.getElementById('unitWordList');
+    wordList.innerHTML = '';
+
+    if (words.length === 0) {
+      wordList.innerHTML = '<div class="word-item">No words added yet.</div>';
+    } else {
+      words.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'word-item';
+        div.innerHTML = `<strong>${item.word}</strong><span>${item.meaning}</span>`;
+        wordList.appendChild(div);
+      });
+    }
+
+    document.getElementById('unitModal').style.display = 'flex';
+  }
+
+  function closeUnitModal() {
+    document.getElementById('unitModal').style.display = 'none';
+  }
+
+  window.addEventListener('click', function(e) {
+    const startModal = document.getElementById('startTestModal');
+    const unitModal = document.getElementById('unitModal');
+
+    if (e.target === startModal) {
+      closeStartModal();
+    }
+
+    if (e.target === unitModal) {
+      closeUnitModal();
+    }
+  });
+</script>
+{% endblock content %}

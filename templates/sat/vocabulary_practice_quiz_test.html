@@ -1,0 +1,229 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endblock breadcrumb_parent %}
+
+{% block title %}Practice Quiz Test{% endblock title %}
+
+{% block style %}
+<style>
+  .quiz-test-page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .quiz-hero {
+    background: linear-gradient(135deg, #324dc7 0%, #5b73e8 100%);
+    border-radius: 22px;
+    padding: 30px;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 12px 30px rgba(50, 77, 199, 0.2);
+  }
+
+  .quiz-hero h2 {
+    margin: 0 0 10px 0;
+    font-size: 32px;
+    font-weight: 800;
+  }
+
+  .quiz-hero p {
+    margin: 0;
+    font-size: 16px;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .quiz-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .quiz-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .quiz-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 28px;
+    margin-bottom: 22px;
+  }
+
+  .question-unit {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #324dc7;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  .question-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .choice-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .choice-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 16px;
+    transition: .2s ease;
+    cursor: pointer;
+    background: #fff;
+  }
+
+  .choice-item:hover {
+    border-color: #324dc7;
+    background: #f8faff;
+  }
+
+  .choice-item input {
+    transform: scale(1.15);
+  }
+
+  .quiz-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  .quiz-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 170px;
+    height: 46px;
+    padding: 0 22px;
+    border: none;
+    border-radius: 999px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: .2s ease;
+  }
+
+  .quiz-btn-primary {
+    background: #324dc7;
+    color: #fff;
+  }
+
+  .quiz-btn-primary:hover {
+    background: #273ca3;
+  }
+
+  .quiz-btn-secondary {
+    background: #eef2ff;
+    color: #324dc7;
+  }
+
+  .quiz-btn-secondary:hover {
+    background: #dfe7ff;
+  }
+
+  .empty-box {
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 40px 28px;
+    text-align: center;
+  }
+
+  .empty-box h3 {
+    color: #111827;
+    margin-bottom: 10px;
+  }
+
+  .empty-box p {
+    color: #6b7280;
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<main class="main-content">
+  <div class="quiz-test-page">
+
+    {% if questions %}
+      <div class="quiz-hero">
+        <h2>Vocabulary Practice Test</h2>
+        <p>Answer all questions from your selected units, then submit to see your result.</p>
+
+        <div class="quiz-meta">
+          <span class="quiz-badge">{{ questions|length }} Questions</span>
+          <span class="quiz-badge">{{ selected_units|length }} Selected Units</span>
+          {% for unit in selected_units %}
+            <span class="quiz-badge">{{ unit.title }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <form method="post" action="{% url 'vocabulary_practice_quiz_result' %}">
+        {% csrf_token %}
+
+        {% for item in questions %}
+          <div class="quiz-card">
+            <div class="question-unit">{{ item.unit }}</div>
+            <div class="question-title">{{ forloop.counter }}. {{ item.question }}</div>
+
+            <div class="choice-list">
+              {% for choice in item.choices %}
+                <label class="choice-item">
+                  <input type="radio" name="question_{{ forloop.parentloop.counter0 }}" value="{{ choice }}" required>
+                  <span>{{ choice }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+
+        <div class="quiz-actions">
+          <a href="{% url 'vocabulary_practice_quiz' %}" class="quiz-btn quiz-btn-secondary">Back to Units</a>
+          <button type="submit" class="quiz-btn quiz-btn-primary">Submit Test</button>
+        </div>
+      </form>
+
+    {% else %}
+      <div class="empty-box">
+        <h3>No units selected</h3>
+        <p>You need to choose at least one unit before starting the test.</p>
+        <a href="{% url 'vocabulary_practice_quiz' %}" class="quiz-btn quiz-btn-primary">Choose Units</a>
+      </div>
+    {% endif %}
+
+  </div>
+</main>
+{% endblock content %}

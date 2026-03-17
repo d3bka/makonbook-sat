@@ -699,3 +699,37 @@ class SecretCodeAdmin(admin.ModelAdmin):
                     obj.code = code
                     break
         super().save_model(request, obj, form, change)
+
+
+class VocabularyWordInline(admin.TabularInline):
+    model = VocabularyWord
+    extra = 1
+
+
+@admin.register(VocabularyUnit)
+class VocabularyUnitAdmin(admin.ModelAdmin):
+    list_display = ('title', 'order', 'is_active', 'words_count')
+    list_filter = ('is_active',)
+    search_fields = ('title', 'description')
+    ordering = ('order', 'id')
+    inlines = [VocabularyWordInline]
+
+
+@admin.register(VocabularyWord)
+class VocabularyWordAdmin(admin.ModelAdmin):
+    list_display = ('word', 'unit', 'is_active', 'created_at')
+    list_filter = ('unit', 'is_active')
+    search_fields = ('word', 'meaning', 'example', 'unit__title')
+    ordering = ('unit', 'id')
+
+
+@admin.register(VocabularyQuestion)
+class VocabularyQuestionAdmin(admin.ModelAdmin):
+    list_display = ('short_question', 'unit', 'correct_answer', 'is_active', 'created_at')
+    list_filter = ('unit', 'is_active')
+    search_fields = ('question', 'choice_a', 'choice_b', 'choice_c', 'choice_d', 'correct_answer', 'unit__title')
+    ordering = ('unit', 'id')
+
+    def short_question(self, obj):
+        return obj.question[:70]
+    short_question.short_description = 'Question'

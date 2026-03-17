@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import *
-from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect, Http404
 from apps.base.decorators import allowed_users
 from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import login_required
@@ -8,6 +8,7 @@ from django.conf import settings
 from satmakon.settings import BASE_DIR
 from .libs import calculator
 import json
+import random
 from django.utils import timezone
 from datetime import timedelta
 from .libs.certificate.certificate import create_certificate
@@ -77,6 +78,9 @@ def is_member(user, names):
 
 @login_required(login_url='/login/')
 def practice_tests(request):
+    if not has_access(request.user, 'Access_Practice_Tests'):
+        return HttpResponseForbidden("You do not have access to Practice Tests.")
+
     user = request.user
     user_groups = user.groups.all()
 
@@ -104,7 +108,6 @@ def practice_tests(request):
             active_tests.append(test)
 
     purchased_packages = PurchasedLessonPackage.objects.filter(user=user)
-
     if purchased_packages.exists():
         lessons = Lesson.objects.filter(package__in=[p.package for p in purchased_packages])
         active_lessons = []
@@ -136,7 +139,6 @@ def practice_tests(request):
     context.update(lessons_context)
 
     return render(request, 'sat/practice_tests.html', context)
-
 
 def check_the_answers(request):
     if request.method == "POST":
@@ -1021,16 +1023,375 @@ def restart_section(request, pk, section):
     
     return HttpResponse("You do not have permission to restart sections")
 
-@login_required
+def has_access(user, group_name):
+    return (
+        user.is_superuser
+        or user.is_staff
+        or user.groups.filter(name=group_name).exists()
+    )
+
+@login_required(login_url='/login/')
 def menu_page(request):
-    return render(request, 'sat/menu_page.html')
+    context = {
+        'can_access_practice_tests': has_access(request.user, 'Access_Practice_Tests'),
+        'can_access_vocabulary': has_access(request.user, 'Access_Vocabulary'),
+        'can_access_admissions': has_access(request.user, 'Access_Admissions'),
+    }
+    return render(request, 'sat/menu_page.html', context)
 
 
-@login_required
+@login_required(login_url='/login/')
 def vocabulary(request):
-    return render(request, 'sat/vocabulary.html')
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+
+    return render(request, 'sat/vocabulary.html', {
+        'units': units
+    })
 
 
-@login_required
+@login_required(login_url='/login/')
 def admissions(request):
-    return render(request, 'sat/admissions.html')
+    if not has_access(request.user, 'Access_Admissions'):
+        return HttpResponseForbidden("You do not have access to Admissions.")
+
+    return render(request, 'sat/admissions.html', {
+        'sections': ADMISSIONS_SECTIONS
+    })
+
+
+@login_required(login_url='/login/')
+def vocabulary_section(request, slug):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    if slug == 'word_lists':
+        units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+        return render(request, 'sat/vocabulary_word_lists.html', {
+            'units': units
+        })
+
+    if slug == 'flashcards':
+        units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+        return render(request, 'sat/vocabulary_flashcards.html', {
+            'units': units
+        })
+
+    raise Http404("Vocabulary section not found")
+
+
+ADMISSIONS_SECTIONS = {
+    "university_guide": {
+        "title": "University Guide",
+        "description": "Basic guidance for choosing universities and programs.",
+        "items": [
+            {
+                "title": "How to Compare Universities",
+                "content": [
+                    "Check tuition and total cost, not just headline tuition.",
+                    "Look at major strength, not just university ranking.",
+                    "Check scholarship availability for international students.",
+                    "Compare location, campus size, and internship access.",
+                    "Look at graduation outcomes and career support.",
+                ]
+            },
+            {
+                "title": "What to Research",
+                "content": [
+                    "Application deadlines",
+                    "Required English test scores",
+                    "SAT/optional policy",
+                    "Financial aid for internationals",
+                    "Major-specific requirements",
+                ]
+            },
+        ]
+    },
+    "application_help": {
+        "title": "Application Help",
+        "description": "Step-by-step help for preparing your college applications.",
+        "items": [
+            {
+                "title": "Core Application Checklist",
+                "content": [
+                    "Create university account/Common App account",
+                    "Prepare passport and personal details",
+                    "Add school and academic information",
+                    "Prepare IELTS/TOEFL scores",
+                    "Prepare SAT scores if needed",
+                    "Write personal essay",
+                    "Request recommendation letters",
+                    "Upload transcripts",
+                ]
+            },
+            {
+                "title": "Essay Advice",
+                "content": [
+                    "Be specific, not generic",
+                    "Show personal growth",
+                    "Avoid fake drama",
+                    "Use real examples",
+                    "Keep structure clear",
+                ]
+            },
+        ]
+    },
+    "scholarships": {
+        "title": "Scholarships",
+        "description": "Basic overview of scholarship planning.",
+        "items": [
+            {
+                "title": "Common Scholarship Types",
+                "content": [
+                    "Merit scholarships",
+                    "Need-based aid",
+                    "International student grants",
+                    "Department scholarships",
+                    "External private scholarships",
+                ]
+            },
+            {
+                "title": "What Usually Helps",
+                "content": [
+                    "Strong GPA",
+                    "High English proficiency scores",
+                    "Strong SAT if required",
+                    "Good essay",
+                    "Clear extracurricular profile",
+                    "Early application",
+                ]
+            },
+        ]
+    },
+}
+
+
+@login_required(login_url='/login/')
+def vocabulary_section(request, slug):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    section = VOCABULARY_SECTIONS.get(slug)
+    if not section:
+        raise Http404("Vocabulary section not found")
+
+    return render(request, 'sat/vocabulary_section.html', {
+        'slug': slug,
+        'section': section,
+    })
+
+
+@login_required(login_url='/login/')
+def admissions(request):
+    return render(request, 'sat/admissions.html', {
+        'sections': ADMISSIONS_SECTIONS
+    })
+
+
+@login_required(login_url='/login/')
+def admissions_section(request, slug):
+    if not has_access(request.user, 'Access_Admissions'):
+        return HttpResponseForbidden("You do not have access to Admissions.")
+
+    section = ADMISSIONS_SECTIONS.get(slug)
+    if not section:
+        raise Http404("Admissions section not found")
+
+    return render(request, 'sat/admissions_section.html', {
+        'slug': slug,
+        'section': section,
+    })
+
+VOCAB_UNITS = [
+    {
+        "id": 1,
+        "title": "Unit 1",
+        "words": [
+            {"word": "concise", "meaning": "brief and clear"},
+            {"word": "infer", "meaning": "to conclude from evidence"},
+            {"word": "validate", "meaning": "to confirm"},
+        ],
+        "questions": [
+            {
+                "question": "What does 'concise' mean?",
+                "choices": ["brief and clear", "angry", "unclear", "careless"],
+                "answer": "brief and clear",
+            },
+            {
+                "question": "What does 'infer' mean?",
+                "choices": ["to conclude from evidence", "to ignore", "to destroy", "to repeat"],
+                "answer": "to conclude from evidence",
+            },
+            {
+                "question": "What does 'validate' mean?",
+                "choices": ["to confirm", "to deny", "to remove", "to weaken"],
+                "answer": "to confirm",
+            },
+        ],
+    },
+    {
+        "id": 2,
+        "title": "Unit 2",
+        "words": [
+            {"word": "undermine", "meaning": "to weaken"},
+            {"word": "substantial", "meaning": "large in amount or importance"},
+        ],
+        "questions": [
+            {
+                "question": "What does 'undermine' mean?",
+                "choices": ["to weaken", "to support", "to repair", "to increase"],
+                "answer": "to weaken",
+            },
+            {
+                "question": "What does 'substantial' mean?",
+                "choices": ["tiny", "important or large", "weak", "unclear"],
+                "answer": "important or large",
+            },
+        ],
+    },
+]
+
+@login_required(login_url='/login/')
+def vocabulary_practice_quiz(request):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    units = VocabularyUnit.objects.filter(is_active=True).order_by('order', 'id').prefetch_related('words', 'questions')
+
+    return render(request, 'sat/vocabulary_practice_quiz.html', {
+        'units': units
+    })
+
+@login_required(login_url='/login/')
+def vocabulary_practice_quiz_start(request):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    if request.method != 'POST':
+        return redirect('vocabulary_practice_quiz')
+
+    selected_ids = request.POST.getlist('units')
+    selected_ids = [int(x) for x in selected_ids if x.isdigit()]
+    requested_count = request.POST.get('question_count')
+
+    if not selected_ids:
+        messages.error(request, "Select at least one unit.")
+        return redirect('vocabulary_practice_quiz')
+
+    try:
+        requested_count = int(requested_count)
+    except (TypeError, ValueError):
+        messages.error(request, "Enter a valid number of questions.")
+        return redirect('vocabulary_practice_quiz')
+
+    selected_units = VocabularyUnit.objects.filter(
+        id__in=selected_ids,
+        is_active=True
+    ).prefetch_related('words')
+
+    selected_words = []
+    for unit in selected_units:
+        for word in unit.words.filter(is_active=True):
+            selected_words.append(word)
+
+    if len(selected_words) < 4:
+        messages.error(request, "You need at least 4 words in the selected units to generate a quiz.")
+        return redirect('vocabulary_practice_quiz')
+
+    max_available = len(selected_words)
+
+    if requested_count < 1:
+        messages.error(request, "Question count must be at least 1.")
+        return redirect('vocabulary_practice_quiz')
+
+    if requested_count > max_available:
+        messages.error(request, f"You selected {requested_count} questions, but only {max_available} words are available.")
+        return redirect('vocabulary_practice_quiz')
+
+    random.shuffle(selected_words)
+    test_words = selected_words[:requested_count]
+
+    all_meanings_pool = [w.meaning for w in selected_words]
+
+    questions = []
+    for word_obj in test_words:
+        correct_answer = word_obj.meaning
+
+        wrong_answers = [m for m in all_meanings_pool if m != correct_answer]
+        wrong_answers = list(set(wrong_answers))
+        random.shuffle(wrong_answers)
+        wrong_answers = wrong_answers[:3]
+
+        if len(wrong_answers) < 3:
+            continue
+
+        choices = [correct_answer] + wrong_answers
+        random.shuffle(choices)
+
+        questions.append({
+            'unit': word_obj.unit.title,
+            'question': f"What is the meaning of '{word_obj.word}'?",
+            'choices': choices,
+            'answer': correct_answer,
+            'word': word_obj.word,
+        })
+
+    if not questions:
+        messages.error(request, "Could not generate quiz questions from selected words.")
+        return redirect('vocabulary_practice_quiz')
+
+    request.session['vocab_quiz_questions'] = questions
+    request.session['vocab_quiz_units'] = [u.title for u in selected_units]
+
+    return render(request, 'sat/vocabulary_practice_quiz_test.html', {
+        'questions': questions,
+        'selected_units': selected_units,
+        'requested_count': len(questions),
+    })
+
+
+@login_required(login_url='/login/')
+def vocabulary_practice_quiz_result(request):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    if request.method != 'POST':
+        return redirect('vocabulary_practice_quiz')
+
+    questions = request.session.get('vocab_quiz_questions', [])
+    score = 0
+    results = []
+
+    for i, q in enumerate(questions):
+        user_answer = request.POST.get(f'question_{i}')
+        is_correct = user_answer == q['answer']
+
+        if is_correct:
+            score += 1
+
+        results.append({
+            'unit': q['unit'],
+            'question': q['question'],
+            'correct_answer': q['answer'],
+            'user_answer': user_answer,
+            'is_correct': is_correct,
+        })
+
+    return render(request, 'sat/vocabulary_practice_quiz_result.html', {
+        'results': results,
+        'score': score,
+        'total': len(questions),
+    })
+
+@login_required(login_url='/login/')
+def vocabulary_flashcards(request):
+    if not has_access(request.user, 'Access_Vocabulary'):
+        return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+
+    return render(request, 'sat/vocabulary_flashcards.html', {
+        'units': units
+    })

@@ -24,8 +24,16 @@ urlpatterns = [
     path('dev/', include('apps.sat.urls_dev')),
     path('admin-panel/', include('apps.sat.urls_admin')),
 
-
     path('practice_tests/', views.practice_tests, name='practice_tests'),
     path('vocabulary/', views.vocabulary, name='vocabulary'),
     path('admissions/', views.admissions, name='admissions'),
+
+    # SPECIAL ROUTES FIRST
+    path('vocabulary/practice-quiz/', views.vocabulary_practice_quiz, name='vocabulary_practice_quiz'),
+    path('vocabulary/practice-quiz/start/', views.vocabulary_practice_quiz_start, name='vocabulary_practice_quiz_start'),
+    path('vocabulary/practice-quiz/result/', views.vocabulary_practice_quiz_result, name='vocabulary_practice_quiz_result'),
+
+    # GENERIC SLUG ROUTES AFTER
+    path('vocabulary/<slug:slug>/', views.vocabulary_section, name='vocabulary_section'),
+    path('admissions/<slug:slug>/', views.admissions_section, name='admissions_section'),
 ]
