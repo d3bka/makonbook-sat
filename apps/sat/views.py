@@ -1204,61 +1204,12 @@ def admissions_section(request, slug):
         'section': section,
     })
 
-VOCAB_UNITS = [
-    {
-        "id": 1,
-        "title": "Unit 1",
-        "words": [
-            {"word": "concise", "meaning": "brief and clear"},
-            {"word": "infer", "meaning": "to conclude from evidence"},
-            {"word": "validate", "meaning": "to confirm"},
-        ],
-        "questions": [
-            {
-                "question": "What does 'concise' mean?",
-                "choices": ["brief and clear", "angry", "unclear", "careless"],
-                "answer": "brief and clear",
-            },
-            {
-                "question": "What does 'infer' mean?",
-                "choices": ["to conclude from evidence", "to ignore", "to destroy", "to repeat"],
-                "answer": "to conclude from evidence",
-            },
-            {
-                "question": "What does 'validate' mean?",
-                "choices": ["to confirm", "to deny", "to remove", "to weaken"],
-                "answer": "to confirm",
-            },
-        ],
-    },
-    {
-        "id": 2,
-        "title": "Unit 2",
-        "words": [
-            {"word": "undermine", "meaning": "to weaken"},
-            {"word": "substantial", "meaning": "large in amount or importance"},
-        ],
-        "questions": [
-            {
-                "question": "What does 'undermine' mean?",
-                "choices": ["to weaken", "to support", "to repair", "to increase"],
-                "answer": "to weaken",
-            },
-            {
-                "question": "What does 'substantial' mean?",
-                "choices": ["tiny", "important or large", "weak", "unclear"],
-                "answer": "important or large",
-            },
-        ],
-    },
-]
-
 @login_required(login_url='/login/')
 def vocabulary_practice_quiz(request):
     if not has_access(request.user, 'Access_Vocabulary'):
         return HttpResponseForbidden("You do not have access to Vocabulary.")
 
-    units = VocabularyUnit.objects.filter(is_active=True).order_by('order', 'id').prefetch_related('words', 'questions')
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
     return render(request, 'sat/vocabulary_practice_quiz.html', {
         'units': units
