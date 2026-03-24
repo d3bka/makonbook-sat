@@ -1,0 +1,217 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Classroom Dashboard{% endblock title %}
+
+{% block style %}
+<style>
+  .dashboard-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+
+  .dashboard-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .dashboard-card h3 {
+    margin-bottom: 12px;
+    color: #324dc7;
+  }
+
+  .code-box {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    margin: 12px 0;
+  }
+
+  .btn-main {
+    display: inline-block;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .btn-danger {
+    background: #b91c1c;
+  }
+
+  .btn-secondary {
+    background: #475569;
+  }
+
+  .student-list {
+    margin-top: 14px;
+  }
+
+  .student-item {
+    padding: 16px 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .student-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .student-name {
+    font-weight: 700;
+    font-size: 17px;
+  }
+
+  .student-meta {
+    margin-top: 8px;
+    color: #64748b;
+    font-size: 14px;
+  }
+
+  .student-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .status-pending {
+    color: #b45309;
+    font-weight: 700;
+  }
+
+  .status-approved {
+    color: #15803d;
+    font-weight: 700;
+  }
+
+  .status-rejected {
+    color: #b91c1c;
+    font-weight: 700;
+  }
+
+  @media (max-width: 900px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="dashboard-wrap">
+  <div class="dashboard-grid">
+    <div class="dashboard-card">
+      <h3>Join Code</h3>
+      
+      {% if join_code and join_code.is_valid %}
+      <div class="code-box">{{ join_code.code }}</div>
+      <p><strong>Valid until:</strong> {{ join_code.expires_at }}</p>
+      {% else %}
+      <p>No active code.</p>
+      {% endif %}
+      
+      <a href="{% url 'generate_classroom_join_code' classroom.id %}" class="btn-main">
+        Generate New Code
+      </a>
+    </div>
+    
+    <div class="dashboard-card">
+      <h3>Classroom Info</h3>
+      <p><strong>Name:</strong> {{ classroom.name }}</p>
+      <p><strong>Description:</strong> {{ classroom.description|default:"No description." }}</p>
+      <p><strong>Created:</strong> {{ classroom.created_at }}</p>
+      
+      <div style="margin-top: 16px; display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="{% url 'teacher_classroom_list' %}" class="btn-main btn-secondary">
+          Back to Classrooms
+        </a>
+        
+        <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
+          View Progress Dashboard
+        </a>
+        
+        <a href="{% url 'classroom_chat' classroom.id %}" class="btn-main">
+          Open Chat
+        </a>
+      </div>
+      
+      <form method="post" action="{% url 'delete_classroom' classroom.id %}" style="margin-top: 14px;">
+        {% csrf_token %}
+        <button
+        type="submit"
+        class="btn-main btn-danger"
+        onclick="return confirm('Are you sure you want to delete this classroom? This action cannot be undone.');">
+        Delete Classroom
+      </button>
+    </form>
+  </div>
+</div>
+  
+  <div class="dashboard-card" style="margin-top: 22px;">
+    <h3>Students and Requests</h3>
+
+    <div class="student-list">
+      {% for membership in students %}
+        <div class="student-item">
+          <div class="student-top">
+            <div class="student-name">
+              {{ membership.user.get_full_name|default:membership.user.username }}
+            </div>
+            <div class="status-{{ membership.status }}">
+              {{ membership.status|title }}
+            </div>
+          </div>
+
+          <div class="student-meta">
+            <div><strong>Username:</strong> {{ membership.user.username }}</div>
+            <div><strong>Requested at:</strong> {{ membership.requested_at }}</div>
+            {% if membership.approved_at %}
+              <div><strong>Approved at:</strong> {{ membership.approved_at }}</div>
+            {% endif %}
+          </div>
+
+          <div class="student-actions">
+            {% if membership.status == 'pending' %}
+              <a href="{% url 'approve_join_request' classroom.id membership.id %}" class="btn-main">
+                Approve
+              </a>
+              <a href="{% url 'reject_join_request' classroom.id membership.id %}" class="btn-main btn-danger">
+                Reject
+              </a>
+            {% endif %}
+            {% if membership.status == 'approved' %}
+              <a href="{% url 'update_student_section_access' classroom.id membership.user.id %}" class="btn-main btn-secondary">
+                Manage Access
+              </a>
+              <a href="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}" class="btn-main btn-danger">
+                Remove
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p>No students or requests yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

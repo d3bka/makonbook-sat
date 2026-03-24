@@ -1,0 +1,174 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Classroom{% endblock title %}
+
+{% block style %}
+<style>
+  .classroom-home-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .classroom-intro {
+    text-align: center;
+    margin-bottom: 34px;
+  }
+
+  .classroom-intro h2 {
+    font-size: 36px;
+    font-weight: 700;
+    color: #324dc7;
+    margin-bottom: 12px;
+  }
+
+  .classroom-intro p {
+    font-size: 18px;
+    color: #64748b;
+    margin: 0;
+  }
+
+  .classroom-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .classroom-card {
+    position: relative;
+    min-height: 320px;
+    border-radius: 24px;
+    overflow: hidden;
+    text-decoration: none;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: flex-end;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    background: #1f1f1f;
+  }
+
+  .classroom-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 38px rgba(0,0,0,0.18);
+  }
+
+  .classroom-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .classroom-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(0,0,0,0.08) 0%,
+      rgba(0,0,0,0.24) 35%,
+      rgba(17,24,39,0.82) 100%
+    );
+  }
+
+  .classroom-card.practice::before,
+  .classroom-card.vocabulary::before,
+  .classroom-card.admissions::before {
+    background-image: url("{% static 'assets/img/icons/icon_dashboard.png' %}");
+  }
+
+  .classroom-card-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    padding: 28px 24px 24px;
+    color: #fff;
+  }
+
+  .classroom-badge {
+    display: inline-block;
+    margin-bottom: 14px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .classroom-card h3 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: #fff;
+    font-weight: 800;
+  }
+
+  .classroom-card p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 992px) {
+    .classroom-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="classroom-home-wrap">
+  <div class="classroom-intro">
+    <h2>{{ classroom.name }}</h2>
+    <p>Welcome to your classroom.</p>
+    <div style="margin-top: 14px;">
+      <a href="{% url 'sat_menu' %}" style="display:inline-block; padding:10px 16px; border-radius:999px; background:#324dc7; color:#fff; text-decoration:none; font-weight:700;">
+        Refresh Classroom Home
+      </a>
+    </div>
+  </div>
+
+  <div class="classroom-grid">
+    {% if access_map.practice_tests %}
+      <a href="{% url 'classroom_practice_tests' classroom.id %}" class="classroom-card practice">
+        <div class="classroom-card-content">
+          <span class="classroom-badge">Core Section</span>
+          <h3>Practice Tests</h3>
+          <p>Open your classroom-assigned SAT practice tests and track your preparation.</p>
+        </div>
+      </a>
+    {% endif %}
+
+    {% if access_map.vocabulary %}
+      <a href="{% url 'classroom_vocabulary' classroom.id %}" class="classroom-card vocabulary">
+        <div class="classroom-card-content">
+          <span class="classroom-badge">Language Skills</span>
+          <h3>Vocabulary</h3>
+          <p>Study units, review flashcards, and improve your SAT word knowledge.</p>
+        </div>
+      </a>
+    {% endif %}
+
+    {% if access_map.admissions %}
+      <a href="{% url 'classroom_admissions' classroom.id %}" class="classroom-card admissions">
+        <div class="classroom-card-content">
+          <span class="classroom-badge">Future Planning</span>
+          <h3>Admissions</h3>
+          <p>Access college application materials and admissions-related guidance.</p>
+        </div>
+      </a>
+    {% endif %}
+    <a href="{% url 'classroom_chat' classroom.id %}" class="classroom-card practice">
+      <div class="classroom-card-content">
+        <span class="classroom-badge">Communication</span>
+        <h3>Chat</h3>
+        <p>Send messages, ask questions, and share files inside your classroom.</p>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock content %}

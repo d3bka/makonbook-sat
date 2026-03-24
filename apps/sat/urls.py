@@ -2,7 +2,7 @@ from django.urls import path, include
 from . import views
 
 urlpatterns = [
-    path('', views.menu_page, name='sat_menu'),
+    path('', views.classroom_entry, name='sat_menu'),
 
     path('clear/<str:test>/<str:section>/<str:module>/', views.clear),
     path('practise/<str:pk>', views.start_Practise, name='practise'),
@@ -28,12 +28,39 @@ urlpatterns = [
     path('vocabulary/', views.vocabulary, name='vocabulary'),
     path('admissions/', views.admissions, name='admissions'),
 
-    # SPECIAL ROUTES FIRST
     path('vocabulary/practice-quiz/', views.vocabulary_practice_quiz, name='vocabulary_practice_quiz'),
     path('vocabulary/practice-quiz/start/', views.vocabulary_practice_quiz_start, name='vocabulary_practice_quiz_start'),
     path('vocabulary/practice-quiz/result/', views.vocabulary_practice_quiz_result, name='vocabulary_practice_quiz_result'),
 
-    # GENERIC SLUG ROUTES AFTER
     path('vocabulary/<slug:slug>/', views.vocabulary_section, name='vocabulary_section'),
     path('admissions/<slug:slug>/', views.admissions_section, name='admissions_section'),
+
+    path('teacher/classrooms/', views.teacher_classroom_list, name='teacher_classroom_list'),
+    path('teacher/classrooms/create/', views.create_classroom, name='create_classroom'),
+    path('teacher/classrooms/<int:classroom_id>/', views.teacher_classroom_dashboard, name='teacher_classroom_dashboard'),
+    path('teacher/classrooms/<int:classroom_id>/generate-code/', views.generate_classroom_join_code, name='generate_classroom_join_code'),
+
+    path('join/', views.submit_classroom_join_request, name='submit_classroom_join_request'),
+    path('join/status/', views.classroom_join_status, name='classroom_join_status'),
+    path('classroom/<int:classroom_id>/', views.student_classroom_home, name='student_classroom_home'),
+
+    path('teacher/classrooms/<int:classroom_id>/requests/', views.classroom_join_requests, name='classroom_join_requests'),
+    path('teacher/classrooms/<int:classroom_id>/requests/<int:membership_id>/approve/', views.approve_join_request, name='approve_join_request'),
+    path('teacher/classrooms/<int:classroom_id>/requests/<int:membership_id>/reject/', views.reject_join_request, name='reject_join_request'),
+
+    path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/access/', views.update_student_section_access, name='update_student_section_access'),
+    path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/remove/', views.remove_student_from_classroom, name='remove_student_from_classroom'),
+
+    path('classroom/<int:classroom_id>/practice-tests/', views.classroom_practice_tests, name='classroom_practice_tests'),
+    path('classroom/<int:classroom_id>/vocabulary/', views.classroom_vocabulary, name='classroom_vocabulary'),
+    path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
+
+    path('teacher/classrooms/<int:classroom_id>/progress/', views.classroom_progress_dashboard, name='classroom_progress_dashboard'),
+
+    path('classroom/<int:classroom_id>/chat/', views.classroom_chat, name='classroom_chat'),
+    path('classroom/<int:classroom_id>/chat/send/', views.send_classroom_message, name='send_classroom_message'),
+    path('classroom/<int:classroom_id>/chat/message/<int:message_id>/delete/', views.delete_classroom_message, name='delete_classroom_message'),
+    path('classroom/<int:classroom_id>/chat/message/<int:message_id>/delete-file/', views.delete_classroom_message_file, name='delete_classroom_message_file'),
+
+    path('teacher/classrooms/<int:classroom_id>/delete/', views.delete_classroom, name='delete_classroom'),
 ]

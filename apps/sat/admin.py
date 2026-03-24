@@ -733,3 +733,68 @@ class VocabularyQuestionAdmin(admin.ModelAdmin):
     def short_question(self, obj):
         return obj.question[:70]
     short_question.short_description = 'Question'
+
+
+class ClassroomJoinCodeInline(admin.StackedInline):
+    model = ClassroomJoinCode
+    extra = 0
+    can_delete = False
+
+
+class ClassroomMembershipInline(admin.TabularInline):
+    model = ClassroomMembership
+    extra = 0
+    fields = ('user', 'role', 'status', 'requested_at', 'approved_at')
+    readonly_fields = ('requested_at', 'approved_at')
+
+
+@admin.register(Classroom)
+class ClassroomAdmin(admin.ModelAdmin):
+    list_display = ('name', 'teacher', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name', 'teacherusername', 'teacherfirst_name', 'teacher__last_name')
+    inlines = [ClassroomJoinCodeInline, ClassroomMembershipInline]
+
+
+@admin.register(ClassroomJoinCode)
+class ClassroomJoinCodeAdmin(admin.ModelAdmin):
+    list_display = ('classroom', 'code', 'is_active', 'expires_at', 'created_at')
+    list_filter = ('is_active', 'created_at', 'expires_at')
+    search_fields = ('classroom__name', 'code')
+
+
+@admin.register(ClassroomMembership)
+class ClassroomMembershipAdmin(admin.ModelAdmin):
+    list_display = ('user', 'classroom', 'role', 'status', 'requested_at', 'approved_at')
+    list_filter = ('role', 'status', 'requested_at')
+    search_fields = ('userusername', 'classroomname')
+
+
+@admin.register(StudentSectionAccess)
+class StudentSectionAccessAdmin(admin.ModelAdmin):
+    list_display = ('membership', 'section', 'has_access', 'updated_at')
+    list_filter = ('section', 'has_access')
+    search_fields = ('membershipuserusername', 'membershipclassroomname')
+
+
+@admin.register(StudentProgress)
+class StudentProgressAdmin(admin.ModelAdmin):
+    list_display = (
+        'student',
+        'classroom',
+        'section',
+        'completion_percent',
+        'completed_items',
+        'total_items',
+        'activity_count',
+        'last_activity_at',
+    )
+    list_filter = ('section', 'classroom')
+    search_fields = ('studentusername', 'classroomname')
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('sender', 'classroom', 'is_deleted', 'created_at')
+    list_filter = ('is_deleted', 'created_at', 'classroom')
+    search_fields = ('senderusername', 'classroomname', 'message')

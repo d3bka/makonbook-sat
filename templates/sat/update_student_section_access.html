@@ -1,0 +1,66 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Update Access{% endblock title-main %}
+{% block title %}Student Access{% endblock title %}
+
+{% block style %}
+<style>
+  .access-wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 28px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .checkbox-row {
+    margin-bottom: 14px;
+    font-size: 18px;
+  }
+
+  .submit-btn {
+    border: none;
+    background: #324dc7;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="access-wrap">
+  <h2>Update Access for {{ membership.user.get_full_name|default:membership.user.username }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="practice_tests" {% if access_map.practice_tests %}checked{% endif %}>
+        Practice Tests
+      </label>
+    </div>
+
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="vocabulary" {% if access_map.vocabulary %}checked{% endif %}>
+        Vocabulary
+      </label>
+    </div>
+
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="admissions" {% if access_map.admissions %}checked{% endif %}>
+        Admissions
+      </label>
+    </div>
+
+    <button type="submit" class="submit-btn">Save Access</button>
+  </form>
+</div>
+{% endblock content %}

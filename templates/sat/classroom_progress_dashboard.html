@@ -1,0 +1,141 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Progress Dashboard{% endblock title %}
+
+{% block style %}
+<style>
+  .progress-wrap {
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  .progress-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .progress-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 18px;
+  }
+
+  .progress-table th,
+  .progress-table td {
+    padding: 14px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .progress-table th {
+    background: #f8fafc;
+    color: #324dc7;
+    font-weight: 800;
+  }
+
+  .progress-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #324dc7;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .student-name {
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .sub-meta {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="progress-wrap">
+  <div class="progress-card">
+    <h2>Student Progress</h2>
+    <p>Overview of approved students and their section progress inside this classroom.</p>
+
+    <table class="progress-table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Practice Tests</th>
+          <th>Vocabulary</th>
+          <th>Admissions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in grouped_progress %}
+          <tr>
+            <td>
+              <div class="student-name">
+                {{ row.student.get_full_name|default:row.student.username }}
+              </div>
+              <div class="sub-meta">
+                Username: {{ row.student.username }}
+              </div>
+            </td>
+
+            <td>
+              {% if row.practice_tests %}
+                <div class="progress-badge">{{ row.practice_tests.completion_percent }}%</div>
+                <div class="sub-meta">
+                  Completed: {{ row.practice_tests.completed_items }}/{{ row.practice_tests.total_items }}<br>
+                  Activity: {{ row.practice_tests.activity_count }}<br>
+                  Last: {{ row.practice_tests.last_activity_at|default:"—" }}
+                </div>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td>
+              {% if row.vocabulary %}
+                <div class="progress-badge">{{ row.vocabulary.completion_percent }}%</div>
+                <div class="sub-meta">
+                  Completed: {{ row.vocabulary.completed_items }}/{{ row.vocabulary.total_items }}<br>
+                  Activity: {{ row.vocabulary.activity_count }}<br>
+                  Last: {{ row.vocabulary.last_activity_at|default:"—" }}
+                </div>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
+            <td>
+              {% if row.admissions %}
+                <div class="progress-badge">{{ row.admissions.completion_percent }}%</div>
+                <div class="sub-meta">
+                  Completed: {{ row.admissions.completed_items }}/{{ row.admissions.total_items }}<br>
+                  Activity: {{ row.admissions.activity_count }}<br>
+                  Last: {{ row.admissions.last_activity_at|default:"—" }}
+                </div>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4">No approved students yet.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock content %}
