@@ -1173,14 +1173,19 @@ def vocabulary_section(request, slug):
     if not has_access(request.user, 'Access_Vocabulary'):
         return HttpResponseForbidden("You do not have access to Vocabulary.")
 
-    section = VOCABULARY_SECTIONS.get(slug)
-    if not section:
-        raise Http404("Vocabulary section not found")
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
-    return render(request, 'sat/vocabulary_section.html', {
-        'slug': slug,
-        'section': section,
-    })
+    if slug == 'word_lists':
+        return render(request, 'sat/vocabulary_word_lists.html', {
+            'units': units
+        })
+
+    if slug == 'flashcards':
+        return render(request, 'sat/vocabulary_flashcards.html', {
+            'units': units
+        })
+
+    raise Http404("Vocabulary section not found")
 
 
 @login_required(login_url='/login/')
