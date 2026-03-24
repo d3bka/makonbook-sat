@@ -1,5 +1,5 @@
 from django.urls import path, include
-from . import views
+from . import views, guest_views
 
 urlpatterns = [
     path('', views.classroom_entry, name='sat_menu'),
@@ -63,4 +63,25 @@ urlpatterns = [
     path('classroom/<int:classroom_id>/chat/message/<int:message_id>/delete-file/', views.delete_classroom_message_file, name='delete_classroom_message_file'),
 
     path('teacher/classrooms/<int:classroom_id>/delete/', views.delete_classroom, name='delete_classroom'),
+
+    path('teacher/classrooms/<int:classroom_id>/edit/', views.edit_classroom, name='edit_classroom'),
+
+
+
+
+
+    #GUEST URLS
+    path("guest/", guest_views.guest_entry_view, name="guest_entry"),
+    path("guest/logout/", guest_views.guest_logout_view, name="guest_logout"),
+
+    path("global-events/", guest_views.global_event_list_view, name="global_event_list"),
+    path("global-events/<slug:slug>/", guest_views.global_event_detail_view, name="global_event_detail"),
+    path("global-events/<slug:slug>/start/", guest_views.start_global_event_view, name="start_global_event"),
+
+    path("global-events/attempt/<uuid:guest_token>/", guest_views.global_event_attempt_view, name="global_event_attempt"),
+    path("global-events/attempt/<uuid:guest_token>/save/", guest_views.save_global_event_answer_view, name="save_global_event_answer"),
+    path("global-events/attempt/<uuid:guest_token>/submit/", guest_views.submit_global_event_view, name="submit_global_event"),
+    path("global-events/attempt/<uuid:guest_token>/result/", guest_views.global_event_result_view, name="global_event_result"),
+
+    path("global-events/<slug:slug>/leaderboard/", guest_views.global_event_leaderboard_view, name="global_event_leaderboard"),
 ]

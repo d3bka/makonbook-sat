@@ -798,3 +798,29 @@ class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ('sender', 'classroom', 'is_deleted', 'created_at')
     list_filter = ('is_deleted', 'created_at', 'classroom')
     search_fields = ('senderusername', 'classroomname', 'message')
+
+@admin.register(GlobalEvent)
+class GlobalEventAdmin(admin.ModelAdmin):
+    list_display = ("title", "slug", "status", "start_at", "end_at", "is_public")
+    search_fields = ("title", "slug")
+    list_filter = ("status", "is_public")
+
+
+@admin.register(GuestParticipant)
+class GuestParticipantAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "display_name", "created_at")
+    search_fields = ("full_name", "display_name")
+
+
+@admin.register(GlobalEventAttempt)
+class GlobalEventAttemptAdmin(admin.ModelAdmin):
+    list_display = ("event", "guest", "status", "score", "started_at", "submitted_at")
+    list_filter = ("status", "event")
+    search_fields = ("guest__full_name", "guest__display_name", "event__title")
+
+
+@admin.register(GlobalEventAnswer)
+class GlobalEventAnswerAdmin(admin.ModelAdmin):
+    list_display = ("attempt", "section", "module", "question_id", "selected_answer", "is_correct", "answered_at")
+    list_filter = ("section", "module", "is_correct")
+    search_fields = ("attempt__guest__full_name", "attempt__guest__display_name", "attempt__event__title", "question_id", "selected_answer")

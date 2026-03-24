@@ -145,6 +145,10 @@
           Back to Classrooms
         </a>
         
+        <a href="{% url 'edit_classroom' classroom.id %}" class="btn-main">
+          Edit Classroom
+        </a>
+        
         <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
           View Progress Dashboard
         </a>
@@ -153,7 +157,7 @@
           Open Chat
         </a>
       </div>
-      
+        
       <form method="post" action="{% url 'delete_classroom' classroom.id %}" style="margin-top: 14px;">
         {% csrf_token %}
         <button
