@@ -68,22 +68,19 @@
 
   <div class="classroom-grid">
     {% for classroom in classrooms %}
-      <div class="classroom-card">
-        <h3>{{ classroom.name }}</h3>
-        <p>{{ classroom.description|default:"No description." }}</p>
-        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
-          Open Classroom
-        </a>
-      </div>
+    <div class="classroom-card">
+      <h3>{{ classroom.name }}</h3>
+      <p>{{ classroom.description|default:"No description." }}</p>
+      <p><strong>Status:</strong> {% if classroom.is_active %}Active{% else %}Inactive{% endif %}</p>
+      <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
+        Open Classroom
+      </a>
+    </div>
     {% empty %}
-      <div class="classroom-card">
-        <h3>{{ classroom.name }}</h3>
-        <p>{{ classroom.description|default:"No description." }}</p>
-        <p><strong>Status:</strong> {% if classroom.is_active %}Active{% else %}Inactive{% endif %}</p>
-        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
-          Open Classroom
-        </a>
-      </div>
+    <div class="classroom-card empty-state">
+      <h3>No classrooms yet</h3>
+      <p>You have not created any classrooms yet.</p>
+    </div>
     {% endfor %}
   </div>
 </div>
