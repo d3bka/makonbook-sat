@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import *
 from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect, Http404
 from apps.base.decorators import allowed_users
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from satmakon.settings import BASE_DIR
@@ -15,6 +15,8 @@ from .libs.certificate.certificate import create_certificate
 from math import floor, ceil
 from django.contrib import messages  # Added for user feedback
 from apps.base.models import UserProfile
+from django.core.cache import cache
+from django.db.models import Q
 
 def custom_round(number, base=0.4):
     if number % 1 >= base:
@@ -1351,3 +1353,782 @@ def vocabulary_flashcards(request):
     return render(request, 'sat/vocabulary_flashcards.html', {
         'units': units
     })
+
+def is_teacher(user):
+    return (
+        user.is_superuser
+        or user.is_staff
+        or user.groups.filter(name='teacher').exists()
+    )
+
+
+def generate_6_digit_code():
+    return f"{random.randint(0, 999999):06d}"
+
+
+def generate_unique_classroom_code():
+    while True:
+        code = generate_6_digit_code()
+        if not ClassroomJoinCode.objects.filter(code=code, is_active=True).exists():
+            return code
+
+@login_required(login_url='/login/')
+def teacher_classroom_list(request):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can access classroom management.")
+
+    classrooms = Classroom.objects.filter(teacher=request.user).order_by('-created_at')
+
+    return render(request, 'sat/teacher_classroom_list.html', {
+        'classrooms': classrooms,
+    })
+
+@login_required(login_url='/login/')
+def create_classroom(request):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can create classrooms.")
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+
+        if not name:
+            messages.error(request, "Classroom name is required.")
+            return redirect('create_classroom')
+
+        classroom = Classroom.objects.create(
+            teacher=request.user,
+            name=name,
+            description=description,
+            is_active=True,
+        )
+
+        # create teacher membership automatically
+        ClassroomMembership.objects.get_or_create(
+            classroom=classroom,
+            user=request.user,
+            defaults={
+                'role': 'teacher',
+                'status': 'approved',
+                'approved_at': timezone.now(),
+            }
+        )
+
+        messages.success(request, f'Classroom "{classroom.name}" created successfully.')
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    return render(request, 'sat/create_classroom.html')
+
+@login_required(login_url='/login/')
+def teacher_classroom_dashboard(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    students = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        role='student'
+    ).select_related('user').order_by('-requested_at')
+
+    join_code = getattr(classroom, 'join_code', None)
+
+    return render(request, 'sat/teacher_classroom_dashboard.html', {
+        'classroom': classroom,
+        'students': students,
+        'join_code': join_code,
+    })
+
+@login_required(login_url='/login/')
+def generate_classroom_join_code(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    old_code = ClassroomJoinCode.objects.filter(classroom=classroom).first()
+    if old_code:
+        old_code.is_active = False
+        old_code.save()
+
+    new_code = generate_unique_classroom_code()
+
+    ClassroomJoinCode.objects.update_or_create(
+        classroom=classroom,
+        defaults={
+            'code': new_code,
+            'expires_at': timezone.now() + timedelta(hours=12),
+            'is_active': True,
+        }
+    )
+
+    messages.success(request, f"New join code generated for {classroom.name}.")
+    return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+def get_user_approved_student_membership(user):
+    return ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='approved'
+    ).select_related('classroom').first()
+
+
+def get_user_pending_student_membership(user):
+    return ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='pending'
+    ).select_related('classroom').first()
+
+
+def is_student(user):
+    return user.groups.filter(name='student').exists() or not is_teacher(user)
+
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
+def is_join_code_rate_limited(request):
+    ip = get_client_ip(request)
+    key = f"classroom_join_attempts:{ip}"
+    attempts = cache.get(key, 0)
+    return attempts >= 5
+
+
+def register_join_code_attempt(request):
+    ip = get_client_ip(request)
+    key = f"classroom_join_attempts:{ip}"
+    attempts = cache.get(key, 0)
+    cache.set(key, attempts + 1, timeout=600)  # 10 minutes
+
+@login_required(login_url='/login/')
+def classroom_entry(request):
+    if is_teacher(request.user):
+        return redirect('teacher_classroom_list')
+
+    approved_membership = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+        status='approved'
+    ).select_related('classroom').first()
+
+    if approved_membership:
+        if approved_membership.classroom and approved_membership.classroom.is_active:
+            return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
+
+    pending_membership = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+        status='pending'
+    ).select_related('classroom').first()
+
+    rejected_membership = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+        status='rejected'
+    ).select_related('classroom').order_by('-requested_at').first()
+
+    return render(request, 'sat/classroom_join.html', {
+        'pending_membership': pending_membership,
+        'rejected_membership': rejected_membership,
+    })
+
+@login_required(login_url='/login/')
+def submit_classroom_join_request(request):
+    if request.method != 'POST':
+        return redirect('sat_menu')
+
+    if is_teacher(request.user):
+        return HttpResponseForbidden("Teachers cannot submit classroom join requests.")
+
+    approved_membership = get_user_approved_student_membership(request.user)
+    if approved_membership:
+        messages.error(request, "You are already enrolled in a classroom.")
+        return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
+
+    existing_pending = get_user_pending_student_membership(request.user)
+    if existing_pending:
+        messages.info(request, "You already have a pending classroom request.")
+        return redirect('sat_menu')
+
+    if is_join_code_rate_limited(request):
+        messages.error(request, "Too many code attempts. Please wait and try again later.")
+        return redirect('sat_menu')
+
+    code = request.POST.get('join_code', '').strip()
+
+    if not code.isdigit() or len(code) != 6:
+        register_join_code_attempt(request)
+        messages.error(request, "Code must contain exactly 6 digits.")
+        return redirect('sat_menu')
+
+    join_code = ClassroomJoinCode.objects.filter(
+        code=code,
+        is_active=True
+    ).select_related('classroom').first()
+
+    if not join_code or not join_code.is_valid():
+        register_join_code_attempt(request)
+        messages.error(request, "Invalid or expired classroom code.")
+        return redirect('sat_menu')
+
+    membership, created = ClassroomMembership.objects.get_or_create(
+        classroom=join_code.classroom,
+        user=request.user,
+        defaults={
+            'role': 'student',
+            'status': 'pending',
+        }
+    )
+
+    if not created:
+        if membership.status == 'approved':
+            messages.error(request, "You are already enrolled in this classroom.")
+        elif membership.status == 'pending':
+            messages.info(request, "Your request is already pending.")
+        elif membership.status == 'rejected':
+            membership.status = 'pending'
+            membership.requested_at = timezone.now()
+            membership.approved_at = None
+            membership.save()
+            messages.success(request, "Your join request has been submitted again.")
+        return redirect('sat_menu')
+
+    messages.success(request, f'Join request sent to classroom "{join_code.classroom.name}".')
+    return redirect('sat_menu')
+
+@login_required(login_url='/login/')
+def classroom_join_status(request):
+    approved_membership = get_user_approved_student_membership(request.user)
+    if approved_membership:
+        return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
+
+    pending_membership = get_user_pending_student_membership(request.user)
+
+    rejected_membership = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+        status='rejected'
+    ).select_related('classroom').order_by('-requested_at').first()
+
+    return render(request, 'sat/classroom_join_status.html', {
+        'pending_membership': pending_membership,
+        'rejected_membership': rejected_membership,
+    })
+
+@login_required(login_url='/login/')
+def classroom_join_requests(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    requests_qs = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        role='student',
+        status='pending'
+    ).select_related('user').order_by('-requested_at')
+
+    return render(request, 'sat/teacher_classroom_dashboard.html', {
+        'classroom': classroom,
+        'students': ClassroomMembership.objects.filter(
+            classroom=classroom,
+            role='student'
+        ).select_related('user').order_by('-requested_at'),
+        'join_code': getattr(classroom, 'join_code', None),
+        'pending_requests': requests_qs,
+    })
+
+@login_required(login_url='/login/')
+def approve_join_request(request, classroom_id, membership_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = get_object_or_404(
+        ClassroomMembership,
+        id=membership_id,
+        classroom=classroom,
+        role='student'
+    )
+
+    existing_approved = ClassroomMembership.objects.filter(
+        user=membership.user,
+        role='student',
+        status='approved'
+    ).exclude(id=membership.id).first()
+
+    if existing_approved:
+        messages.error(request, "This student already belongs to another approved classroom.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    membership.status = 'approved'
+    membership.approved_at = timezone.now()
+    membership.save()
+
+    for section in ['practice_tests', 'vocabulary', 'admissions']:
+        StudentSectionAccess.objects.get_or_create(
+            membership=membership,
+            section=section,
+            defaults={'has_access': False}
+        )
+
+    messages.success(request, f"{membership.user.username} has been approved.")
+    return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def reject_join_request(request, classroom_id, membership_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = get_object_or_404(
+        ClassroomMembership,
+        id=membership_id,
+        classroom=classroom,
+        role='student'
+    )
+
+    membership.status = 'rejected'
+    membership.approved_at = None
+    membership.save()
+
+    messages.info(request, f"{membership.user.username}'s request was rejected.")
+    return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def student_classroom_home(request, classroom_id):
+    membership = ClassroomMembership.objects.filter(
+        classroom_id=classroom_id,
+        user=request.user,
+        role='student',
+        status='approved'
+    ).select_related('classroom').prefetch_related('section_access').first()
+
+    if not membership and not request.user.is_superuser:
+        return HttpResponseForbidden("You do not have access to this classroom.")
+
+    classroom = membership.classroom if membership else get_object_or_404(Classroom, id=classroom_id)
+
+    if not classroom.is_active and not request.user.is_superuser:
+        messages.error(request, "This classroom is no longer active.")
+        return redirect('sat_menu')
+
+    access_map = get_membership_section_access_map(membership) if membership else {
+        'practice_tests': True,
+        'vocabulary': True,
+        'admissions': True,
+    }
+
+    return render(request, 'sat/student_classroom_home.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'access_map': access_map,
+    })
+
+def get_membership_section_access_map(membership):
+    result = {
+        'practice_tests': False,
+        'vocabulary': False,
+        'admissions': False,
+    }
+
+    for item in membership.section_access.all():
+        result[item.section] = item.has_access
+
+    return result
+
+@login_required(login_url='/login/')
+def update_student_section_access(request, classroom_id, user_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = get_object_or_404(
+        ClassroomMembership.objects.select_related('user', 'classroom'),
+        classroom=classroom,
+        user_id=user_id,
+        role='student',
+        status='approved'
+    )
+
+    if request.method == 'POST':
+        selected_sections = request.POST.getlist('sections')
+
+        all_sections = ['practice_tests', 'vocabulary', 'admissions']
+
+        for section in all_sections:
+            access_obj, _ = StudentSectionAccess.objects.get_or_create(
+                membership=membership,
+                section=section,
+                defaults={'has_access': False}
+            )
+            access_obj.has_access = section in selected_sections
+            access_obj.save()
+
+        messages.success(request, f"Access updated for {membership.user.username}.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    access_map = get_membership_section_access_map(membership)
+
+    return render(request, 'sat/update_student_section_access.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'access_map': access_map,
+    })
+
+@login_required(login_url='/login/')
+def remove_student_from_classroom(request, classroom_id, user_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = get_object_or_404(
+        ClassroomMembership,
+        classroom=classroom,
+        user_id=user_id,
+        role='student'
+    )
+
+    membership.delete()
+    messages.success(request, "Student removed from classroom.")
+    return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def classroom_practice_tests(request, classroom_id):
+    membership = ClassroomMembership.objects.filter(
+        classroom_id=classroom_id,
+        user=request.user,
+        role='student',
+        status='approved'
+    ).prefetch_related('section_access').first()
+
+    if not membership and not request.user.is_superuser:
+        return HttpResponseForbidden("You do not have access to this classroom.")
+
+    if membership:
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('practice_tests'):
+            return HttpResponseForbidden("You do not have access to Practice Tests.")
+
+    return practice_tests(request)
+
+
+@login_required(login_url='/login/')
+def classroom_vocabulary(request, classroom_id):
+    membership = ClassroomMembership.objects.filter(
+        classroom_id=classroom_id,
+        user=request.user,
+        role='student',
+        status='approved'
+    ).prefetch_related('section_access').first()
+
+    if not membership and not request.user.is_superuser:
+        return HttpResponseForbidden("You do not have access to this classroom.")
+
+    if membership:
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('vocabulary'):
+            return HttpResponseForbidden("You do not have access to Vocabulary.")
+
+    return vocabulary(request)
+
+
+@login_required(login_url='/login/')
+def classroom_admissions(request, classroom_id):
+    membership = ClassroomMembership.objects.filter(
+        classroom_id=classroom_id,
+        user=request.user,
+        role='student',
+        status='approved'
+    ).prefetch_related('section_access').first()
+
+    if not membership and not request.user.is_superuser:
+        return HttpResponseForbidden("You do not have access to this classroom.")
+
+    if membership:
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('admissions'):
+            return HttpResponseForbidden("You do not have access to Admissions.")
+
+    return admissions(request)
+
+def recalculate_practice_tests_progress(classroom, student):
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=student,
+        role='student',
+        status='approved'
+    ).first()
+
+    if not membership:
+        return
+
+    total_items = Test.objects.count()
+    completed_items = TestReview.objects.filter(user=student).exclude(score__isnull=True).count()
+    activity_count = TestModule.objects.filter(user=student).count()
+    last_module = TestModule.objects.filter(user=student).order_by('-created_at').first()
+    last_activity_at = last_module.created_at if last_module else None
+
+    completion_percent = 0
+    if total_items > 0:
+        completion_percent = round((completed_items / total_items) * 100, 2)
+
+    StudentProgress.objects.update_or_create(
+        classroom=classroom,
+        student=student,
+        section='practice_tests',
+        defaults={
+            'completion_percent': completion_percent,
+            'completed_items': completed_items,
+            'total_items': total_items,
+            'activity_count': activity_count,
+            'last_activity_at': last_activity_at,
+        }
+    )
+
+def recalculate_vocabulary_progress(classroom, student):
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=student,
+        role='student',
+        status='approved'
+    ).first()
+
+    if not membership:
+        return
+
+    total_items = VocabularyUnit.objects.count()
+
+    # Временная логика: completed_items = 0, пока нет отдельной completion-модели
+    completed_items = 0
+    activity_count = 0
+    last_activity_at = None
+
+    completion_percent = 0
+    if total_items > 0:
+        completion_percent = round((completed_items / total_items) * 100, 2)
+
+    StudentProgress.objects.update_or_create(
+        classroom=classroom,
+        student=student,
+        section='vocabulary',
+        defaults={
+            'completion_percent': completion_percent,
+            'completed_items': completed_items,
+            'total_items': total_items,
+            'activity_count': activity_count,
+            'last_activity_at': last_activity_at,
+        }
+    )
+
+def recalculate_admissions_progress(classroom, student):
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=student,
+        role='student',
+        status='approved'
+    ).first()
+
+    if not membership:
+        return
+
+    total_items = len(ADMISSIONS_SECTIONS) if 'ADMISSIONS_SECTIONS' in globals() else 0
+    completed_items = 0
+    activity_count = 0
+    last_activity_at = None
+
+    completion_percent = 0
+    if total_items > 0:
+        completion_percent = round((completed_items / total_items) * 100, 2)
+
+    StudentProgress.objects.update_or_create(
+        classroom=classroom,
+        student=student,
+        section='admissions',
+        defaults={
+            'completion_percent': completion_percent,
+            'completed_items': completed_items,
+            'total_items': total_items,
+            'activity_count': activity_count,
+            'last_activity_at': last_activity_at,
+        }
+    )
+
+def recalculate_student_progress_for_classroom(classroom, student):
+    recalculate_practice_tests_progress(classroom, student)
+    recalculate_vocabulary_progress(classroom, student)
+    recalculate_admissions_progress(classroom, student)
+
+@login_required(login_url='/login/')
+def classroom_progress_dashboard(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    student_memberships = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        role='student',
+        status='approved'
+    ).select_related('user')
+
+    for membership in student_memberships:
+        recalculate_student_progress_for_classroom(classroom, membership.user)
+
+    progress_records = StudentProgress.objects.filter(
+        classroom=classroom
+    ).select_related('student').order_by('student__username', 'section')
+
+    grouped_progress = {}
+    for record in progress_records:
+        student_id = record.student.id
+        if student_id not in grouped_progress:
+            grouped_progress[student_id] = {
+                'student': record.student,
+                'practice_tests': None,
+                'vocabulary': None,
+                'admissions': None,
+            }
+        grouped_progress[student_id][record.section] = record
+
+    return render(request, 'sat/classroom_progress_dashboard.html', {
+        'classroom': classroom,
+        'grouped_progress': grouped_progress.values(),
+    })
+
+def get_classroom_access_for_user(user, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if user.is_superuser:
+        return classroom, 'admin', None
+
+    if classroom.teacher_id == user.id:
+        return classroom, 'teacher', None
+
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=user,
+        role='student',
+        status='approved'
+    ).first()
+
+    if membership:
+        return classroom, 'student', membership
+
+    return classroom, None, None
+
+@login_required(login_url='/login/')
+def classroom_chat(request, classroom_id):
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+
+    if role is None:
+        return HttpResponseForbidden("You do not have access to this classroom chat.")
+
+    messages_qs = ChatMessage.objects.filter(
+        classroom=classroom,
+        is_deleted=False
+    ).select_related('sender').order_by('created_at')
+
+    return render(request, 'sat/classroom_chat.html', {
+        'classroom': classroom,
+        'chat_messages': messages_qs,
+        'role': role,
+    })
+
+@login_required(login_url='/login/')
+def send_classroom_message(request, classroom_id):
+    if request.method != 'POST':
+        return redirect('classroom_chat', classroom_id=classroom_id)
+
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+
+    if role is None:
+        return HttpResponseForbidden("You do not have access to this classroom chat.")
+
+    message_text = request.POST.get('message', '').strip()
+    uploaded_file = request.FILES.get('file')
+
+    if not message_text and not uploaded_file:
+        messages.error(request, "Message or file is required.")
+        return redirect('classroom_chat', classroom_id=classroom.id)
+
+    ChatMessage.objects.create(
+        classroom=classroom,
+        sender=request.user,
+        message=message_text if message_text else None,
+        file=uploaded_file if uploaded_file else None,
+        is_deleted=False,
+    )
+
+    return redirect('classroom_chat', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def delete_classroom_message(request, classroom_id, message_id):
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+
+    if role not in ['teacher', 'admin']:
+        return HttpResponseForbidden("Only teacher can delete messages.")
+
+    chat_message = get_object_or_404(
+        ChatMessage,
+        id=message_id,
+        classroom=classroom
+    )
+
+    chat_message.is_deleted = True
+    chat_message.message = None
+
+    if chat_message.file:
+        chat_message.file.delete(save=False)
+        chat_message.file = None
+
+    chat_message.save()
+
+    messages.success(request, "Chat message deleted.")
+    return redirect('classroom_chat', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def delete_classroom(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can delete only your own classrooms.")
+
+    if request.method != 'POST':
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    classroom_name = classroom.name
+    classroom.delete()
+
+    messages.success(request, f'Classroom "{classroom_name}" was deleted.')
+    return redirect('teacher_classroom_list')
+
+@login_required(login_url='/login/')
+def delete_classroom_message_file(request, classroom_id, message_id):
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+
+    if role not in ['teacher', 'admin']:
+        return HttpResponseForbidden("Only teacher can delete files.")
+
+    chat_message = get_object_or_404(
+        ChatMessage,
+        id=message_id,
+        classroom=classroom
+    )
+
+    if chat_message.file:
+        chat_message.file.delete(save=False)
+        chat_message.file = None
+        chat_message.save()
+        messages.success(request, "File deleted from message.")
+
+    return redirect('classroom_chat', classroom_id=classroom.id)

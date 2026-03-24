@@ -15,6 +15,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from .store import PublicStorage, PrivateStorage  # Replace with your actual storage backend import
+from django.utils import timezone
 
 # Abstract base model for common fields
 class BaseModel(models.Model):
@@ -697,3 +698,161 @@ class VocabularyQuestion(models.Model):
             self.choice_c,
             self.choice_d,
         ]
+
+class Classroom(models.Model):
+    teacher = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='owned_classrooms'
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def str(self):
+        return f"{self.name} ({self.teacher.username})"
+
+
+class ClassroomJoinCode(models.Model):
+    classroom = models.OneToOneField(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='join_code'
+    )
+    code = models.CharField(max_length=6, unique=True)
+    expires_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def str(self):
+        return f"{self.classroom.name} - {self.code}"
+
+    def is_valid(self):
+        return self.is_active and timezone.now() < self.expires_at
+
+    @staticmethod
+    def default_expiry():
+        return timezone.now() + timedelta(hours=12)
+
+
+class ClassroomMembership(models.Model):
+    ROLE_CHOICES = (
+        ('teacher', 'Teacher'),
+        ('student', 'Student'),
+    )
+
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='memberships'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='classroom_memberships'
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('classroom', 'user')
+        ordering = ['-requested_at']
+
+    def str(self):
+        return f"{self.user.username} - {self.classroom.name} - {self.status}"
+
+
+class StudentSectionAccess(models.Model):
+    SECTION_CHOICES = (
+        ('practice_tests', 'Practice Tests'),
+        ('vocabulary', 'Vocabulary'),
+        ('admissions', 'Admissions'),
+    )
+
+    membership = models.ForeignKey(
+        ClassroomMembership,
+        on_delete=models.CASCADE,
+        related_name='section_access'
+    )
+    section = models.CharField(max_length=50, choices=SECTION_CHOICES)
+    has_access = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('membership', 'section')
+        ordering = ['section']
+
+    def str(self):
+        return f"{self.membership.user.username} - {self.section} - {self.has_access}"
+
+
+class StudentProgress(models.Model):
+    SECTION_CHOICES = (
+        ('practice_tests', 'Practice Tests'),
+        ('vocabulary', 'Vocabulary'),
+        ('admissions', 'Admissions'),
+    )
+
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='progress_records'
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='classroom_progress'
+    )
+    section = models.CharField(max_length=50, choices=SECTION_CHOICES)
+
+    completion_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    completed_items = models.PositiveIntegerField(default=0)
+    total_items = models.PositiveIntegerField(default=0)
+    activity_count = models.PositiveIntegerField(default=0)
+    last_activity_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ('classroom', 'student', 'section')
+        ordering = ['student', 'section']
+    
+    def str(self):
+        return f"{self.student.username} - {self.section} - {self.completion_percent}%"
+
+
+class ChatMessage(models.Model):
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='chat_messages'
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sent_classroom_messages'
+    )
+    message = models.TextField(blank=True, null=True)
+    file = models.FileField(upload_to='classroom_chat_files/', blank=True, null=True)
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def str(self):
+        return f"{self.sender.username} - {self.classroom.name} - {self.created_at:%Y-%m-%d %H:%M}"
+    

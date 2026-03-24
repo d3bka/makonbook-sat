@@ -1,0 +1,90 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}My Classrooms{% endblock title-main %}
+{% block title %}Teacher Dashboard{% endblock title %}
+
+{% block style %}
+<style>
+  .classroom-list-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .top-actions {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .create-btn {
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+  }
+
+  .classroom-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .classroom-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .classroom-card h3 {
+    margin-bottom: 10px;
+    color: #324dc7;
+  }
+
+  .classroom-card p {
+    color: #555;
+    margin-bottom: 14px;
+  }
+
+  .classroom-link {
+    font-weight: 700;
+    text-decoration: none;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="classroom-list-wrap">
+  <div class="top-actions">
+    <h2>Your Classrooms</h2>
+    <a href="{% url 'create_classroom' %}" class="create-btn">Create Classroom</a>
+  </div>
+
+  <div class="classroom-grid">
+    {% for classroom in classrooms %}
+      <div class="classroom-card">
+        <h3>{{ classroom.name }}</h3>
+        <p>{{ classroom.description|default:"No description." }}</p>
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
+          Open Classroom
+        </a>
+      </div>
+    {% empty %}
+      <div class="classroom-card">
+        <h3>{{ classroom.name }}</h3>
+        <p>{{ classroom.description|default:"No description." }}</p>
+        <p><strong>Status:</strong> {% if classroom.is_active %}Active{% else %}Inactive{% endif %}</p>
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
+          Open Classroom
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

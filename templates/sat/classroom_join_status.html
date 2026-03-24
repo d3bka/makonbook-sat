@@ -1,0 +1,72 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Classroom Status{% endblock title-main %}
+{% block title %}Classroom Status{% endblock title %}
+
+{% block style %}
+<style>
+  .status-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    gap: 20px;
+  }
+
+  .status-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .approved-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .approved-links span {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #324dc7;
+    font-weight: 700;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="status-wrap">
+  {% if approved_classroom %}
+    <div class="status-card">
+      <h2>{{ approved_classroom.name }}</h2>
+      <p>You are approved and now part of this classroom.</p>
+
+      <div class="approved-links">
+        {% if access_map.practice_tests %}<span>Practice Tests</span>{% endif %}
+        {% if access_map.vocabulary %}<span>Vocabulary</span>{% endif %}
+        {% if access_map.admissions %}<span>Admissions</span>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if pending_membership %}
+    <div class="status-card">
+      <h2>Pending Request</h2>
+      <p>Your request to join <strong>{{ pending_membership.classroom.name }}</strong> is waiting for teacher approval.</p>
+    </div>
+  {% endif %}
+
+  {% if rejected_membership %}
+    <div class="status-card">
+      <h2>Request Rejected</h2>
+      <p>Your request to join <strong>{{ rejected_membership.classroom.name }}</strong> was rejected.</p>
+      <p>You can try another valid classroom code.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock content %}

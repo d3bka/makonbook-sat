@@ -1,0 +1,68 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Create Classroom{% endblock title-main %}
+{% block title %}Create Classroom{% endblock title %}
+
+{% block style %}
+<style>
+  .form-wrap {
+    max-width: 700px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .submit-btn {
+    border: none;
+    background: #324dc7;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="form-wrap">
+  <h2>Create New Classroom</h2>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label>Classroom Name</label>
+      <input type="text" name="name" required>
+    </div>
+
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="4"></textarea>
+    </div>
+
+    <button type="submit" class="submit-btn">Create Classroom</button>
+  </form>
+</div>
+{% endblock content %}

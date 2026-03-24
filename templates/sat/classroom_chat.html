@@ -1,0 +1,173 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Classroom Chat{% endblock title %}
+
+{% block style %}
+<style>
+  .chat-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .chat-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .chat-form {
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .chat-textarea {
+    width: 100%;
+    min-height: 110px;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    padding: 14px;
+    resize: vertical;
+    margin-bottom: 14px;
+  }
+
+  .chat-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-main {
+    display: inline-block;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .btn-danger {
+    background: #b91c1c;
+  }
+
+  .message-list {
+    display: grid;
+    gap: 16px;
+  }
+
+  .message-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    background: #fafafa;
+  }
+
+  .message-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+
+  .message-author {
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .message-time {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .message-body {
+    color: #1f2937;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .message-file {
+    margin-top: 12px;
+  }
+
+  .message-file a {
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .message-tools {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="chat-wrap">
+  <div class="chat-card">
+    <h2>Classroom Chat</h2>
+    <p>Teacher and students can communicate here.</p>
+
+    <form method="post" action="{% url 'send_classroom_message' classroom.id %}" enctype="multipart/form-data" class="chat-form">
+      {% csrf_token %}
+      <textarea name="message" class="chat-textarea" placeholder="Write your message..."></textarea>
+
+      <div class="chat-actions">
+        <input type="file" name="file">
+        <button type="submit" class="btn-main">Send Message</button>
+      </div>
+    </form>
+
+    <div class="message-list">
+      {% for item in chat_messages %}
+        <div class="message-item">
+          <div class="message-head">
+            <div>
+              <div class="message-author">
+                {{ item.sender.get_full_name|default:item.sender.username }}
+              </div>
+              <div class="message-time">{{ item.created_at }}</div>
+            </div>
+          </div>
+
+          {% if item.message %}
+            <div class="message-body">{{ item.message }}</div>
+          {% endif %}
+
+          {% if item.file %}
+            <div class="message-file">
+              <a href="{{ item.file.url }}" target="_blank">Open attached file</a>
+            </div>
+          {% endif %}
+
+          {% if role == 'teacher' or role == 'admin' %}
+            <div class="message-tools">
+              {% if item.file %}
+                <a href="{% url 'delete_classroom_message_file' classroom.id item.id %}" class="btn-main btn-danger">
+                  Delete File
+                </a>
+              {% endif %}
+              <a href="{% url 'delete_classroom_message' classroom.id item.id %}" class="btn-main btn-danger">
+                Delete Message
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p>No messages yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}
