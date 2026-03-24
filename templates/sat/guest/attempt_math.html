@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz</title>
+
+    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"
+        onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
+
+    <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-math.css' %}">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        .question-title .bookmark {
+            background-image: url({% static '/assets/img/bookmark_empty.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .filledbook {
+            background-image: url({% static '/assets/img/bookmark_filled.png' %}) !important;
+        }
+
+        .question-title .crossing-options {
+            background-image: url({% static '/assets/img/crossAbc.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+        }
+
+        .active-options {
+            background-image: url({% static "/assets/img/crossAbcActive.png" %}) !important;
+        }
+
+        main {
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        #calculator-popup {
+            display: none;
+            position: fixed;
+            top: 50px;
+            right: 50px;
+            width: 420px;
+            height: 600px;
+            border: 1px solid #ccc;
+            background: white;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0,0,0,0.12);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #calculator-header {
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            cursor: move;
+            user-select: none;
+        }
+
+        #calculator-body {
+            width: 100%;
+            height: calc(100% - 44px);
+        }
+
+        #calculator {
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: auto !important;
+        }
+
+        #calculator .dcg-container,
+        #calculator .dcg-grapher {
+            pointer-events: auto !important;
+        }
+
+        .choice-image {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .written-answer-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        mjx-container {
+            margin: 5px 0;
+        }
+
+        .katex {
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            <h1>Section 2: Mathematics</h1>
+            <div class="timer" id="timer">0:00</div>
+
+            <div style="display:flex; color:#3d008e;">
+                <div id="open-calculator" style="align-content:center; cursor:pointer;">
+                    <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
+                </div>
+                <a href="/" style="text-decoration:none;">
+                    <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
+                </a>
+            </div>
+        </header>
+
+        <form class="fm" id="math-quiz-form" method="post" action="{% url 'save_global_event_answer' guest_token=attempt.guest_token %}" >
+            {% csrf_token %}
+            <main>
+                <div class="question-container scroll-hide">
+                    <div class="just-div" id="graph-container"></div>
+                    <p id="passage"></p>
+                </div>
+
+                <div class="answers-container scroll-hide">
+                    <div class="question-title">
+                        <div class="question-number"></div>
+                        <div class="bookmark" onclick="markForReview()">Mark for Review</div>
+                        <div class="crossing-options" onclick="toggleEliminateMode()"></div>
+                    </div>
+
+                    <div class="question-text" id="question-text"></div>
+                    <div class="answers" id="answers"></div>
+                </div>
+            </main>
+        </form>
+
+        <footer>
+            <div class="footer-left">
+                {{ request.user.guest_name }}
+            </div>
+
+            <div class="footer-center">
+                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">
+                    Question <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">{{ questions|length }}</span>
+                </button>
+            </div>
+
+            <div class="footer-right">
+                <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
+                <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+            </div>
+        </footer>
+    </div>
+
+    <div id="calculator-popup">
+        <div id="calculator-header">
+            Desmos Calculator
+            <button onclick="closeCalculator()" class="btn btn-primary danger" style="float:right;">Close</button>
+        </div>
+        <div id="calculator-body">
+            <div id="calculator"></div>
+            <div id="calculator-fallback" style="display:none; padding:20px; text-align:center; color:#666;">
+                <h3>Calculator Unavailable</h3>
+                <p>The graphing calculator could not be loaded. Please check your internet connection and reload the page.</p>
+                <p>You can still complete the test using external calculation tools.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="toggleQuestionModal()">×</span>
+            <div class="question-grid">
+                {% for q in questions %}
+                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); toggleQuestionModal();">
+                    {{ q.number }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {{ custom_time_seconds|json_script:"custom-time" }}
+    {{ questions_data|json_script:"questions-data" }}
+
+    <script>
+        const testName = "{{ event.slug }}";
+        const moduleName = "{{ attempt.guest_token }}";
+        const sectionName = "{{ section }}";
+
+        const questions = JSON.parse(document.getElementById('questions-data').textContent);
+        const customTimeData = JSON.parse(document.getElementById('custom-time').textContent);
+
+        let currentQuestionIndex = 0;
+        let timeRemaining = customTimeData || (35 * 60);
+
+        let eliminateOptions = false;
+        let answers = Array(questions.length).fill(null);
+        let eliminatedChoices = Array.from({ length: questions.length }, () => []);
+        let markedForReview = Array(questions.length).fill(false);
+        let timeSpent = Array(questions.length).fill(0);
+
+        const calculatorElement = document.getElementById('calculator');
+        let calculator = null;
+
+        function fixLatex(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+            cleaned = cleaned.replace(/\\\$/g, '$');
+            cleaned = cleaned.replace(/\\\\/g, '\\');
+            cleaned = cleaned.replace(/\\\(\s*/g, '\\(');
+            cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
+            cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
+            cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            return cleaned;
+        }
+
+        function renderMath(root = document.body) {
+            try {
+                renderMathInElement(root, {
+                    delimiters: [
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true }
+                    ]
+                });
+            } catch (error) {
+                console.error('KaTeX render failed:', error);
+            }
+        }
+
+        function showCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) fallback.style.display = 'block';
+        }
+
+        function hideCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) fallback.style.display = 'none';
+        }
+
+        function initDesmos() {
+            if (window.desmosLoadError) {
+                showCalculatorFallback();
+                return;
+            }
+
+            if (calculatorElement && typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function') {
+                try {
+                    calculator = Desmos.GraphingCalculator(calculatorElement);
+                    hideCalculatorFallback();
+                } catch (error) {
+                    console.error('Desmos init failed:', error);
+                    showCalculatorFallback();
+                }
+            } else {
+                showCalculatorFallback();
+            }
+        }
+
+        function dragElement(elmnt, header) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            if (!header) return;
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function storageKey() {
+            return `${testName}_${moduleName}_${sectionName}`;
+        }
+
+        function saveProgress() {
+            const key = storageKey();
+            localStorage.setItem(`${key}_timeSpent`, JSON.stringify(timeSpent));
+            localStorage.setItem(`${key}_answers`, JSON.stringify(answers));
+            localStorage.setItem(`${key}_eliminatedChoices`, JSON.stringify(eliminatedChoices));
+            localStorage.setItem(`${key}_currentQuestionIndex`, String(currentQuestionIndex));
+            localStorage.setItem(`${key}_timeRemaining`, String(timeRemaining));
+            localStorage.setItem(`${key}_markedForReview`, JSON.stringify(markedForReview));
+        }
+
+        function loadProgress() {
+            const key = storageKey();
+
+            const savedAnswers = localStorage.getItem(`${key}_answers`);
+            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
+            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
+            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
+            const savedReview = localStorage.getItem(`${key}_markedForReview`);
+            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+
+            if (savedAnswers) answers = JSON.parse(savedAnswers);
+            if (savedEliminatedChoices) eliminatedChoices = JSON.parse(savedEliminatedChoices);
+            if (savedReview) markedForReview = JSON.parse(savedReview);
+            if (savedTimeSpent) timeSpent = JSON.parse(savedTimeSpent);
+            if (savedIndex) currentQuestionIndex = parseInt(savedIndex, 10);
+            if (savedTime) timeRemaining = parseInt(savedTime, 10);
+
+            updateAnsweredStatus();
+        }
+
+        function clearProgress() {
+            const key = storageKey();
+            localStorage.removeItem(`${key}_timeSpent`);
+            localStorage.removeItem(`${key}_answers`);
+            localStorage.removeItem(`${key}_eliminatedChoices`);
+            localStorage.removeItem(`${key}_currentQuestionIndex`);
+            localStorage.removeItem(`${key}_timeRemaining`);
+            localStorage.removeItem(`${key}_markedForReview`);
+        }
+
+        function buildMultipleChoice(question, index) {
+            return `
+                ${buildChoice('A', question.a, index)}
+                ${buildChoice('B', question.b, index)}
+                ${buildChoice('C', question.c, index)}
+                ${buildChoice('D', question.d, index)}
+            `;
+        }
+
+        function buildChoice(letter, content, index) {
+            const checked = answers[index] === letter ? 'checked' : '';
+            const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
+
+            return `
+                <div class='big-container'>
+                    <label class="choice-container">
+                        <input type="radio" name="answer" value="${letter}" ${checked}>
+                        <label class='mark' data-letter="${letter}"></label>
+                        <label class="choice-${letter.toLowerCase()}">${content}</label>
+                    </label>
+                    <hr class="cross-line ${letter}zone ${isEliminated}">
+                    <div class="crossing-zone ${eliminateOptions ? 'active' : ''}" onclick='eliminate("${letter}", ${index})'>
+                        <div class="cross-label">${letter}</div>
+                        <hr class="cross-btn-line">
+                    </div>
+                </div>
+            `;
+        }
+
+        function loadQuestion(index) {
+            currentQuestionIndex = index;
+            const question = questions[index];
+
+            document.getElementById("currentQuestionIndex").textContent = index + 1;
+            document.getElementById("totalQuestions").textContent = questions.length;
+            document.querySelector(".question-number").innerText = question.number;
+
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
+            document.getElementById('question-text').innerHTML = fixLatex(question.question);
+
+            const graphContainer = document.getElementById('graph-container');
+            graphContainer.innerHTML = question.graph
+                ? `<div class="graph"><img src="${question.graph}" alt="Graph" style="width:100%;"></div>`
+                : '';
+
+            const answersContainer = document.getElementById('answers');
+
+            if (question.type === 'True') {
+                answersContainer.innerHTML = `
+                    <input
+                        type="text"
+                        id="written-answer"
+                        class="written-answer-input"
+                        value="${answers[index] || ''}"
+                        oninput="updateWrittenAnswer(this.value)"
+                    >
+                `;
+            } else {
+                answersContainer.innerHTML = buildMultipleChoice(question, index);
+
+                document.querySelectorAll('input[name="answer"]').forEach((input) => {
+                    input.addEventListener('change', (event) => {
+                        answers[currentQuestionIndex] = event.target.value;
+                        saveProgress();
+                        updateAnsweredStatus();
+                    });
+                });
+            }
+
+            renderMath(document.body);
+            updateNavigationButtons();
+            updateAnsweredStatus();
+            saveProgress();
+        }
+
+        function updateNavigationButtons() {
+            document.getElementById("backButton").style.display = currentQuestionIndex === 0 ? "none" : "inline-block";
+            document.getElementById("nextButton").style.display = currentQuestionIndex === questions.length - 1 ? "none" : "inline-block";
+            document.getElementById("finishButton").style.display = currentQuestionIndex === questions.length - 1 ? "inline-block" : "none";
+        }
+
+        function updateWrittenAnswer(value) {
+            answers[currentQuestionIndex] = value;
+            saveProgress();
+            updateAnsweredStatus();
+        }
+
+        function toggleEliminateMode() {
+            eliminateOptions = !eliminateOptions;
+            const button = document.querySelector('.crossing-options');
+            button.classList.toggle('active-options');
+
+            document.querySelectorAll('.crossing-zone').forEach(el => {
+                el.classList.toggle('active');
+            });
+        }
+
+        function eliminate(choice, index) {
+            const line = document.querySelector(`.${choice}zone`);
+            if (line) line.classList.toggle('active');
+
+            if (eliminatedChoices[index].includes(choice)) {
+                eliminatedChoices[index] = eliminatedChoices[index].filter(c => c !== choice);
+            } else {
+                eliminatedChoices[index].push(choice);
+            }
+
+            saveProgress();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                loadQuestion(currentQuestionIndex + 1);
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                loadQuestion(currentQuestionIndex - 1);
+            }
+        }
+
+        function markForReview() {
+            markedForReview[currentQuestionIndex] = !markedForReview[currentQuestionIndex];
+            updateAnsweredStatus();
+            saveProgress();
+        }
+
+        function updateAnsweredStatus() {
+            const mark = document.querySelector('.bookmark');
+            if (mark) {
+                mark.classList.toggle('filledbook', markedForReview[currentQuestionIndex]);
+            }
+
+            const rectQuestions = document.querySelectorAll('.rect-question');
+            rectQuestions.forEach((rect, index) => {
+                rect.classList.toggle('here', index === currentQuestionIndex);
+                rect.classList.toggle('marked', markedForReview[index]);
+                rect.classList.toggle('answered', !!answers[index]);
+            });
+        }
+
+        function toggleQuestionModal() {
+            const modal = document.getElementById("questionModal");
+            modal.style.display = modal.style.display === "block" ? "none" : "block";
+        }
+
+        function closeCalculator() {
+            document.getElementById('calculator-popup').style.display = 'none';
+        }
+
+        function openCalculator() {
+            document.getElementById('calculator-popup').style.display = 'block';
+            if (!calculator) {
+                initDesmos();
+            }
+        }
+
+        function isDesmosFocused() {
+            const active = document.activeElement;
+            return !!(
+                active &&
+                (
+                    active.closest('#calculator-popup') ||
+                    active.closest('.dcg-container')
+                )
+            );
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            timeSpent[currentQuestionIndex] += 1;
+            saveProgress();
+
+            if (timeRemaining <= 0) {
+                finishTest(true);
+            } else {
+                timeRemaining--;
+            }
+        }
+
+        function finishTest(force = false) {
+            const confirmed = force || confirm("Are you sure you want to finish the test? Make sure you are ready.");
+            if (!confirmed) return;
+
+            const form = document.getElementById('math-quiz-form');
+            const answerData = answers.map((answer, index) => ({
+                questionID: questions[index] ? questions[index].id : 'default',
+                answer: answer,
+                time_spent: timeSpent[index]
+            }));
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    answers: answerData,
+                    section: sectionName,
+                    test: testName,
+                    module: moduleName
+                })
+            }).then(response => {
+                if (response.ok) {
+                    clearProgress();
+                    window.location.href = '/sat/global-events/attempt/{{ attempt.guest_token }}/result/';
+                }
+            }).catch(error => console.error('Error submitting answers:', error));
+        }
+
+        document.getElementById('open-calculator').addEventListener('click', openCalculator);
+
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('selectstart', event => event.preventDefault());
+
+        document.addEventListener('keydown', event => {
+            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
+                event.preventDefault();
+                return;
+            }
+
+            if (event.key === 'F12') {
+                event.preventDefault();
+                return;
+            }
+
+            if (isDesmosFocused()) {
+                return;
+            }
+
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                prevQuestion();
+            }
+
+            if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                nextQuestion();
+            }
+        });
+
+        dragElement(
+            document.getElementById("calculator-popup"),
+            document.getElementById("calculator-header")
+        );
+
+        loadProgress();
+        loadQuestion(currentQuestionIndex);
+        setInterval(updateTimer, 1000);
+    </script>
+</body>
+</html>

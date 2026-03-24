@@ -1804,17 +1804,12 @@ def remove_student_from_classroom(request, classroom_id, user_id):
 
 @login_required(login_url='/login/')
 def classroom_practice_tests(request, classroom_id):
-    membership = ClassroomMembership.objects.filter(
-        classroom_id=classroom_id,
-        user=request.user,
-        role='student',
-        status='approved'
-    ).prefetch_related('section_access').first()
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
 
-    if not membership and not request.user.is_superuser:
+    if role is None:
         return HttpResponseForbidden("You do not have access to this classroom.")
 
-    if membership:
+    if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('practice_tests'):
             return HttpResponseForbidden("You do not have access to Practice Tests.")
@@ -1824,17 +1819,12 @@ def classroom_practice_tests(request, classroom_id):
 
 @login_required(login_url='/login/')
 def classroom_vocabulary(request, classroom_id):
-    membership = ClassroomMembership.objects.filter(
-        classroom_id=classroom_id,
-        user=request.user,
-        role='student',
-        status='approved'
-    ).prefetch_related('section_access').first()
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
 
-    if not membership and not request.user.is_superuser:
+    if role is None:
         return HttpResponseForbidden("You do not have access to this classroom.")
 
-    if membership:
+    if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('vocabulary'):
             return HttpResponseForbidden("You do not have access to Vocabulary.")
@@ -1844,17 +1834,12 @@ def classroom_vocabulary(request, classroom_id):
 
 @login_required(login_url='/login/')
 def classroom_admissions(request, classroom_id):
-    membership = ClassroomMembership.objects.filter(
-        classroom_id=classroom_id,
-        user=request.user,
-        role='student',
-        status='approved'
-    ).prefetch_related('section_access').first()
+    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
 
-    if not membership and not request.user.is_superuser:
+    if role is None:
         return HttpResponseForbidden("You do not have access to this classroom.")
 
-    if membership:
+    if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('admissions'):
             return HttpResponseForbidden("You do not have access to Admissions.")
@@ -2132,3 +2117,29 @@ def delete_classroom_message_file(request, classroom_id, message_id):
         messages.success(request, "File deleted from message.")
 
     return redirect('classroom_chat', classroom_id=classroom.id)
+
+@login_required(login_url='/login/')
+def edit_classroom(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can edit only your own classrooms.")
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+
+        if not name:
+            messages.error(request, "Classroom name is required.")
+            return redirect('edit_classroom', classroom_id=classroom.id)
+
+        classroom.name = name
+        classroom.description = description
+        classroom.save()
+
+        messages.success(request, "Classroom updated successfully.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    return render(request, 'sat/edit_classroom.html', {
+        'classroom': classroom,
+    })

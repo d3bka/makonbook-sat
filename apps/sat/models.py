@@ -856,3 +856,156 @@ class ChatMessage(models.Model):
     def str(self):
         return f"{self.sender.username} - {self.classroom.name} - {self.created_at:%Y-%m-%d %H:%M}"
     
+
+
+#GUEST MODE
+class GlobalEvent(models.Model):
+    EVENT_STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("scheduled", "Scheduled"),
+        ("live", "Live"),
+        ("closed", "Closed"),
+    ]
+
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    rules = models.TextField(blank=True)
+
+    test = models.ForeignKey(
+        "sat.Test",
+        on_delete=models.CASCADE,
+        related_name="global_events"
+    )
+
+    access_code = models.CharField(max_length=50, blank=True)
+    is_public = models.BooleanField(default=True)
+
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField(default=60)
+
+    status = models.CharField(
+        max_length=20,
+        choices=EVENT_STATUS_CHOICES,
+        default="draft"
+    )
+
+    show_score_immediately = models.BooleanField(default=True)
+    show_leaderboard = models.BooleanField(default=False)
+    allow_resume = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_live_now(self):
+        now = timezone.now()
+        return (
+            self.is_public and
+            self.status == "live" and
+            self.start_at <= now <= self.end_at
+        )
+
+    def __str__(self):
+        return self.title
+
+class GuestParticipant(models.Model):
+    guest_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+    full_name = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True)
+
+    session_key = models.CharField(max_length=255, blank=True)
+    first_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.display_name or self.full_name
+    
+class GlobalEventAttempt(models.Model):
+    ATTEMPT_STATUS_CHOICES = [
+        ("in_progress", "In Progress"),
+        ("submitted", "Submitted"),
+        ("expired", "Expired"),
+    ]
+
+    event = models.ForeignKey(
+        "sat.GlobalEvent",
+        on_delete=models.CASCADE,
+        related_name="attempts"
+    )
+    guest = models.ForeignKey(
+        "sat.GuestParticipant",
+        on_delete=models.CASCADE,
+        related_name="attempts"
+    )
+
+    guest_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=ATTEMPT_STATUS_CHOICES,
+        default="in_progress"
+    )
+
+    score = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    raw_score = models.IntegerField(null=True, blank=True)
+
+    total_questions = models.PositiveIntegerField(default=0)
+    answered_questions = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["event", "guest"],
+                name="unique_guest_attempt_per_event"
+            )
+        ]
+
+    @property
+    def time_left_seconds(self):
+        diff = int((self.expires_at - timezone.now()).total_seconds())
+        return max(diff, 0)
+
+    def __str__(self):
+        return f"{self.guest} - {self.event}"
+
+class GlobalEventAnswer(models.Model):
+    SECTION_CHOICES = [
+        ("english", "English"),
+        ("math", "Math"),
+    ]
+
+    attempt = models.ForeignKey(
+        "sat.GlobalEventAttempt",
+        on_delete=models.CASCADE,
+        related_name="answers"
+    )
+
+    section = models.CharField(max_length=20, choices=SECTION_CHOICES)
+    module = models.CharField(max_length=10, blank=True)
+    question_id = models.PositiveIntegerField()
+    selected_answer = models.TextField(blank=True, null=True)
+
+    is_correct = models.BooleanField(null=True, blank=True)
+    time_spent = models.PositiveIntegerField(default=0)
+
+    answered_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attempt", "section", "module", "question_id"],
+                name="unique_global_answer_per_question"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.attempt} - {self.section} - Q{self.question_id}"

@@ -23,6 +23,43 @@
 	.app-title{ 
 		font-size: 40px; 
 	}
+
+  .guest-info-box {
+    margin: 18px 0 20px 0;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    text-align: center;
+  }
+
+  .guest-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .guest-text {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    line-height: 1.5;
+    opacity: 0.9;
+  }
+
+  .secondary-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    background: transparent;
+    border: 1px solid #fff;
+    color: #fff;
+    transition: 0.2s ease;
+  }
+
+  .secondary-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
   </style>
 </head>
 <body>
@@ -53,6 +90,16 @@
   <div class="signin-container">
     <div class="signin-box">
       <h2>Please sign in</h2>
+
+      <div class="guest-info-box">
+        <p class="guest-title">Joining the public SAT Olympiad?</p>
+        <p class="guest-text">
+          You can enter as a guest without signing in. Guest access is available only for public global events.
+        </p>
+        <a href="{% url 'guest_entry' %}" class="secondary-btn">
+          Continue as Guest
+        </a>
+      </div>
       
       <!-- Django messages -->
 
