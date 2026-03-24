@@ -69,7 +69,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    #'apps.sat.middleware.ClientSoftwareMiddleware',
+    'apps.sat.middleware.ClientSoftwareMiddleware',
 ]
 
 ROOT_URLCONF = 'satmakon.urls'
