@@ -1,4 +1,6 @@
-![Preview](https://github.com/user-attachments/assets/e397ecbc-957f-4f66-99f3-5d73e25d8266)
+<p align="center">
+  <img src="static/assets/img/icons/original-big-icon.png" width="700" alt="MakonBook SAT Logo" />
+</p>
 
 # MakonBook SAT
 
