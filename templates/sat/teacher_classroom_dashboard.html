@@ -48,6 +48,15 @@
     border: none;
     font-size: 14px;
     line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .btn-edit{
+    color: #fff;
+  }
+
+  .btn-edit:hover{
+    color:#27ada1;
   }
 
   .btn-danger {
@@ -93,19 +102,59 @@
     flex-wrap: wrap;
   }
 
-  .status-pending {
-    color: #b45309;
-    font-weight: 700;
+  .status-pending { color: #b45309; font-weight: 700; }
+  .status-approved { color: #15803d; font-weight: 700; }
+  .status-rejected { color: #b91c1c; font-weight: 700; }
+
+  .slide-panel {
+    display: none;
+    margin-top: 18px;
   }
 
-  .status-approved {
-    color: #15803d;
-    font-weight: 700;
+  .slide-panel.open {
+    display: block;
   }
 
-  .status-rejected {
+  .edit-panel-inner {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 18px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #324dc7;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .danger-zone {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #fecaca;
+    border-radius: 14px;
+    background: #fef2f2;
+  }
+
+  .danger-zone h4 {
+    margin-bottom: 8px;
     color: #b91c1c;
-    font-weight: 700;
+  }
+
+  .danger-zone p {
+    margin-bottom: 12px;
+    color: #7f1d1d;
   }
 
   @media (max-width: 900px) {
@@ -121,55 +170,87 @@
   <div class="dashboard-grid">
     <div class="dashboard-card">
       <h3>Join Code</h3>
-      
+
       {% if join_code and join_code.is_valid %}
-      <div class="code-box">{{ join_code.code }}</div>
-      <p><strong>Valid until:</strong> {{ join_code.expires_at }}</p>
+        <div class="code-box">{{ join_code.code }}</div>
+        <p><strong>Valid until:</strong> {{ join_code.expires_at }}</p>
       {% else %}
-      <p>No active code.</p>
+        <p>No active code.</p>
       {% endif %}
-      
+
       <a href="{% url 'generate_classroom_join_code' classroom.id %}" class="btn-main">
         Generate New Code
       </a>
     </div>
-    
+
     <div class="dashboard-card">
       <h3>Classroom Info</h3>
       <p><strong>Name:</strong> {{ classroom.name }}</p>
       <p><strong>Description:</strong> {{ classroom.description|default:"No description." }}</p>
       <p><strong>Created:</strong> {{ classroom.created_at }}</p>
-      
+
       <div style="margin-top: 16px; display:flex; gap:10px; flex-wrap:wrap;">
         <a href="{% url 'teacher_classroom_list' %}" class="btn-main btn-secondary">
           Back to Classrooms
         </a>
-        
-        <a href="{% url 'edit_classroom' classroom.id %}" class="btn-main">
-          Edit Classroom
-        </a>
-        
+
+        <button type="button" class="btn-main" onclick="toggleEditPanel()">
+          <a class="btn-edit">Edit Classroom</a>
+        </button>
+
         <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
           View Progress Dashboard
         </a>
-        
+
         <a href="{% url 'classroom_chat' classroom.id %}" class="btn-main">
           Open Chat
         </a>
       </div>
-        
-      <form method="post" action="{% url 'delete_classroom' classroom.id %}" style="margin-top: 14px;">
-        {% csrf_token %}
-        <button
-        type="submit"
-        class="btn-main btn-danger"
-        onclick="return confirm('Are you sure you want to delete this classroom? This action cannot be undone.');">
-        Delete Classroom
-      </button>
-    </form>
+
+      <div id="editClassroomPanel" class="slide-panel">
+        <div class="edit-panel-inner">
+          <form method="post" action="{% url 'edit_classroom' classroom.id %}">
+            {% csrf_token %}
+
+            <div class="form-group">
+              <label for="name">Classroom Name</label>
+              <input type="text" id="name" name="name" value="{{ classroom.name }}" required>
+            </div>
+
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea id="description" name="description" rows="4">{{ classroom.description }}</textarea>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button type="submit" class="btn-main">Save Changes</button>
+              <button type="button" class="btn-main btn-danger" onclick="toggleDeleteZone()">
+                Delete Classroom
+              </button>
+            </div>
+          </form>
+
+          <div id="deleteDangerZone" class="slide-panel">
+            <div class="danger-zone">
+              <h4>Delete Classroom</h4>
+              <p>
+                This will remove the classroom and all related memberships, chat messages, and classroom-linked data.
+                This action cannot be undone.
+              </p>
+
+              <form method="post" action="{% url 'delete_classroom' classroom.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-main btn-danger">
+                  Confirm Delete
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-  
+
   <div class="dashboard-card" style="margin-top: 22px;">
     <h3>Students and Requests</h3>
 
@@ -202,6 +283,7 @@
                 Reject
               </a>
             {% endif %}
+
             {% if membership.status == 'approved' %}
               <a href="{% url 'update_student_section_access' classroom.id membership.user.id %}" class="btn-main btn-secondary">
                 Manage Access
@@ -218,4 +300,25 @@
     </div>
   </div>
 </div>
+
+<script>
+  function toggleEditPanel() {
+    const panel = document.getElementById('editClassroomPanel');
+    if (panel.classList.contains('open')) {
+      panel.classList.remove('open');
+    } else {
+      panel.classList.add('open');
+    }
+  }
+
+  function toggleDeleteZone() {
+    const zone = document.getElementById('deleteDangerZone');
+    if (zone.classList.contains('open')) {
+      zone.classList.remove('open');
+    } else {
+      zone.classList.add('open');
+    }
+  }
+</script>
 {% endblock content %}
+

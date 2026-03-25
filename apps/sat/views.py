@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import *
-from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect, Http404, JsonResponse
 from apps.base.decorators import allowed_users
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.decorators import login_required
@@ -1702,29 +1702,34 @@ def reject_join_request(request, classroom_id, membership_id):
     messages.info(request, f"{membership.user.username}'s request was rejected.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
+def classroom_access_denied(request, classroom=None, message="You do not have access to this classroom."):
+    return render(request, 'sat/classroom_access_denied.html', {
+        'classroom': classroom,
+        'message': message,
+    }, status=403)
+
 @login_required(login_url='/login/')
 def student_classroom_home(request, classroom_id):
-    membership = ClassroomMembership.objects.filter(
-        classroom_id=classroom_id,
-        user=request.user,
-        role='student',
-        status='approved'
-    ).select_related('classroom').prefetch_related('section_access').first()
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
 
-    if not membership and not request.user.is_superuser:
-        return HttpResponseForbidden("You do not have access to this classroom.")
+    if redirect_response:
+        return redirect_response
 
-    classroom = membership.classroom if membership else get_object_or_404(Classroom, id=classroom_id)
+    if role in ['teacher', 'admin']:
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-    if not classroom.is_active and not request.user.is_superuser:
+    if role != 'student':
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if not classroom.is_active:
         messages.error(request, "This classroom is no longer active.")
         return redirect('sat_menu')
 
-    access_map = get_membership_section_access_map(membership) if membership else {
-        'practice_tests': True,
-        'vocabulary': True,
-        'admissions': True,
-    }
+    access_map = get_membership_section_access_map(membership)
 
     return render(request, 'sat/student_classroom_home.html', {
         'classroom': classroom,
@@ -1804,45 +1809,78 @@ def remove_student_from_classroom(request, classroom_id, user_id):
 
 @login_required(login_url='/login/')
 def classroom_practice_tests(request, classroom_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
 
     if role is None:
-        return HttpResponseForbidden("You do not have access to this classroom.")
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
 
     if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('practice_tests'):
-            return HttpResponseForbidden("You do not have access to Practice Tests.")
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Practice Tests."
+            )
 
     return practice_tests(request)
 
 
 @login_required(login_url='/login/')
 def classroom_vocabulary(request, classroom_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
 
     if role is None:
-        return HttpResponseForbidden("You do not have access to this classroom.")
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
 
     if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('vocabulary'):
-            return HttpResponseForbidden("You do not have access to Vocabulary.")
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Vocabulary."
+            )
 
     return vocabulary(request)
 
 
 @login_required(login_url='/login/')
 def classroom_admissions(request, classroom_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
 
     if role is None:
-        return HttpResponseForbidden("You do not have access to this classroom.")
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
 
     if role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('admissions'):
-            return HttpResponseForbidden("You do not have access to Admissions.")
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Admissions."
+            )
 
     return admissions(request)
 
@@ -2013,20 +2051,31 @@ def get_classroom_access_for_user(user, classroom_id):
 
 @login_required(login_url='/login/')
 def classroom_chat(request, classroom_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
 
     if role is None:
-        return HttpResponseForbidden("You do not have access to this classroom chat.")
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom chat."
+        )
 
     messages_qs = ChatMessage.objects.filter(
         classroom=classroom,
         is_deleted=False
     ).select_related('sender').order_by('created_at')
 
+    last_message = messages_qs.last()
+    last_message_id = last_message.id if last_message else 0
+
     return render(request, 'sat/classroom_chat.html', {
         'classroom': classroom,
         'chat_messages': messages_qs,
         'role': role,
+        'last_message_id': last_message_id,
     })
 
 @login_required(login_url='/login/')
@@ -2034,19 +2083,32 @@ def send_classroom_message(request, classroom_id):
     if request.method != 'POST':
         return redirect('classroom_chat', classroom_id=classroom_id)
 
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Classroom not found.'}, status=404)
+        return redirect_response
 
     if role is None:
-        return HttpResponseForbidden("You do not have access to this classroom chat.")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Access denied.'}, status=403)
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom chat."
+        )
 
     message_text = request.POST.get('message', '').strip()
     uploaded_file = request.FILES.get('file')
 
     if not message_text and not uploaded_file:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Message or file is required.'}, status=400)
         messages.error(request, "Message or file is required.")
         return redirect('classroom_chat', classroom_id=classroom.id)
 
-    ChatMessage.objects.create(
+    chat_message = ChatMessage.objects.create(
         classroom=classroom,
         sender=request.user,
         message=message_text if message_text else None,
@@ -2054,13 +2116,49 @@ def send_classroom_message(request, classroom_id):
         is_deleted=False,
     )
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        full_name = chat_message.sender.get_full_name().strip()
+        display_name = full_name if full_name else chat_message.sender.username
+
+        initials = ""
+        if chat_message.sender.first_name:
+            initials += chat_message.sender.first_name[:1].upper()
+        if chat_message.sender.last_name:
+            initials += chat_message.sender.last_name[:1].upper()
+        if not initials:
+            initials = chat_message.sender.username[:1].upper()
+
+        return JsonResponse({
+            'ok': True,
+            'message': {
+                'id': chat_message.id,
+                'author': display_name,
+                'initials': initials,
+                'is_mine': True,
+                'created_at': chat_message.created_at.strftime('%Y-%m-%d %H:%M'),
+                'text': chat_message.message or '',
+                'file_url': chat_message.file.url if chat_message.file else '',
+                'file_name': chat_message.file.name.split('/')[-1] if chat_message.file else '',
+                'delete_message_url': f'/sat/classroom/{classroom.id}/chat/message/{chat_message.id}/delete/',
+                'delete_file_url': f'/sat/classroom/{classroom.id}/chat/message/{chat_message.id}/delete-file/' if chat_message.file else '',
+                'role': role,
+            }
+        })
+
     return redirect('classroom_chat', classroom_id=classroom.id)
 
 @login_required(login_url='/login/')
 def delete_classroom_message(request, classroom_id, message_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Classroom not found.'}, status=404)
+        return redirect_response
 
     if role not in ['teacher', 'admin']:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Only teacher can delete messages.'}, status=403)
         return HttpResponseForbidden("Only teacher can delete messages.")
 
     chat_message = get_object_or_404(
@@ -2069,14 +2167,17 @@ def delete_classroom_message(request, classroom_id, message_id):
         classroom=classroom
     )
 
-    chat_message.is_deleted = True
-    chat_message.message = None
-
     if chat_message.file:
         chat_message.file.delete(save=False)
-        chat_message.file = None
 
-    chat_message.save()
+    chat_message.delete()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'ok': True,
+            'message_id': message_id,
+            'action': 'delete_message',
+        })
 
     messages.success(request, "Chat message deleted.")
     return redirect('classroom_chat', classroom_id=classroom.id)
@@ -2099,9 +2200,16 @@ def delete_classroom(request, classroom_id):
 
 @login_required(login_url='/login/')
 def delete_classroom_message_file(request, classroom_id, message_id):
-    classroom, role, membership = get_classroom_access_for_user(request.user, classroom_id)
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Classroom not found.'}, status=404)
+        return redirect_response
 
     if role not in ['teacher', 'admin']:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': False, 'error': 'Only teacher can delete files.'}, status=403)
         return HttpResponseForbidden("Only teacher can delete files.")
 
     chat_message = get_object_or_404(
@@ -2114,8 +2222,15 @@ def delete_classroom_message_file(request, classroom_id, message_id):
         chat_message.file.delete(save=False)
         chat_message.file = None
         chat_message.save()
-        messages.success(request, "File deleted from message.")
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'ok': True,
+            'message_id': message_id,
+            'action': 'delete_file',
+        })
+
+    messages.success(request, "File deleted from message.")
     return redirect('classroom_chat', classroom_id=classroom.id)
 
 @login_required(login_url='/login/')
@@ -2125,21 +2240,98 @@ def edit_classroom(request, classroom_id):
     if classroom.teacher != request.user and not request.user.is_superuser:
         return HttpResponseForbidden("You can edit only your own classrooms.")
 
-    if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        description = request.POST.get('description', '').strip()
-
-        if not name:
-            messages.error(request, "Classroom name is required.")
-            return redirect('edit_classroom', classroom_id=classroom.id)
-
-        classroom.name = name
-        classroom.description = description
-        classroom.save()
-
-        messages.success(request, "Classroom updated successfully.")
+    if request.method != 'POST':
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-    return render(request, 'sat/edit_classroom.html', {
-        'classroom': classroom,
+    name = request.POST.get('name', '').strip()
+    description = request.POST.get('description', '').strip()
+
+    if not name:
+        messages.error(request, "Classroom name is required.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    classroom.name = name
+    classroom.description = description
+    classroom.save()
+
+    messages.success(request, "Classroom updated successfully.")
+    return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+def resolve_classroom_and_role(request, classroom_id):
+    classroom = Classroom.objects.filter(id=classroom_id).first()
+
+    if not classroom:
+        messages.error(request, "This classroom does not exist anymore.")
+        return None, None, None, redirect('sat_menu')
+
+    if request.user.is_superuser:
+        return classroom, 'admin', None, None
+
+    if classroom.teacher_id == request.user.id:
+        return classroom, 'teacher', None, None
+
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=request.user,
+        role='student',
+        status='approved'
+    ).prefetch_related('section_access').first()
+
+    if membership:
+        return classroom, 'student', membership, None
+
+    return classroom, None, None, None
+
+@login_required(login_url='/login/')
+def fetch_classroom_messages(request, classroom_id):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return JsonResponse({'ok': False, 'error': 'Classroom not found.'}, status=404)
+
+    if role is None:
+        return JsonResponse({'ok': False, 'error': 'Access denied.'}, status=403)
+
+    last_id = request.GET.get('last_id')
+    try:
+        last_id = int(last_id) if last_id else 0
+    except ValueError:
+        last_id = 0
+
+    messages_qs = ChatMessage.objects.filter(
+        classroom=classroom,
+        is_deleted=False,
+        id__gt=last_id
+    ).select_related('sender').order_by('id')
+
+    result = []
+
+    for item in messages_qs:
+        full_name = item.sender.get_full_name().strip()
+        display_name = full_name if full_name else item.sender.username
+
+        initials = ""
+        if item.sender.first_name:
+            initials += item.sender.first_name[:1].upper()
+        if item.sender.last_name:
+            initials += item.sender.last_name[:1].upper()
+        if not initials:
+            initials = item.sender.username[:1].upper()
+
+        result.append({
+            'id': item.id,
+            'author': display_name,
+            'initials': initials,
+            'is_mine': item.sender_id == request.user.id,
+            'created_at': item.created_at.strftime('%Y-%m-%d %H:%M'),
+            'text': item.message or '',
+            'file_url': item.file.url if item.file else '',
+            'file_name': item.file.name.split('/')[-1] if item.file else '',
+            'delete_message_url': f'/sat/classroom/{classroom.id}/chat/message/{item.id}/delete/',
+            'delete_file_url': f'/sat/classroom/{classroom.id}/chat/message/{item.id}/delete-file/' if item.file else '',
+        })
+
+    return JsonResponse({
+        'ok': True,
+        'messages': result,
     })
