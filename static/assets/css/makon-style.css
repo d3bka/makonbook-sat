@@ -131,7 +131,6 @@
   
   /* Footer links inside sign-in box */
   .footer-links {
-    margin-top: 2rem;
     display: flex;
     justify-content: space-between;
   }

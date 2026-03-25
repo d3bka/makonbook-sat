@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Leaderboard - {{ event.title }}</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .page-wrap {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .board-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f8fafc;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="board-card">
+      <h1>{{ event.title }} - Leaderboard</h1>
+      <p><a href="{% url 'global_event_detail' event.slug %}">← Back to Event</a></p>
+
+      {% if attempts %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Score</th>
+              <th>Submitted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for attempt in attempts %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ attempt.guest.display_name|default:attempt.guest.full_name }}</td>
+                {% if event.show_score_immediately %}
+                <td>{{ attempt.score|default:"-" }}</td>
+                {% else %}
+                <td>Hidden</td>
+                {% endif %}
+                <td>{{ attempt.submitted_at|default:"-" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No submitted attempts yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

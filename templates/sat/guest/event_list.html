@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>MakonBook - Global Events</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .page-wrap {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .event-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .event-card h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    .event-meta {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #555;
+    }
+    .event-actions {
+      margin-top: 16px;
+    }
+    .empty-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .logout-link {
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #eef2ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="page-header">
+      <div>
+        <h1 style="color: #fff;">Global Events</h1>
+        <p style="color: #fff;">Welcome, {{ request.session.guest_name }}</p>
+      </div>
+      <div>
+        <a href="{% url 'guest_logout' %}" class="logout-link" style="color: #fff;">Logout Guest</a>
+      </div>
+    </div>
+
+    {% if messages %}
+      <div class="alert-box">
+        <ul class="messages">
+          {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if events %}
+      <div class="event-grid">
+        {% for event in events %}
+          <div class="event-card">
+            <span class="status-badge">{{ event.status|title }}</span>
+            <h3>{{ event.title }}</h3>
+
+            {% if event.description %}
+              <p>{{ event.description|truncatewords:20 }}</p>
+            {% endif %}
+
+            <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
+            <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
+            <div class="event-meta"><strong>Duration:</strong> {{ event.duration_minutes }} min</div>
+
+            <div class="event-actions">
+              <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open Event</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-box">
+        <h3>No public events available</h3>
+        <p>There are no live or scheduled global events right now.</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

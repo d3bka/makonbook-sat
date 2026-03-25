@@ -116,7 +116,7 @@
                 <div id="open-calculator" style="align-content:center; cursor:pointer;">
                     <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
                 </div>
-                <a href="/" style="text-decoration:none;">
+                <a href="{% url 'global_event_list' %}" style="text-decoration:none;">
                     <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
                 </a>
             </div>
@@ -145,7 +145,7 @@
 
         <footer>
             <div class="footer-left">
-                {{ request.user.guest_name }}
+                {{ request.session.guest_name }}
             </div>
 
             <div class="footer-center">
@@ -190,12 +190,12 @@
         </div>
     </div>
 
-    {{ custom_time_seconds|json_script:"custom-time" }}
+    {{ time_left_seconds|json_script:"custom-time" }}
     {{ questions_data|json_script:"questions-data" }}
 
     <script>
         const testName = "{{ event.slug }}";
-        const moduleName = "{{ attempt.guest_token }}";
+        const moduleName = "{{ module }}";
         const sectionName = "{{ section }}";
 
         const questions = JSON.parse(document.getElementById('questions-data').textContent);
@@ -419,9 +419,30 @@
         }
 
         function updateNavigationButtons() {
-            document.getElementById("backButton").style.display = currentQuestionIndex === 0 ? "none" : "inline-block";
-            document.getElementById("nextButton").style.display = currentQuestionIndex === questions.length - 1 ? "none" : "inline-block";
-            document.getElementById("finishButton").style.display = currentQuestionIndex === questions.length - 1 ? "inline-block" : "none";
+            const backButton = document.getElementById("backButton");
+            const nextButton = document.getElementById("nextButton");
+            const finishButton = document.getElementById("finishButton");
+            
+            if (questions.length <= 1) {
+                backButton.style.display = "none";
+                nextButton.style.display = "none";
+                finishButton.style.display = "inline-block";
+                return;
+            }
+            
+            if (currentQuestionIndex === 0) {
+                backButton.style.display = "none";
+                nextButton.style.display = "inline-block";
+                finishButton.style.display = "none";
+            } else if (currentQuestionIndex === questions.length - 1) {
+                backButton.style.display = "inline-block";
+                nextButton.style.display = "none";
+                finishButton.style.display = "inline-block";
+            } else {
+                backButton.style.display = "inline-block";
+                nextButton.style.display = "inline-block";
+                finishButton.style.display = "none";
+            }
         }
 
         function updateWrittenAnswer(value) {
@@ -526,21 +547,22 @@
                 timeRemaining--;
             }
         }
-
-        function finishTest(force = false) {
+        
+        async function finishTest(force = false) {
             const confirmed = force || confirm("Are you sure you want to finish the test? Make sure you are ready.");
             if (!confirmed) return;
-
+            
             const form = document.getElementById('math-quiz-form');
+            const submitUrl = "{% url 'submit_global_event' guest_token=attempt.guest_token %}";
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
             const answerData = answers.map((answer, index) => ({
-                questionID: questions[index] ? questions[index].id : 'default',
+                questionID: questions[index] ? questions[index].id : null,
                 answer: answer,
                 time_spent: timeSpent[index]
             }));
-
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-            fetch(form.action, {
+            
+            const saveResp = await fetch(form.action, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -552,12 +574,34 @@
                     test: testName,
                     module: moduleName
                 })
-            }).then(response => {
-                if (response.ok) {
-                    clearProgress();
-                    window.location.href = '/sat/global-events/attempt/{{ attempt.guest_token }}/result/';
-                }
-            }).catch(error => console.error('Error submitting answers:', error));
+            });
+            
+            if (!saveResp.ok) {
+                alert("Failed to save answers.");
+                return;
+            }
+            
+            const submitResp = await fetch(submitUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    section: sectionName,
+                    module: moduleName
+                })
+            });
+            
+            const submitData = await submitResp.json();
+            
+            if (submitResp.ok && submitData.redirect_url) {
+                clearProgress();
+                window.location.href = submitData.redirect_url;
+                return;
+            }
+            
+            alert(submitData.error || "Failed to continue test.");
         }
 
         document.getElementById('open-calculator').addEventListener('click', openCalculator);

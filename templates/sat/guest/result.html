@@ -1,0 +1,69 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Result - {{ event.title }}</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .page-wrap {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .result-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    .score-box {
+      margin: 24px 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .actions {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="result-card">
+      <h1>Thank You</h1>
+      <p>You have completed <strong>{{ event.title }}</strong>.</p>
+
+      {% if show_score %}
+      <div class="score-box">
+        Total Score: {{ total_score }}
+      </div>
+      
+      <p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>
+      <p><strong>Math Score:</strong> {{ math_score }}</p>
+      {% else %}
+      <div class="score-box">
+        Your result will be available later.
+      </div>
+      {% endif %}
+
+      <p><strong>Answered:</strong> {{ attempt.answered_questions }} / {{ attempt.total_questions }}</p>
+      <p><strong>Status:</strong> {{ attempt.status|title }}</p>
+
+      <div class="actions">
+        <a href="{% url 'global_event_list' %}" class="primary-btn">Back to Events</a>
+
+        {% if event.show_leaderboard %}
+          <a href="{% url 'global_event_leaderboard' event.slug %}" class="primary-btn">Leaderboard</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
