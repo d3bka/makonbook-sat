@@ -114,9 +114,16 @@ class TestAdmin(admin.ModelAdmin):
     reviews_count.admin_order_field = 'reviews_count'
     
     def average_score(self, obj):
-        if obj.avg_score:
-            return format_html('<strong>{:.0f}</strong>', obj.avg_score)
-        return '-'
+        value = getattr(obj, "avg_score", None)
+    
+        if value in (None, "", "-"):
+            return "-"
+    
+        try:
+            return round(float(value))
+        except (TypeError, ValueError):
+            return "-"
+
     average_score.short_description = 'Avg Score'
     average_score.admin_order_field = 'avg_score'
 
@@ -801,9 +808,21 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
 @admin.register(GlobalEvent)
 class GlobalEventAdmin(admin.ModelAdmin):
-    list_display = ("title", "slug", "status", "start_at", "end_at", "is_public")
-    search_fields = ("title", "slug")
-    list_filter = ("status", "is_public")
+    list_display = (
+        "title",
+        "test",
+        "slug",
+        "status",
+        "is_public",
+        "show_score_immediately",
+        "show_leaderboard",
+        "start_at",
+        "end_at",
+    )
+    search_fields = ("title", "slug", "test__title")
+    list_filter = ("status", "is_public", "show_score_immediately", "show_leaderboard")
+    autocomplete_fields = ("test",)
+    list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public")
 
 
 @admin.register(GuestParticipant)
@@ -823,4 +842,9 @@ class GlobalEventAttemptAdmin(admin.ModelAdmin):
 class GlobalEventAnswerAdmin(admin.ModelAdmin):
     list_display = ("attempt", "section", "module", "question_id", "selected_answer", "is_correct", "answered_at")
     list_filter = ("section", "module", "is_correct")
-    search_fields = ("attempt__guest__full_name", "attempt__guest__display_name", "attempt__event__title", "question_id", "selected_answer")
+    search_fields = (
+        "attempt__guest__full_name",
+        "attempt__guest__display_name",
+        "attempt__event__title",
+        "selected_answer",
+    )

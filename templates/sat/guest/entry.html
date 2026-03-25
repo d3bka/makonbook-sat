@@ -1,0 +1,111 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>MakonBook - Guest Entry</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .icon {
+      margin-right: 5px;
+      width: 40px;
+      height: 42px;
+    }
+    .title-field {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+    .app-title {
+      font-size: 40px;
+    }
+    .guest-note {
+      margin-bottom: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      opacity: 0.9;
+      text-align: center;
+    }
+    .back-link {
+      display: block;
+      margin-top: 14px;
+      text-align: center;
+      text-decoration: none;
+      opacity: 0.85;
+      font-size: 1rem;
+      color: #1a73e8;
+    }
+    .back-link:hover{
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-banner">
+    <div class="title-field">
+      <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class="icon" alt="Makon Book Logo" />
+      <h1 class="app-title">MakonBook</h1>
+    </div>
+
+    {% if messages %}
+      <div class="alert-box">
+        <ul class="messages">
+          {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="signin-container">
+    <div class="signin-box">
+      <h2>Continue as Guest</h2>
+
+      <p class="guest-note">
+        Use guest access to join public global SAT events without creating an account.
+      </p>
+
+      {% if error %}
+        <div class="alert-box">
+          <ul class="messages">
+            <li class="error">{{ error }}</li>
+          </ul>
+        </div>
+      {% endif %}
+
+      <form action="" method="POST" class="signin-form">
+        {% csrf_token %}
+
+        <div class="form-group">
+          <input
+            type="text"
+            name="full_name"
+            placeholder="Full name or nickname"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <input
+            type="text"
+            name="display_name"
+            placeholder="Display name (optional)"
+          >
+        </div>
+
+        <div class="form-group">
+          <button type="submit" class="primary-btn">
+            Enter as Guest
+          </button>
+        </div>
+      </form>
+
+      <a href="/login/" class="back-link">Back to Sign In</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{{ event.title }} - Attempt</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .page-wrap {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .attempt-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .timer {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .placeholder-box {
+      padding: 24px;
+      border-radius: 12px;
+      background: #f8fafc;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="attempt-card">
+      <h1>{{ event.title }}</h1>
+      <p><strong>Guest:</strong> {{ request.session.guest_name }}</p>
+
+      <div class="timer">
+        Time left: <span id="timer">{{ time_left_seconds }}</span> seconds
+      </div>
+
+      {% if questions %}
+        <p>Questions will be rendered here.</p>
+      {% else %}
+        <div class="placeholder-box">
+          <h3>Attempt page is active</h3>
+          <p>
+            The guest flow works, but question rendering is not connected yet.
+          </p>
+        </div>
+      {% endif %}
+
+      <form method="POST" action="{% url 'submit_global_event' attempt.guest_token %}">
+        {% csrf_token %}
+        <div style="margin-top: 20px;">
+          <button type="submit" class="primary-btn">Submit Attempt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let timeLeft = parseInt(document.getElementById("timer").innerText || "0");
+
+    setInterval(function () {
+      if (timeLeft > 0) {
+        timeLeft--;
+        document.getElementById("timer").innerText = timeLeft;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

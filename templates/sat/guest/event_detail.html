@@ -1,0 +1,118 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{{ event.title }} - MakonBook</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <style>
+    .page-wrap {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .detail-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    }
+    .meta-row {
+      margin-bottom: 10px;
+      color: #555;
+    }
+    .rules-box {
+      margin: 20px 0;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 12px;
+    }
+    .actions {
+      margin-top: 24px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .secondary-link {
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <a href="{% url 'global_event_list' %}" class="secondary-link" style="color: #fff;">← Back to Global Events</a>
+
+    <div class="detail-card">
+      <h1>{{ event.title }}</h1>
+
+      {% if messages %}
+        <div class="alert-box">
+          <ul class="messages">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      {% if event.description %}
+        <p>{{ event.description }}</p>
+      {% endif %}
+
+      <div class="meta-row"><strong>Start:</strong> {{ event.start_at }}</div>
+      <div class="meta-row"><strong>End:</strong> {{ event.end_at }}</div>
+      <div class="meta-row"><strong>Duration:</strong> {{ event.duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>Status:</strong> {{ event.status|title }}</div>
+
+      {% if event.rules %}
+        <div class="rules-box">
+          <h3>Rules</h3>
+          <p>{{ event.rules|linebreaks }}</p>
+        </div>
+      {% endif %}
+
+      {% if existing_attempt and existing_attempt.status == "in_progress" %}
+        <div class="actions">
+          <a href="{% url 'global_event_attempt' existing_attempt.guest_token %}" class="primary-btn">
+            Resume Attempt
+          </a>
+        </div>
+      {% elif existing_attempt and existing_attempt.status == "submitted" %}
+        <div class="actions">
+          <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn">
+            View Result
+          </a>
+        </div>
+      {% else %}
+        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <input
+              type="text"
+              name="access_code"
+              placeholder="Access code"
+              {% if event.access_code %}required{% endif %}
+            >
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary-btn">Start Event</button>
+
+            {% if event.show_leaderboard %}
+              <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">
+                View Leaderboard
+              </a>
+            {% endif %}
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

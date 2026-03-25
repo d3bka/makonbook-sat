@@ -25,40 +25,21 @@
 	}
 
   .guest-info-box {
-    margin: 18px 0 20px 0;
-    padding: 14px;
+    padding: 10px;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
     text-align: center;
   }
 
-  .guest-title {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  .guest-text {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    line-height: 1.5;
-    opacity: 0.9;
-  }
-
   .secondary-btn {
-    display: inline-block;
-    padding: 10px 18px;
-    border-radius: 10px;
+    padding: 10px 10px;
+    font-size: 0.9rem;
     text-decoration: none;
-    font-weight: 600;
-    background: transparent;
-    border: 1px solid #fff;
-    color: #fff;
-    transition: 0.2s ease;
+    color: #1a73e8;
   }
 
   .secondary-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+    text-decoration: underline;
   }
   </style>
 </head>
@@ -90,16 +71,6 @@
   <div class="signin-container">
     <div class="signin-box">
       <h2>Please sign in</h2>
-
-      <div class="guest-info-box">
-        <p class="guest-title">Joining the public SAT Olympiad?</p>
-        <p class="guest-text">
-          You can enter as a guest without signing in. Guest access is available only for public global events.
-        </p>
-        <a href="{% url 'guest_entry' %}" class="secondary-btn">
-          Continue as Guest
-        </a>
-      </div>
       
       <!-- Django messages -->
 
@@ -142,7 +113,12 @@
       <!-- Footer links at the bottom of the sign-in box (optional) -->
       <div class="footer-links">
         <a href="/software/">Check out Software</a>
-        <a href="/register">Need help signing in?</a>
+        <a href="/register">Create an Account</a>
+      </div>
+      <div class="guest-info-box">
+        <a href="{% url 'guest_entry' %}" class="secondary-btn">
+          Continue as Guest
+        </a>
       </div>
     </div>
   </div>
