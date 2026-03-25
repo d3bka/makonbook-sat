@@ -1,4 +1,6 @@
-<img width="1437" height="705" alt="image" src="https://github.com/user-attachments/assets/e397ecbc-957f-4f66-99f3-5d73e25d8266" /># MakonBook SAT
+![Preview](https://github.com/user-attachments/assets/e397ecbc-957f-4f66-99f3-5d73e25d8266)
+
+# MakonBook SAT
 
 MakonBook SAT — это веб-платформа для подготовки к SAT, где ученики могут проходить практические тесты, изучать vocabulary и отслеживать свой прогресс, а учителя — управлять classroom, материалами и результатами учеников.
 
