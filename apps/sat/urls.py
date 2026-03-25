@@ -59,15 +59,13 @@ urlpatterns = [
 
     path('classroom/<int:classroom_id>/chat/', views.classroom_chat, name='classroom_chat'),
     path('classroom/<int:classroom_id>/chat/send/', views.send_classroom_message, name='send_classroom_message'),
+    path('classroom/<int:classroom_id>/chat/fetch/', views.fetch_classroom_messages, name='fetch_classroom_messages'),
     path('classroom/<int:classroom_id>/chat/message/<int:message_id>/delete/', views.delete_classroom_message, name='delete_classroom_message'),
     path('classroom/<int:classroom_id>/chat/message/<int:message_id>/delete-file/', views.delete_classroom_message_file, name='delete_classroom_message_file'),
 
+
     path('teacher/classrooms/<int:classroom_id>/delete/', views.delete_classroom, name='delete_classroom'),
-
     path('teacher/classrooms/<int:classroom_id>/edit/', views.edit_classroom, name='edit_classroom'),
-
-
-
 
 
     #GUEST URLS

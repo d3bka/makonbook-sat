@@ -1,0 +1,83 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Access Denied{% endblock title-main %}
+{% block title %}Access Denied{% endblock title %}
+
+{% block style %}
+<style>
+  .denied-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .denied-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 36px 32px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+
+  .denied-icon {
+    font-size: 54px;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .denied-card h2 {
+    color: #b91c1c;
+    margin-bottom: 12px;
+    font-weight: 800;
+  }
+
+  .denied-card p {
+    color: #475569;
+    font-size: 17px;
+    margin-bottom: 24px;
+  }
+
+  .denied-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn-main {
+    display: inline-block;
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+  }
+
+  .btn-secondary {
+    background: #475569;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="denied-wrap">
+  <div class="denied-card">
+    <div class="denied-icon">🚫</div>
+    <h2>Access Denied</h2>
+    <p>{{ message }}</p>
+
+    <div class="denied-actions">
+      <a href="{% url 'sat_menu' %}" class="btn-main">Back to Dashboard</a>
+
+      {% if classroom %}
+        <a href="{% url 'classroom_chat' classroom.id %}" class="btn-main btn-secondary">
+          Open Classroom Chat
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -6,39 +6,90 @@
 
 {% block style %}
 <style>
-  .chat-wrap {
-    max-width: 1100px;
+  .chat-page {
+    max-width: 1350px;
     margin: 0 auto;
   }
 
-  .chat-card {
+  .chat-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 22px;
+  }
+
+  .side-card,
+  .chat-shell {
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 24px;
+    border-radius: 22px;
     box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
   }
 
-  .chat-form {
-    margin-bottom: 24px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #e5e7eb;
+  .side-card {
+    padding: 22px;
+    height: fit-content;
   }
 
-  .chat-textarea {
-    width: 100%;
-    min-height: 110px;
-    border: 1px solid #d1d5db;
-    border-radius: 14px;
-    padding: 14px;
-    resize: vertical;
-    margin-bottom: 14px;
+  .side-card h3 {
+    color: #324dc7;
+    margin-bottom: 10px;
   }
 
-  .chat-actions {
+  .side-card p {
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .side-meta {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .side-meta div {
+    margin-bottom: 10px;
+    color: #334155;
+    font-size: 14px;
+  }
+
+  .chat-side-actions {
+    margin-top: 20px;
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .chat-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 720px;
+  }
+
+  .chat-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .chat-header h2 {
+    margin: 0;
+    color: #324dc7;
+  }
+
+  .chat-header p {
+    margin: 4px 0 0;
+    color: #64748b;
+  }
+
+  .chat-header-actions {
+    display: flex;
+    gap: 10px;
     flex-wrap: wrap;
   }
 
@@ -53,121 +104,634 @@
     border: none;
     font-size: 14px;
     line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .btn-secondary {
+    background: #475569;
   }
 
   .btn-danger {
     background: #b91c1c;
   }
 
+  .chat-body {
+    background: #f8fafc;
+    padding: 22px;
+    flex: 1;
+    min-height: 420px;
+    max-height: 620px;
+    overflow-y: auto;
+  }
+
   .message-list {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
   }
 
-  .message-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 16px;
-    background: #fafafa;
+  .message-row {
+    display: flex;
+    width: 100%;
   }
 
-  .message-head {
+  .message-row.mine {
+    justify-content: flex-end;
+  }
+
+  .message-row.other {
+    justify-content: flex-start;
+  }
+
+  .message-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    max-width: min(80%, 820px);
+  }
+
+  .message-row.mine .message-group {
+    flex-direction: row-reverse;
+  }
+
+  .avatar-circle {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.4px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+  }
+
+  .message-row.mine .avatar-circle {
+    background: linear-gradient(135deg, #324dc7, #5b74e8);
+    color: #fff;
+  }
+
+  .message-row.other .avatar-circle {
+    background: #e2e8f0;
+    color: #1e293b;
+  }
+
+  .message-bubble {
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    position: relative;
+    flex: 1;
+  }
+
+  .message-row.mine .message-bubble {
+    background: linear-gradient(135deg, #324dc7, #5b74e8);
+    color: #fff;
+    border-bottom-right-radius: 8px;
+  }
+
+  .message-row.other .message-bubble {
+    background: #fff;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    border-bottom-left-radius: 8px;
+  }
+
+  .message-meta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 12px;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
   }
 
   .message-author {
     font-weight: 800;
-    color: #111827;
+    font-size: 14px;
   }
 
   .message-time {
-    color: #64748b;
-    font-size: 13px;
+    font-size: 12px;
+    opacity: 0.75;
   }
 
-  .message-body {
-    color: #1f2937;
-    line-height: 1.6;
+  .message-text {
     white-space: pre-wrap;
+    line-height: 1.55;
+    font-size: 15px;
   }
 
-  .message-file {
+  .message-attachment {
     margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.18);
   }
 
-  .message-file a {
-    font-weight: 700;
+  .message-row.other .message-attachment {
+    background: #f1f5f9;
+  }
+
+  .message-attachment a {
     text-decoration: none;
+    font-weight: 700;
+    color: inherit;
   }
 
-  .message-tools {
+  .teacher-tools {
     margin-top: 12px;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .teacher-tools a {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.18);
+    color: inherit;
+  }
+
+  .message-row.other .teacher-tools a {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .chat-form-wrap {
+    border-top: 1px solid #e5e7eb;
+    background: #fff;
+    padding: 18px 20px;
+  }
+
+  .chat-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .chat-input {
+    width: 100%;
+    min-height: 100px;
+    border: 1px solid #d1d5db;
+    border-radius: 16px;
+    padding: 14px 16px;
+    resize: vertical;
+    font-size: 15px;
+    outline: none;
+  }
+
+  .chat-input:focus {
+    border-color: #324dc7;
+    box-shadow: 0 0 0 3px rgba(50, 77, 199, 0.12);
+  }
+
+  .chat-form-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .chat-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 14px;
+  }
+
+  .empty-chat {
+    text-align: center;
+    color: #64748b;
+    padding: 60px 20px;
+  }
+
+  @media (max-width: 1100px) {
+    .chat-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .side-card {
+      order: 2;
+    }
+
+    .chat-shell {
+      order: 1;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .message-group {
+      max-width: 95%;
+    }
+
+    .chat-body {
+      min-height: 360px;
+      max-height: 520px;
+    }
   }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="chat-wrap">
-  <div class="chat-card">
-    <h2>Classroom Chat</h2>
-    <p>Teacher and students can communicate here.</p>
+<div class="chat-page">
+  <div class="chat-layout">
+    <aside class="side-card">
+      <h3>Classroom Info</h3>
+      <p><strong>{{ classroom.name }}</strong></p>
+      <p>{{ classroom.description|default:"No description provided." }}</p>
 
-    <form method="post" action="{% url 'send_classroom_message' classroom.id %}" enctype="multipart/form-data" class="chat-form">
-      {% csrf_token %}
-      <textarea name="message" class="chat-textarea" placeholder="Write your message..."></textarea>
-
-      <div class="chat-actions">
-        <input type="file" name="file">
-        <button type="submit" class="btn-main">Send Message</button>
-      </div>
-    </form>
-
-    <div class="message-list">
-      {% for item in chat_messages %}
-        <div class="message-item">
-          <div class="message-head">
-            <div>
-              <div class="message-author">
-                {{ item.sender.get_full_name|default:item.sender.username }}
-              </div>
-              <div class="message-time">{{ item.created_at }}</div>
-            </div>
+      <div class="side-meta">
+        <div><strong>Role:</strong> {{ role|title }}</div>
+        {% if classroom.teacher %}
+          <div>
+            <strong>Teacher:</strong>
+            {{ classroom.teacher.get_full_name|default:classroom.teacher.username }}
           </div>
+        {% endif %}
+        <div><strong>Created:</strong> {{ classroom.created_at }}</div>
+      </div>
 
-          {% if item.message %}
-            <div class="message-body">{{ item.message }}</div>
-          {% endif %}
+      <div class="chat-side-actions">
+        {% if role == 'teacher' or role == 'admin' %}
+          <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="btn-main btn-secondary">
+            Back to Dashboard
+          </a>
+        {% else %}
+          <a href="{% url 'student_classroom_home' classroom.id %}" class="btn-main btn-secondary">
+            Back to Classroom
+          </a>
+        {% endif %}
+      </div>
+    </aside>
 
-          {% if item.file %}
-            <div class="message-file">
-              <a href="{{ item.file.url }}" target="_blank">Open attached file</a>
-            </div>
-          {% endif %}
+    <div class="chat-shell">
+      <div class="chat-header">
+        <div>
+          <h2>Classroom Chat</h2>
+          <p>Teacher and students can communicate here.</p>
+        </div>
 
+        <div class="chat-header-actions">
           {% if role == 'teacher' or role == 'admin' %}
-            <div class="message-tools">
-              {% if item.file %}
-                <a href="{% url 'delete_classroom_message_file' classroom.id item.id %}" class="btn-main btn-danger">
-                  Delete File
-                </a>
-              {% endif %}
-              <a href="{% url 'delete_classroom_message' classroom.id item.id %}" class="btn-main btn-danger">
-                Delete Message
-              </a>
-            </div>
+            <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
+              View Progress
+            </a>
           {% endif %}
         </div>
-      {% empty %}
-        <p>No messages yet.</p>
-      {% endfor %}
+      </div>
+
+      <div class="chat-body" id="chatBody">
+        <div class="message-list" id="messageList" data-last-id="{{ last_message_id }}">
+          {% for item in chat_messages %}
+            <div class="message-row {% if item.sender == request.user %}mine{% else %}other{% endif %}" data-message-id="{{ item.id }}">
+              <div class="message-group">
+                <div class="avatar-circle">
+                  {{ item.sender.first_name|default:item.sender.username|slice:":1"|upper }}{{ item.sender.last_name|slice:":1"|upper }}
+                </div>
+
+                <div class="message-bubble">
+                  <div class="message-meta">
+                    <div class="message-author">
+                      {{ item.sender.get_full_name|default:item.sender.username }}
+                    </div>
+                    <div class="message-time">
+                      {{ item.created_at }}
+                    </div>
+                  </div>
+
+                  {% if item.message %}
+                    <div class="message-text">{{ item.message }}</div>
+                  {% endif %}
+
+                  {% if item.file %}
+                  <div class="message-attachment" data-attachment-block>
+                    <a href="{{ item.file.url }}" target="_blank">📎 Open attached file</a>
+                  </div>
+                  {% endif %}
+
+                  {% if role == 'teacher' or role == 'admin' %}
+                  <div class="teacher-tools">
+                    {% if item.file %}
+                    <a href="{% url 'delete_classroom_message_file' classroom.id item.id %}" data-delete-file>
+                      Delete File
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'delete_classroom_message' classroom.id item.id %}" data-delete-message>
+                      Delete Message
+                    </a>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="empty-chat">
+              No messages yet. Start the conversation.
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="chat-form-wrap">
+        <div id="chatError" style="display:none; margin-bottom:12px; padding:10px 14px; border-radius:12px; background:#fef2f2; color:#b91c1c; font-weight:600;"></div>
+        <form method="post" action="{% url 'send_classroom_message' classroom.id %}" enctype="multipart/form-data" class="chat-form" id="chatForm">
+          {% csrf_token %}
+          <textarea
+            name="message"
+            class="chat-input"
+            id="chatInput"
+            placeholder="Write your message... Press Enter to send, Shift+Enter for a new line."
+          ></textarea>
+
+          <div class="chat-form-bottom">
+            <label class="chat-file">
+              <span>Attach file:</span>
+              <input type="file" name="file">
+            </label>
+
+            <button type="submit" class="btn-main">Send Message</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </div>
+
+<script>
+  function scrollChatToBottom() {
+    const chatBody = document.getElementById('chatBody');
+    if (chatBody) {
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+  }
+
+  function focusChatInput() {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+      chatInput.focus();
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  function buildMessageHtml(message, role) {
+    const attachmentHtml = message.file_url
+      ? `
+        <div class="message-attachment" data-attachment-block>
+          <a href="${message.file_url}" target="_blank">📎 ${escapeHtml(message.file_name || 'Open attached file')}</a>
+        </div>
+      `
+      : '';
+
+    let teacherToolsHtml = '';
+    if (role === 'teacher' || role === 'admin') {
+      teacherToolsHtml = `
+        <div class="teacher-tools">
+          ${message.file_url ? `<a href="${message.delete_file_url}" data-delete-file>Delete File</a>` : ''}
+          <a href="${message.delete_message_url}" data-delete-message>Delete Message</a>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="message-row ${message.is_mine ? 'mine' : 'other'}" data-message-id="${message.id}">
+        <div class="message-group">
+          <div class="avatar-circle">
+            ${escapeHtml(message.initials)}
+          </div>
+
+          <div class="message-bubble">
+            <div class="message-meta">
+              <div class="message-author">${escapeHtml(message.author)}</div>
+              <div class="message-time">${escapeHtml(message.created_at)}</div>
+            </div>
+
+            ${message.text ? `<div class="message-text">${escapeHtml(message.text).replace(/\n/g, '<br>')}</div>` : ''}
+            ${attachmentHtml}
+            ${teacherToolsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const chatBody = document.getElementById('chatBody');
+  const messageList = document.getElementById('messageList');
+  const chatInput = document.getElementById('chatInput');
+  const chatForm = document.getElementById('chatForm');
+  const chatError = document.getElementById('chatError');
+  const role = "{{ role }}";
+  const fetchUrl = "{% url 'fetch_classroom_messages' classroom.id %}";
+
+  let pollingTimer = null;
+  let pollingInProgress = false;
+
+  function getLastMessageId() {
+    return parseInt(messageList.dataset.lastId || '0', 10);
+  }
+
+  function setLastMessageId(id) {
+    messageList.dataset.lastId = String(id);
+  }
+
+  function getPollingInterval() {
+    return document.visibilityState === 'visible' ? 3000 : 15000;
+  }
+
+  async function fetchNewMessages() {
+    if (pollingInProgress) return;
+    pollingInProgress = true;
+
+    try {
+      const response = await fetch(`${fetchUrl}?last_id=${getLastMessageId()}`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        return;
+      }
+
+      if (data.messages && data.messages.length > 0) {
+        data.messages.forEach((msg) => {
+          messageList.insertAdjacentHTML('beforeend', buildMessageHtml(msg, role));
+          setLastMessageId(msg.id);
+        });
+
+        scrollChatToBottom();
+      }
+    } catch (error) {
+      // silent fail
+    } finally {
+      pollingInProgress = false;
+    }
+  }
+
+  function startAdaptivePolling() {
+    stopAdaptivePolling();
+
+    pollingTimer = setInterval(() => {
+      fetchNewMessages();
+    }, getPollingInterval());
+  }
+
+  function stopAdaptivePolling() {
+    if (pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = null;
+    }
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    startAdaptivePolling();
+
+    if (document.visibilityState === 'visible') {
+      fetchNewMessages();
+    }
+  });
+
+  window.addEventListener('load', function () {
+    scrollChatToBottom();
+    focusChatInput();
+    startAdaptivePolling();
+  });
+
+  if (chatInput && chatForm) {
+    chatInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        chatForm.requestSubmit();
+      }
+    });
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+
+      if (chatError) {
+        chatError.style.display = 'none';
+        chatError.textContent = '';
+      }
+
+      const formData = new FormData(chatForm);
+      const messageText = (formData.get('message') || '').trim();
+      const fileInput = chatForm.querySelector('input[type="file"][name="file"]');
+      const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+      if (!messageText && !hasFile) {
+        if (chatError) {
+          chatError.textContent = 'Message or file is required.';
+          chatError.style.display = 'block';
+        }
+        return;
+      }
+
+      const submitButton = chatForm.querySelector('button[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+
+      try {
+        const response = await fetch(chatForm.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Failed to send message.');
+        }
+
+        messageList.insertAdjacentHTML('beforeend', buildMessageHtml(data.message, role));
+        setLastMessageId(data.message.id);
+
+        chatForm.reset();
+        if (chatInput) {
+          chatInput.value = '';
+        }
+
+        scrollChatToBottom();
+        focusChatInput();
+
+      } catch (error) {
+        if (chatError) {
+          chatError.textContent = error.message || 'Failed to send message.';
+          chatError.style.display = 'block';
+        }
+      } finally {
+        if (submitButton) submitButton.disabled = false;
+      }
+    });
+  }
+
+  async function handleChatDelete(event) {
+    const deleteLink = event.target.closest('[data-delete-message], [data-delete-file]');
+    if (!deleteLink) return;
+
+    event.preventDefault();
+
+    const messageRow = deleteLink.closest('[data-message-id]');
+    if (!messageRow) return;
+
+    try {
+      const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+      const csrfToken = csrfInput ? csrfInput.value : '';
+
+      const response = await fetch(deleteLink.href, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': csrfToken
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Delete failed.');
+      }
+
+      if (data.action === 'delete_message') {
+        messageRow.remove();
+      }
+
+      if (data.action === 'delete_file') {
+        const attachmentBlock = messageRow.querySelector('[data-attachment-block]');
+        if (attachmentBlock) {
+          attachmentBlock.remove();
+        }
+
+        const deleteFileBtn = messageRow.querySelector('[data-delete-file]');
+        if (deleteFileBtn) {
+          deleteFileBtn.remove();
+        }
+      }
+    } catch (error) {
+      if (chatError) {
+        chatError.textContent = error.message || 'Delete failed.';
+        chatError.style.display = 'block';
+      }
+    }
+  }
+
+  document.addEventListener('click', handleChatDelete);
+</script>
 {% endblock content %}
