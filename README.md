@@ -61,7 +61,7 @@ makonbook/
 ├── manage.py
 ├── requirements.txt
 └── README.md
-
+bash```
 Установка
 1. Клонирование репозитория
 git clone <your-repository-url>
