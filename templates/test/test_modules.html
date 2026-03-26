@@ -229,7 +229,11 @@
             </div>
         </div>
         <footer class="footer">
-            <a href="/sat/practises" class="btn">Back</a>
+            {% if classroom %}
+            <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn">Back</a>
+            {% else %}
+            <a href="{% url 'practice_tests' %}" class="btn">Back</a>
+            {% endif %}
             <a class="btn" href="/sat/practise/{{test}}/start">Next</a>
         </footer>
     </div>
