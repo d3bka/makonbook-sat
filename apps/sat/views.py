@@ -387,17 +387,30 @@ def clear(request, module, test, section):
 def start_makeup_test(request, pk):
     user = request.user
     user_groups = user.groups.all()
+
     try:
         makeup_test = MakeupTest.objects.filter(name=pk, groups__in=user_groups).distinct()[0]
-    except MakeupTest.DoesNotExist:
+    except Exception:
         return HttpResponse('Makeup Test Not Found or Permission Denied')
 
     test_stage = TestStage.objects.filter(user=user, makeup_test=makeup_test, test_type='makeup')
     if test_stage.exists():
         return redirect('makeup_test_module', pk=makeup_test.name)
 
-    return render(request, 'test/makeup_test_start.html', {'makeup_test': makeup_test})
+    classroom = None
+    approved_membership = ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='approved'
+    ).select_related('classroom').first()
 
+    if approved_membership and approved_membership.classroom:
+        classroom = approved_membership.classroom
+
+    return render(request, 'test/makeup_test_start.html', {
+        'makeup_test': makeup_test,
+        'classroom': classroom,
+    })
 
 @login_required(login_url='/login/')
 def makeup_test_module(request, pk):

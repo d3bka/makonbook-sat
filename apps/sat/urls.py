@@ -52,6 +52,7 @@ urlpatterns = [
     path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/remove/', views.remove_student_from_classroom, name='remove_student_from_classroom'),
 
     path('classroom/<int:classroom_id>/practice-tests/', views.classroom_practice_tests, name='classroom_practice_tests'),
+    
     path('classroom/<int:classroom_id>/vocabulary/', views.classroom_vocabulary, name='classroom_vocabulary'),
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
 
