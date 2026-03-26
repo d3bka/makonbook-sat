@@ -208,22 +208,22 @@ class Math_Question(BaseModel):
 
     def get_a(self):
         if self.choice_graph and self.image_a:
-            return f"IMAGE::{self.image_a.url}"
+            return f"IMAGE:{self.image_a.url}"
         return self.a
-
+    
     def get_b(self):
         if self.choice_graph and self.image_b:
-            return f"IMAGE::{self.image_b.url}"
+            return f"IMAGE:{self.image_b.url}"
         return self.b
-
+    
     def get_c(self):
         if self.choice_graph and self.image_c:
-            return f"IMAGE::{self.image_c.url}"
+            return f"IMAGE:{self.image_c.url}"
         return self.c
-
+    
     def get_d(self):
         if self.choice_graph and self.image_d:
-            return f"IMAGE::{self.image_d.url}"
+            return f"IMAGE:{self.image_d.url}"
         return self.d
 
     def get_graph(self):
