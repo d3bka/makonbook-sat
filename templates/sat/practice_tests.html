@@ -146,8 +146,8 @@ Makon Book
       {% if active_tests %}
         {% for test in active_tests %}
           <div class="card practice-card">
-            {% with test_num=test.name|slice:"3:" %}
-              <img src="{% static 'assets/img/tests/'|add:test_num|add:'.png' %}" alt="Test Image" class="test-logo" style="padding:6px;"/>
+            {% with test_num=test.name|slice:"3:"|cut:" " %}
+            <img src="{% static 'assets/img/tests/'|add:test_num|add:'.png' %}" alt="Test Image" class="test-logo" style="padding:6px;"/>
             {% endwith %}
             <hr>
             <h3>{{ test.name }}</h3>
