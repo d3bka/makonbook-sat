@@ -1009,3 +1009,24 @@ class GlobalEventAnswer(models.Model):
 
     def __str__(self):
         return f"{self.attempt} - {self.section} - Q{self.question_id}"
+
+class StudentPracticeTestAccess(models.Model):
+    membership = models.ForeignKey(
+        ClassroomMembership,
+        on_delete=models.CASCADE,
+        related_name='practice_test_access'
+    )
+    test = models.ForeignKey(
+        Test,
+        on_delete=models.CASCADE,
+        related_name='student_practice_access'
+    )
+    has_access = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('membership', 'test')
+        ordering = ['test__name']
+
+    def str(self):
+        return f"{self.membership.user.username} - {self.test.name} - {self.has_access}"

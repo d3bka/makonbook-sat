@@ -90,4 +90,6 @@ urlpatterns = [
     path('teacher/vocabulary/unit/<int:unit_id>/', views.teacher_vocabulary_unit_detail, name='teacher_vocabulary_unit_detail'),
     path('teacher/vocabulary/unit/<int:unit_id>/add-word/', views.create_vocabulary_word, name='create_vocabulary_word'),
     path('teacher/vocabulary/unit/<int:unit_id>/add-question/', views.create_vocabulary_question, name='create_vocabulary_question'),
+
+    path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/practice-tests/access/',views.update_student_practice_test_access,name='update_student_practice_test_access'),
 ]

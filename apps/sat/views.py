@@ -1360,6 +1360,70 @@ def teacher_classroom_list(request):
     })
 
 @login_required(login_url='/login/')
+def update_student_practice_test_access(request, classroom_id, user_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = get_object_or_404(
+        ClassroomMembership,
+        classroom=classroom,
+        user_id=user_id,
+        role='student',
+        status='approved'
+    )
+
+    tests = Test.objects.all().distinct().order_by('name')
+
+    if request.method == 'POST':
+        access_mode = request.POST.get('access_mode', 'all')
+        selected_test_ids = request.POST.getlist('tests')
+
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('practice_tests'):
+            messages.error(request, "First enable Practice Tests section access for this student.")
+            return redirect('update_student_practice_test_access', classroom_id=classroom.id, user_id=user_id)
+
+        StudentPracticeTestAccess.objects.filter(membership=membership).delete()
+
+        if access_mode == 'selected':
+            valid_ids = []
+            for test_id in selected_test_ids:
+                try:
+                    valid_ids.append(int(test_id))
+                except ValueError:
+                    continue
+
+            selected_tests = Test.objects.filter(id__in=valid_ids)
+
+            for test in selected_tests:
+                StudentPracticeTestAccess.objects.create(
+                    membership=membership,
+                    test=test,
+                    has_access=True
+                )
+
+        messages.success(request, "Student practice test access updated successfully.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    existing_items = StudentPracticeTestAccess.objects.filter(
+        membership=membership,
+        has_access=True
+    )
+
+    selected_test_ids = set(existing_items.values_list('test_id', flat=True))
+    access_mode = 'selected' if existing_items.exists() else 'all'
+
+    return render(request, 'sat/update_student_practice_test_access.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'tests': tests,
+        'selected_test_ids': selected_test_ids,
+        'access_mode': access_mode,
+    })
+
+@login_required(login_url='/login/')
 def create_classroom(request):
     if not is_teacher(request.user):
         return HttpResponseForbidden("Only teachers can create classrooms.")
@@ -1806,24 +1870,27 @@ def classroom_practice_tests(request, classroom_id):
                 message="You do not have access to Practice Tests."
             )
 
-        return practice_tests(request)
+        tests = get_student_allowed_practice_tests_queryset(membership)
 
-    # teacher/admin full access
-    tests = Test.objects.all().distinct()
+    else:
+        tests = Test.objects.all().distinct()
 
     def get_day_number(test):
         try:
-            return int(test.name[3:])
+            name = test.name.strip().lower()
+            if name.startswith('day'):
+                return int(name.replace('day', '').strip())
+            return 999999
         except Exception:
-            return 0
+            return 999999
 
-    tests = sorted(tests, key=get_day_number)
+    tests = sorted(tests, key=lambda t: (get_day_number(t), t.name))
 
     context = {
         'active_tests': tests,
         'past_tests': [],
         'classroom': classroom,
-        'is_teacher_view': True,
+        'is_teacher_view': role in ['teacher', 'admin'],
         'purchased': False,
     }
 
@@ -2476,3 +2543,15 @@ def create_vocabulary_question(request, unit_id):
     return render(request, 'sat/create_vocabulary_question.html', {
         'unit': unit,
     })
+
+def get_student_allowed_practice_tests_queryset(membership):
+    custom_access_items = StudentPracticeTestAccess.objects.filter(membership=membership)
+
+    if not custom_access_items.exists():
+        return Test.objects.all().distinct()
+
+    allowed_test_ids = custom_access_items.filter(
+        has_access=True
+    ).values_list('test_id', flat=True)
+
+    return Test.objects.filter(id__in=allowed_test_ids).distinct()
