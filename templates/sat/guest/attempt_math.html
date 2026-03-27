@@ -103,6 +103,14 @@
         .katex {
             font-size: 1.5em;
         }
+
+        .choice-image {
+            max-width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            display: block;
+            margin: 6px 0;
+        }
     </style>
 </head>
 
@@ -352,16 +360,25 @@
             `;
         }
 
-        function buildChoice(letter, content, index) {
+                function buildChoice(letter, content, index) {
             const checked = answers[index] === letter ? 'checked' : '';
             const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
-
+                
+            let renderedContent = content || '';
+                
+            if (typeof renderedContent === 'string' && renderedContent.startsWith('IMAGE:')) {
+                const imageUrl = renderedContent.slice(6);
+                renderedContent = `<img class="choice-image" src="${imageUrl}" alt="Choice ${letter}">`;
+            } else {
+                renderedContent = fixLatex(renderedContent);
+            }
+        
             return `
                 <div class='big-container'>
                     <label class="choice-container">
                         <input type="radio" name="answer" value="${letter}" ${checked}>
                         <label class='mark' data-letter="${letter}"></label>
-                        <label class="choice-${letter.toLowerCase()}">${content}</label>
+                        <label class="choice-${letter.toLowerCase()}">${renderedContent}</label>
                     </label>
                     <hr class="cross-line ${letter}zone ${isEliminated}">
                     <div class="crossing-zone ${eliminateOptions ? 'active' : ''}" onclick='eliminate("${letter}", ${index})'>
