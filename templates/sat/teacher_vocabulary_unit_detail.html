@@ -1,0 +1,119 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ unit.title }}{% endblock title-main %}
+{% block title %}Vocabulary Unit Detail{% endblock title %}
+
+{% block style %}
+<style>
+  .page-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .btn-main {
+    display: inline-block;
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+  }
+
+  .btn-secondary {
+    background: #475569;
+  }
+
+  .section-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    margin-bottom: 22px;
+  }
+
+  .item {
+    padding: 14px 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .item:last-child {
+    border-bottom: none;
+  }
+
+  .item-title {
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 6px;
+  }
+
+  .item-meta {
+    color: #475569;
+    line-height: 1.6;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="top-bar">
+    <div>
+      <h2>Unit {{ unit.order }} — {{ unit.title }}</h2>
+      <p>{{ unit.description|default:"No description." }}</p>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="{% url 'teacher_vocabulary_units' %}" class="btn-main btn-secondary">Back to Units</a>
+      <a href="{% url 'create_vocabulary_word' unit.id %}" class="btn-main">Add Word</a>
+      <a href="{% url 'create_vocabulary_question' unit.id %}" class="btn-main">Add Question</a>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <h3>Words</h3>
+    {% for word in words %}
+      <div class="item">
+        <div class="item-title">{{ word.word }}</div>
+        <div class="item-meta">
+          <strong>Definition:</strong> {{ word.definition }}<br>
+          {% if word.example %}
+            <strong>Example:</strong> {{ word.example }}
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <p>No words added yet.</p>
+    {% endfor %}
+  </div>
+
+  <div class="section-card">
+    <h3>Quiz Questions</h3>
+    {% for q in questions %}
+      <div class="item">
+        <div class="item-title">{{ q.question }}</div>
+        <div class="item-meta">
+          A. {{ q.option_a }}<br>
+          B. {{ q.option_b }}<br>
+          C. {{ q.option_c }}<br>
+          D. {{ q.option_d }}<br>
+          <strong>Correct:</strong> {{ q.correct_answer }}
+        </div>
+      </div>
+    {% empty %}
+      <p>No questions added yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

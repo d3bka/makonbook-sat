@@ -7,8 +7,6 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from satmakon.settings import BASE_DIR
 from .libs import calculator
-import json
-import random
 from django.utils import timezone
 from datetime import timedelta
 from .libs.certificate.certificate import create_certificate
@@ -17,6 +15,8 @@ from django.contrib import messages  # Added for user feedback
 from apps.base.models import UserProfile
 from django.core.cache import cache
 from django.db.models import Q
+import json
+import random
 
 def custom_round(number, base=0.4):
     if number % 1 >= base:
@@ -80,8 +80,6 @@ def is_member(user, names):
 
 @login_required(login_url='/login/')
 def practice_tests(request):
-    if not has_access(request.user, 'Access_Practice_Tests'):
-        return HttpResponseForbidden("You do not have access to Practice Tests.")
 
     user = request.user
     user_groups = user.groups.all()
@@ -1038,28 +1036,9 @@ def restart_section(request, pk, section):
     
     return HttpResponse("You do not have permission to restart sections")
 
-def has_access(user, group_name):
-    return (
-        user.is_superuser
-        or user.is_staff
-        or user.groups.filter(name=group_name).exists()
-    )
-
-@login_required(login_url='/login/')
-def menu_page(request):
-    context = {
-        'can_access_practice_tests': has_access(request.user, 'Access_Practice_Tests'),
-        'can_access_vocabulary': has_access(request.user, 'Access_Vocabulary'),
-        'can_access_admissions': has_access(request.user, 'Access_Admissions'),
-    }
-    return render(request, 'sat/menu_page.html', context)
-
 
 @login_required(login_url='/login/')
 def vocabulary(request):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
-
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
     return render(request, 'sat/vocabulary.html', {
@@ -1069,8 +1048,6 @@ def vocabulary(request):
 
 @login_required(login_url='/login/')
 def admissions(request):
-    if not has_access(request.user, 'Access_Admissions'):
-        return HttpResponseForbidden("You do not have access to Admissions.")
 
     return render(request, 'sat/admissions.html', {
         'sections': ADMISSIONS_SECTIONS
@@ -1079,8 +1056,6 @@ def admissions(request):
 
 @login_required(login_url='/login/')
 def vocabulary_section(request, slug):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     if slug == 'word_lists':
         units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
@@ -1185,8 +1160,6 @@ ADMISSIONS_SECTIONS = {
 
 @login_required(login_url='/login/')
 def vocabulary_section(request, slug):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
@@ -1212,8 +1185,6 @@ def admissions(request):
 
 @login_required(login_url='/login/')
 def admissions_section(request, slug):
-    if not has_access(request.user, 'Access_Admissions'):
-        return HttpResponseForbidden("You do not have access to Admissions.")
 
     section = ADMISSIONS_SECTIONS.get(slug)
     if not section:
@@ -1226,8 +1197,6 @@ def admissions_section(request, slug):
 
 @login_required(login_url='/login/')
 def vocabulary_practice_quiz(request):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
@@ -1237,8 +1206,6 @@ def vocabulary_practice_quiz(request):
 
 @login_required(login_url='/login/')
 def vocabulary_practice_quiz_start(request):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     if request.method != 'POST':
         return redirect('vocabulary_practice_quiz')
@@ -1325,8 +1292,6 @@ def vocabulary_practice_quiz_start(request):
 
 @login_required(login_url='/login/')
 def vocabulary_practice_quiz_result(request):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     if request.method != 'POST':
         return redirect('vocabulary_practice_quiz')
@@ -1358,8 +1323,6 @@ def vocabulary_practice_quiz_result(request):
 
 @login_required(login_url='/login/')
 def vocabulary_flashcards(request):
-    if not has_access(request.user, 'Access_Vocabulary'):
-        return HttpResponseForbidden("You do not have access to Vocabulary.")
 
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
@@ -1869,7 +1832,12 @@ def classroom_vocabulary(request, classroom_id):
                 message="You do not have access to Vocabulary."
             )
 
-    return vocabulary(request)
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+
+    return render(request, 'sat/vocabulary.html', {
+        'units': units,
+        'classroom': classroom,
+    })
 
 
 @login_required(login_url='/login/')
@@ -2347,4 +2315,143 @@ def fetch_classroom_messages(request, classroom_id):
     return JsonResponse({
         'ok': True,
         'messages': result,
+    })
+
+@login_required(login_url='/login/')
+def teacher_vocabulary_units(request):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can manage vocabulary.")
+
+    units = VocabularyUnit.objects.all().order_by('order', 'title')
+
+    return render(request, 'sat/teacher_vocabulary_units.html', {
+        'units': units,
+    })
+
+
+@login_required(login_url='/login/')
+def create_vocabulary_unit(request):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can create vocabulary units.")
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        order_raw = request.POST.get('order', '').strip()
+        description = request.POST.get('description', '').strip()
+
+        if not title:
+            messages.error(request, "Unit title is required.")
+            return redirect('create_vocabulary_unit')
+
+        try:
+            order = int(order_raw)
+        except (TypeError, ValueError):
+            messages.error(request, "Unit order must be a valid integer.")
+            return redirect('create_vocabulary_unit')
+
+        if VocabularyUnit.objects.filter(order=order).exists():
+            messages.error(request, "A vocabulary unit with this order already exists.")
+            return redirect('create_vocabulary_unit')
+
+        unit = VocabularyUnit.objects.create(
+            title=title,
+            order=order,
+            description=description,
+        )
+
+        messages.success(request, "Vocabulary unit created successfully.")
+        return redirect('teacher_vocabulary_unit_detail', unit_id=unit.id)
+
+    return render(request, 'sat/create_vocabulary_unit.html')
+
+
+@login_required(login_url='/login/')
+def teacher_vocabulary_unit_detail(request, unit_id):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can manage vocabulary.")
+
+    unit = get_object_or_404(VocabularyUnit, id=unit_id)
+    words = VocabularyWord.objects.filter(unit=unit).order_by('word')
+    questions = VocabularyQuestion.objects.filter(unit=unit).order_by('id')
+
+    return render(request, 'sat/teacher_vocabulary_unit_detail.html', {
+        'unit': unit,
+        'words': words,
+        'questions': questions,
+    })
+
+
+@login_required(login_url='/login/')
+def create_vocabulary_word(request, unit_id):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can add vocabulary words.")
+
+    unit = get_object_or_404(VocabularyUnit, id=unit_id)
+
+    if request.method == 'POST':
+        word = request.POST.get('word', '').strip()
+        definition = request.POST.get('definition', '').strip()
+        example = request.POST.get('example', '').strip()
+
+        if not word:
+            messages.error(request, "Word is required.")
+            return redirect('create_vocabulary_word', unit_id=unit.id)
+
+        if not definition:
+            messages.error(request, "Definition is required.")
+            return redirect('create_vocabulary_word', unit_id=unit.id)
+
+        VocabularyWord.objects.create(
+            unit=unit,
+            word=word,
+            definition=definition,
+            example=example,
+        )
+
+        messages.success(request, "Vocabulary word added successfully.")
+        return redirect('teacher_vocabulary_unit_detail', unit_id=unit.id)
+
+    return render(request, 'sat/create_vocabulary_word.html', {
+        'unit': unit,
+    })
+
+
+@login_required(login_url='/login/')
+def create_vocabulary_question(request, unit_id):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can add vocabulary questions.")
+
+    unit = get_object_or_404(VocabularyUnit, id=unit_id)
+
+    if request.method == 'POST':
+        question_text = request.POST.get('question', '').strip()
+        option_a = request.POST.get('option_a', '').strip()
+        option_b = request.POST.get('option_b', '').strip()
+        option_c = request.POST.get('option_c', '').strip()
+        option_d = request.POST.get('option_d', '').strip()
+        correct_answer = request.POST.get('correct_answer', '').strip().upper()
+
+        if not all([question_text, option_a, option_b, option_c, option_d, correct_answer]):
+            messages.error(request, "All fields are required.")
+            return redirect('create_vocabulary_question', unit_id=unit.id)
+
+        if correct_answer not in ['A', 'B', 'C', 'D']:
+            messages.error(request, "Correct answer must be A, B, C, or D.")
+            return redirect('create_vocabulary_question', unit_id=unit.id)
+
+        VocabularyQuestion.objects.create(
+            unit=unit,
+            question=question_text,
+            option_a=option_a,
+            option_b=option_b,
+            option_c=option_c,
+            option_d=option_d,
+            correct_answer=correct_answer,
+        )
+
+        messages.success(request, "Vocabulary question added successfully.")
+        return redirect('teacher_vocabulary_unit_detail', unit_id=unit.id)
+
+    return render(request, 'sat/create_vocabulary_question.html', {
+        'unit': unit,
     })
