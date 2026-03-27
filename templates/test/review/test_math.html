@@ -351,8 +351,8 @@
                     // Clean the content with fixLatex before processing
                     content = fixLatex(content);
                     
-                    if (content.startsWith('IMAGE::')) {
-                        element.innerHTML = `<img class='choice-image' src='${content.split('IMAGE::')[1]}'></img>`;
+                    if (content.startsWith('IMAGE:')) {
+                        element.innerHTML = `<img class='choice-image' src='${content.split('IMAGE:')[1]}'></img>`;
                     } else {
                         // Ensure the content is wrapped in KaTeX delimiters for short expressions
                         if (!content.startsWith('\\(') && !content.endsWith('\\)') && content.length < 20) {
