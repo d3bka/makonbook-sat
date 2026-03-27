@@ -1,0 +1,146 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Practice Test Access{% endblock title-main %}
+{% block title %}Manage Practice Test Access{% endblock title %}
+
+{% block style %}
+<style>
+  .form-wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .student-meta {
+    margin-bottom: 22px;
+    color: #475569;
+  }
+
+  .section-block {
+    margin-bottom: 26px;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #f8fafc;
+  }
+
+  .section-block h3 {
+    margin-bottom: 12px;
+    color: #324dc7;
+  }
+
+  .radio-row,
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .tests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .test-card {
+    border: 1px solid #dbe3f0;
+    border-radius: 14px;
+    padding: 14px;
+    background: #fff;
+  }
+
+  .btn-main {
+    display: inline-block;
+    padding: 12px 18px;
+    border-radius: 999px;
+    background: #324dc7;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-secondary {
+    background: #475569;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="form-wrap">
+  <h2>Manage Practice Test Access</h2>
+
+  <div class="student-meta">
+    <strong>Student:</strong> {{ membership.user.get_full_name|default:membership.user.username }}<br>
+    <strong>Classroom:</strong> {{ classroom.name }}
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="section-block">
+      <h3>Access Mode</h3>
+
+      <label class="radio-row">
+        <input type="radio" name="access_mode" value="all" {% if access_mode == 'all' %}checked{% endif %}>
+        <span>Give access to all practice tests</span>
+      </label>
+
+      <label class="radio-row">
+        <input type="radio" name="access_mode" value="selected" {% if access_mode == 'selected' %}checked{% endif %}>
+        <span>Give access only to selected practice tests</span>
+      </label>
+    </div>
+
+    <div class="section-block" id="selectedTestsBlock">
+      <h3>Select Practice Tests</h3>
+
+      <div class="tests-grid">
+        {% for test in tests %}
+          <label class="test-card check-row">
+            <input type="checkbox" name="tests" value="{{ test.id }}" {% if test.id in selected_test_ids %}checked{% endif %}>
+            <span>{{ test.name }}</span>
+          </label>
+        {% empty %}
+          <p>No tests found.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="submit" class="btn-main">Save</button>
+      <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="btn-main btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function toggleSelectedTestsBlock() {
+    const selectedRadio = document.querySelector('input[name="access_mode"][value="selected"]');
+    const block = document.getElementById('selectedTestsBlock');
+
+    if (!selectedRadio || !block) return;
+
+    block.style.display = selectedRadio.checked ? 'block' : 'none';
+  }
+
+  document.addEventListener('change', function(event) {
+    if (event.target.name === 'access_mode') {
+      toggleSelectedTestsBlock();
+    }
+  });
+
+  window.addEventListener('load', function() {
+    toggleSelectedTestsBlock();
+  });
+</script>
+{% endblock content %}

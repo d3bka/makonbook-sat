@@ -293,12 +293,17 @@
             {% endif %}
 
             {% if membership.status == 'approved' %}
-              <a href="{% url 'update_student_section_access' classroom.id membership.user.id %}" class="btn-main btn-secondary">
-                Manage Access
-              </a>
-              <a href="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}" class="btn-main btn-danger">
-                Remove
-              </a>
+            <a href="{% url 'update_student_section_access' classroom.id membership.user.id %}" class="btn-main btn-secondary">
+              Manage Sections
+            </a>
+            
+            <a href="{% url 'update_student_practice_test_access' classroom.id membership.user.id %}" class="btn-main btn-secondary">
+              Manage Practice Tests
+            </a>
+            
+            <a href="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}" class="btn-main btn-danger">
+              Remove
+            </a>
             {% endif %}
           </div>
         </div>
