@@ -14,7 +14,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-from .store import PublicStorage, PrivateStorage  # Replace with your actual storage backend import
+from .storages import PublicStorage, PrivateStorage  # Replace with your actual storage backend import
 from django.utils import timezone
 
 # Abstract base model for common fields
@@ -161,7 +161,13 @@ class English_Question(BaseModel):
     module = models.CharField(max_length=8, choices=modules, null=True)
     domain = models.ForeignKey(QuestionDomain, on_delete=models.SET_NULL, null=True, blank=True)
     type = models.ForeignKey(QuestionType, on_delete=models.SET_NULL, blank=True, null=True)
-    image = models.ImageField('Image', upload_to='sat/question_images', storage=PublicStorage(), null=True, blank=True)
+    image = models.ImageField(
+        'Image',
+        upload_to='sat/question_images',
+        storage=PublicStorage(),
+        null=True,
+        blank=True
+    )
     number = models.IntegerField('Question Number', null=True)
     passage = models.TextField('Passage', blank=True, null=True)
     question = models.TextField('Question', blank=True, null=True)

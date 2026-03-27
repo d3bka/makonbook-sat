@@ -224,13 +224,24 @@ AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_ADDRESSING_STYLE = "virtual"
 AWS_S3_USE_SSL = True
 AWS_S3_VERIFY = True
-AWS_S3_CUSTOM_DOMAIN = None
+AWS_S3_CUSTOM_DOMAIN = os.getenv(
+    "AWS_S3_CUSTOM_DOMAIN",
+    "pub-2967bfd7582a441fa07820ea020c1616.r2.dev"
+)
 AWS_S3_URL_PROTOCOL = "https:"
-AWS_QUERYSTRING_AUTH = env_bool("AWS_QUERYSTRING_AUTH", True)
+AWS_QUERYSTRING_AUTH = False
 AWS_DEFAULT_ACL = None
 AWS_S3_FILE_OVERWRITE = False
 
-DEFAULT_FILE_STORAGE = "apps.sat.storages.PublicStorage"
+STORAGES = {
+    "default": {
+        "BACKEND": "apps.sat.storages.PublicStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 PRIVATE_MEDIA_STORAGE = "apps.sat.storages.PrivateStorage"
 
 
