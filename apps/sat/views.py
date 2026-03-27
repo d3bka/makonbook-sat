@@ -1806,7 +1806,28 @@ def classroom_practice_tests(request, classroom_id):
                 message="You do not have access to Practice Tests."
             )
 
-    return practice_tests(request)
+        return practice_tests(request)
+
+    # teacher/admin full access
+    tests = Test.objects.all().distinct()
+
+    def get_day_number(test):
+        try:
+            return int(test.name[3:])
+        except Exception:
+            return 0
+
+    tests = sorted(tests, key=get_day_number)
+
+    context = {
+        'active_tests': tests,
+        'past_tests': [],
+        'classroom': classroom,
+        'is_teacher_view': True,
+        'purchased': False,
+    }
+
+    return render(request, 'sat/practice_tests.html', context)
 
 
 @login_required(login_url='/login/')
