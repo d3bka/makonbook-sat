@@ -161,11 +161,11 @@
       <tbody>
         {% for q in english_questions %}
           <tr>
-            <td>{{ q.test.name|default:"N/A" }}</td>
+            <td>{% if q.test %}{{ q.test.name }}{% else %}N/A{% endif %}</td>
             <td>{{ q.module|default:"N/A" }}</td>
             <td>{{ q.number|default:"N/A" }}</td>
-            <td>{{ q.domain.name|default:"N/A" }}</td>
-            <td>{{ q.type.name|default:"N/A" }}</td>
+            <td>{% if q.domain %}{{ q.domain.name }}{% else %}N/A{% endif %}</td>
+            <td>{% if q.type %}{{ q.type.name }}{% else %}N/A{% endif %}</td>
             <td><pre class="question-text">{{ q.question|default:"(No text)" }}</pre></td>
             <td>{{ q.answer|default:"N/A" }}</td>
           </tr>

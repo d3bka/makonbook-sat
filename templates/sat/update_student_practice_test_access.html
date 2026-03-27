@@ -107,7 +107,7 @@
       <div class="tests-grid">
         {% for test in tests %}
           <label class="test-card check-row">
-            <input type="checkbox" name="tests" value="{{ test.id }}" {% if test.id in selected_test_ids %}checked{% endif %}>
+            <input type="checkbox" name="tests" value="{{ test.pk }}" {% if test.pk in selected_test_names %}checked{% endif %}>
             <span>{{ test.name }}</span>
           </label>
         {% empty %}
