@@ -83,4 +83,11 @@ urlpatterns = [
     path("global-events/attempt/<uuid:guest_token>/result/", guest_views.global_event_result_view, name="global_event_result"),
 
     path("global-events/<slug:slug>/leaderboard/", guest_views.global_event_leaderboard_view, name="global_event_leaderboard"),
+
+    #Teacher Vocabulary Management
+    path('teacher/vocabulary/', views.teacher_vocabulary_units, name='teacher_vocabulary_units'),
+    path('teacher/vocabulary/create-unit/', views.create_vocabulary_unit, name='create_vocabulary_unit'),
+    path('teacher/vocabulary/unit/<int:unit_id>/', views.teacher_vocabulary_unit_detail, name='teacher_vocabulary_unit_detail'),
+    path('teacher/vocabulary/unit/<int:unit_id>/add-word/', views.create_vocabulary_word, name='create_vocabulary_word'),
+    path('teacher/vocabulary/unit/<int:unit_id>/add-question/', views.create_vocabulary_question, name='create_vocabulary_question'),
 ]
