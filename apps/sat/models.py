@@ -688,7 +688,7 @@ class VocabularyQuestion(models.Model):
     class Meta:
         ordering = ['id']
 
-    def str(self):
+    def __str__(self):
         return f"{self.unit.title} - {self.question[:60]}"
 
     def get_choices(self):
@@ -713,7 +713,7 @@ class Classroom(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-    def str(self):
+    def __str__(self):
         return f"{self.name} ({self.teacher.username})"
 
 
@@ -731,7 +731,7 @@ class ClassroomJoinCode(models.Model):
     class Meta:
         ordering = ['-created_at']
 
-    def str(self):
+    def __str__(self):
         return f"{self.classroom.name} - {self.code}"
 
     def is_valid(self):
@@ -773,7 +773,7 @@ class ClassroomMembership(models.Model):
         unique_together = ('classroom', 'user')
         ordering = ['-requested_at']
 
-    def str(self):
+    def __str__(self):
         return f"{self.user.username} - {self.classroom.name} - {self.status}"
 
 
@@ -797,7 +797,7 @@ class StudentSectionAccess(models.Model):
         unique_together = ('membership', 'section')
         ordering = ['section']
 
-    def str(self):
+    def __str__(self):
         return f"{self.membership.user.username} - {self.section} - {self.has_access}"
 
 
@@ -830,7 +830,7 @@ class StudentProgress(models.Model):
         unique_together = ('classroom', 'student', 'section')
         ordering = ['student', 'section']
     
-    def str(self):
+    def __str__(self):
         return f"{self.student.username} - {self.section} - {self.completion_percent}%"
 
 
@@ -853,7 +853,7 @@ class ChatMessage(models.Model):
     class Meta:
         ordering = ['created_at']
 
-    def str(self):
+    def __str__(self):
         return f"{self.sender.username} - {self.classroom.name} - {self.created_at:%Y-%m-%d %H:%M}"
     
 
@@ -1028,5 +1028,5 @@ class StudentPracticeTestAccess(models.Model):
         unique_together = ('membership', 'test')
         ordering = ['test__name']
 
-    def str(self):
+    def __str__(self):
         return f"{self.membership.user.username} - {self.test.name} - {self.has_access}"

@@ -1377,49 +1377,51 @@ def update_student_practice_test_access(request, classroom_id, user_id):
     tests = Test.objects.all().distinct().order_by('name')
 
     if request.method == 'POST':
-        access_mode = request.POST.get('access_mode', 'all')
-        selected_test_ids = request.POST.getlist('tests')
+        try:
+            access_mode = request.POST.get('access_mode', 'all')
+            selected_test_names = request.POST.getlist('tests')
 
-        access_map = get_membership_section_access_map(membership)
-        if not access_map.get('practice_tests'):
-            messages.error(request, "First enable Practice Tests section access for this student.")
-            return redirect('update_student_practice_test_access', classroom_id=classroom.id, user_id=user_id)
-
-        StudentPracticeTestAccess.objects.filter(membership=membership).delete()
-
-        if access_mode == 'selected':
-            valid_ids = []
-            for test_id in selected_test_ids:
-                try:
-                    valid_ids.append(int(test_id))
-                except ValueError:
-                    continue
-
-            selected_tests = Test.objects.filter(id__in=valid_ids)
-
-            for test in selected_tests:
-                StudentPracticeTestAccess.objects.create(
-                    membership=membership,
-                    test=test,
-                    has_access=True
+            access_map = get_membership_section_access_map(membership)
+            if not access_map.get('practice_tests'):
+                messages.error(request, "First enable Practice Tests section access for this student.")
+                return redirect(
+                    'update_student_practice_test_access',
+                    classroom_id=classroom.id,
+                    user_id=user_id
                 )
 
-        messages.success(request, "Student practice test access updated successfully.")
-        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+            StudentPracticeTestAccess.objects.filter(membership=membership).delete()
+
+            if access_mode == 'selected':
+                selected_tests = Test.objects.filter(pk__in=selected_test_names).distinct()
+
+                for test in selected_tests:
+                    StudentPracticeTestAccess.objects.update_or_create(
+                        membership=membership,
+                        test=test,
+                        defaults={'has_access': True}
+                    )
+
+            messages.success(request, "Student practice test access updated successfully.")
+            return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+        except Exception as e:
+            print("ERROR in update_student_practice_test_access:", repr(e))
+            raise
 
     existing_items = StudentPracticeTestAccess.objects.filter(
         membership=membership,
         has_access=True
     )
 
-    selected_test_ids = set(existing_items.values_list('test_id', flat=True))
+    selected_test_names = set(existing_items.values_list('test_id', flat=True))
     access_mode = 'selected' if existing_items.exists() else 'all'
 
     return render(request, 'sat/update_student_practice_test_access.html', {
         'classroom': classroom,
         'membership': membership,
         'tests': tests,
-        'selected_test_ids': selected_test_ids,
+        'selected_test_names': selected_test_names,
         'access_mode': access_mode,
     })
 
@@ -2550,8 +2552,8 @@ def get_student_allowed_practice_tests_queryset(membership):
     if not custom_access_items.exists():
         return Test.objects.all().distinct()
 
-    allowed_test_ids = custom_access_items.filter(
+    allowed_test_names = custom_access_items.filter(
         has_access=True
     ).values_list('test_id', flat=True)
 
-    return Test.objects.filter(id__in=allowed_test_ids).distinct()
+    return Test.objects.filter(pk__in=allowed_test_names).distinct()

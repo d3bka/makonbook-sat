@@ -130,13 +130,24 @@ class TestAdmin(admin.ModelAdmin):
 # Enhanced English Question Admin
 @admin.register(English_Question)
 class EnglishQuestionAdmin(admin.ModelAdmin):
-    list_display = ['test', 'module', 'number', 'domain', 'type', 'has_image', 'has_explanation', 'created_at']
+    list_display = [
+        'id',
+        'test',
+        'module',
+        'number',
+        'domain',
+        'type',
+        'has_image',
+        'has_explanation',
+        'created_at',
+    ]
     list_filter = ['test', 'module', 'domain', 'type', 'graph', 'created_at']
-    search_fields = ['test__name', 'number', 'domain__name', 'type__name', 'question', 'passage', 'a', 'b', 'c', 'd']
-    list_per_page = 50
+    search_fields = ['test__name', 'number', 'question']
+    list_per_page = 25
+    list_select_related = ['test', 'domain', 'type']
     form = EnglishQuestionForm
-    ordering = ['test', 'module', 'number']
-    
+    ordering = ['test_id', 'module', 'number']
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('test', 'module', 'number', 'domain', 'type')
@@ -151,14 +162,14 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
             'fields': ('answer', 'explained')
         }),
     )
-    
+
     def has_image(self, obj):
         return bool(obj.image)
     has_image.boolean = True
     has_image.short_description = 'Image'
-    
+
     def has_explanation(self, obj):
-        return bool(obj.explained or obj.img_explain)
+        return bool(getattr(obj, 'explained', None))
     has_explanation.boolean = True
     has_explanation.short_description = 'Explanation'
 
