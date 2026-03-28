@@ -54,12 +54,30 @@ def restart(request, pk):
     return HttpResponse("you are not offline user")
 
 
-def check_written(answer: str, response: str):
-    answer = answer.strip().replace(' ', '')
-    responses = response.strip().replace(' ', '').split(',')
-    for response in responses:
-        if answer == response:
-            return True
+def check_written(response, answer):
+    if response is None or answer is None:
+        return False
+
+    response = str(response).strip()
+    answer = str(answer).strip()
+
+    if not response or not answer:
+        return False
+
+    responses = response.replace(' ', '').split(',')
+    answers = answer.replace(' ', '').split(',')
+
+    responses = [item for item in responses if item != '']
+    answers = [item for item in answers if item != '']
+
+    if not responses or not answers:
+        return False
+
+    for res in responses:
+        for ans in answers:
+            if res == ans:
+                return True
+
     return False
 
 
