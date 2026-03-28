@@ -81,6 +81,10 @@ def normalize_written_value(value):
         return value.lower()
 
 
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
+
+
 def _normalize_written_token(value):
     if value is None:
         return None
@@ -89,13 +93,13 @@ def _normalize_written_token(value):
     if value == '':
         return None
 
-    # decimal comma support
     value = value.replace(',', '.')
 
-    # fraction support: -3/1, 6/2, 1/2
+    # fraction support
     if '/' in value:
         try:
-            return Decimal(Fraction(value))
+            frac = Fraction(value)
+            return Decimal(frac.numerator) / Decimal(frac.denominator)
         except Exception:
             pass
 
