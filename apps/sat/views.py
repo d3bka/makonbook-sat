@@ -479,17 +479,32 @@ def module_test(request, pk):
     except Exception:
         return HttpResponse('Permission Error')
 
+    sequence = get_test_sequence(test)
+    if not sequence:
+        return HttpResponse('Questions are not found')
+
     test_stage, created = TestStage.objects.get_or_create(
         user=user,
         test=test,
         defaults={'stage': 1}
     )
 
-    test, section, module = test_stage.get_models()
-    m = TestModule.objects.filter(test=test, section=section, module=module, user=user)
+    current_step = get_current_test_step(test_stage)
+    if current_step is None:
+        return redirect('results', test=test)
 
-    if m.exists():
-        if test_stage.next_stage():
+    section, module = current_step
+
+    existing_module = TestModule.objects.filter(
+        test=test,
+        section=section,
+        module=module,
+        user=user
+    )
+
+    if existing_module.exists():
+        finished = advance_test_stage(test_stage)
+        if finished:
             return redirect('results', test=test)
         return module_test(request, pk=test.pk)
 
@@ -507,15 +522,19 @@ def module_test(request, pk):
             module=f'module_{module[1]}'
         ).order_by('number')
 
-        if questions.exists():
-            return render(request, 'test/test_eng.html', {
-                'questions': questions,
-                'module': module,
-                'test': test,
-                'section': section,
-                'custom_time_seconds': custom_time_seconds
-            })
-        return HttpResponse('Questions are not found')
+        if not questions.exists():
+            finished = advance_test_stage(test_stage)
+            if finished:
+                return redirect('results', test=test)
+            return module_test(request, pk=test.pk)
+
+        return render(request, 'test/test_eng.html', {
+            'questions': questions,
+            'module': module,
+            'test': test,
+            'section': section,
+            'custom_time_seconds': custom_time_seconds
+        })
 
     if section == 'math':
         questions = Math_Question.objects.filter(
@@ -524,7 +543,10 @@ def module_test(request, pk):
         ).order_by('number')
 
         if not questions.exists():
-            return HttpResponse('Questions are not found')
+            finished = advance_test_stage(test_stage)
+            if finished:
+                return redirect('results', test=test)
+            return module_test(request, pk=test.pk)
 
         questions_data = []
         for q in questions:
@@ -551,7 +573,6 @@ def module_test(request, pk):
         })
 
     return HttpResponse("You dont have permission")
-
 
 def rankings(request, pk):
     results = TestReview.objects.filter(test__name=pk).order_by('-score', 'user')[:50]
@@ -2568,3 +2589,74 @@ def get_student_allowed_practice_tests_queryset(membership):
     ).values_list('test_id', flat=True)
 
     return Test.objects.filter(pk__in=allowed_test_names).distinct()
+
+def get_test_mode(test):
+    has_english = English_Question.objects.filter(test=test).exists()
+    has_math = Math_Question.objects.filter(test=test).exists()
+
+    if has_english and has_math:
+        return 'full'
+    if has_english:
+        return 'ebrw_only'
+    if has_math:
+        return 'math_only'
+    return 'empty'
+
+
+def get_test_sequence(test):
+    mode = get_test_mode(test)
+
+    if mode == 'full':
+        return [
+            ('english', 'm1'),
+            ('english', 'm2'),
+            ('math', 'm1'),
+            ('math', 'm2'),
+        ]
+    if mode == 'ebrw_only':
+        return [
+            ('english', 'm1'),
+            ('english', 'm2'),
+        ]
+    if mode == 'math_only':
+        return [
+            ('math', 'm1'),
+            ('math', 'm2'),
+        ]
+    return []
+
+
+def get_current_test_step(test_stage):
+    sequence = get_test_sequence(test_stage.test)
+
+    if not sequence:
+        return None
+
+    if test_stage.stage < 1 or test_stage.stage > len(sequence):
+        return None
+
+    return sequence[test_stage.stage - 1]
+
+
+def advance_test_stage(test_stage):
+    sequence = get_test_sequence(test_stage.test)
+
+    if not sequence:
+        return True
+
+    if test_stage.stage >= len(sequence):
+        return True
+
+    test_stage.stage += 1
+    test_stage.save()
+    return False
+
+
+def get_section_start_stage(test, section):
+    sequence = get_test_sequence(test)
+
+    for index, (seq_section, seq_module) in enumerate(sequence, start=1):
+        if seq_section == section:
+            return index
+
+    return None
