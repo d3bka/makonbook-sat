@@ -432,30 +432,51 @@ class TestStage(BaseModel):
         return False
 
     def resolve_section(self, section):
-        """Delete modules for a specific section and reset stage accordingly."""
-        max_retakes = self.get_max_retakes()
-        
-        if self.retake_count < max_retakes:
-            # Delete only the modules for the specified section
-            modules_to_delete = TestModule.objects.filter(
-                test=self.test, 
-                makeup_test=self.makeup_test,
-                user=self.user, 
-                section=section
-            )
-            for module in modules_to_delete:
-                module.delete()
-            
-            # Reset stage to the beginning of the specified section
-            if section == 'english':
-                self.stage = 1  # Reset to English Module 1
-            elif section == 'math':
-                self.stage = 3  # Reset to Math Module 1
-            
-            self.retake_count += 1
-            self.save()
-            return True
-        return False
+
+        has_english = English_Question.objects.filter(test=self.test).exists()
+        has_math = Math_Question.objects.filter(test=self.test).exists()
+
+        if has_english and has_math:
+            sequence = [
+                ('english', 'm1'),
+                ('english', 'm2'),
+                ('math', 'm1'),
+                ('math', 'm2'),
+            ]
+        elif has_english:
+            sequence = [
+                ('english', 'm1'),
+                ('english', 'm2'),
+            ]
+        elif has_math:
+            sequence = [
+                ('math', 'm1'),
+                ('math', 'm2'),
+            ]
+        else:
+            return False
+
+        start_stage = None
+        for index, (seq_section, seq_module) in enumerate(sequence, start=1):
+            if seq_section == section:
+                start_stage = index
+                break
+
+        if start_stage is None:
+            return False
+
+        modules_to_delete = TestModule.objects.filter(
+            test=self.test,
+            user=self.user,
+            section=section
+        )
+        for module_obj in modules_to_delete:
+            module_obj.delete()
+
+        self.stage = start_stage
+        self.save()
+        return True
+
 
     def get_retakes_remaining(self):
         """Get number of retakes remaining for this user."""
@@ -463,11 +484,27 @@ class TestStage(BaseModel):
         return max_retakes - self.retake_count
 
     def next_stage(self):
-        if self.stage == 4:
+
+        has_english = English_Question.objects.filter(test=self.test).exists()
+        has_math = Math_Question.objects.filter(test=self.test).exists()
+
+        if has_english and has_math:
+            total_stages = 4
+        elif has_english or has_math:
+            total_stages = 2
+        else:
+            total_stages = 0
+
+        if total_stages == 0:
             return True
+
+        if self.stage >= total_stages:
+            return True
+
         self.stage += 1
         self.save()
         return False
+
 
     def delete_related(self):
         all_modules = TestModule.objects.filter(test=self.test, user=self.user)
@@ -478,14 +515,36 @@ class TestStage(BaseModel):
             review.delete()
 
     def get_models(self):
-        if self.test_type == 'regular' and self.test:
-            section = 'english' if self.stage <= 2 else 'math'
-            module = 'm1' if self.stage in [0, 1, 3] else 'm2'
-            return self.test, section, module
-        elif self.test_type == 'makeup' and self.makeup_test:
-            section = 'english' if self.stage <= 2 else 'math'
-            module = 'm1' if self.stage in [0, 1, 3] else 'm2'
-            return self.makeup_test, section, module
+    
+        has_english = English_Question.objects.filter(test=self.test).exists()
+        has_math = Math_Question.objects.filter(test=self.test).exists()
+    
+        if has_english and has_math:
+            sequence = [
+                ('english', 'm1'),
+                ('english', 'm2'),
+                ('math', 'm1'),
+                ('math', 'm2'),
+            ]
+        elif has_english:
+            sequence = [
+                ('english', 'm1'),
+                ('english', 'm2'),
+            ]
+        elif has_math:
+            sequence = [
+                ('math', 'm1'),
+                ('math', 'm2'),
+            ]
+        else:
+            return None, None, None
+    
+        if self.stage < 1 or self.stage > len(sequence):
+            return self.test, None, None
+    
+        section, module = sequence[self.stage - 1]
+        return self.test, section, module
+
 
     def __str__(self):
         return f'{self.user}->{self.test}'
