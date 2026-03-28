@@ -80,7 +80,6 @@ def is_member(user, names):
 
 @login_required(login_url='/login/')
 def practice_tests(request):
-
     user = request.user
     user_groups = user.groups.all()
 
@@ -88,11 +87,16 @@ def practice_tests(request):
 
     def get_day_number(test):
         try:
-            return int(test.name[3:])
+            name = str(test.name).strip().lower()
+            if name.startswith('day'):
+                digits = ''.join(ch for ch in name if ch.isdigit())
+                if digits:
+                    return int(digits)
+            return 999999
         except Exception:
-            return 0
+            return 999999
 
-    tests = sorted(tests, key=get_day_number)
+    tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
 
     active_tests = []
     past_tests = []
@@ -100,7 +104,7 @@ def practice_tests(request):
     for test in tests:
         if TestReview.objects.filter(test=test, user=user).exists():
             review = TestReview.objects.filter(test=test, user=user)[0]
-            if review.score == 0:
+            if review.score == 0 or review.score is None:
                 active_tests.append(test)
             else:
                 past_tests.append(test)
@@ -189,129 +193,174 @@ def punishment(request, pk):
 def results(request, test):
     user = request.user
     test_obj = Test.objects.get(name=test)
-    
-    # Get all test modules for the given test (both English and Math)
-    # Filter to ensure we get exactly one module for each section/module combination
+
+    test_mode = get_test_mode(test_obj)
+    has_english = test_mode in ['full', 'ebrw_only']
+    has_math = test_mode in ['full', 'math_only']
+
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
+
     latest_modules = {}
-    
-    # Get all modules and organize by section/module combination
     all_modules_query = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at')
-    
-    # Take only the latest module for each section/module combination
+
     for module in all_modules_query:
         key = f"{module.section}_{module.module}"
         if key not in latest_modules:
             latest_modules[key] = module
-    
-    # Convert dictionary values to a list for further processing
-    all_modules = list(latest_modules.values())
-    
-    # Check if we have all required modules
-    if len(all_modules) < 4:
-        return HttpResponse("You need to finish all Modules")
-    
-    # Prepare a dictionary to hold questions for each module
+
+    missing_modules = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        if key not in latest_modules:
+            missing_modules.append(key)
+
+    if missing_modules:
+        return HttpResponse("You need to finish all required modules")
+
     questions = {
         'english': {'m1': [], 'm2': []},
         'math': {'m1': [], 'm2': []}
     }
-    
-    # Counters for correct answers and total time spent (per module)
-    correct_counts = {'english': {'m1': 0, 'm2': 0}, 'math': {'m1': 0, 'm2': 0}}
-    time_spent_totals = {'english': {'m1': 0, 'm2': 0}, 'math': {'m1': 0, 'm2': 0}}
-    
-    # Loop through each module and process the answers
-    for module in all_modules:
+
+    correct_counts = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+    time_spent_totals = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+
+    modules_to_process = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        module_obj = latest_modules.get(key)
+        if module_obj:
+            modules_to_process.append(module_obj)
+
+    for module in modules_to_process:
         try:
-            answers_list = json.loads(module.answers)['answers']
+            answers_list = json.loads(module.answers or '{}').get('answers', [])
         except Exception:
             answers_list = []
-        
-        sec = module.section  # should be 'english' or 'math'
-        mod = module.module   # should be 'm1' or 'm2'
+
+        sec = module.section
+        mod = module.module
+
         if sec not in ['english', 'math'] or mod not in ['m1', 'm2']:
             continue
-        
+
         for answer in answers_list:
             try:
-                time_spent = int(answer.get('time_spent', 0))
+                time_spent = int(answer.get('time_spent', 0) or 0)
                 time_spent_totals[sec][mod] += time_spent
-                
+
                 if sec == 'english':
                     q_obj = English_Question.objects.get(id=int(answer['questionID']))
-                    is_correct = (answer['answer'] == q_obj.answer)
-                else:  # math
+                    is_correct = (answer.get('answer') == q_obj.answer)
+                else:
                     q_obj = Math_Question.objects.get(id=int(answer['questionID']))
-                    is_correct = (answer['answer'] is not None and check_written(answer['answer'], q_obj.answer))
-                
+                    raw_answer = answer.get('answer')
+                    is_correct = (raw_answer is not None and check_written(raw_answer, q_obj.answer))
+
                 if is_correct:
                     correct_counts[sec][mod] += 1
-                
+
                 questions[sec][mod].append({
                     'id': answer['questionID'],
                     'status': 'correct' if is_correct else 'incorrect',
-                    'answer': answer['answer'],
+                    'answer': answer.get('answer'),
                     'number': q_obj.number,
                     'time_spent': time_spent
                 })
             except Exception:
                 continue
-    
-    # Calculate total score using your calculator function
-    score = calculator.get_total(
-        correct_counts['english']['m1'],
-        correct_counts['english']['m2'],
-        correct_counts['math']['m1'],
-        correct_counts['math']['m2']
-    )
-    
-    # Set up the test review key
+
+    if test_mode == 'full':
+        score = calculator.get_total(
+            correct_counts['english']['m1'],
+            correct_counts['english']['m2'],
+            correct_counts['math']['m1'],
+            correct_counts['math']['m2']
+        )
+    elif test_mode == 'ebrw_only':
+        english_score = correct_counts['english']['m1'] + correct_counts['english']['m2']
+        score = {
+            'total': english_score,
+            'sections': {
+                'english': {'score': english_score, 'range': {'lower': 0, 'upper': english_score}},
+                'math': None,
+            }
+        }
+    elif test_mode == 'math_only':
+        math_score = correct_counts['math']['m1'] + correct_counts['math']['m2']
+        score = {
+            'total': math_score,
+            'sections': {
+                'english': None,
+                'math': {'score': math_score, 'range': {'lower': 0, 'upper': math_score}},
+            }
+        }
+    else:
+        score = {
+            'total': 0,
+            'sections': {
+                'english': None,
+                'math': None,
+            }
+        }
+
     key = 'default'
     testreview, created = TestReview.objects.get_or_create(user=user, test=test_obj)
     if created:
         testreview.update_key()
-        # Set review duration based on user group
         if user.groups.filter(name='OFFLINE').exists():
-            testreview.duration = timedelta(days=3)  # 3 days for OFFLINE users
-        # Admin users and regular users keep default (24 hours)
-        # Admin users have unlimited time via is_active() method
+            testreview.duration = timedelta(days=3)
+            testreview.save()
+
     key = testreview.key
-    testreview.score = score['total']
+    testreview.score = score['total'] if isinstance(score, dict) else 0
     testreview.save()
-    
-    # Aggregate overall statistics
-    total_correct = (
-        correct_counts['english']['m1'] +
-        correct_counts['english']['m2'] +
-        correct_counts['math']['m1'] +
-        correct_counts['math']['m2']
-    )
-    total_time = (
-        time_spent_totals['english']['m1'] +
-        time_spent_totals['english']['m2'] +
-        time_spent_totals['math']['m1'] +
-        time_spent_totals['math']['m2']
-    )
-    
+
+    english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
+    math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
+
+    english_total_time = time_spent_totals['english']['m1'] + time_spent_totals['english']['m2']
+    math_total_time = time_spent_totals['math']['m1'] + time_spent_totals['math']['m2']
+
+    total_correct = english_total_correct + math_total_correct
+    total_time = english_total_time + math_total_time
+
     stats = {
         'total': total_correct,
         'test': test_obj.name,
         'time_spent': total_time,
-        'english_time': time_spent_totals['english']['m1'] + time_spent_totals['english']['m2'],
-        'math_time': time_spent_totals['math']['m1'] + time_spent_totals['math']['m2'],
+        'english_time': english_total_time,
+        'math_time': math_total_time,
     }
-    
-    # With all 4 modules complete, we mark status['total'] as True
-    status = {'total': True}
-    
+
+    status = {
+        'english': has_english,
+        'math': has_math,
+        'total': True
+    }
+
     return render(request, 'test/results.html', {
         "status": status,
         'score': score,
         'stats': stats,
         'key': key,
         'questions': questions,
-        'domains': testreview.domains
+        'domains': testreview.domains,
+        'test_mode': test_mode,
+        'has_english': has_english,
+        'has_math': has_math,
     })
+
     
 
 @login_required(login_url='/login/')
@@ -581,121 +630,219 @@ def rankings(request, pk):
 
 @allowed_users(['Admin'])
 def results_by_user(request, test, username):
+    test_obj = Test.objects.get(name=test)
+    user = User.objects.get(username=username)
+
+    test_mode = get_test_mode(test_obj)
+    has_english = test_mode in ['full', 'ebrw_only']
+    has_math = test_mode in ['full', 'math_only']
+
     questions = {
-        'english': {
-            'm1': [], 'm2': []
-        },
-        'math': {
-            'm1': [], 'm2': []
-        }
+        'english': {'m1': [], 'm2': []},
+        'math': {'m1': [], 'm2': []}
     }
-    a = 0
-    e = 0
-    l = 0
-    u = 0 
+
+    correct_counts = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+
+    time_spent_totals = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+
     status = {
         'english': False,
         'math': False,
         'total': False
     }
-    test = Test.objects.get(name=test)
-    user = User.objects.get(username=username)
-    english_modules = TestModule.objects.filter(user=user, test=test, section='english')
-    if len(english_modules) == 2:
-        status['english'] = True
-        eng_m1 = english_modules.filter(module='m1').first()
-        eng_m2 = english_modules.filter(module='m2').first()
-        for question in json.loads(eng_m1.answers)['answers']:
-            try:
-                if question['answer'] == English_Question.objects.get(id=question['questionID']).answer:
-                    a += 1
-                    questions['english']['m1'].append({'id': question['questionID'], 'status': 'correct', 'answer': question['answer'], 'number': English_Question.objects.get(id=question['questionID']).number})
-                else:
-                    questions['english']['m1'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'], 'number': English_Question.objects.get(id=question['questionID']).number})
-            except:
-                continue
-        for question in json.loads(eng_m2.answers)['answers']:
-            try:
-                if question['answer'] == English_Question.objects.get(id=question['questionID']).answer:
-                    e += 1
-                    questions['english']['m2'].append({'id': question['questionID'], 'status': 'correct', 'answer': question['answer'], 'number': English_Question.objects.get(id=question['questionID']).number})
-                else:
-                   questions['english']['m2'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'], 'number': English_Question.objects.get(id=question['questionID']).number})
-            except:
-                continue
 
-    math_modules = TestModule.objects.filter(user=user, test=test, section='math')
-    if len(math_modules) == 2:
-        status['math'] = True
-        math_m1 = math_modules.filter(module='m1').first()
-        math_m2 = math_modules.filter(module='m2').first()
-        for question in json.loads(math_m1.answers)['answers']:
-            try:
-                if question['answer'] is None:
-                    questions['math']['m1'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'], 'number': Math_Question.objects.get(id=question['questionID']).number})
-                    continue
-                if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                    l += 1 
-                    questions["math"]['m1'].append({'id': question['questionID'], 'status': 'correct', 'answer': question['answer'].replace('/', '-'), 'number': Math_Question.objects.get(id=question['questionID']).number})
-                else:
-                    questions["math"]['m1'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'].replace('/', '-'), 'number': Math_Question.objects.get(id=question['questionID']).number})
-            except:
-                continue
-        for question in json.loads(math_m2.answers)['answers']:
-            try:
-                if question['answer'] is None:
-                    questions['math']['m2'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'], 'number': Math_Question.objects.get(id=question['questionID']).number})
-                    continue
-                if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                    u += 1
-                    questions["math"]['m2'].append({'id': question['questionID'], 'status': 'correct', 'answer': question['answer'].replace('/', '-'), 'number': Math_Question.objects.get(id=question['questionID']).number})
-                else:
-                    questions["math"]['m2'].append({'id': question['questionID'], 'status': 'incorrect', 'answer': question['answer'].replace('/', '-'), 'number': Math_Question.objects.get(id=question['questionID']).number})
-            except:
-                continue
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
 
-    if status['english'] and status['math']:
+    latest_modules = {}
+    all_modules_query = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at')
+
+    for module in all_modules_query:
+        key = f"{module.section}_{module.module}"
+        if key not in latest_modules:
+            latest_modules[key] = module
+
+    missing_modules = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        if key not in latest_modules:
+            missing_modules.append(key)
+
+    if not missing_modules:
         status['total'] = True
+    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
+        status['english'] = True
+    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
+        status['math'] = True
 
-    score = calculator.get_total(a, e, l, u)
-    key = 'default'
+    if missing_modules:
+        return HttpResponse('You need to finish all required modules')
 
-    if is_member(user, ['Both', 'Trial']):
-        if status['total']:
-            testreview, created = TestReview.objects.get_or_create(user=user, test=test)
-            if created:
-                testreview.update_key()
-                # Set review duration based on user group
-                if user.groups.filter(name='OFFLINE').exists():
-                    testreview.duration = timedelta(days=3)  # 3 days for OFFLINE users
-                # Admin users and regular users keep default (24 hours)
-                # Admin users have unlimited time via is_active() method
-                testreview.save()
-            key = testreview.key
-        else:
-            return HttpResponse('You need to finish all Modules')
+    modules_to_process = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        module_obj = latest_modules.get(key)
+        if module_obj:
+            modules_to_process.append(module_obj)
+
+    for module in modules_to_process:
+        try:
+            answers_list = json.loads(module.answers or '{}').get('answers', [])
+        except Exception:
+            answers_list = []
+
+        sec = module.section
+        mod = module.module
+
+        if sec not in ['english', 'math'] or mod not in ['m1', 'm2']:
+            continue
+
+        for answer in answers_list:
+            try:
+                time_spent = int(answer.get('time_spent', 0) or 0)
+                time_spent_totals[sec][mod] += time_spent
+
+                if sec == 'english':
+                    q_obj = English_Question.objects.get(id=int(answer['questionID']))
+                    is_correct = (answer.get('answer') == q_obj.answer)
+                    display_answer = answer.get('answer')
+                else:
+                    q_obj = Math_Question.objects.get(id=int(answer['questionID']))
+                    raw_answer = answer.get('answer')
+                    is_correct = (raw_answer is not None and check_written(raw_answer, q_obj.answer))
+                    display_answer = raw_answer.replace('/', '-') if raw_answer else raw_answer
+
+                if is_correct:
+                    correct_counts[sec][mod] += 1
+
+                questions[sec][mod].append({
+                    'id': answer['questionID'],
+                    'status': 'correct' if is_correct else 'incorrect',
+                    'answer': display_answer,
+                    'number': q_obj.number,
+                    'time_spent': time_spent
+                })
+            except Exception:
+                continue
+
+    if test_mode == 'full':
+        score = calculator.get_total(
+            correct_counts['english']['m1'],
+            correct_counts['english']['m2'],
+            correct_counts['math']['m1'],
+            correct_counts['math']['m2']
+        )
+    elif test_mode == 'ebrw_only':
+        english_score = correct_counts['english']['m1'] + correct_counts['english']['m2']
+        score = {
+            'total': english_score,
+            'sections': {
+                'english': {'score': english_score, 'range': {'lower': 0, 'upper': english_score}},
+                'math': None,
+            }
+        }
+    elif test_mode == 'math_only':
+        math_score = correct_counts['math']['m1'] + correct_counts['math']['m2']
+        score = {
+            'total': math_score,
+            'sections': {
+                'english': None,
+                'math': {'score': math_score, 'range': {'lower': 0, 'upper': math_score}},
+            }
+        }
     else:
-        if status['english'] or status['math']:
-            testreview, created = TestReview.objects.get_or_create(user=user, test=test)
-            if created:
-                testreview.update_key()
-                # Set review duration based on user group
-                if user.groups.filter(name='OFFLINE').exists():
-                    testreview.duration = timedelta(days=3)  # 3 days for OFFLINE users
-                # Admin users and regular users keep default (24 hours)
-                # Admin users have unlimited time via is_active() method
-                testreview.save()
-            key = testreview.key
-        else:
-            return HttpResponse('You need to finish all Modules')
+        score = {
+            'total': 0,
+            'sections': {
+                'english': None,
+                'math': None,
+            }
+        }
+
+    testreview, created = TestReview.objects.get_or_create(user=user, test=test_obj)
+    if created:
+        testreview.update_key()
+        if user.groups.filter(name='OFFLINE').exists():
+            testreview.duration = timedelta(days=3)
+            testreview.save()
+
+    key = testreview.key
     testreview.score = score['total']
     testreview.save()
 
-    return render(request, 'test/results.html', {'user': user, "status": status, 'score': score, 'stats': {'total': a + e + l + u, 'test': test}, 'key': key, 'questions': questions })
+    english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
+    math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
+
+    english_total_time = time_spent_totals['english']['m1'] + time_spent_totals['english']['m2']
+    math_total_time = time_spent_totals['math']['m1'] + time_spent_totals['math']['m2']
+
+    total_correct = english_total_correct + math_total_correct
+
+    stats = {
+        'total': total_correct,
+        'test': test_obj.name,
+        'english_time': english_total_time,
+        'math_time': math_total_time,
+        'time_spent': english_total_time + math_total_time,
+    }
+
+    return render(request, 'test/results.html', {
+        'user': user,
+        'status': status,
+        'score': score,
+        'stats': stats,
+        'key': key,
+        'questions': questions,
+        'test_mode': test_mode,
+        'has_english': has_english,
+        'has_math': has_math,
+    })
+
+
 
 
 @login_required(login_url='login')
 def certificate(request, test):
+    test = Test.objects.get(pk=test)
+    user = request.user
+    testreview = TestReview.objects.filter(user=user, test=test).first()
+
+    if not testreview:
+        return HttpResponse("Invalid TEST review contact tech@sat800makon.uz")
+
+    test_mode = get_test_mode(test)
+    has_english = test_mode in ['full', 'ebrw_only']
+    has_math = test_mode in ['full', 'math_only']
+
+    if testreview.exists if hasattr(testreview, 'exists') else False:
+        pass
+
+    response = testreview.check_and_update_domains()
+    if not testreview.domains:
+        return HttpResponse('Domains are not entered to this practise questions')
+
+    if testreview.certificate != '':
+        try:
+            if testreview.certificate.startswith('certificates/'):
+                from apps.sat.storages import PrivateStorage
+                storage = PrivateStorage()
+                signed_url = storage.url(testreview.certificate)
+                return HttpResponseRedirect(signed_url)
+            else:
+                return FileResponse(open(testreview.certificate, 'rb'), content_type='application/pdf')
+        except Exception:
+            pass
+
     questions = {
         'wrongs': {
             "Information and Ideas": 0,
@@ -718,112 +865,117 @@ def certificate(request, test):
             "Geometry and Trigonometry": 0
         }
     }
-    a = 0
-    e = 0
-    l = 0
-    u = 0 
-    test = Test.objects.get(pk=test)
-    user = request.user
-    testreview = TestReview.objects.filter(user=user, test=test)
-    
-    if testreview.exists():
-        testreview = testreview[0]
-        response = testreview.check_and_update_domains()
-        if not testreview.domains:
-            print(response)
-            return HttpResponse('Domains are not entered to this practise questions')
-        if testreview.certificate != '':
-            try:
-                # Check if it's an R2 path (new format) or local file (old format)
-                if testreview.certificate.startswith('certificates/'):
-                    # R2 storage - redirect to signed URL
-                    from apps.sat.storages import PrivateStorage
-                    storage = PrivateStorage()
-                    signed_url = storage.url(testreview.certificate)
-                    return HttpResponseRedirect(signed_url)
-                else:
-                    # Legacy local file - serve directly
-                    return FileResponse(open(testreview.certificate, 'rb'), content_type='application/pdf')
-            except Exception as e:
-                print(f"Certificate access error: {e}")
-                pass
+
+    a = e = l = u = 0
+
+    if has_english:
+        english_modules = TestModule.objects.filter(user=user, test=test, section='english')
+        eng_m1 = english_modules.filter(module='m1').first()
+        eng_m2 = english_modules.filter(module='m2').first()
+
+        if eng_m1:
+            for question in json.loads(eng_m1.answers or '{}').get('answers', []):
+                try:
+                    db_question = English_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] == db_question.answer:
+                        a += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+        if eng_m2:
+            for question in json.loads(eng_m2.answers or '{}').get('answers', []):
+                try:
+                    db_question = English_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] == db_question.answer:
+                        e += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+    if has_math:
+        math_modules = TestModule.objects.filter(user=user, test=test, section='math')
+        math_m1 = math_modules.filter(module='m1').first()
+        math_m2 = math_modules.filter(module='m2').first()
+
+        if math_m1:
+            for question in json.loads(math_m1.answers or '{}').get('answers', []):
+                try:
+                    db_question = Math_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] is None:
+                        questions['wrongs'][db_question.domain.name] += 1
+                        continue
+                    if check_written(question['answer'], db_question.answer):
+                        l += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+        if math_m2:
+            for question in json.loads(math_m2.answers or '{}').get('answers', []):
+                try:
+                    db_question = Math_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] is None:
+                        questions['wrongs'][db_question.domain.name] += 1
+                        continue
+                    if check_written(question['answer'], db_question.answer):
+                        u += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+    if test_mode == 'full':
+        score = calculator.get_total(a, e, l, u)
+    elif test_mode == 'ebrw_only':
+        english_score = a + e
+        score = {
+            'total': english_score,
+            'range_total': {'lower': 0, 'upper': english_score},
+            'sections': {
+                'english': {'score': english_score, 'range': {'lower': 0, 'upper': english_score}},
+                'math': {'score': 0, 'range': {'lower': 0, 'upper': 0}},
+            }
+        }
+    elif test_mode == 'math_only':
+        math_score = l + u
+        score = {
+            'total': math_score,
+            'range_total': {'lower': 0, 'upper': math_score},
+            'sections': {
+                'english': {'score': 0, 'range': {'lower': 0, 'upper': 0}},
+                'math': {'score': math_score, 'range': {'lower': 0, 'upper': math_score}},
+            }
+        }
     else:
-        return HttpResponse("Invalid TEST review contact tech@sat800makon.uz")
-    
+        return HttpResponse("No valid questions found for certificate")
+
     code = testreview.key
     path = BASE_DIR
-    output = str(testreview)
 
-    english_modules = TestModule.objects.filter(user=user, test=test, section='english')
-    eng_m1 = english_modules.filter(module='m1').first()
-    eng_m2 = english_modules.filter(module='m2').first()
-    for question in json.loads(eng_m1.answers)['answers']:
-        try:
-            db_question = English_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] == db_question.answer:
-                a += 1
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-    for question in json.loads(eng_m2.answers)['answers']:
-        try:
-            db_question = English_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] == db_question.answer:
-                e += 1
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-
-    math_modules = TestModule.objects.filter(user=user, test=test, section='math')
-    math_m1 = math_modules.filter(module='m1').first()
-    math_m2 = math_modules.filter(module='m2').first()
-    for question in json.loads(math_m1.answers)['answers']:
-        try:
-            db_question = Math_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] is None:
-                questions['wrongs'][db_question.domain.name] += 1
-                continue
-            if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                l += 1 
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-    for question in json.loads(math_m2.answers)['answers']:
-        try:
-            db_question = Math_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] is None:
-                questions['wrongs'][db_question.domain.name] += 1
-                continue
-            if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                u += 1 
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-
-    score = calculator.get_total(a, e, l, u)
-        
     counts = [7, 7, 7, 7, 7, 7, 7, 7]
     wrongs = list(questions['wrongs'].values())
     totals = list(questions['total'].values())
-    
+
     for i in range(4):
         factor = wrongs[i] // 2
         if factor >= 7:
             counts[i] = 0
             continue
         counts[i] -= factor
-    
+
     for i in range(4, 8):
-        counts[i] = custom_round((totals[i] - wrongs[i]) / totals[i] * 7)
-        
+        if totals[i] > 0:
+            counts[i] = custom_round((totals[i] - wrongs[i]) / totals[i] * 7)
+        else:
+            counts[i] = 0
 
     detials = {
         "t-sc": str(score['total']),
@@ -836,20 +988,35 @@ def certificate(request, test):
         "m-sc": str(score['sections']['math']['score']),
         "m-rs": f"{score['sections']['math']['range']['lower']}-{score['sections']['math']['range']['upper']}"
     }
+
     output = create_certificate(detials, code, path, counts)
     testreview.certificate = output
     testreview.save()
 
-    # Certificate is now stored in R2, redirect to signed URL
     from apps.sat.storages import PrivateStorage
-
     storage = PrivateStorage()
     signed_url = storage.url(testreview.certificate)
     return HttpResponseRedirect(signed_url)
+
 
 
 @allowed_users(['Admin'])
 def certificate_by_user(request, test, username):
+    test = Test.objects.get(pk=test)
+    user = User.objects.get(username=username)
+    testreview = TestReview.objects.filter(user=user, test=test).first()
+
+    if not testreview:
+        return HttpResponse("Invalid TEST review contact tech@sat800makon.uz")
+
+    test_mode = get_test_mode(test)
+    has_english = test_mode in ['full', 'ebrw_only']
+    has_math = test_mode in ['full', 'math_only']
+
+    testreview.check_and_update_domains()
+    if not testreview.domains:
+        return HttpResponse('Domains are not entered to this practise questions')
+
     questions = {
         'wrongs': {
             "Information and Ideas": 0,
@@ -872,97 +1039,117 @@ def certificate_by_user(request, test, username):
             "Geometry and Trigonometry": 0
         }
     }
-    a = 0
-    e = 0
-    l = 0
-    u = 0 
-    test = Test.objects.get(pk=test)
-    user = User.objects.get(username=username)
-    testreview = TestReview.objects.filter(user=user, test=test)
-    
-    if testreview.exists():
-        testreview = testreview[0]
-        testreview.check_and_update_domains()
-        if not testreview.domains:
-            return HttpResponse('Domains are not entered to this practise questions')
-        # if testreview.certificate != '':
-        #     return FileResponse(open(testreview.certificate, 'rb'), content_type='application/pdf')
+
+    a = e = l = u = 0
+
+    if has_english:
+        english_modules = TestModule.objects.filter(user=user, test=test, section='english')
+        eng_m1 = english_modules.filter(module='m1').first()
+        eng_m2 = english_modules.filter(module='m2').first()
+
+        if eng_m1:
+            for question in json.loads(eng_m1.answers or '{}').get('answers', []):
+                try:
+                    db_question = English_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] == db_question.answer:
+                        a += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+        if eng_m2:
+            for question in json.loads(eng_m2.answers or '{}').get('answers', []):
+                try:
+                    db_question = English_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] == db_question.answer:
+                        e += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+    if has_math:
+        math_modules = TestModule.objects.filter(user=user, test=test, section='math')
+        math_m1 = math_modules.filter(module='m1').first()
+        math_m2 = math_modules.filter(module='m2').first()
+
+        if math_m1:
+            for question in json.loads(math_m1.answers or '{}').get('answers', []):
+                try:
+                    db_question = Math_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] is None:
+                        questions['wrongs'][db_question.domain.name] += 1
+                        continue
+                    if check_written(question['answer'], db_question.answer):
+                        l += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+        if math_m2:
+            for question in json.loads(math_m2.answers or '{}').get('answers', []):
+                try:
+                    db_question = Math_Question.objects.get(id=question['questionID'])
+                    questions['total'][db_question.domain.name] += 1
+                    if question['answer'] is None:
+                        questions['wrongs'][db_question.domain.name] += 1
+                        continue
+                    if check_written(question['answer'], db_question.answer):
+                        u += 1
+                    else:
+                        questions['wrongs'][db_question.domain.name] += 1
+                except Exception:
+                    continue
+
+    if test_mode == 'full':
+        score = calculator.get_total(a, e, l, u)
+    elif test_mode == 'ebrw_only':
+        english_score = a + e
+        score = {
+            'total': english_score,
+            'range_total': {'lower': 0, 'upper': english_score},
+            'sections': {
+                'english': {'score': english_score, 'range': {'lower': 0, 'upper': english_score}},
+                'math': {'score': 0, 'range': {'lower': 0, 'upper': 0}},
+            }
+        }
+    elif test_mode == 'math_only':
+        math_score = l + u
+        score = {
+            'total': math_score,
+            'range_total': {'lower': 0, 'upper': math_score},
+            'sections': {
+                'english': {'score': 0, 'range': {'lower': 0, 'upper': 0}},
+                'math': {'score': math_score, 'range': {'lower': 0, 'upper': math_score}},
+            }
+        }
     else:
-        return HttpResponse("Invalid TEST review contact tech@sat800makon.uz")
-    
+        return HttpResponse("No valid questions found for certificate")
+
     code = testreview.key
     path = BASE_DIR
-    output = str(testreview)
 
-    english_modules = TestModule.objects.filter(user=user, test=test, section='english')
-    eng_m1 = english_modules.filter(module='m1').first()
-    eng_m2 = english_modules.filter(module='m2').first()
-    for question in json.loads(eng_m1.answers)['answers']:
-        try:
-            db_question = English_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] == db_question.answer:
-                a += 1
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-    for question in json.loads(eng_m2.answers)['answers']:
-        try:
-            db_question = English_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] == db_question.answer:
-                e += 1
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-
-    math_modules = TestModule.objects.filter(user=user, test=test, section='math')
-    math_m1 = math_modules.filter(module='m1').first()
-    math_m2 = math_modules.filter(module='m2').first()
-    for question in json.loads(math_m1.answers)['answers']:
-        try:
-            db_question = Math_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] is None:
-                questions['wrongs'][db_question.domain.name] += 1
-                continue
-            if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                l += 1 
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-    for question in json.loads(math_m2.answers)['answers']:
-        try:
-            db_question = Math_Question.objects.get(id=question['questionID'])
-            questions['total'][db_question.domain.name] += 1
-            if question['answer'] is None:
-                questions['wrongs'][db_question.domain.name] += 1
-                continue
-            if check_written(question['answer'], Math_Question.objects.get(id=question['questionID']).answer):
-                u += 1 
-            else:
-                questions['wrongs'][db_question.domain.name] += 1
-        except:
-            continue
-
-    score = calculator.get_total(a, e, l, u)
-        
     counts = [7, 7, 7, 7, 7, 7, 7, 7]
     wrongs = list(questions['wrongs'].values())
     totals = list(questions['total'].values())
-    
+
     for i in range(4):
         factor = wrongs[i] // 2
         if factor >= 7:
             counts[i] = 0
             continue
         counts[i] -= factor
-    
+
     for i in range(4, 8):
-        counts[i] = custom_round((totals[i] - wrongs[i]) / totals[i] * 7)
+        if totals[i] > 0:
+            counts[i] = custom_round((totals[i] - wrongs[i]) / totals[i] * 7)
+        else:
+            counts[i] = 0
 
     detials = {
         "t-sc": str(score['total']),
@@ -975,16 +1162,16 @@ def certificate_by_user(request, test, username):
         "m-sc": str(score['sections']['math']['score']),
         "m-rs": f"{score['sections']['math']['range']['lower']}-{score['sections']['math']['range']['upper']}"
     }
+
     output = create_certificate(detials, code, path, counts)
     testreview.certificate = output
     testreview.save()
 
-    # Certificate is now stored in R2, redirect to signed URL
     from apps.sat.storages import PrivateStorage
-
     storage = PrivateStorage()
     signed_url = storage.url(testreview.certificate)
     return HttpResponseRedirect(signed_url)
+
 
 @login_required(login_url='/login/')
 def enter_secret_code(request):
@@ -1031,33 +1218,31 @@ def enter_secret_code(request):
 
 @login_required(login_url='login')
 def restart_section(request, pk, section):
-    user = request.user        
+    user = request.user
     test = Test.objects.filter(name=pk).first()
-    
+
     if not test:
         return HttpResponse("Test not found")
-    
+
     if is_member(user, ['OFFLINE', 'Admin']):
         stage = TestStage.objects.filter(user=user, test=test).first()
         if not stage:
             return HttpResponse("Test stage not found")
-        
+
         response = stage.resolve_section(section)
         if response:
-            # Update the TestReview score after section reset
             testreview = TestReview.objects.filter(user=user, test=test).first()
             if testreview:
-                testreview.score = 0  # Reset score or recalculate based on remaining section
+                testreview.score = None
                 testreview.save()
-            
+
             return render(request, 'sat/restart_success.html', {
                 'test_name': pk,
                 'section': section
             })
         else:
-            # Get user group name for display
             user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
-            
+
             return render(request, 'sat/retake_limit_exceeded.html', {
                 'test_name': pk,
                 'section': section,
@@ -1065,7 +1250,7 @@ def restart_section(request, pk, section):
                 'max_retakes': stage.get_max_retakes(),
                 'user_group': user_group
             })
-    
+
     return HttpResponse("You do not have permission to restart sections")
 
 
@@ -2660,3 +2845,4 @@ def get_section_start_stage(test, section):
             return index
 
     return None
+
