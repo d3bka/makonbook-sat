@@ -1,9 +1,8 @@
 {% extends 'template.html' %}
+{% load sat_extras %}
 
 {% block title-main %} Results {% endblock title-main %}
 {% block title %} Results {% endblock title %}
-
-{% load sat_extras %}
 
 {% block style %}
 <style>
@@ -11,16 +10,13 @@
     display: flex;
     color: var(--themeColor);
     text-decoration: none;
-    ;
   }
-
   .sat_left>p[data-v-27935a7a]:first-child {
     font-size: 140px;
     font-weight: 700;
     line-height: 140px;
     margin-bottom: 0;
   }
-
   .total .score+p[data-v-049b5cac] {
     width: auto;
     margin-top: 25px;
@@ -29,49 +25,32 @@
     padding-left: 20px;
     border-left: 4px solid #ccc;
   }
-
   li {
     text-align: -webkit-match-parent;
   }
-
   .sat_right ul li[data-v-27935a7a] {
     font-size: 20px;
     line-height: 30px;
   }
-
   ul {
     list-style: none;
   }
-
   .sat_right[data-v-27935a7a] {
-
     padding-left: 0;
     padding-top: 30px;
   }
-
-  b,
-  strong {
+  b, strong {
     font-weight: bolder;
   }
-
   .sat_left>span[data-v-27935a7a] {
     font-size: 52px;
   }
-
-  a,
-  div,
-  p,
-  span,
-  textarea {
+  a, div, p, span, textarea {
     word-break: normal !important;
   }
-
-  *,
-  :after,
-  :before {
+  *, :after, :before {
     box-sizing: border-box;
   }
-
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, Liberation Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
@@ -82,12 +61,10 @@
     text-align: left;
     background-color: #fff;
   }
-
   :root {
     --themeColor: #324dc7;
     --layout-padding: 60px;
   }
-
   .total_above .score[data-v-049b5cac] {
     width: auto;
     font-size: 60px;
@@ -97,7 +74,6 @@
     height: 70px;
     margin-right: 1rem;
   }
-
   .total .title[data-v-049b5cac] {
     font-weight: 500;
     line-height: 1.2;
@@ -106,29 +82,24 @@
     font-size: 30px;
     color: var(--themeColor);
   }
-
   .total_above[data-v-049b5cac] {
     padding: 0 15px;
     margin-bottom: .5rem;
   }
-
   .row {
     display: flex;
     flex-wrap: wrap;
     margin-right: -15px;
     margin-left: -15px;
   }
-
   .incorrect {
     background-color: red;
     color: white;
   }
-
   .correct {
     background-color: green;
     color: white;
   }
-
   .rect-question {
     font-size: smaller;
     margin: 10px 10px 0 0;
@@ -138,21 +109,17 @@
     height: 20px;
     line-height: 20px;
   }
-
   .chart-container {
     width: 100%;
     margin: 20px auto;
   }
-
   .chart-container canvas {
     width: 100% !important;
     height: auto !important;
   }
-  
   .restart-btn-container {
     margin-top: 10px;
   }
-  
   .btn {
     display: inline-block;
     font-weight: 400;
@@ -168,20 +135,17 @@
     transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
     text-decoration: none;
   }
-  
   .btn-sm {
     padding: .25rem .5rem;
     font-size: .875rem;
     line-height: 1.5;
     border-radius: .2rem;
   }
-  
   .btn-warning {
     color: #212529;
     background-color: #ffc107;
     border-color: #ffc107;
   }
-  
   .btn-danger {
     color: #fff;
     background-color: #dc3545;
@@ -192,7 +156,6 @@
 
 {% block content %}
 <div class="mx-auto" style="width:90%;">
-  <!-- Overall Results Header -->
   <div data-v-27935a7a="" class="row mx-auto sat">
     <a data-v-27935a7a="" href="/practices" class="col-md-4 sat_left print_div">
       <p data-v-27935a7a="">SAT</p><span data-v-27935a7a="">®</span>
@@ -205,8 +168,7 @@
             <b data-v-27935a7a="">Total Score: </b>
             <b data-v-27935a7a="" style="color: var(--themeColor);">{{ score.total }}</b>
           </li>
-          <li data-v-27935a7a=""><b data-v-27935a7a="">Test Name: </b><span data-v-27935a7a="">{{ stats.test }}</span>
-          </li>
+          <li data-v-27935a7a=""><b data-v-27935a7a="">Test Name: </b><span data-v-27935a7a="">{{ stats.test }}</span></li>
         </ul>
       </div>
     </div>
@@ -215,18 +177,23 @@
         <a href="/sat/results/certificate/{{stats.test}}/" style="text-decoration:none; color:inherit; margin-left:10px;">
           <i class="fa fa-vcard" style="font-size: -webkit-xxx-large;"></i> Certificate
         </a>
-      </div>        
+      </div>
     </div>
   </div>
 
-  <!-- Overall Score Section -->
   <div data-v-049b5cac="" class="row mx-auto total">
     <div data-v-049b5cac="" class="col-md-6 col-sm-12 total_score print_div">
       {% if status.total %}
       <h4 data-v-049b5cac="" class="title"> Your Total Score </h4>
       <div data-v-049b5cac="" class="row total_above">
-        <p data-v-049b5cac="" class="col-xs-8 score"> {{score.total}}</p>
-        <p data-v-049b5cac="" class="col-xs-4 t_score"> 400 to 1600 </p>
+        <p data-v-049b5cac="" class="col-xs-8 score">{{ score.total }}</p>
+        <p data-v-049b5cac="" class="col-xs-4 t_score">
+          {% if test_mode == 'full' %}
+            400 to 1600
+          {% else %}
+            Partial Test
+          {% endif %}
+        </p>
       </div>
       <div class="restart-btn-container">
         <a href="{% url 'restart' pk=stats.test %}" class="btn btn-danger btn-sm">
@@ -239,34 +206,53 @@
     </div>
   </div>
 
-  <!-- Module Results Section -->
   <hr style="margin-top: 10px; margin-bottom: 30px;">
   <div class="row">
+    {% if has_english %}
     <div class="col-md-6">
       <div data-v-049b5cac="" class="col-md-10 col-sm-12 total_score print_div">
         <h4 data-v-049b5cac="" class="title"> Your English Score </h4>
         <div data-v-049b5cac="" class="row total_above">
-          <p data-v-049b5cac="" class="col-xs-8 score"> {{score.sections.english.score}} </p>
-          <p data-v-049b5cac="" class="col-xs-4 t_score"> {{score.sections.english.range.lower}} to
-            {{score.sections.english.range.upper}} </p>
+          <p data-v-049b5cac="" class="col-xs-8 score">
+            {% if score.sections.english.score %}
+              {{ score.sections.english.score }}
+            {% else %}
+              {{ score.sections.english }}
+            {% endif %}
+          </p>
+          {% if score.sections.english.range %}
+          <p data-v-049b5cac="" class="col-xs-4 t_score">
+            {{ score.sections.english.range.lower }} to {{ score.sections.english.range.upper }}
+          </p>
+          {% endif %}
         </div>
-        <!-- Add English Reset Button -->
         <div class="restart-btn-container">
           <a href="{% url 'restart_section' pk=stats.test section='english' %}" class="btn btn-warning btn-sm">
             <i class="fa fa-refresh"></i> Retake English Section
           </a>
         </div>
       </div>
-    </div>  
+    </div>
+    {% endif %}
+
+    {% if has_math %}
     <div class="col-md-6">
       <div data-v-049b5cac="" class="col-md-10 col-sm-12 total_score print_div">
         <h4 data-v-049b5cac="" class="title"> Your Mathematics Score </h4>
         <div data-v-049b5cac="" class="row total_above">
-          <p data-v-049b5cac="" class="col-xs-8 score"> {{score.sections.math.score}} </p>
-          <p data-v-049b5cac="" class="col-xs-4 t_score"> {{score.sections.math.range.lower}} to
-            {{score.sections.math.range.upper}} </p>
+          <p data-v-049b5cac="" class="col-xs-8 score">
+            {% if score.sections.math.score %}
+              {{ score.sections.math.score }}
+            {% else %}
+              {{ score.sections.math }}
+            {% endif %}
+          </p>
+          {% if score.sections.math.range %}
+          <p data-v-049b5cac="" class="col-xs-4 t_score">
+            {{ score.sections.math.range.lower }} to {{ score.sections.math.range.upper }}
+          </p>
+          {% endif %}
         </div>
-        <!-- Add Math Reset Button -->
         <div class="restart-btn-container">
           <a href="{% url 'restart_section' pk=stats.test section='math' %}" class="btn btn-warning btn-sm">
             <i class="fa fa-refresh"></i> Retake Math Section
@@ -274,10 +260,12 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
-   <hr style="margin-top: 10px; margin-bottom: 30px;">
+  <hr style="margin-top: 10px; margin-bottom: 30px;">
   <div class="row">
+    {% if has_english %}
     <div class="col-md-3">
       <h5>English Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -288,6 +276,7 @@
         {% endfor %}
       </div>
     </div>
+
     <div class="col-md-3">
       <h5>English Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -298,8 +287,9 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
 
-    <!-- Math Module 1 -->
+    {% if has_math %}
     <div class="col-md-3">
       <h5>Math Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -310,7 +300,7 @@
         {% endfor %}
       </div>
     </div>
-    <!-- Math Module 2 -->
+
     <div class="col-md-3">
       <h5>Math Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -321,11 +311,13 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
   </div>
 
-  <!-- Chart Section for Detailed Module Time Spent -->
   <div class="chart-container">
     <h4>Time Spent Per Question for Each Module</h4>
+
+    {% if has_english %}
     <div class="row" style="margin-bottom: 30px;">
       <div class="col-md-6">
         <h5>English Module 1</h5>
@@ -336,6 +328,9 @@
         <canvas id="chart-english-m2"></canvas>
       </div>
     </div>
+    {% endif %}
+
+    {% if has_math %}
     <div class="row">
       <div class="col-md-6">
         <h5>Math Module 1</h5>
@@ -346,26 +341,24 @@
         <canvas id="chart-math-m2"></canvas>
       </div>
     </div>
+    {% endif %}
   </div>
 
-  <!-- Include Chart.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    // For each module, build arrays of question numbers and time_spent
-
-    // English Module 1
+    {% if has_english %}
     var englishM1Labels = [
       {% for q in questions.english.m1 %}
-    "{{ q.number }}",
+      "{{ q.number }}",
       {% endfor %}
     ];
     var englishM1Time = [
       {% for q in questions.english.m1 %}
-    {{ q.time_spent }},
-    {% endfor %}
+      {{ q.time_spent }},
+      {% endfor %}
     ];
     var ctx1 = document.getElementById('chart-english-m1').getContext('2d');
-    var chartEnglishM1 = new Chart(ctx1, {
+    new Chart(ctx1, {
       type: 'bar',
       data: {
         labels: englishM1Labels,
@@ -383,19 +376,18 @@
       }
     });
 
-    // English Module 2
     var englishM2Labels = [
       {% for q in questions.english.m2 %}
-    "{{ q.number }}",
+      "{{ q.number }}",
       {% endfor %}
     ];
     var englishM2Time = [
       {% for q in questions.english.m2 %}
-    {{ q.time_spent }},
-    {% endfor %}
+      {{ q.time_spent }},
+      {% endfor %}
     ];
     var ctx2 = document.getElementById('chart-english-m2').getContext('2d');
-    var chartEnglishM2 = new Chart(ctx2, {
+    new Chart(ctx2, {
       type: 'bar',
       data: {
         labels: englishM2Labels,
@@ -412,20 +404,21 @@
         plugins: { title: { display: true, text: 'English Module 2' } }
       }
     });
+    {% endif %}
 
-    // Math Module 1
+    {% if has_math %}
     var mathM1Labels = [
       {% for q in questions.math.m1 %}
-    "{{ q.number }}",
+      "{{ q.number }}",
       {% endfor %}
     ];
     var mathM1Time = [
       {% for q in questions.math.m1 %}
-    {{ q.time_spent }},
-    {% endfor %}
+      {{ q.time_spent }},
+      {% endfor %}
     ];
     var ctx3 = document.getElementById('chart-math-m1').getContext('2d');
-    var chartMathM1 = new Chart(ctx3, {
+    new Chart(ctx3, {
       type: 'bar',
       data: {
         labels: mathM1Labels,
@@ -443,19 +436,18 @@
       }
     });
 
-    // Math Module 2
     var mathM2Labels = [
       {% for q in questions.math.m2 %}
-    "{{ q.number }}",
+      "{{ q.number }}",
       {% endfor %}
     ];
     var mathM2Time = [
       {% for q in questions.math.m2 %}
-    {{ q.time_spent }},
-    {% endfor %}
+      {{ q.time_spent }},
+      {% endfor %}
     ];
     var ctx4 = document.getElementById('chart-math-m2').getContext('2d');
-    var chartMathM2 = new Chart(ctx4, {
+    new Chart(ctx4, {
       type: 'bar',
       data: {
         labels: mathM2Labels,
@@ -472,5 +464,6 @@
         plugins: { title: { display: true, text: 'Math Module 2' } }
       }
     });
+    {% endif %}
   </script>
 {% endblock content %}
