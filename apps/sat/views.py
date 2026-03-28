@@ -316,18 +316,26 @@ def results(request, test):
 
 @login_required(login_url='/login/')
 def start_Practise(request, pk):
-    user_groups = request.user.groups.all()
-    test_qs = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
+    user = request.user
 
-    if is_member(request.user, ['Admin', 'Tester']):
+    # единая логика доступа: админ/стaff/суперюзер или группа Admin/Tester
+    is_admin_like = (
+        user.is_superuser
+        or user.is_staff
+        or is_member(user, ['Admin', 'Tester'])
+    )
+
+    if is_admin_like:
         test_qs = Test.objects.filter(name=pk)
-
-    if not test_qs.exists():
-        return HttpResponse(f"Test '{pk}' is not found or not assigned to your groups.", status=404)
+    else:
+        user_groups = user.groups.all()
+        test_qs = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
 
     test = test_qs.first()
+    if not test:
+        return HttpResponse(f"Test '{pk}' is not found or not assigned to your account.", status=404)
 
-    test_stage = TestStage.objects.filter(user=request.user, test=test)
+    test_stage = TestStage.objects.filter(user=user, test=test)
     if test_stage.exists():
         return redirect('test', pk=test.name)
 
