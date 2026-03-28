@@ -317,17 +317,21 @@ def results(request, test):
 @login_required(login_url='/login/')
 def start_Practise(request, pk):
     user_groups = request.user.groups.all()
-    test = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
+    test_qs = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
+
     if is_member(request.user, ['Admin', 'Tester']):
-        test = Test.objects.filter(name=pk)
+        test_qs = Test.objects.filter(name=pk)
 
-    test_stage = TestStage.objects.filter(user=request.user, test=test[0])
+    if not test_qs.exists():
+        return HttpResponse(f"Test '{pk}' is not found or not assigned to your groups.", status=404)
+
+    test = test_qs.first()
+
+    test_stage = TestStage.objects.filter(user=request.user, test=test)
     if test_stage.exists():
-        return redirect('test', pk=test[0])
+        return redirect('test', pk=test.name)
 
-    if test.exists():
-        return render(request, 'test/test_modules.html', {'test': test[0]})
-    return HttpResponse('Test is Not Found')
+    return render(request, 'test/test_modules.html', {'test': test})
 
 
 @login_required(login_url='/login/')
