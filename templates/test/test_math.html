@@ -426,9 +426,9 @@
                     writtenInput.addEventListener('input', function () {
                         let value = this.value;
                     
-                        // hard limit to 5 chars
-                        if (value.length > 5) {
-                            value = value.slice(0, 5);
+                        // hard limit to 6 chars
+                        if (value.length > 6) {
+                            value = value.slice(0, 6);
                         }
                     
                         this.value = value;
