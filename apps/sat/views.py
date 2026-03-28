@@ -470,7 +470,6 @@ def makeup_test_module(request, pk):
 
 
 @login_required(login_url='/login/')
-@login_required(login_url='/login/')
 def module_test(request, pk):
     user = request.user
     user_groups = request.user.groups.all()
