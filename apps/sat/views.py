@@ -17,6 +17,8 @@ from django.core.cache import cache
 from django.db.models import Q
 import json
 import random
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 
 def custom_round(number, base=0.4):
     if number % 1 >= base:
@@ -54,6 +56,31 @@ def restart(request, pk):
     return HttpResponse("you are not offline user")
 
 
+def normalize_written_value(value):
+    if value is None:
+        return None
+
+    value = str(value).strip().replace(' ', '')
+    if value == '':
+        return None
+
+    # normalize commas if user uses decimal comma
+    value = value.replace(',', '.')
+
+    # try fraction first: 6/2 == 3
+    if '/' in value:
+        try:
+            return Decimal(Fraction(value))
+        except Exception:
+            pass
+
+    # then regular numeric values: 3, 03, 3.0, +3
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError):
+        return value.lower()
+
+
 def check_written(response, answer):
     if response is None or answer is None:
         return False
@@ -64,17 +91,14 @@ def check_written(response, answer):
     if not response or not answer:
         return False
 
-    responses = response.replace(' ', '').split(',')
-    answers = answer.replace(' ', '').split(',')
+    response_options = [item.strip() for item in response.split(',') if item.strip()]
+    answer_options = [item.strip() for item in answer.split(',') if item.strip()]
 
-    responses = [item for item in responses if item != '']
-    answers = [item for item in answers if item != '']
+    normalized_responses = [normalize_written_value(item) for item in response_options]
+    normalized_answers = [normalize_written_value(item) for item in answer_options]
 
-    if not responses or not answers:
-        return False
-
-    for res in responses:
-        for ans in answers:
+    for res in normalized_responses:
+        for ans in normalized_answers:
             if res == ans:
                 return True
 
