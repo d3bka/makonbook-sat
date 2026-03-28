@@ -147,7 +147,11 @@ Makon Book
         {% for test in active_tests %}
           <div class="card practice-card">
             {% with test_num=test.name|slice:"3:"|cut:" " %}
+            {% if test_num|slugify == test_num and test_num|length < 4 %}
             <img src="{% static 'assets/img/tests/'|add:test_num|add:'.png' %}" alt="Test Image" class="test-logo" style="padding:6px;"/>
+            {% else %}
+            <img src="{% static 'assets/img/tests/minion.jpg' %}" alt="Test Image" class="test-logo" style="padding:6px;"/>
+            {% endif %}
             {% endwith %}
             <hr>
             <h3>{{ test.name }}</h3>
