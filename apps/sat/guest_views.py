@@ -18,7 +18,7 @@ from .models import (
 )
 
 # Используем существующую проверку written math из обычного SAT flow
-from .views import check_written, question
+from .views import *
 
 
 # =========================
@@ -79,41 +79,28 @@ def normalize_answer(value):
 
 def next_module_redirect_url(attempt, section, module):
     module = normalize_module_name(module)
-
-    order = [
-        ("english", "m1"),
-        ("english", "m2"),
-        ("math", "m1"),
-        ("math", "m2"),
-    ]
+    sequence = get_test_sequence(attempt.event.test)
 
     try:
-        index = order.index((section, module))
+        index = sequence.index((section, module))
     except ValueError:
         return None
 
-    if index == len(order) - 1:
+    if index == len(sequence) - 1:
         return reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
 
-    next_section, next_module = order[index + 1]
+    next_section, next_module = sequence[index + 1]
     module_param = "module_1" if next_module == "m1" else "module_2"
 
     base = reverse("global_event_attempt", kwargs={"guest_token": attempt.guest_token})
-    return f"{base}?section={next_section}&module={module_param}"
-
+    return f"{base}?section={next_section}&module={module_param}”
 
 def has_all_required_modules(attempt):
     modules = set(
         attempt.answers.values_list("section", "module").distinct()
     )
-    required = {
-        ("english", "m1"),
-        ("english", "m2"),
-        ("math", "m1"),
-        ("math", "m2"),
-    }
+    required = set(get_test_sequence(attempt.event.test))
     return required.issubset(modules)
-
 
 # =========================
 # Custom raw -> SAT equivalent converter
@@ -340,6 +327,14 @@ def start_global_event_view(request, slug):
         messages.error(request, "Invalid access code.")
         return redirect("global_event_detail", slug=slug)
 
+    sequence = get_test_sequence(event.test)
+    if not sequence:
+        messages.error(request, "This test has no valid sections.")
+        return redirect("global_event_detail", slug=slug)
+
+    first_section, first_module = sequence[0]
+    first_module_param = "module_1" if first_module == "m1" else "module_2"
+
     existing_attempt = GlobalEventAttempt.objects.filter(
         event=event,
         guest=guest
@@ -350,18 +345,34 @@ def start_global_event_view(request, slug):
             return redirect("global_event_result", guest_token=existing_attempt.guest_token)
 
         if existing_attempt.status == "in_progress" and event.allow_resume:
+            current_step = get_guest_current_step(existing_attempt)
+            if current_step is None:
+                return redirect("global_event_result", guest_token=existing_attempt.guest_token)
+
+            current_section, current_module = current_step
+            current_module_param = "module_1" if current_module == "m1" else "module_2"
+
             return redirect(
                 f"{reverse('global_event_attempt', kwargs={'guest_token': existing_attempt.guest_token})}"
-                f"?section=english&module=module_1"
+                f"?section={current_section}&module={current_module_param}"
             )
 
         messages.error(request, "Another attempt is not allowed.")
         return redirect("global_event_detail", slug=slug)
 
-    total_questions = (
-        English_Question.objects.filter(test=event.test).count() +
-        Math_Question.objects.filter(test=event.test).count()
-    )
+    total_questions = 0
+    for section, module in sequence:
+        module_db = module_query_name(module)
+        if section == "english":
+            total_questions += English_Question.objects.filter(
+                test=event.test,
+                module=module_db
+            ).count()
+        elif section == "math":
+            total_questions += Math_Question.objects.filter(
+                test=event.test,
+                module=module_db
+            ).count()
 
     attempt = GlobalEventAttempt.objects.create(
         event=event,
@@ -375,9 +386,8 @@ def start_global_event_view(request, slug):
 
     return redirect(
         f"{reverse('global_event_attempt', kwargs={'guest_token': attempt.guest_token})}"
-        f"?section=english&module=module_1"
+        f"?section={first_section}&module={first_module_param}"
     )
-
 
 @guest_required
 def global_event_attempt_view(request, guest_token):
@@ -399,9 +409,23 @@ def global_event_attempt_view(request, guest_token):
 
     test = attempt.event.test
 
-    section = request.GET.get("section", "english")
-    module = request.GET.get("module", "module_1")
+    current_step = get_guest_current_step(attempt)
+    if current_step is None:
+        return redirect("global_event_result", guest_token=attempt.guest_token)
+
+    default_section, default_module = current_step
+    default_module_param = "module_1" if default_module == "m1" else "module_2"
+
+    section = request.GET.get("section", default_section)
+    module = request.GET.get("module", default_module_param)
     module_db = module_query_name(module)
+    normalized_module = normalize_module_name(module)
+
+    valid_steps = set(get_test_sequence(test))
+    if (section, normalized_module) not in valid_steps:
+        section = default_section
+        module = default_module_param
+        module_db = module_query_name(module)
 
     if section == "english":
         questions = English_Question.objects.filter(
@@ -417,7 +441,7 @@ def global_event_attempt_view(request, guest_token):
             "section": section,
             "module": module,
             "time_left_seconds": attempt.time_left_seconds,
-            "custom_time_seconds": attempt.time_left_seconds,  # на случай старого шаблона
+            "custom_time_seconds": attempt.time_left_seconds,
         })
 
     elif section == "math":
@@ -450,11 +474,10 @@ def global_event_attempt_view(request, guest_token):
             "section": section,
             "module": module,
             "time_left_seconds": attempt.time_left_seconds,
-            "custom_time_seconds": attempt.time_left_seconds,  # на случай старого шаблона
+            "custom_time_seconds": attempt.time_left_seconds,
         })
 
     return redirect("global_event_detail", slug=attempt.event.slug)
-
 
 @guest_required
 def save_global_event_answer_view(request, guest_token):
@@ -549,6 +572,16 @@ def submit_global_event_view(request, guest_token):
     if not guest or attempt.guest_id != guest.id:
         return JsonResponse({"ok": False, "error": "Forbidden"}, status=403)
 
+    if attempt.status != "in_progress":
+        return JsonResponse({"ok": False, "error": "Attempt already closed"}, status=400)
+
+    if timezone.now() > attempt.expires_at:
+        auto_submit_attempt(attempt)
+        return JsonResponse({
+            "ok": True,
+            "redirect_url": reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
+        })
+
     try:
         payload = json.loads(request.body.decode("utf-8")) if request.body else {}
     except Exception:
@@ -557,29 +590,25 @@ def submit_global_event_view(request, guest_token):
     section = payload.get("section")
     module = normalize_module_name(payload.get("module"))
 
-    if section not in ["english", "math"] or module not in ["m1", "m2"]:
+    valid_steps = set(get_test_sequence(attempt.event.test))
+    if (section, module) not in valid_steps:
         return JsonResponse(
             {"ok": False, "error": f"Invalid section/module: {section} / {module}"},
             status=400
         )
 
-    # Только после math m2 закрываем весь тест и считаем total
-    if section == "math" and module == "m2":
-        finalize_attempt(attempt)
-        return JsonResponse({
-            "ok": True,
-            "redirect_url": reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
-        })
-
     redirect_url = next_module_redirect_url(attempt, section, module)
     if not redirect_url:
         return JsonResponse({"ok": False, "error": "Could not determine next step"}, status=400)
+
+    result_url = reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
+    if redirect_url == result_url:
+        finalize_attempt(attempt)
 
     return JsonResponse({
         "ok": True,
         "redirect_url": redirect_url
     })
-
 
 @guest_required
 def global_event_result_view(request, guest_token):
@@ -630,3 +659,29 @@ def global_event_leaderboard_view(request, slug):
         "event": event,
         "attempts": attempts,
     })
+
+def get_guest_current_step(attempt):
+    sequence = get_test_sequence(attempt.event.test)
+
+    if not sequence:
+        return None
+
+    # how many distinct section/module pairs already submitted
+    completed_pairs = []
+    for section, module in sequence:
+        has_answers = attempt.answers.filter(
+            section=section,
+            module=module
+        ).exclude(selected_answer__isnull=True).exclude(selected_answer='').exists()
+
+        if has_answers:
+            completed_pairs.append((section, module))
+        else:
+            break
+
+    next_index = len(completed_pairs)
+
+    if next_index >= len(sequence):
+        return None
+
+    return sequence[next_index]
