@@ -18,7 +18,7 @@ from .models import (
 )
 
 # Используем существующую проверку written math из обычного SAT flow
-from .views import check_written
+from .views import check_written, question
 
 
 # =========================
@@ -188,10 +188,13 @@ def calculate_attempt_breakdown(attempt):
 
         elif ans.section == "math":
             question = Math_Question.objects.filter(id=ans.question_id).first()
+            selected_answer = ans.selected_answer
+            correct_answer = question.answer
             if question:
                 is_correct = (
-                    ans.selected_answer is not None and
-                    check_written(str(ans.selected_answer), question.answer)
+                    selected_answer is not None
+                    and correct_answer is not None
+                    and check_written(selected_answer, correct_answer)
                 )
                 if is_correct:
                     math_raw += 1
