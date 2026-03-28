@@ -199,12 +199,54 @@ def check_the_answers(request):
             payload = json.loads(raw_body)
         except json.JSONDecodeError:
             payload = {}
+
     if not payload:
         payload = request.POST.dict()
 
     if not payload:
         return JsonResponse({'ok': False, 'error': 'Empty request payload.'}, status=400)
 
+    # ---------- CASE 1: full module submit ----------
+    if 'answers' in payload:
+        answers = payload.get('answers') or []
+        section = payload.get('section')
+        test_name = payload.get('test')
+        module = payload.get('module')
+
+        if not test_name or not section or not module:
+            return JsonResponse({'ok': False, 'error': 'test, section, and module are required.'}, status=400)
+
+        try:
+            test_obj = Test.objects.get(name=test_name)
+        except Test.DoesNotExist:
+            return JsonResponse({'ok': False, 'error': 'Test not found.'}, status=404)
+
+        if not isinstance(answers, list):
+            return JsonResponse({'ok': False, 'error': 'answers must be a list.'}, status=400)
+
+        module_obj, created = TestModule.objects.get_or_create(
+            user=request.user,
+            test=test_obj,
+            section=section,
+            module=module,
+            defaults={
+                'answers': json.dumps({'answers': answers})
+            }
+        )
+
+        if not created:
+            module_obj.answers = json.dumps({'answers': answers})
+            module_obj.save()
+
+        return JsonResponse({
+            'ok': True,
+            'saved': True,
+            'section': section,
+            'module': module,
+            'test': test_name,
+        })
+
+    # ---------- CASE 2: single answer check ----------
     question_id = payload.get('questionID') or payload.get('question_id') or payload.get('id')
     answer = payload.get('answer')
 
@@ -227,7 +269,11 @@ def check_the_answers(request):
         return JsonResponse({'ok': False, 'error': 'Question not found.'}, status=404)
 
     if section == 'english':
-        is_correct = (str(answer).strip() == str(question.answer).strip()) if answer not in [None, ''] and question.answer not in [None, ''] else False
+        is_correct = (
+            str(answer).strip() == str(question.answer).strip()
+            if answer not in [None, ''] and question.answer not in [None, '']
+            else False
+        )
     else:
         is_correct = check_written(answer, question.answer)
 
