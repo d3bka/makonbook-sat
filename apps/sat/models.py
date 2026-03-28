@@ -424,7 +424,7 @@ class TestStage(BaseModel):
         max_retakes = self.get_max_retakes()
         
         if self.retake_count < max_retakes:
-            self.stage = 0
+            self.stage = 1
             self.delete_related()
             self.retake_count += 1
             self.save()
@@ -480,11 +480,11 @@ class TestStage(BaseModel):
     def get_models(self):
         if self.test_type == 'regular' and self.test:
             section = 'english' if self.stage <= 2 else 'math'
-            module = 'm1' if self.stage in [1, 3] else 'm2'
+            module = 'm1' if self.stage in [0, 1, 3] else 'm2'
             return self.test, section, module
         elif self.test_type == 'makeup' and self.makeup_test:
             section = 'english' if self.stage <= 2 else 'math'
-            module = 'm1' if self.stage in [1, 3] else 'm2'
+            module = 'm1' if self.stage in [0, 1, 3] else 'm2'
             return self.makeup_test, section, module
 
     def __str__(self):
