@@ -93,7 +93,7 @@ def next_module_redirect_url(attempt, section, module):
     module_param = "module_1" if next_module == "m1" else "module_2"
 
     base = reverse("global_event_attempt", kwargs={"guest_token": attempt.guest_token})
-    return f"{base}?section={next_section}&module={module_param}”
+    return f"{base}?section={next_section}&module={module_param}"
 
 def has_all_required_modules(attempt):
     modules = set(
