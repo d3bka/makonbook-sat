@@ -81,6 +81,31 @@ def normalize_written_value(value):
         return value.lower()
 
 
+def _normalize_written_token(value):
+    if value is None:
+        return None
+
+    value = str(value).strip().replace(' ', '')
+    if value == '':
+        return None
+
+    # decimal comma support
+    value = value.replace(',', '.')
+
+    # fraction support: -3/1, 6/2, 1/2
+    if '/' in value:
+        try:
+            return Decimal(Fraction(value))
+        except Exception:
+            pass
+
+    # decimal / integer support
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError):
+        return value.lower()
+
+
 def check_written(response, answer):
     if response is None or answer is None:
         return False
@@ -94,8 +119,8 @@ def check_written(response, answer):
     response_options = [item.strip() for item in response.split(',') if item.strip()]
     answer_options = [item.strip() for item in answer.split(',') if item.strip()]
 
-    normalized_responses = [normalize_written_value(item) for item in response_options]
-    normalized_answers = [normalize_written_value(item) for item in answer_options]
+    normalized_responses = [_normalize_written_token(item) for item in response_options]
+    normalized_answers = [_normalize_written_token(item) for item in answer_options]
 
     for res in normalized_responses:
         for ans in normalized_answers:
