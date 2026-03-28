@@ -408,15 +408,25 @@
             const answersContainer = document.getElementById('answers');
 
             if (question.type === 'True') {
-                answersContainer.innerHTML = `
-                    <input
-                        type="text"
-                        id="written-answer"
-                        class="written-answer-input"
-                        value="${answers[index] || ''}"
-                        oninput="updateWrittenAnswer(this.value)"
-                    >
-                `;
+                answersContainer.innerHTML = 
+                `<input
+                    type="text"
+                    id="written-answer"
+                    class="written-answer-input"
+                    value="${answers[index] || ''}"
+                    oninput="updateWrittenAnswer(this.value)"
+                    >`;
+
+                const writtenInput = document.getElementById('written-answer');
+                if (writtenInput) {
+                    writtenInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            updateWrittenAnswer(this.value);
+                            nextQuestion();
+                        }
+                    });
+                }
             } else {
                 answersContainer.innerHTML = buildMultipleChoice(question, index);
 
@@ -583,25 +593,37 @@
         document.addEventListener('selectstart', event => event.preventDefault());
 
         document.addEventListener('keydown', event => {
+            if (
+                event.key === 'Enter' &&
+                event.target &&
+                event.target.classList &&
+                event.target.classList.contains('written-answer-input')
+            ) {
+                event.preventDefault();
+                updateWrittenAnswer(event.target.value);
+                nextQuestion();
+                return;
+            }
+        
             if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
                 return;
             }
-
+        
             if (event.key === 'F12') {
                 event.preventDefault();
                 return;
             }
-
+        
             if (isDesmosFocused()) {
                 return;
             }
-
+        
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 prevQuestion();
             }
-
+        
             if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 nextQuestion();
