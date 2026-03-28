@@ -95,15 +95,21 @@ def _normalize_written_token(value):
 
     value = value.replace(',', '.')
 
-    # fraction support
+    # fraction support, including forms like 10/-2 or -10/-2
     if '/' in value:
         try:
-            frac = Fraction(value)
-            return Decimal(frac.numerator) / Decimal(frac.denominator)
+            parts = value.split('/')
+            if len(parts) == 2:
+                numerator = Decimal(parts[0])
+                denominator = Decimal(parts[1])
+
+                if denominator == 0:
+                    return None
+
+                return numerator / denominator
         except Exception:
             pass
 
-    # decimal / integer support
     try:
         return Decimal(value)
     except (InvalidOperation, ValueError):
