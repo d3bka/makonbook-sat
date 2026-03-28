@@ -609,14 +609,23 @@
         document.addEventListener('selectstart', event => event.preventDefault());
 
         document.addEventListener('keydown', event => {
+            const target = event.target;
+            const isTypingField =
+                target &&
+                (
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable
+                );
+                
             if (
                 event.key === 'Enter' &&
-                event.target &&
-                event.target.classList &&
-                event.target.classList.contains('written-answer-input')
+                target &&
+                target.classList &&
+                target.classList.contains('written-answer-input')
             ) {
                 event.preventDefault();
-                updateWrittenAnswer(event.target.value);
+                updateWrittenAnswer(target.value);
                 nextQuestion();
                 return;
             }
@@ -635,14 +644,21 @@
                 return;
             }
         
+            // Do not hijack arrow keys while user is typing
+            if (isTypingField) {
+                return;
+            }
+        
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 prevQuestion();
+                return;
             }
         
             if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 nextQuestion();
+                return;
             }
         });
 
