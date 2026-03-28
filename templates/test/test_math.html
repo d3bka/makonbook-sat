@@ -409,16 +409,32 @@
 
             if (question.type === 'True') {
                 answersContainer.innerHTML = 
-                `<input
-                    type="text"
-                    id="written-answer"
-                    class="written-answer-input"
-                    value="${answers[index] || ''}"
-                    oninput="updateWrittenAnswer(this.value)"
-                    >`;
+                    `<input
+                        type="text"
+                        id="written-answer"
+                        class="written-answer-input"
+                        value="${answers[index] || ''}"
+                        maxlength="5"
+                        inputmode="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                `;
 
                 const writtenInput = document.getElementById('written-answer');
                 if (writtenInput) {
+                    writtenInput.addEventListener('input', function () {
+                        let value = this.value;
+                    
+                        // hard limit to 5 chars
+                        if (value.length > 5) {
+                            value = value.slice(0, 5);
+                        }
+                    
+                        this.value = value;
+                        updateWrittenAnswer(value);
+                    });
+                
                     writtenInput.addEventListener('keydown', function (event) {
                         if (event.key === 'Enter') {
                             event.preventDefault();
