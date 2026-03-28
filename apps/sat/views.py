@@ -186,42 +186,59 @@ def practice_tests(request):
 
     return render(request, 'sat/practice_tests.html', context)
 
+@login_required(login_url='/login/')
 def check_the_answers(request):
-    if request.method == "POST":
-        json_response = json.loads(request.body.decode('utf-8'))
-        test_type = json_response.get('test_type', 'regular')
-        
-        if test_type == 'regular':
-            test = Test.objects.get(name=json_response['test'])
-            makeup_test = None
-        elif test_type == 'makeup':
-            test = None
-            makeup_test = MakeupTest.objects.get(name=json_response['test'])
-        
-        section = json_response['section']
-        module = json_response['module']
-        
-        submission_data = request.body.decode('utf-8')
-        
-        # Use get_or_create to prevent race conditions and ensure no duplicates
-        test_module, created = TestModule.objects.get_or_create(
-            test=test,
-            makeup_test=makeup_test,
-            section=section,
-            module=module,
-            user=request.user,
-            test_type=test_type,
-            defaults={'answers': submission_data}
-        )
-        
-        # If the record already existed, update the answers
-        if not created:
-            test_module.answers = submission_data
-            test_module.save()
-        
-        return HttpResponse('200 success', status=200)
-    return HttpResponse('invalid call')
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST method required.'}, status=405)
 
+    payload = {}
+
+    raw_body = request.body.decode('utf-8', errors='ignore').strip()
+    if raw_body:
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            payload = {}
+    if not payload:
+        payload = request.POST.dict()
+
+    if not payload:
+        return JsonResponse({'ok': False, 'error': 'Empty request payload.'}, status=400)
+
+    question_id = payload.get('questionID') or payload.get('question_id') or payload.get('id')
+    answer = payload.get('answer')
+
+    if question_id in [None, '']:
+        return JsonResponse({'ok': False, 'error': 'questionID is required.'}, status=400)
+
+    try:
+        question_id = int(question_id)
+    except (TypeError, ValueError):
+        return JsonResponse({'ok': False, 'error': 'Invalid questionID.'}, status=400)
+
+    question = English_Question.objects.filter(id=question_id).first()
+    section = 'english'
+
+    if not question:
+        question = Math_Question.objects.filter(id=question_id).first()
+        section = 'math'
+
+    if not question:
+        return JsonResponse({'ok': False, 'error': 'Question not found.'}, status=404)
+
+    if section == 'english':
+        is_correct = (str(answer).strip() == str(question.answer).strip()) if answer not in [None, ''] and question.answer not in [None, ''] else False
+    else:
+        is_correct = check_written(answer, question.answer)
+
+    return JsonResponse({
+        'ok': True,
+        'questionID': question_id,
+        'is_correct': is_correct,
+        'correct_answer': question.answer,
+        'your_answer': answer,
+        'section': section,
+    })
 
 @login_required(login_url='login')
 def punishment(request, pk):
