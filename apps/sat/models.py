@@ -333,14 +333,27 @@ class TestModule(BaseModel):
 
     def find_answer(self, question_id):
         previous, now, future = '', '', ''
-        for item in json.loads(self.answers or '{"answers": []}')['answers']:
+        target_id = str(question_id)
+    
+        try:
+            payload = json.loads(self.answers or '{"answers": []}')
+            answers = payload.get('answers', [])
+        except Exception:
+            return previous, now, future
+    
+        for item in answers:
+            item_id = str(item.get('questionID', ''))
+    
             if now:
-                future = item['questionID']
+                future = item_id
                 break
-            if item['questionID'] == question_id:
-                now = item['answer']
+            
+            if item_id == target_id:
+                raw_answer = item.get('answer')
+                now = '' if raw_answer is None else str(raw_answer)
             else:
-                previous = item['questionID']
+                previous = item_id
+    
         return previous, now, future
 
     def __str__(self):

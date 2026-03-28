@@ -222,7 +222,7 @@
         <header>
             <a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
             <h1 style="color: green;">Answer: {{question.answer}}</h1>
-            <h1 style="color: gray;">Your Answer: {{answered}}</h1>
+            <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
         </header>
         <form class="fm" id="math-quiz-form" method="post" ">
             {% csrf_token %}
