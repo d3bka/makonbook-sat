@@ -1,3 +1,5 @@
+from urllib import request
+
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import *
 from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpResponseRedirect, Http404, JsonResponse
@@ -1734,51 +1736,46 @@ def update_student_practice_test_access(request, classroom_id, user_id):
     tests = Test.objects.all().distinct().order_by('name')
 
     if request.method == 'POST':
-        try:
-            access_mode = request.POST.get('access_mode', 'all')
-            selected_test_names = request.POST.getlist('tests')
+        access_mode = request.POST.get('access_mode', 'all')
+        selected_test_names = request.POST.getlist('tests')
 
-            access_map = get_membership_section_access_map(membership)
-            if not access_map.get('practice_tests'):
-                messages.error(request, "First enable Practice Tests section access for this student.")
-                return redirect(
-                    'update_student_practice_test_access',
-                    classroom_id=classroom.id,
-                    user_id=user_id
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('practice_tests'):
+            messages.error(request, "First enable Practice Tests section access for this student.")
+            return redirect(
+                'update_student_practice_test_access',
+                classroom_id=classroom.id,
+                user_id=user_id
+            )
+
+        StudentPracticeTestAccess.objects.filter(membership=membership).delete()
+
+        if access_mode == 'selected':
+            selected_tests = Test.objects.filter(pk__in=selected_test_names).distinct()
+
+            for test in selected_tests:
+                StudentPracticeTestAccess.objects.update_or_create(
+                    membership=membership,
+                    test=test,
+                    defaults={'has_access': True}
                 )
 
-            StudentPracticeTestAccess.objects.filter(membership=membership).delete()
-
-            if access_mode == 'selected':
-                selected_tests = Test.objects.filter(pk__in=selected_test_names).distinct()
-
-                for test in selected_tests:
-                    StudentPracticeTestAccess.objects.update_or_create(
-                        membership=membership,
-                        test=test,
-                        defaults={'has_access': True}
-                    )
-
-            messages.success(request, "Student practice test access updated successfully.")
-            return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
-
-        except Exception as e:
-            print("ERROR in update_student_practice_test_access:", repr(e))
-            raise
+        messages.success(request, "Student practice test access updated successfully.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     existing_items = StudentPracticeTestAccess.objects.filter(
         membership=membership,
         has_access=True
     )
 
-    selected_test_names = set(existing_items.values_list('test_id', flat=True))
+    selected_test_ids = set(existing_items.values_list('test_id', flat=True))
     access_mode = 'selected' if existing_items.exists() else 'all'
 
     return render(request, 'sat/update_student_practice_test_access.html', {
         'classroom': classroom,
         'membership': membership,
         'tests': tests,
-        'selected_test_names': selected_test_names,
+        'selected_test_ids': selected_test_ids,
         'access_mode': access_mode,
     })
 
@@ -2220,7 +2217,9 @@ def classroom_practice_tests(request, classroom_id):
             message="You do not have access to this classroom."
         )
 
-    if role == 'student':
+    if role == 'teacher':
+        tests = Test.objects.all().distinct().order_by('name')
+    elif role == 'student':
         access_map = get_membership_section_access_map(membership)
         if not access_map.get('practice_tests'):
             return classroom_access_denied(
@@ -2230,20 +2229,21 @@ def classroom_practice_tests(request, classroom_id):
             )
 
         tests = get_student_allowed_practice_tests_queryset(membership)
-
     else:
-        tests = Test.objects.all().distinct()
+        tests = Test.objects.none()
 
     def get_day_number(test):
         try:
-            name = test.name.strip().lower()
+            name = str(test.name).strip().lower()
             if name.startswith('day'):
-                return int(name.replace('day', '').strip())
+                digits = ''.join(ch for ch in name if ch.isdigit())
+                if digits:
+                    return int(digits)
             return 999999
         except Exception:
             return 999999
 
-    tests = sorted(tests, key=lambda t: (get_day_number(t), t.name))
+    tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
 
     context = {
         'active_tests': tests,
@@ -2251,8 +2251,10 @@ def classroom_practice_tests(request, classroom_id):
         'classroom': classroom,
         'is_teacher_view': role in ['teacher', 'admin'],
         'purchased': False,
+        'role': role,
+        'membership': membership,
+        'user': request.user,
     }
-
     return render(request, 'sat/practice_tests.html', context)
 
 
@@ -2904,16 +2906,17 @@ def create_vocabulary_question(request, unit_id):
     })
 
 def get_student_allowed_practice_tests_queryset(membership):
-    custom_access_items = StudentPracticeTestAccess.objects.filter(membership=membership)
-
-    if not custom_access_items.exists():
-        return Test.objects.all().distinct()
-
-    allowed_test_names = custom_access_items.filter(
+    custom_access_items = StudentPracticeTestAccess.objects.filter(
+        membership=membership,
         has_access=True
-    ).values_list('test_id', flat=True)
+    )
 
-    return Test.objects.filter(pk__in=allowed_test_names).distinct()
+    # Если teacher не выбирал specific tests, значит доступ ко всем
+    if not custom_access_items.exists():
+        return Test.objects.all().distinct().order_by('name')
+
+    allowed_test_ids = custom_access_items.values_list('test_id', flat=True)
+    return Test.objects.filter(pk__in=allowed_test_ids).distinct().order_by('name')
 
 def get_test_mode(test):
     has_english = English_Question.objects.filter(test=test).exists()
