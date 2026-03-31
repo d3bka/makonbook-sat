@@ -3117,7 +3117,8 @@ def classroom_module_test(request, classroom_id, pk):
             'module': module,
             'test': test,
             'section': section,
-            'custom_time_seconds': custom_time_seconds
+            'custom_time_seconds': custom_time_seconds,
+            'classroom': classroom,
         })
 
     if section == 'math':
@@ -3152,7 +3153,8 @@ def classroom_module_test(request, classroom_id, pk):
             'module': module,
             'test': test,
             'section': section,
-            'custom_time_seconds': custom_time_seconds
+            'custom_time_seconds': custom_time_seconds,
+            'classroom': classroom,
         })
 
     return HttpResponse("You dont have permission")
