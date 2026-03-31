@@ -1,3 +1,4 @@
+from multiprocessing import context
 from urllib import request
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -2250,7 +2251,9 @@ def classroom_practice_tests(request, classroom_id):
         'past_tests': [],
         'classroom': classroom,
         'is_teacher_view': role in ['teacher', 'admin'],
-        'purchased': False,
+        'purchased': True,
+        'active_lessons': [],
+        'past_lessons': [],
         'role': role,
         'membership': membership,
         'user': request.user,
@@ -2911,7 +2914,6 @@ def get_student_allowed_practice_tests_queryset(membership):
         has_access=True
     )
 
-    # Если teacher не выбирал specific tests, значит доступ ко всем
     if not custom_access_items.exists():
         return Test.objects.all().distinct().order_by('name')
 
@@ -2989,3 +2991,42 @@ def get_section_start_stage(test, section):
 
     return None
 
+@login_required(login_url='/login/')
+def classroom_start_practise(request, classroom_id, pk):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if role == 'teacher':
+        test = get_object_or_404(Test, name=pk)
+    elif role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('practice_tests'):
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Practice Tests."
+            )
+
+        allowed_tests = get_student_allowed_practice_tests_queryset(membership)
+        test = get_object_or_404(allowed_tests, name=pk)
+    else:
+        return HttpResponseForbidden("Access denied.")
+
+    test_stage = TestStage.objects.filter(user=request.user, test=test)
+    if test_stage.exists():
+        return redirect('test', pk=test.name)
+
+    return render(request, 'test/test_modules.html', {
+        'test': test,
+        'classroom': classroom,
+        'role': role,
+    })
