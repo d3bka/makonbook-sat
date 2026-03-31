@@ -916,7 +916,11 @@
             }).then(response => {
                 if (response.ok) {
                     clearProgress();
-                    window.location.href = `/sat/practise/${testName}/start`;
+                    {% if classroom %}
+                        window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
+                    {% else %}
+                        window.location.href = /sat/practise/${testName}/start;
+                    {% endif %}
                 }
             }).catch(error => console.error('Error submitting answers:', error));
         }

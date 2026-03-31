@@ -393,7 +393,11 @@
                 }).then(response => {
                     if (response.ok) {
                         clearProgress();
-                        window.location.href = '/sat/practise/{{ test }}/start';
+                        {% if classroom %}
+                            window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
+                        {% else %}
+                            window.location.href = "/sat/practise/{{ test }}/start";
+                        {% endif %}
                     }
                 });
             }
