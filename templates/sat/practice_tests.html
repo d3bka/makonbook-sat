@@ -156,13 +156,11 @@ Makon Book
             <hr>
             <h3>{{ test.name }}</h3>
             <div class="button-container">
-              <div class="button-container">
-                {% if classroom %}
-                  <a href="{% url 'classroom_practise' classroom.id test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
-                {% else %}
-                  <a href="{% url 'practise' test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
-                {% endif %}
-              </div>
+              {% if classroom %}
+                <a href="{% url 'classroom_practise' classroom.id test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
+              {% else %}
+                <a href="{% url 'practise' test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
+              {% endif %}
             </div>
           </div>
         {% endfor %}
