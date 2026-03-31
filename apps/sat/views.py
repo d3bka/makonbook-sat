@@ -22,6 +22,7 @@ import json
 import random
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
+from django.urls import reverse
 
 def custom_round(number, base=0.4):
     if number % 1 >= base:
@@ -3021,12 +3022,137 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
-    test_stage = TestStage.objects.filter(user=request.user, test=test)
-    if test_stage.exists():
-        return redirect('test', pk=test.name)
-
     return render(request, 'test/test_modules.html', {
         'test': test,
         'classroom': classroom,
         'role': role,
+        'start_url': reverse('classroom_test', kwargs={
+            'classroom_id': classroom.id,
+            'pk': test.name
+        })
     })
+
+@login_required(login_url='/login/')
+def classroom_module_test(request, classroom_id, pk):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if role == 'teacher':
+        test = get_object_or_404(Test, name=pk)
+    elif role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('practice_tests'):
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Practice Tests."
+            )
+
+        allowed_tests = get_student_allowed_practice_tests_queryset(membership)
+        test = get_object_or_404(allowed_tests, name=pk)
+    else:
+        return HttpResponseForbidden("Access denied.")
+
+    user = request.user
+    sequence = get_test_sequence(test)
+    if not sequence:
+        return HttpResponse('Questions are not found')
+
+    test_stage, created = TestStage.objects.get_or_create(
+        user=user,
+        test=test,
+        defaults={'stage': 1}
+    )
+
+    current_step = get_current_test_step(test_stage)
+    if current_step is None:
+        return redirect('results', test=test.name)
+
+    section, module = current_step
+
+    existing_module = TestModule.objects.filter(
+        test=test,
+        section=section,
+        module=module,
+        user=user
+    )
+
+    if existing_module.exists():
+        finished = advance_test_stage(test_stage)
+        if finished:
+            return redirect('results', test=test.name)
+        return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+
+    custom_time_seconds = None
+    if user.groups.filter(name='OFFLINE').exists():
+        profile, created = UserProfile.objects.get_or_create(user=user)
+        if section == 'english':
+            custom_time_seconds = profile.get_english_time_seconds()
+        elif section == 'math':
+            custom_time_seconds = profile.get_math_time_seconds()
+
+    if section == 'english':
+        questions = English_Question.objects.filter(
+            test=test,
+            module=f'module_{module[1]}'
+        ).order_by('number')
+
+        if not questions.exists():
+            finished = advance_test_stage(test_stage)
+            if finished:
+                return redirect('results', test=test.name)
+            return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+
+        return render(request, 'test/test_eng.html', {
+            'questions': questions,
+            'module': module,
+            'test': test,
+            'section': section,
+            'custom_time_seconds': custom_time_seconds
+        })
+
+    if section == 'math':
+        questions = Math_Question.objects.filter(
+            test=test,
+            module=f'module_{module[1]}'
+        ).order_by('number')
+
+        if not questions.exists():
+            finished = advance_test_stage(test_stage)
+            if finished:
+                return redirect('results', test=test.name)
+            return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+
+        questions_data = []
+        for q in questions:
+            questions_data.append({
+                "id": q.id,
+                "passage": q.passage or "",
+                "number": q.number,
+                "question": q.question or "",
+                "a": q.get_a() if hasattr(q, "get_a") else "",
+                "b": q.get_b() if hasattr(q, "get_b") else "",
+                "c": q.get_c() if hasattr(q, "get_c") else "",
+                "d": q.get_d() if hasattr(q, "get_d") else "",
+                "type": str(q.written),
+                "graph": q.get_graph() if hasattr(q, "get_graph") else "",
+            })
+        return render(request, 'test/test_math.html', {
+            'questions': questions,
+            'questions_data': questions_data,
+            'module': module,
+            'test': test,
+            'section': section,
+            'custom_time_seconds': custom_time_seconds
+        })
+
+    return HttpResponse("You dont have permission")
