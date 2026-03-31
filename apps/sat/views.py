@@ -2219,7 +2219,7 @@ def classroom_practice_tests(request, classroom_id):
             message="You do not have access to this classroom."
         )
 
-    if role == 'teacher':
+    if role in ['teacher', 'admin']:
         tests = Test.objects.all().distinct().order_by('name')
     elif role == 'student':
         access_map = get_membership_section_access_map(membership)
@@ -3006,7 +3006,7 @@ def classroom_start_practise(request, classroom_id, pk):
             message="You do not have access to this classroom."
         )
 
-    if role == 'teacher':
+    if role in ['teacher', 'admin']:
         test = get_object_or_404(Test, name=pk)
     elif role == 'student':
         access_map = get_membership_section_access_map(membership)
@@ -3046,7 +3046,7 @@ def classroom_module_test(request, classroom_id, pk):
             message="You do not have access to this classroom."
         )
 
-    if role == 'teacher':
+    if role in ['teacher', 'admin']:
         test = get_object_or_404(Test, name=pk)
     elif role == 'student':
         access_map = get_membership_section_access_map(membership)
