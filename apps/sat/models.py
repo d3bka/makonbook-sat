@@ -427,24 +427,51 @@ class TestStage(BaseModel):
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default='regular')
 
     def get_max_retakes(self):
-        """Get maximum retakes allowed for this user based on their group."""
         if self.user.groups.filter(name='OFFLINE').exists():
             return 4
         return 2
 
+    def invalidate_review(self):
+        """
+        Do not delete review on retake.
+        Mark it unavailable while a new attempt is in progress.
+        """
+        reviews = TestReview.objects.filter(test=self.test, user=self.user)
+        for review in reviews:
+            review.score = None
+            review.certificate = ''
+            review.save(update_fields=['score', 'certificate'])
+
+    def delete_modules(self, section=None):
+        modules = TestModule.objects.filter(test=self.test, user=self.user)
+        if section:
+            modules = modules.filter(section=section)
+        modules.delete()
+
     def resolve(self):
-        """Reset the test if retakes are available."""
+        """
+        Full retake.
+        Keep review object, but invalidate it.
+        """
         max_retakes = self.get_max_retakes()
-        
+
         if self.retake_count < max_retakes:
             self.stage = 1
-            self.delete_related()
+            self.delete_modules()
+            self.invalidate_review()
             self.retake_count += 1
-            self.save()
+            self.save(update_fields=['stage', 'retake_count'])
             return True
         return False
 
     def resolve_section(self, section):
+        """
+        Section retake.
+        Also invalidates review, because old review is no longer trustworthy.
+        """
+        max_retakes = self.get_max_retakes()
+        if self.retake_count >= max_retakes:
+            return False
 
         has_english = English_Question.objects.filter(test=self.test).exists()
         has_math = Math_Question.objects.filter(test=self.test).exists()
@@ -478,26 +505,18 @@ class TestStage(BaseModel):
         if start_stage is None:
             return False
 
-        modules_to_delete = TestModule.objects.filter(
-            test=self.test,
-            user=self.user,
-            section=section
-        )
-        for module_obj in modules_to_delete:
-            module_obj.delete()
-
+        self.delete_modules(section=section)
+        self.invalidate_review()
         self.stage = start_stage
-        self.save()
+        self.retake_count += 1
+        self.save(update_fields=['stage', 'retake_count'])
         return True
 
-
     def get_retakes_remaining(self):
-        """Get number of retakes remaining for this user."""
         max_retakes = self.get_max_retakes()
         return max_retakes - self.retake_count
 
     def next_stage(self):
-
         has_english = English_Question.objects.filter(test=self.test).exists()
         has_math = Math_Question.objects.filter(test=self.test).exists()
 
@@ -518,20 +537,18 @@ class TestStage(BaseModel):
         self.save()
         return False
 
-
     def delete_related(self):
-        all_modules = TestModule.objects.filter(test=self.test, user=self.user)
-        for module in all_modules:
-            module.delete()
-        all_review = TestReview.objects.filter(test=self.test, user=self.user)
-        for review in all_review:
-            review.delete()
+        """
+        Real cleanup when stage itself is deleted.
+        Here review can still be deleted.
+        """
+        self.delete_modules()
+        TestReview.objects.filter(test=self.test, user=self.user).delete()
 
     def get_models(self):
-    
         has_english = English_Question.objects.filter(test=self.test).exists()
         has_math = Math_Question.objects.filter(test=self.test).exists()
-    
+
         if has_english and has_math:
             sequence = [
                 ('english', 'm1'),
@@ -551,19 +568,12 @@ class TestStage(BaseModel):
             ]
         else:
             return None, None, None
-    
+
         if self.stage < 1 or self.stage > len(sequence):
             return self.test, None, None
-    
+
         section, module = sequence[self.stage - 1]
         return self.test, section, module
-
-
-    def __str__(self):
-        return f'{self.user}->{self.test}'
-
-    class Meta:
-        unique_together = ('user', 'test')
 
 # Lesson packages and lessons
 class LessonPackage(BaseModel):
