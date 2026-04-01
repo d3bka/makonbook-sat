@@ -1,0 +1,243 @@
+.sat-editor-shell {
+    margin-top: 8px;
+    margin-bottom: 18px;
+}
+
+.sat-editor-textarea,
+textarea.sat-editor-textarea,
+textarea[data-sat-editor="1"] {
+    width: 95%;
+    min-height: 88px;
+    resize: vertical;
+    font-size: 14px;
+    line-height: 1.5;
+    border-radius: 10px;
+    border: 1px solid #c7ced6 !important;
+    padding: 12px 14px;
+    background: #ffffff !important;
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    caret-color: #111827 !important;
+    box-sizing: border-box;
+    opacity: 1 !important;
+}
+
+.sat-editor-textarea::placeholder,
+textarea.sat-editor-textarea::placeholder,
+textarea[data-sat-editor="1"]::placeholder {
+    color: #6b7280 !important;
+    opacity: 1 !important;
+}
+
+.sat-editor-textarea:focus,
+textarea.sat-editor-textarea:focus,
+textarea[data-sat-editor="1"]:focus {
+    color: #111827 !important;
+    background: #ffffff !important;
+    border-color: #6b7ee6 !important;
+    box-shadow: 0 0 0 2px rgba(107, 126, 230, 0.12) !important;
+    outline: none !important;
+}
+
+.sat-editor-keyboard {
+    width: 95%;
+    margin-top: 10px;
+    border: 1px solid #d9e1ea;
+    border-radius: 12px;
+    background: #f8fafc;
+    overflow: hidden;
+    position: relative;
+}
+
+.sat-editor-keyboard__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5ebf2;
+    background: #eef3f9;
+}
+
+.sat-editor-keyboard__label {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.sat-editor-keyboard__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sat-editor-header-btn,
+.sat-editor-menu-toggle,
+.sat-editor-section-btn,
+.sat-editor-key {
+    appearance: none;
+    border: 1px solid #c9d1da;
+    background: #ffffff;
+    color: #111827;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.sat-editor-header-btn,
+.sat-editor-menu-toggle,
+.sat-editor-section-btn {
+    padding: 7px 10px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+.sat-editor-menu-toggle {
+    min-width: 38px;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 5px 10px 7px;
+}
+
+.sat-editor-header-btn:hover,
+.sat-editor-header-btn:focus,
+.sat-editor-menu-toggle:hover,
+.sat-editor-menu-toggle:focus,
+.sat-editor-section-btn:hover,
+.sat-editor-section-btn:focus,
+.sat-editor-key:hover,
+.sat-editor-key:focus {
+    border-color: #6b7ee6;
+    box-shadow: 0 0 0 2px rgba(107, 126, 230, 0.12);
+    outline: none;
+}
+
+.sat-editor-sections {
+    position: absolute;
+    top: 54px;
+    right: 12px;
+    z-index: 20;
+    min-width: 170px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid #d9e1ea;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+}
+
+.sat-editor-keyboard.is-menu-open .sat-editor-sections {
+    display: flex;
+}
+
+.sat-editor-section-btn {
+    text-align: left;
+}
+
+.sat-editor-section-btn.is-active {
+    background: #eaf0ff;
+    border-color: #6b7ee6;
+    color: #3147c5;
+    font-weight: 700;
+}
+
+.sat-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+    gap: 8px;
+    padding: 12px;
+}
+
+.sat-editor-key {
+    min-height: 40px;
+    padding: 8px 6px;
+    font-size: 15px;
+    line-height: 1.15;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.sat-editor-hint {
+    width: 95%;
+    color: #5b6472;
+    font-size: 12px;
+    margin: 8px 0;
+}
+
+.sat-editor-hint code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #eef2f7;
+    color: #111827;
+}
+
+.sat-editor-preview {
+    width: 95%;
+    border: 1px solid #d9dfe6;
+    border-radius: 10px;
+    background: #f9fbfd;
+    overflow: hidden;
+}
+
+.sat-editor-preview,
+.sat-editor-preview__title,
+.sat-editor-preview__body {
+    color: #111827 !important;
+}
+
+.sat-editor-preview__title {
+    padding: 9px 12px;
+    font-weight: 700;
+    border-bottom: 1px solid #e3e8ef;
+    background: #f2f6fb !important;
+}
+
+.sat-editor-preview__body {
+    padding: 14px 12px;
+    min-height: 54px;
+    line-height: 1.55;
+    word-break: break-word;
+    background: #ffffff;
+}
+
+.sat-editor-preview__empty {
+    color: #718096;
+}
+
+.sat-editor-preview__error {
+    margin-top: 10px;
+    color: #b91c1c;
+    font-size: 12px;
+}
+
+@media (max-width: 768px) {
+    .sat-editor-textarea,
+    textarea.sat-editor-textarea,
+    textarea[data-sat-editor="1"],
+    .sat-editor-keyboard,
+    .sat-editor-preview,
+    .sat-editor-hint {
+        width: 100%;
+    }
+
+    .sat-editor-keyboard__header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sat-editor-keyboard__actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .sat-editor-sections {
+        left: 12px;
+        right: 12px;
+        top: 92px;
+        min-width: 0;
+    }
+
+    .sat-editor-grid {
+        grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    }
+}
