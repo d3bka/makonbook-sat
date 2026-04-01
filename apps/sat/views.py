@@ -23,6 +23,7 @@ import random
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from django.urls import reverse
+from django.db import close_old_connections
 
 def custom_round(number, base=0.4):
     if number % 1 >= base:
@@ -32,32 +33,36 @@ def custom_round(number, base=0.4):
 
 
 def restart(request, pk):
-    user = request.user        
-    test = Test.objects.filter(name=pk)[0]
+    close_old_connections()
+    user = request.user
+    test = Test.objects.filter(name=pk).first()
 
-    if is_member(user, ['OFFLINE', 'Admin']):
-        stage = TestStage.objects.filter(user=user, test=test)[0]
-        review = TestReview.objects.filter(user=user, test=test)[0]
-        review.score = None
-        review.save()
-        response = stage.resolve()
-        if response:
-            return render(request, 'sat/restart_success.html', {
-                'test_name': pk,
-                'section': None
-            })
-        else:
-            # Get user group name for display
-            user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
-            
-            return render(request, 'sat/retake_limit_exceeded.html', {
-                'test_name': pk,
-                'section': None,
-                'retakes_used': stage.retake_count,
-                'max_retakes': stage.get_max_retakes(),
-                'user_group': user_group
-            })
-    return HttpResponse("you are not offline user")
+    if not test:
+        return HttpResponse("Test not found")
+
+    if not is_member(user, ['OFFLINE', 'Admin']):
+        return HttpResponse("you are not offline user")
+
+    stage = TestStage.objects.filter(user=user, test=test).first()
+    if not stage:
+        return HttpResponse("Test stage not found")
+
+    response = stage.resolve()
+    if response:
+        return render(request, 'sat/restart_success.html', {
+            'test_name': pk,
+            'section': None
+        })
+    else:
+        user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
+
+        return render(request, 'sat/retake_limit_exceeded.html', {
+            'test_name': pk,
+            'section': None,
+            'retakes_used': stage.retake_count,
+            'max_retakes': stage.get_max_retakes(),
+            'user_group': user_group
+        })
 
 
 def normalize_written_value(value):
@@ -537,45 +542,76 @@ def start_Practise(request, pk):
 
 @login_required(login_url='/login/')
 def question(request, key, section, module, id):
-    try:
-        group = Group.objects.get(name='OFFLINE')
-    except Group.DoesNotExist:
-        # If OFFLINE group doesn't exist, create it
-        group = Group.objects.create(name='OFFLINE')
-    try:
-        test = TestReview.objects.get(key=key)
-        if not test.is_active():
-            # Check if user is not in OFFLINE or Admin groups
-            if not (group in request.user.groups.all() or request.user.groups.filter(name='Admin').exists()):
-                # Format dates for display
-                review_started = test.created_at.strftime('%B %d, %Y at %I:%M %p')
-                review_duration = str(test.duration)
-                expired_time = (test.created_at + test.duration).strftime('%B %d, %Y at %I:%M %p')
-                
-                return render(request, 'sat/review_time_over.html', {
-                    'test_name': test.test.name if test.test else (test.makeup_test.name if test.makeup_test else 'Unknown'),
-                    'review_started': review_started,
-                    'review_duration': review_duration,
-                    'expired_time': expired_time
-                })
-    except:
-        return HttpResponse('Invalid Key')
-    prev, answer, new = TestModule.objects.get(test=test.test, user=test.user, section=section, module=module).find_answer(question_id=id)
+    group, _ = Group.objects.get_or_create(name='OFFLINE')
+
+    review = TestReview.objects.filter(key=key).select_related('user', 'test', 'makeup_test').first()
+    if not review:
+        return HttpResponse('This review is no longer available. A new retake may already be in progress.')
+
+    # Owner/admin/offline check
+    if request.user != review.user and not request.user.groups.filter(name='Admin').exists():
+        return HttpResponseForbidden("You do not have permission to view this review.")
+
+    if not review.is_active():
+        if not (group in request.user.groups.all() or request.user.groups.filter(name='Admin').exists()):
+            review_started = review.created_at.strftime('%B %d, %Y at %I:%M %p')
+            review_duration = str(review.duration)
+            expired_time = (review.created_at + review.duration).strftime('%B %d, %Y at %I:%M %p')
+
+            return render(request, 'sat/review_time_over.html', {
+                'test_name': review.test.name if review.test else (review.makeup_test.name if review.makeup_test else 'Unknown'),
+                'review_started': review_started,
+                'review_duration': review_duration,
+                'expired_time': expired_time
+            })
+
+    # Review exists, but was invalidated because retake has started
+    if review.score is None:
+        if request.user == review.user and review.test:
+            return redirect('test', pk=review.test.name)
+        return HttpResponse('Review is unavailable because a retake is currently in progress.')
+
+    module_obj = TestModule.objects.filter(
+        test=review.test,
+        user=review.user,
+        section=section,
+        module=module
+    ).first()
+
+    if not module_obj:
+        if request.user == review.user and review.test:
+            return redirect('test', pk=review.test.name)
+        return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
+
+    prev, answer, new = module_obj.find_answer(question_id=id)
     prev = f'/sat/question/{key}/{section}/{module}/{prev}' if prev else ''
     new = f'/sat/question/{key}/{section}/{module}/{new}' if new else ''
+
     if section == 'english':
-        try:
-            question = English_Question.objects.filter(id=id)[0]
-        except:
+        question = English_Question.objects.filter(id=id).first()
+        if not question:
             return HttpResponse('Question is not found!')
-        return render(request, 'test/review/test_eng.html', {'question': question, 'answered': answer, 'prev': prev, 'next': new, 'test': test.test})
+        return render(request, 'test/review/test_eng.html', {
+            'question': question,
+            'answered': answer,
+            'prev': prev,
+            'next': new,
+            'test': review.test
+        })
 
     if section == 'math':
-        try:
-            question = Math_Question.objects.filter(id=id)[0]
-        except:
+        question = Math_Question.objects.filter(id=id).first()
+        if not question:
             return HttpResponse('Question is not found!')
-        return render(request, 'test/review/test_math.html', {'question': question, 'answered': answer, 'prev': prev, 'next': new, 'test': test.test})
+        return render(request, 'test/review/test_math.html', {
+            'question': question,
+            'answered': answer,
+            'prev': prev,
+            'next': new,
+            'test': review.test
+        })
+
+    return HttpResponse('Invalid section')
 
 
 def clear(request, module, test, section):
@@ -1362,40 +1398,36 @@ def enter_secret_code(request):
 
 @login_required(login_url='login')
 def restart_section(request, pk, section):
+    close_old_connections()
     user = request.user
     test = Test.objects.filter(name=pk).first()
 
     if not test:
         return HttpResponse("Test not found")
 
-    if is_member(user, ['OFFLINE', 'Admin']):
-        stage = TestStage.objects.filter(user=user, test=test).first()
-        if not stage:
-            return HttpResponse("Test stage not found")
+    if not is_member(user, ['OFFLINE', 'Admin']):
+        return HttpResponse("You do not have permission to restart sections")
 
-        response = stage.resolve_section(section)
-        if response:
-            testreview = TestReview.objects.filter(user=user, test=test).first()
-            if testreview:
-                testreview.score = None
-                testreview.save()
+    stage = TestStage.objects.filter(user=user, test=test).first()
+    if not stage:
+        return HttpResponse("Test stage not found")
 
-            return render(request, 'sat/restart_success.html', {
-                'test_name': pk,
-                'section': section
-            })
-        else:
-            user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
+    response = stage.resolve_section(section)
+    if response:
+        return render(request, 'sat/restart_success.html', {
+            'test_name': pk,
+            'section': section
+        })
+    else:
+        user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
 
-            return render(request, 'sat/retake_limit_exceeded.html', {
-                'test_name': pk,
-                'section': section,
-                'retakes_used': stage.retake_count,
-                'max_retakes': stage.get_max_retakes(),
-                'user_group': user_group
-            })
-
-    return HttpResponse("You do not have permission to restart sections")
+        return render(request, 'sat/retake_limit_exceeded.html', {
+            'test_name': pk,
+            'section': section,
+            'retakes_used': stage.retake_count,
+            'max_retakes': stage.get_max_retakes(),
+            'user_group': user_group
+        })
 
 
 @login_required(login_url='/login/')
