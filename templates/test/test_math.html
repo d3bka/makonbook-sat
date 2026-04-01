@@ -132,6 +132,7 @@
         .katex {
             font-size: 1.5em;
         }
+
         .choice-image {
             max-width: 100%;
             max-height: 180px;
@@ -160,7 +161,6 @@
             width: min(460px, 100%);
             height: 100vh;
             background: #fff;
-            border-radius: 0;
             overflow: hidden;
             box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
             animation: referenceSlideIn 0.18s ease;
@@ -222,7 +222,6 @@
             border-radius: 12px;
             padding: 14px 16px;
             border: 1px solid #e5e7eb;
-            box-shadow: none;
         }
 
         .reference-card h3 {
@@ -277,17 +276,17 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
-        
+
             .reference-figure {
                 width: 100%;
                 min-width: 0;
                 justify-content: flex-start;
             }
-        
+
             .reference-header {
                 font-size: 18px;
             }
-        
+
             .formula {
                 font-size: 17px;
             }
@@ -305,11 +304,11 @@
                 <div id="open-reference" style="align-content:center; cursor:pointer;" title="Reference Sheet">
                     <i class="fa fa-book" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
                 </div>
-            
+
                 <div id="open-calculator" style="align-content:center; cursor:pointer;" title="Calculator">
                     <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
                 </div>
-            
+
                 <a href="/" style="text-decoration:none;" title="Home">
                     <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
                 </a>
@@ -606,8 +605,8 @@
                 pos2 = pos4 - e.clientY;
                 pos3 = e.clientX;
                 pos4 = e.clientY;
-                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                elmnt.style.top = (elmnt.offsetTop - pos2) + 'px';
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + 'px';
             }
 
             function closeDragElement() {
@@ -672,40 +671,56 @@
         function buildChoice(letter, content, index) {
             const checked = answers[index] === letter ? 'checked' : '';
             const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
-                
+            const inputId = `answer-${index}-${letter}`;
+
             let renderedContent = content || '';
-                
+
             if (typeof renderedContent === 'string' && renderedContent.startsWith('IMAGE:')) {
                 const imageUrl = renderedContent.slice(6);
                 renderedContent = `<img class="choice-image" src="${imageUrl}" alt="Choice ${letter}">`;
             } else {
                 renderedContent = fixLatex(renderedContent);
             }
-        
+
             return `
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" name="answer" value="${letter}" ${checked}>
-                        <label class='mark' data-letter="${letter}"></label>
-                        <label class="choice-${letter.toLowerCase()}">${renderedContent}</label>
+                <div class="big-container">
+                    <input
+                        class="choice-input"
+                        type="radio"
+                        id="${inputId}"
+                        name="answer"
+                        value="${letter}"
+                        ${checked}
+                    >
+
+                    <label class="choice-container" for="${inputId}">
+                        <span class="mark" data-letter="${letter}"></span>
+                        <span class="choice-content">${renderedContent}</span>
                     </label>
+
                     <hr class="cross-line ${letter}zone ${isEliminated}">
-                    <div class="crossing-zone ${eliminateOptions ? 'active' : ''}" onclick='eliminate("${letter}", ${index})'>
-                        <div class="cross-label">${letter}</div>
-                        <hr class="cross-btn-line">
-                    </div>
+
+                    <button
+                        type="button"
+                        class="crossing-zone ${eliminateOptions ? 'active' : ''}"
+                        data-letter="${letter}"
+                        data-index="${index}"
+                        aria-label="Eliminate choice ${letter}"
+                    >
+                        <span class="cross-label">${letter}</span>
+                        <span class="cross-btn-line"></span>
+                    </button>
                 </div>
             `;
         }
 
-                        
         function loadQuestion(index) {
             currentQuestionIndex = index;
             const question = questions[index];
 
-            document.getElementById("currentQuestionIndex").textContent = index + 1;
-            document.getElementById("totalQuestions").textContent = questions.length;
-            document.querySelector(".question-number").innerText = question.number;
+            document.getElementById('currentQuestionIndex').textContent = index + 1;
+            document.getElementById('totalQuestions').textContent = questions.length;
+            document.querySelector('.question-number').innerText = question.number;
 
             document.getElementById('passage').innerHTML = fixLatex(question.passage);
             document.getElementById('question-text').innerHTML = fixLatex(question.question);
@@ -718,8 +733,8 @@
             const answersContainer = document.getElementById('answers');
 
             if (question.type === 'True') {
-                answersContainer.innerHTML = 
-                    `<input
+                answersContainer.innerHTML = `
+                    <input
                         type="text"
                         id="written-answer"
                         class="written-answer-input"
@@ -735,16 +750,13 @@
                 if (writtenInput) {
                     writtenInput.addEventListener('input', function () {
                         let value = this.value;
-                    
-                        // hard limit to 6 chars
                         if (value.length > 6) {
                             value = value.slice(0, 6);
                         }
-                    
                         this.value = value;
                         updateWrittenAnswer(value);
                     });
-                
+
                     writtenInput.addEventListener('keydown', function (event) {
                         if (event.key === 'Enter') {
                             event.preventDefault();
@@ -756,11 +768,23 @@
             } else {
                 answersContainer.innerHTML = buildMultipleChoice(question, index);
 
-                document.querySelectorAll('input[name="answer"]').forEach((input) => {
+                answersContainer.querySelectorAll('.choice-input').forEach((input) => {
                     input.addEventListener('change', (event) => {
                         answers[currentQuestionIndex] = event.target.value;
                         saveProgress();
                         updateAnsweredStatus();
+                    });
+                });
+
+                answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (!eliminateOptions) return;
+
+                        const letter = button.dataset.letter;
+                        eliminate(letter, currentQuestionIndex);
                     });
                 });
             }
@@ -772,9 +796,30 @@
         }
 
         function updateNavigationButtons() {
-            document.getElementById("backButton").style.display = currentQuestionIndex === 0 ? "none" : "inline-block";
-            document.getElementById("nextButton").style.display = currentQuestionIndex === questions.length - 1 ? "none" : "inline-block";
-            document.getElementById("finishButton").style.display = currentQuestionIndex === questions.length - 1 ? "inline-block" : "none";
+            const backButton = document.getElementById('backButton');
+            const nextButton = document.getElementById('nextButton');
+            const finishButton = document.getElementById('finishButton');
+
+            if (questions.length <= 1) {
+                backButton.style.display = 'none';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
+                return;
+            }
+
+            if (currentQuestionIndex === 0) {
+                backButton.style.display = 'none';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
+            } else if (currentQuestionIndex === questions.length - 1) {
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
+            } else {
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
+            }
         }
 
         function updateWrittenAnswer(value) {
@@ -839,8 +884,8 @@
         }
 
         function toggleQuestionModal() {
-            const modal = document.getElementById("questionModal");
-            modal.style.display = modal.style.display === "block" ? "none" : "block";
+            const modal = document.getElementById('questionModal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
         }
 
         function closeCalculator() {
@@ -888,46 +933,52 @@
             }
         }
 
-        function finishTest(force = false) {
-            const confirmed = force || confirm("Are you sure you want to finish the test? Make sure you are ready.");
+        async function finishTest(force = false) {
+            const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
             if (!confirmed) return;
 
             const form = document.getElementById('math-quiz-form');
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             const answerData = answers.map((answer, index) => ({
-                questionID: questions[index] ? questions[index].id : 'default',
+                questionID: questions[index] ? questions[index].id : null,
                 answer: answer,
                 time_spent: timeSpent[index]
             }));
 
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        answers: answerData,
+                        section: sectionName,
+                        test: testName,
+                        module: moduleName
+                    })
+                });
 
-            fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    answers: answerData,
-                    section: sectionName,
-                    test: testName,
-                    module: moduleName
-                })
-            }).then(response => {
-                if (response.ok) {
-                    clearProgress();
-                    {% if classroom %}
-                        window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
-                    {% else %}
-                        window.location.href = /sat/practise/${testName}/start;
-                    {% endif %}
+                if (!response.ok) {
+                    alert('Failed to submit answers.');
+                    return;
                 }
-            }).catch(error => console.error('Error submitting answers:', error));
+
+                clearProgress();
+                {% if classroom %}
+                    window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
+                {% else %}
+                    window.location.href = `/sat/practise/${testName}/start`;
+                {% endif %}
+            } catch (error) {
+                console.error('Error submitting answers:', error);
+                alert('Network error while submitting answers.');
+            }
         }
 
         document.getElementById('open-reference').addEventListener('click', openReference);
         document.getElementById('open-calculator').addEventListener('click', openCalculator);
-        document.getElementById('open-reference').addEventListener('click', openReference);
 
         document.getElementById('reference-overlay').addEventListener('click', function (e) {
             if (e.target.id === 'reference-overlay') {
@@ -953,7 +1004,7 @@
                 closeCalculator();
                 return;
             }
-                
+
             if (
                 event.key === 'Enter' &&
                 target &&
@@ -965,32 +1016,31 @@
                 nextQuestion();
                 return;
             }
-        
+
             if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
                 return;
             }
-        
+
             if (event.key === 'F12') {
                 event.preventDefault();
                 return;
             }
-        
+
             if (isDesmosFocused()) {
                 return;
             }
-        
-            // Do not hijack arrow keys while user is typing
+
             if (isTypingField) {
                 return;
             }
-        
+
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 prevQuestion();
                 return;
             }
-        
+
             if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 nextQuestion();
@@ -999,8 +1049,8 @@
         });
 
         dragElement(
-            document.getElementById("calculator-popup"),
-            document.getElementById("calculator-header")
+            document.getElementById('calculator-popup'),
+            document.getElementById('calculator-header')
         );
 
         loadProgress();

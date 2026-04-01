@@ -60,11 +60,40 @@
         }
 
         #calculator-header {
-            padding: 10px;
-            background: #007bff;
+            padding: 12px 16px;
+            background: #1976d2;
             color: white;
             cursor: move;
             user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .desmos-close-btn {
+            border: none;
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        .desmos-close-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .desmos-close-btn:active {
+            transform: scale(0.96);
         }
 
         #calculator-body {
@@ -111,6 +140,158 @@
             display: block;
             margin: 6px 0;
         }
+
+        .reference-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.28);
+            z-index: 2000;
+            align-items: stretch;
+            justify-content: flex-end;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .reference-overlay.active {
+            display: flex;
+        }
+
+        .reference-sheet {
+            width: min(460px, 100%);
+            height: 100vh;
+            background: #fff;
+            border-radius: 0;
+            overflow: hidden;
+            box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+            animation: referenceSlideIn 0.18s ease;
+        }
+
+        @keyframes referenceSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .reference-header {
+            background: #ffffff;
+            color: #111;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .reference-close-btn {
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #111;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .reference-close-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .reference-body {
+            padding: 18px;
+            overflow-y: auto;
+            height: calc(100vh - 69px);
+            background: #fff;
+        }
+
+        .reference-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .reference-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .reference-card h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #111827;
+            font-size: 17px;
+        }
+
+        .reference-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .reference-formulas {
+            flex: 1;
+        }
+
+        .reference-figure {
+            width: 130px;
+            min-width: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reference-figure svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .formula {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-family: "Times New Roman", serif;
+            font-size: 18px;
+        }
+
+        .reference-note {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+            .reference-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .reference-figure {
+                width: 100%;
+                min-width: 0;
+                justify-content: flex-start;
+            }
+
+            .reference-header {
+                font-size: 18px;
+            }
+
+            .formula {
+                font-size: 17px;
+            }
+        }
     </style>
 </head>
 
@@ -120,17 +301,21 @@
             <h1>Section 2: Mathematics</h1>
             <div class="timer" id="timer">0:00</div>
 
-            <div style="display:flex; color:#3d008e;">
-                <div id="open-calculator" style="align-content:center; cursor:pointer;">
+            <div style="display:flex; align-items:center; gap:12px; color:#3d008e;">
+                <div id="open-reference" style="align-content:center; cursor:pointer;" title="Reference Sheet">
+                    <i class="fa fa-book" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
+                </div>
+
+                <div id="open-calculator" style="align-content:center; cursor:pointer;" title="Calculator">
                     <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
                 </div>
-                <a href="{% url 'global_event_list' %}" style="text-decoration:none;">
+                <a href="{% url 'global_event_list' %}" style="text-decoration:none;" title="Home">
                     <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
                 </a>
             </div>
         </header>
 
-        <form class="fm" id="math-quiz-form" method="post" action="{% url 'save_global_event_answer' guest_token=attempt.guest_token %}" >
+        <form class="fm" id="math-quiz-form" method="post" action="{% url 'save_global_event_answer' guest_token=attempt.guest_token %}">
             {% csrf_token %}
             <main>
                 <div class="question-container scroll-hide">
@@ -172,8 +357,8 @@
 
     <div id="calculator-popup">
         <div id="calculator-header">
-            Desmos Calculator
-            <button onclick="closeCalculator()" class="btn btn-primary danger" style="float:right;">Close</button>
+            <span>Desmos Calculator</span>
+            <button type="button" onclick="closeCalculator()" class="desmos-close-btn">✕</button>
         </div>
         <div id="calculator-body">
             <div id="calculator"></div>
@@ -194,6 +379,129 @@
                     {{ q.number }}
                 </div>
                 {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div id="reference-overlay" class="reference-overlay">
+        <div class="reference-sheet">
+            <div class="reference-header">
+                <span>Reference Sheet</span>
+                <button type="button" class="reference-close-btn" onclick="closeReference()">✕</button>
+            </div>
+
+            <div class="reference-body">
+                <div class="reference-grid">
+                    <div class="reference-card">
+                        <h3>General Facts</h3>
+                        <div class="formula">The number of degrees of arc in a circle is 360.</div>
+                        <div class="formula">The number of radians of arc in a circle is 2π.</div>
+                        <div class="formula">The sum of the measures in degrees of the angles of a triangle is 180.</div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Circle</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Circumference = 2πr</div>
+                                <div class="formula">Area = πr²</div>
+                                <div class="formula">Arc length = (n/360) × 2πr</div>
+                                <div class="formula">Area of a sector = (n/360) × πr²</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 160" width="120" height="120" aria-hidden="true">
+                                    <circle cx="80" cy="80" r="48" fill="none" stroke="#324dc7" stroke-width="4"/>
+                                    <line x1="80" y1="80" x2="128" y2="80" stroke="#324dc7" stroke-width="4"/>
+                                    <text x="102" y="72" font-size="18" fill="#324dc7">r</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Area</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Rectangle = lw</div>
+                                <div class="formula">Triangle = ½bh</div>
+                                <div class="formula">Parallelogram = bh</div>
+                                <div class="formula">Trapezoid = ½(a + b)h</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 160" width="120" height="120" aria-hidden="true">
+                                    <rect x="18" y="18" width="54" height="38" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="38" y="14" font-size="14" fill="#324dc7">w</text>
+                                    <text x="74" y="42" font-size="14" fill="#324dc7">l</text>
+
+                                    <polygon points="22,124 72,124 47,78" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="47" y1="78" x2="47" y2="124" stroke="#324dc7" stroke-dasharray="4 3" stroke-width="2"/>
+                                    <text x="49" y="104" font-size="14" fill="#324dc7">h</text>
+                                    <text x="41" y="139" font-size="14" fill="#324dc7">b</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Volume</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Rectangular prism = lwh</div>
+                                <div class="formula">Cylinder = πr²h</div>
+                                <div class="formula">Cone = ⅓πr²h</div>
+                                <div class="formula">Sphere = ⁴⁄₃πr³</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 180" width="120" height="130" aria-hidden="true">
+                                    <ellipse cx="80" cy="28" rx="26" ry="10" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="54" y1="28" x2="54" y2="82" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="106" y1="28" x2="106" y2="82" stroke="#324dc7" stroke-width="3"/>
+                                    <ellipse cx="80" cy="82" rx="26" ry="10" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="110" y="58" font-size="14" fill="#324dc7">h</text>
+
+                                    <ellipse cx="42" cy="132" rx="18" ry="7" fill="none" stroke="#324dc7" stroke-width="2.5"/>
+                                    <line x1="24" y1="132" x2="42" y2="164" stroke="#324dc7" stroke-width="2.5"/>
+                                    <line x1="60" y1="132" x2="42" y2="164" stroke="#324dc7" stroke-width="2.5"/>
+
+                                    <circle cx="116" cy="146" r="18" fill="none" stroke="#324dc7" stroke-width="2.5"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Special Right Triangles</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">45°-45°-90° triangle: side lengths are x, x, and x√2</div>
+                                <div class="formula">30°-60°-90° triangle: side lengths are x, x√3, and 2x</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 170 170" width="130" height="130" aria-hidden="true">
+                                    <polygon points="18,72 18,132 78,132" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="22" y="106" font-size="13" fill="#324dc7">x</text>
+                                    <text x="44" y="146" font-size="13" fill="#324dc7">x</text>
+                                    <text x="46" y="92" font-size="13" fill="#324dc7">x√2</text>
+                                    <text x="20" y="144" font-size="11" fill="#324dc7">45°</text>
+                                    <text x="61" y="126" font-size="11" fill="#324dc7">45°</text>
+
+                                    <polygon points="98,72 98,132 152,132" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="102" y="105" font-size="13" fill="#324dc7">x</text>
+                                    <text x="118" y="146" font-size="13" fill="#324dc7">x√3</text>
+                                    <text x="123" y="98" font-size="13" fill="#324dc7">2x</text>
+                                    <text x="100" y="144" font-size="11" fill="#324dc7">60°</text>
+                                    <text x="135" y="126" font-size="11" fill="#324dc7">30°</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <div class="reference-note">
+                            This sheet provides common formulas and facts that may be useful as you answer some questions in the module.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -297,8 +605,8 @@
                 pos2 = pos4 - e.clientY;
                 pos3 = e.clientX;
                 pos4 = e.clientY;
-                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                elmnt.style.top = (elmnt.offsetTop - pos2) + 'px';
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + 'px';
             }
 
             function closeDragElement() {
@@ -360,31 +668,48 @@
             `;
         }
 
-                function buildChoice(letter, content, index) {
+        function buildChoice(letter, content, index) {
             const checked = answers[index] === letter ? 'checked' : '';
             const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
-                
+            const inputId = `answer-${index}-${letter}`;
+
             let renderedContent = content || '';
-                
+
             if (typeof renderedContent === 'string' && renderedContent.startsWith('IMAGE:')) {
                 const imageUrl = renderedContent.slice(6);
                 renderedContent = `<img class="choice-image" src="${imageUrl}" alt="Choice ${letter}">`;
             } else {
                 renderedContent = fixLatex(renderedContent);
             }
-        
+
             return `
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" name="answer" value="${letter}" ${checked}>
-                        <label class='mark' data-letter="${letter}"></label>
-                        <label class="choice-${letter.toLowerCase()}">${renderedContent}</label>
+                <div class="big-container">
+                    <input
+                        class="choice-input"
+                        type="radio"
+                        id="${inputId}"
+                        name="answer"
+                        value="${letter}"
+                        ${checked}
+                    >
+
+                    <label class="choice-container" for="${inputId}">
+                        <span class="mark" data-letter="${letter}"></span>
+                        <span class="choice-content">${renderedContent}</span>
                     </label>
+
                     <hr class="cross-line ${letter}zone ${isEliminated}">
-                    <div class="crossing-zone ${eliminateOptions ? 'active' : ''}" onclick='eliminate("${letter}", ${index})'>
-                        <div class="cross-label">${letter}</div>
-                        <hr class="cross-btn-line">
-                    </div>
+
+                    <button
+                        type="button"
+                        class="crossing-zone ${eliminateOptions ? 'active' : ''}"
+                        data-letter="${letter}"
+                        data-index="${index}"
+                        aria-label="Eliminate choice ${letter}"
+                    >
+                        <span class="cross-label">${letter}</span>
+                        <span class="cross-btn-line"></span>
+                    </button>
                 </div>
             `;
         }
@@ -393,9 +718,9 @@
             currentQuestionIndex = index;
             const question = questions[index];
 
-            document.getElementById("currentQuestionIndex").textContent = index + 1;
-            document.getElementById("totalQuestions").textContent = questions.length;
-            document.querySelector(".question-number").innerText = question.number;
+            document.getElementById('currentQuestionIndex').textContent = index + 1;
+            document.getElementById('totalQuestions').textContent = questions.length;
+            document.querySelector('.question-number').innerText = question.number;
 
             document.getElementById('passage').innerHTML = fixLatex(question.passage);
             document.getElementById('question-text').innerHTML = fixLatex(question.question);
@@ -414,17 +739,52 @@
                         id="written-answer"
                         class="written-answer-input"
                         value="${answers[index] || ''}"
-                        oninput="updateWrittenAnswer(this.value)"
+                        maxlength="6"
+                        inputmode="text"
+                        autocomplete="off"
+                        spellcheck="false"
                     >
                 `;
+
+                const writtenInput = document.getElementById('written-answer');
+                if (writtenInput) {
+                    writtenInput.addEventListener('input', function () {
+                        let value = this.value;
+                        if (value.length > 6) {
+                            value = value.slice(0, 6);
+                        }
+                        this.value = value;
+                        updateWrittenAnswer(value);
+                    });
+
+                    writtenInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            updateWrittenAnswer(this.value);
+                            nextQuestion();
+                        }
+                    });
+                }
             } else {
                 answersContainer.innerHTML = buildMultipleChoice(question, index);
 
-                document.querySelectorAll('input[name="answer"]').forEach((input) => {
+                answersContainer.querySelectorAll('.choice-input').forEach((input) => {
                     input.addEventListener('change', (event) => {
                         answers[currentQuestionIndex] = event.target.value;
                         saveProgress();
                         updateAnsweredStatus();
+                    });
+                });
+
+                answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (!eliminateOptions) return;
+
+                        const letter = button.dataset.letter;
+                        eliminate(letter, currentQuestionIndex);
                     });
                 });
             }
@@ -436,29 +796,29 @@
         }
 
         function updateNavigationButtons() {
-            const backButton = document.getElementById("backButton");
-            const nextButton = document.getElementById("nextButton");
-            const finishButton = document.getElementById("finishButton");
-            
+            const backButton = document.getElementById('backButton');
+            const nextButton = document.getElementById('nextButton');
+            const finishButton = document.getElementById('finishButton');
+
             if (questions.length <= 1) {
-                backButton.style.display = "none";
-                nextButton.style.display = "none";
-                finishButton.style.display = "inline-block";
+                backButton.style.display = 'none';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
                 return;
             }
-            
+
             if (currentQuestionIndex === 0) {
-                backButton.style.display = "none";
-                nextButton.style.display = "inline-block";
-                finishButton.style.display = "none";
+                backButton.style.display = 'none';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
             } else if (currentQuestionIndex === questions.length - 1) {
-                backButton.style.display = "inline-block";
-                nextButton.style.display = "none";
-                finishButton.style.display = "inline-block";
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
             } else {
-                backButton.style.display = "inline-block";
-                nextButton.style.display = "inline-block";
-                finishButton.style.display = "none";
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
             }
         }
 
@@ -524,12 +884,20 @@
         }
 
         function toggleQuestionModal() {
-            const modal = document.getElementById("questionModal");
-            modal.style.display = modal.style.display === "block" ? "none" : "block";
+            const modal = document.getElementById('questionModal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
         }
 
         function closeCalculator() {
             document.getElementById('calculator-popup').style.display = 'none';
+        }
+
+        function openReference() {
+            document.getElementById('reference-overlay').classList.add('active');
+        }
+
+        function closeReference() {
+            document.getElementById('reference-overlay').classList.remove('active');
         }
 
         function openCalculator() {
@@ -564,69 +932,108 @@
                 timeRemaining--;
             }
         }
-        
+
         async function finishTest(force = false) {
-            const confirmed = force || confirm("Are you sure you want to finish the test? Make sure you are ready.");
+            const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
             if (!confirmed) return;
-            
+
             const form = document.getElementById('math-quiz-form');
             const submitUrl = "{% url 'submit_global_event' guest_token=attempt.guest_token %}";
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            
+
             const answerData = answers.map((answer, index) => ({
                 questionID: questions[index] ? questions[index].id : null,
                 answer: answer,
                 time_spent: timeSpent[index]
             }));
-            
-            const saveResp = await fetch(form.action, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    answers: answerData,
-                    section: sectionName,
-                    test: testName,
-                    module: moduleName
-                })
-            });
-            
-            if (!saveResp.ok) {
-                alert("Failed to save answers.");
-                return;
+
+            try {
+                const saveResp = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        answers: answerData,
+                        section: sectionName,
+                        test: testName,
+                        module: moduleName
+                    })
+                });
+
+                if (!saveResp.ok) {
+                    alert('Failed to save answers.');
+                    return;
+                }
+
+                const submitResp = await fetch(submitUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        section: sectionName,
+                        module: moduleName
+                    })
+                });
+
+                const submitData = await submitResp.json();
+
+                if (submitResp.ok && submitData.redirect_url) {
+                    clearProgress();
+                    window.location.href = submitData.redirect_url;
+                    return;
+                }
+
+                alert(submitData.error || 'Failed to continue test.');
+            } catch (error) {
+                console.error('Error submitting answers:', error);
+                alert('Network error while submitting answers.');
             }
-            
-            const submitResp = await fetch(submitUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    section: sectionName,
-                    module: moduleName
-                })
-            });
-            
-            const submitData = await submitResp.json();
-            
-            if (submitResp.ok && submitData.redirect_url) {
-                clearProgress();
-                window.location.href = submitData.redirect_url;
-                return;
-            }
-            
-            alert(submitData.error || "Failed to continue test.");
         }
 
+        document.getElementById('open-reference').addEventListener('click', openReference);
         document.getElementById('open-calculator').addEventListener('click', openCalculator);
+
+        document.getElementById('reference-overlay').addEventListener('click', function (e) {
+            if (e.target.id === 'reference-overlay') {
+                closeReference();
+            }
+        });
 
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('selectstart', event => event.preventDefault());
 
         document.addEventListener('keydown', event => {
+            const target = event.target;
+            const isTypingField =
+                target &&
+                (
+                    target.tagName === 'INPUT' ||
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable
+                );
+
+            if (event.key === 'Escape') {
+                closeReference();
+                closeCalculator();
+                return;
+            }
+
+            if (
+                event.key === 'Enter' &&
+                target &&
+                target.classList &&
+                target.classList.contains('written-answer-input')
+            ) {
+                event.preventDefault();
+                updateWrittenAnswer(target.value);
+                nextQuestion();
+                return;
+            }
+
             if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
                 return;
@@ -641,20 +1048,26 @@
                 return;
             }
 
+            if (isTypingField) {
+                return;
+            }
+
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 prevQuestion();
+                return;
             }
 
             if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 nextQuestion();
+                return;
             }
         });
 
         dragElement(
-            document.getElementById("calculator-popup"),
-            document.getElementById("calculator-header")
+            document.getElementById('calculator-popup'),
+            document.getElementById('calculator-header')
         );
 
         loadProgress();

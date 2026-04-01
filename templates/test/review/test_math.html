@@ -3,102 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math</title>
-    <!-- Desmos Calculator -->
-    <script src="https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
-    <!-- KaTeX CSS -->
+    <title>Math Review</title>
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
-    <!-- KaTeX JS -->
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+
     <style>
-        /* CSS for the draggable popup calculator */
-        #calculator-popup {
-            display: none;
-            position: fixed;
-            top: 50px;
-            right: 50px;
-            width: 450px;
-            height: 450px;
-            border: 1px solid #ccc;
-            background: white;
-            z-index: 1000;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            cursor: move;
-        }
-        #calculator-header {
-            padding: 10px;
-            background: #007bff;
-            color: white;
-            cursor: move;
-        }
-        #calculator-body {
-            padding: 10px;
-        }
-        
-        .answered-incorrect > label{
+        .answered-incorrect > label {
             color: red;
             font-weight: bold;
         }
 
-        .answer-correct > label{
+        .answer-correct > label {
             color: green !important;
             font-weight: bold;
         }
-        
+
         body {
             font-family: 'Times New Roman', Times, serif;
             margin: 0;
             padding: 0;
             user-select: none;
         }
-        
+
         main {
             font-family: 'Times New Roman', Times, serif;
         }
-        
+
         .scroll-hide::-webkit-scrollbar {
-            display: none!important;
+            display: none !important;
         }
+
         p {
             font-family: 'Times New Roman', Times, serif;
         }
+
         .container {
             max-width: 1300px;
             margin: 10px auto;
             padding: 20px;
             background-color: #ffffff;
         }
+
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px dashed black;
             padding-bottom: 10px;
+            gap: 16px;
+            flex-wrap: wrap;
         }
+
         header h1 {
             margin: 0;
             font-size: 24px;
         }
-        .timer {
-            font-size: 18px;
-        }
+
         main {
-            height: 400px;
+            min-height: 400px;
             display: flex;
             margin-top: 20px;
         }
+
         .question-container {
-            overflow-y: scroll;
+            overflow-y: auto;
             flex: 1;
             padding-right: 20px;
             border-right: 1px dashed #cccccc;
         }
+
         .answers-container {
-            overflow-y: scroll;
+            overflow-y: auto;
             flex: 1;
             padding-left: 20px;
         }
+
         .question-header {
             display: flex;
             justify-content: space-between;
@@ -106,20 +87,18 @@
             border-bottom: 1px dashed #cccccc;
             padding-bottom: 10px;
         }
+
         .question-number {
             font-size: 20px;
             font-weight: bold;
         }
-        .mark-for-review {
-            font-size: 14px;
-            cursor: pointer;
-            color: #007bff;
-        }
+
         .question-text {
             margin-top: 10px;
             margin-bottom: 20px;
             font-size: 16px;
         }
+
         footer {
             display: flex;
             justify-content: center;
@@ -127,7 +106,10 @@
             margin-top: 20px;
             border-top: 3px dashed black;
             padding-top: 10px;
+            gap: 16px;
+            flex-wrap: wrap;
         }
+
         .nav-button {
             padding: 10px 20px;
             background-color: #007bff;
@@ -137,11 +119,13 @@
             font-size: 16px;
             border-radius: 5px;
         }
+
         .nav-button:hover {
             background-color: #0056b3;
         }
+
         .choice-container {
-            cursor: pointer;
+            cursor: default;
             padding: 10px;
             border: 1px #505050 solid;
             color: #505050;
@@ -151,16 +135,19 @@
             border-radius: 10px;
             min-height: 50px;
         }
+
         .choice-container input[type="radio"],
         .choice-container input[type="text"] {
             display: none;
         }
+
         .choice-container label {
             width: 100%;
             position: relative;
             padding-left: 35px;
-            cursor: pointer;
+            cursor: default;
         }
+
         .choice-container .mark::before {
             content: attr(data-letter);
             position: absolute;
@@ -175,45 +162,76 @@
             line-height: 23px;
             background-color: #fff;
         }
+
         .choice-container input[type="radio"]:checked + label::before {
             background-color: #0056b3;
             border: 2px solid #000;
             color: #fff;
         }
+
         .choice-container input[type="radio"]:checked + label,
         .choice-container input[type="text"]:checked + label {
             color: black;
             font-weight: bold;
         }
+
         .graph {
             width: 80%;
             margin-top: 20px;
             background-color: #f9f9f9;
             border: 1px solid #ddd;
         }
-        .rect-question.answered {
-            background-color: blue;
-            color: white;
-        }
-        .rect-question {
-            margin-top: 10px;
-            margin-right: 10px;
-            text-align: center;
-            border: #000 1px solid;
-            width: 20px;
-            height: 20px;
-        }
+
         .choice-image {
-            max-width: 300px;
+            max-width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            display: block;
+            margin: 6px 0;
         }
 
-        /* KaTeX styling */
+        .review-answer-box {
+            padding: 12px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #f9fafb;
+            font-size: 18px;
+            min-height: 24px;
+        }
+
+        .review-meta {
+            margin-top: 16px;
+        }
+
+        .review-meta h3,
+        .review-meta p {
+            margin: 10px 0;
+        }
+
         .katex {
             font-size: 1.2em;
         }
-        
+
         mjx-container {
             margin: 5px 0;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                flex-direction: column;
+            }
+
+            .question-container {
+                border-right: none;
+                padding-right: 0;
+                border-bottom: 1px dashed #cccccc;
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+
+            .answers-container {
+                padding-left: 0;
+            }
         }
     </style>
 </head>
@@ -221,49 +239,51 @@
     <div class="container">
         <header>
             <a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
-            <h1 style="color: green;">Answer: {{question.answer}}</h1>
+            <h1 style="color: green;">Answer: {{ question.answer }}</h1>
             <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
         </header>
-        <form class="fm" id="math-quiz-form" method="post" ">
-            {% csrf_token %}
-            <main>
-                <div class="question-container scroll-hide">
-                    <div class="just-div"></div>
-                    <p id="passage"></p>
-                    <h3>Domain:{{question.domain }}</h3>
-                    <h3>Type:{{question.type }}</h3>
-                    <p>Explanation:</p>
-                    <div id="explanation">{{question.get_exp|safe}}</div>
-                </div>
-                <div class="answers-container scroll-hide">
-                    <div class="question-header">
-                        <div class="question-number">Question Number: <span id="question-number"></span></div>
-                    </div>
-                    <div class="question-text" id="question-text">
-                    </div>
-                    <div class="answers" id="answers"></div>
-                </div>
-            </main>
-            <footer>
-                {% if prev %}
-                <a href="{{prev}}"><button type="button" class="nav-button">Back</button></a>
-                {% else %}
-                <a href="/sat/results/{{test}}"><button type="button" class="nav-button">Back</button></a>
-                {% endif %}
 
-                {% if next %}
-                <a href="{{next}}"><button type="button" class="nav-button" style="margin-left: 50px;">Next</button></a>
-                {% endif %}
-            </footer>
-        </form>
+        <main>
+            <div class="question-container scroll-hide">
+                <div class="just-div" id="graph-container"></div>
+                <p id="passage"></p>
+
+                <div class="review-meta">
+                    <h3>Domain: {{ question.domain }}</h3>
+                    <h3>Type: {{ question.type }}</h3>
+                    <p>Explanation:</p>
+                    <div id="explanation">{{ question.get_exp|safe }}</div>
+                </div>
+            </div>
+
+            <div class="answers-container scroll-hide">
+                <div class="question-header">
+                    <div class="question-number">Question Number: <span id="question-number"></span></div>
+                </div>
+
+                <div class="question-text" id="question-text"></div>
+                <div class="answers" id="answers"></div>
+            </div>
+        </main>
+
+        <footer>
+            {% if prev %}
+            <a href="{{ prev }}"><button type="button" class="nav-button">Back</button></a>
+            {% else %}
+            <a href="/sat/results/{{test}}"><button type="button" class="nav-button">Back</button></a>
+            {% endif %}
+
+            {% if next %}
+            <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
+            {% endif %}
+        </footer>
     </div>
 
     <script>
         function fixLatex(text) {
-            if (!text) return text;
-            
-            let cleaned = text.toString();
+            if (!text) return '';
 
+            let cleaned = String(text);
             cleaned = cleaned.replace(/\\\$/g, '$');
             cleaned = cleaned.replace(/\\\\/g, '\\');
             cleaned = cleaned.replace(/\\text\{([^}]+)\}/g, '\\text{$1}');
@@ -273,175 +293,133 @@
             cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
             cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
             cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
-            
             return cleaned;
         }
 
-        let currentQuestionIndex = 0;
-        const questions = [
-            {
-                id:'{{question.id}}',
-                passage: `{{question.passage|safe}}`,
-                number: Number(`{{question.number}}`),
-                question: `{{question.question|safe}}`,
-                a: `{{question.get_a|safe}}`,
-                b: `{{question.get_b|safe}}`,
-                c: `{{question.get_c|safe}}`,
-                d: `{{question.get_d|safe}}`,
-                type: `{{question.written}}`,
-                graph: `{{question.get_graph}}`
-            },
-        ];
-
-        let answers = ['{{answered}}'];
-
-        function loadQuestion(index) {
-            currentQuestionIndex = index;
-            const question = questions[index];
-            
-            // Apply fixLatex to all text content
-            question.passage = fixLatex(question.passage);
-            question.question = fixLatex(question.question);
-            question.a = fixLatex(question.a);
-            question.b = fixLatex(question.b);
-            question.c = fixLatex(question.c);
-            question.d = fixLatex(question.d);
-            
-            document.getElementById('passage').innerHTML = question.passage;
-            document.getElementById('question-number').innerText = question.number;
-            document.getElementById('question-text').innerHTML = question.question;
-            let graphContainer = document.querySelector('.just-div');
-
-            const answersContainer = document.getElementById('answers');
-            if (question.type === 'True') {
-                answersContainer.innerHTML = `
-                        <input type="text" id="written-answer" name="answer" value="${answers[index] || ''}" oninput="updateWrittenAnswer(this.value)">
-                `;
-            } else {
-                answersContainer.innerHTML = `
-                    <label class="choice-container A">
-                        <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
-                        <label class='mark' data-letter="A"></label>
-                        <label for="choice1" class="choice1" ></label>
-                    </label>
-                    <label class="choice-container B">
-                        <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
-                        <label class='mark' data-letter="B"></label>
-                        <label for="choice2" class="choice2"></label>
-                    </label>
-                    <label class="choice-container C">
-                        <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
-                        <label class='mark' data-letter="C"></label>
-                        <label for="choice3" class="choice3"></label>
-                    </label>
-                    <label class="choice-container D">
-                        <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
-                        <label class='mark' data-letter="D"></label>
-                        <label for="choice4" class="choice4"></label>
-                    </label>
-                `;
-
-                let a = document.querySelector('.choice1');
-                let b = document.querySelector('.choice2');
-                let c = document.querySelector('.choice3');
-                let d = document.querySelector('.choice4');
-
-                // Function to set innerHTML as text or image with KaTeX rendering
-                function setContent(element, content) {
-                    // Clean the content with fixLatex before processing
-                    content = fixLatex(content);
-                    
-                    if (content.startsWith('IMAGE:')) {
-                        element.innerHTML = `<img class='choice-image' src='${content.split('IMAGE:')[1]}'></img>`;
-                    } else {
-                        // Ensure the content is wrapped in KaTeX delimiters for short expressions
-                        if (!content.startsWith('\\(') && !content.endsWith('\\)') && content.length < 20) {
-                            content = `\\(${content}\\)`;
-                        }
-                        // Set the inner HTML and render KaTeX
-                        element.innerHTML = content;
-                        renderMathInElement(element, {
-                            delimiters: [
-                                { left: "\\(", right: "\\)", display: false },
-                                { left: "\\[", right: "\\]", display: true }
-                            ]
-                        });
-                    }
-                }
-
-                // Setting content for choices with KaTeX rendering
-                setContent(a, question.a);
-                setContent(b, question.b);
-                setContent(c, question.c);
-                setContent(d, question.d);
-                
-                const correctAnswer = '{{question.answer}}';
-                const userAnswer = '{{answered}}';
-                
-                document.querySelectorAll('.choice-container').forEach(container => {
-                    container.classList.remove('answered-incorrect', 'answer-correct');
-                });
-                
-                if (correctAnswer) {
-                    const correctContainer = document.querySelector(`.choice-container.${correctAnswer}`);
-                    if (correctContainer) {
-                        correctContainer.classList.add('answer-correct');
-                    }
-                }
-                
-                // Add user answer styling (if incorrect)
-                if (userAnswer && userAnswer !== correctAnswer) {
-                    const userContainer = document.querySelector(`.choice-container.${userAnswer}`);
-                    if (userContainer) {
-                        userContainer.classList.add('answered-incorrect');
-                    }
-                }
-            }
-
-            if (question.graph) {
-                graphContainer.innerHTML = `<div class='graph' ><img src="${question.graph}" alt="Graph" style="width: 100%"></div>`;
-            } else {
-                graphContainer.innerHTML = ''
-            }
-
-            function renderMathJax(attempts = 50, delay = 100) {
-                try {
-                    renderMathInElement(document.body, {
-                        delimiters: [
-                            { left: "\\(", right: "\\)", display: false },
-                            { left: "\\[", right: "\\]", display: true }
-                        ]
-                    });
-                    console.log("KaTeX rendering triggered.");
-                } catch (error) {
-                    console.error("KaTeX rendering failed:", error);
-                    if (attempts > 0) {
-                        setTimeout(() => renderMathJax(attempts - 1, delay), delay);
-                    }
-                }
-            }
-            renderMathJax();
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadQuestion(currentQuestionIndex);
-            
-            const explanationElement = document.getElementById('explanation');
-            if (explanationElement) {
-                renderMathInElement(explanationElement, {
+        function renderMath(root = document.body) {
+            try {
+                renderMathInElement(root, {
                     delimiters: [
                         { left: "\\(", right: "\\)", display: false },
                         { left: "\\[", right: "\\]", display: true }
                     ]
                 });
+            } catch (error) {
+                console.error('KaTeX render failed:', error);
             }
+        }
+
+        function setChoiceContent(element, content) {
+            let renderedContent = fixLatex(content || '');
+
+            if (renderedContent.startsWith('IMAGE:')) {
+                const imageUrl = renderedContent.slice(6);
+                element.innerHTML = `<img class="choice-image" src="${imageUrl}" alt="Choice">`;
+                return;
+            }
+
+            element.innerHTML = renderedContent;
+        }
+
+        const questions = [
+            {
+                id: '{{ question.id|escapejs }}',
+                passage: `{{ question.passage|default_if_none:""|escapejs }}`,
+                number: Number(`{{ question.number }}`),
+                question: `{{ question.question|default_if_none:""|escapejs }}`,
+                a: `{{ question.get_a|default_if_none:""|escapejs }}`,
+                b: `{{ question.get_b|default_if_none:""|escapejs }}`,
+                c: `{{ question.get_c|default_if_none:""|escapejs }}`,
+                d: `{{ question.get_d|default_if_none:""|escapejs }}`,
+                type: `{{ question.written|escapejs }}`,
+                graph: `{{ question.get_graph|default_if_none:""|escapejs }}`
+            }
+        ];
+
+        const userAnswer = `{{ answered|default_if_none:""|escapejs }}`;
+        const correctAnswer = `{{ question.answer|default_if_none:""|escapejs }}`;
+
+        function renderChoices(question) {
+            const answersContainer = document.getElementById('answers');
+
+            if (question.type === 'True') {
+                answersContainer.innerHTML = `
+                    <div class="review-answer-box">${userAnswer || 'No answer'}</div>
+                `;
+                return;
+            }
+
+            answersContainer.innerHTML = `
+                <label class="choice-container A">
+                    <input type="radio" disabled ${userAnswer === 'A' ? 'checked' : ''}>
+                    <label class="mark" data-letter="A"></label>
+                    <label class="choice-a"></label>
+                </label>
+                <label class="choice-container B">
+                    <input type="radio" disabled ${userAnswer === 'B' ? 'checked' : ''}>
+                    <label class="mark" data-letter="B"></label>
+                    <label class="choice-b"></label>
+                </label>
+                <label class="choice-container C">
+                    <input type="radio" disabled ${userAnswer === 'C' ? 'checked' : ''}>
+                    <label class="mark" data-letter="C"></label>
+                    <label class="choice-c"></label>
+                </label>
+                <label class="choice-container D">
+                    <input type="radio" disabled ${userAnswer === 'D' ? 'checked' : ''}>
+                    <label class="mark" data-letter="D"></label>
+                    <label class="choice-d"></label>
+                </label>
+            `;
+
+            setChoiceContent(document.querySelector('.choice-a'), question.a);
+            setChoiceContent(document.querySelector('.choice-b'), question.b);
+            setChoiceContent(document.querySelector('.choice-c'), question.c);
+            setChoiceContent(document.querySelector('.choice-d'), question.d);
+
+            document.querySelectorAll('.choice-container').forEach(container => {
+                container.classList.remove('answered-incorrect', 'answer-correct');
+            });
+
+            if (correctAnswer) {
+                const correctContainer = document.querySelector(`.choice-container.${correctAnswer}`);
+                if (correctContainer) {
+                    correctContainer.classList.add('answer-correct');
+                }
+            }
+
+            if (userAnswer && userAnswer !== correctAnswer) {
+                const userContainer = document.querySelector(`.choice-container.${userAnswer}`);
+                if (userContainer) {
+                    userContainer.classList.add('answered-incorrect');
+                }
+            }
+        }
+
+        function loadQuestion(index) {
+            const question = questions[index];
+            document.getElementById('question-number').innerText = question.number;
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
+            document.getElementById('question-text').innerHTML = fixLatex(question.question);
+
+            const graphContainer = document.getElementById('graph-container');
+            graphContainer.innerHTML = question.graph
+                ? `<div class="graph"><img src="${question.graph}" alt="Graph" style="width:100%;"></div>`
+                : '';
+
+            renderChoices(question);
+            renderMath(document.body);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuestion(0);
+            renderMath(document.getElementById('explanation'));
         });
 
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('selectstart', event => event.preventDefault());
-
         document.addEventListener('keydown', event => {
-            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
             }
             if (event.key === 'F12') {

@@ -13,6 +13,9 @@
         rel="stylesheet">
     <link rel="stylesheet" href="/static/font-awesome-4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
 
     <style>
         main p,
@@ -128,15 +131,15 @@
         const questions = [
             {% for question in questions %}
         {
-            passage: `{{ question.passage|safe }}`,
+            passage: `{{ question.passage|default_if_none:""|escapejs }}`,
                 number: Number("{{ question.number }}"),
-                    question: `{{ question.question|safe }}`,
-                        a: `{{ question.a|safe }}`,
-                            b: `{{ question.b|safe }}`,
-                                c: `{{ question.c|safe }}`,
-                                    d: `{{ question.d|safe }}`,
+                    question: `{{ question.question|default_if_none:""|escapejs }}`,
+                        a: `{{ question.a|default_if_none:""|escapejs }}`,
+                            b: `{{ question.b|default_if_none:""|escapejs }}`,
+                                c: `{{ question.c|default_if_none:""|escapejs }}`,
+                                    d: `{{ question.d|default_if_none:""|escapejs }}`,
                                         id: '{{ question.id }}',
-                                            graph: `{{ question.graph_url|default_if_none:"" }}`
+                                            graph: `{{ question.graph_url|default_if_none:""|escapejs }}`
         },
         {% endfor %}
         ];
@@ -150,9 +153,36 @@
         let timeRemaining = 32 * 60; // Default: 32 minutes in seconds
         {% endif %}
         let timeSpent = Array(questions.length).fill(0); // time in seconds per question
-        const testName = "{{ test }}"; // Replace with your test name
-        const moduleName = "{{ module }}"; // Replace with your module name
-        const sectionName = "{{ section }}"; // Replace with your section name
+        const testName = "{{ test|escapejs }}"; // Replace with your test name
+        const moduleName = "{{ module|escapejs }}"; // Replace with your module name
+        const sectionName = "{{ section|escapejs }}"; // Replace with your section name
+
+        function fixLatex(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+            cleaned = cleaned.replace(/\\\$/g, '$');
+            cleaned = cleaned.replace(/\\\\/g, '\\');
+            cleaned = cleaned.replace(/\\\(\s*/g, '\\(');
+            cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
+            cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
+            cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            return cleaned;
+        }
+
+        function renderMath(root = document.body) {
+            if (typeof renderMathInElement !== 'function') return;
+            try {
+                renderMathInElement(root, {
+                    delimiters: [
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true }
+                    ],
+                    throwOnError: false
+                });
+            } catch (error) {
+                console.error('KaTeX render failed:', error);
+            }
+        }
 
         function toggleQuestionModal() {
             var modal = document.getElementById("questionModal");
@@ -225,6 +255,9 @@
                 timeRemaining = parseInt(savedTime, 10);
             }
             updateAnsweredStatus();
+            renderMath(document.getElementById('passage'));
+            renderMath(document.getElementById('question-text'));
+            renderMath(document.getElementById('answers'));
         }
 
         function clearProgress() {
@@ -242,61 +275,52 @@
             updateQuestionProgress();
 
             // Display passage and question directly as plain text (no LaTeX processing needed)
-            document.getElementById('passage').innerHTML = question.passage;
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
             document.getElementsByClassName('question-number')[0].innerHTML = question.number;
-            document.getElementById('question-text').innerHTML = question.question;
+            document.getElementById('question-text').innerHTML = fixLatex(question.question);
 
             const graphContainer = document.querySelector('.just-div');
             const answersContainer = document.getElementById('answers');
+
+            const buildChoice = (letter, content) => {
+                const checked = answers[index] === letter ? 'checked' : '';
+                const inputId = `choice-${index}-${letter}`;
+                const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
+
+                return `
+                    <div class="big-container">
+                        <input
+                            class="choice-input"
+                            type="radio"
+                            id="${inputId}"
+                            name="answer"
+                            value="${letter}"
+                            ${checked}
+                        >
+                        <label class="choice-container" for="${inputId}">
+                            <span class="mark" data-letter="${letter}"></span>
+                            <span class="choice-content">${fixLatex(content)}</span>
+                        </label>
+                        <hr class="cross-line ${letter}zone ${isEliminated}">
+                        <button
+                            type="button"
+                            class="crossing-zone ${eliminate_options ? 'active' : ''}"
+                            data-letter="${letter}"
+                            data-index="${index}"
+                            aria-label="Eliminate choice ${letter}"
+                        >
+                            <span class="cross-label">${letter}</span>
+                            <span class="cross-btn-line"></span>
+                        </button>
+                    </div>
+                `;
+            };
+
             answersContainer.innerHTML = `
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
-                        <label class='mark' data-letter="A"></label>
-                        <label for="choice1">${question.a}</label>
-                    </label>
-                    <hr class="cross-line Azone ${eliminatedChoices[index].includes("A") ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("A",${index})'>
-                        <div class="cross-label">A</div>
-                        <hr class="cross-btn-line">
-                    </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
-                        <label class='mark' data-letter="B"></label>
-                        <label for="choice2">${question.b}</label>
-                    </label>
-                    <hr class="cross-line Bzone ${eliminatedChoices[index].includes("B") ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("B",${index})'>
-                        <div class="cross-label">B</div>
-                        <hr class="cross-btn-line">
-                    </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
-                        <label class='mark' data-letter="C"></label>
-                        <label for="choice3">${question.c}</label>
-                    </label>
-                    <hr class="cross-line Czone ${eliminatedChoices[index].includes("C") ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("C",${index})'>
-                        <div class="cross-label">C</div>
-                        <hr class="cross-btn-line">
-                    </div>
-                </div>
-                <div class='big-container'>
-                    <label class="choice-container">
-                        <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
-                        <label class='mark' data-letter="D"></label>
-                        <label for="choice4">${question.d}</label>
-                    </label>
-                    <hr class="cross-line Dzone ${eliminatedChoices[index].includes("D") ? 'active' : ''}">
-                    <div class="crossing-zone ${eliminate_options ? 'active' : ''}" onclick='eliminate("D",${index})'>
-                        <div class="cross-label">D</div>
-                        <hr class="cross-btn-line">
-                    </div>
-                </div>
+                ${buildChoice('A', question.a)}
+                ${buildChoice('B', question.b)}
+                ${buildChoice('C', question.c)}
+                ${buildChoice('D', question.d)}
             `;
 
             if (question.graph) {
@@ -306,11 +330,27 @@
             }
 
             updateAnsweredStatus();
-            document.querySelectorAll('input[name="answer"]').forEach((input) => {
+            renderMath(document.getElementById('passage'));
+            renderMath(document.getElementById('question-text'));
+            renderMath(document.getElementById('answers'));
+
+            answersContainer.querySelectorAll('.choice-input').forEach((input) => {
                 input.addEventListener('change', (event) => {
                     answers[currentQuestionIndex] = event.target.value;
                     saveProgress();
                     updateAnsweredStatus();
+                });
+            });
+
+            answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (!eliminate_options) return;
+
+                    const letter = button.dataset.letter;
+                    eliminate(letter, currentQuestionIndex);
                 });
             });
         }
@@ -459,6 +499,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadProgress();
             loadQuestion(currentQuestionIndex);
+            renderMath(document.body);
             setInterval(updateTimer, 1000);
 
             // Highlighter Logic

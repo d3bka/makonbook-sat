@@ -1,70 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English</title>
+    <title>English Review</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
     <style>
+        .answered-incorrect > label {
+            color: red;
+            font-weight: bold;
+        }
+        .answer-correct > label {
+            color: green !important;
+            font-weight: bold;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             margin: 0;
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
-            -o-user-select: none;
         }
-
-        .scroll-hide::-webkit-scrollbar {
-            display: none !important;
-        }
-
-        p {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        }
-
+        .scroll-hide::-webkit-scrollbar { display: none !important; }
         .container {
             max-width: 1300px;
             margin: 10px auto;
             padding: 20px;
             background-color: #ffffff;
         }
-
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px dashed black;
             padding-bottom: 10px;
+            gap: 16px;
+            flex-wrap: wrap;
         }
-
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-
-        main {
-            height: 400px;
-            display: flex;
-            margin-top: 20px;
-        }
-
+        header h1 { margin: 0; font-size: 24px; }
+        main { min-height: 400px; display: flex; margin-top: 20px; }
         .question-container {
-            overflow-y: scroll;
+            overflow-y: auto;
             flex: 1;
             padding-right: 20px;
             border-right: 1px dashed #cccccc;
         }
-
         .answers-container {
-            overflow-y: scroll;
+            overflow-y: auto;
             flex: 1;
             padding-left: 20px;
         }
-
         .question-header {
             display: flex;
             justify-content: space-between;
@@ -72,24 +61,8 @@
             border-bottom: 1px dashed #cccccc;
             padding-bottom: 10px;
         }
-
-        .question-number {
-            font-size: 20px;
-            font-weight: bold;
-        }
-
-        .mark-for-review {
-            font-size: 14px;
-            cursor: pointer;
-            color: #007bff;
-        }
-
-        .question-text {
-            margin-top: 10px;
-            margin-bottom: 20px;
-            font-size: 16px;
-        }
-
+        .question-number { font-size: 20px; font-weight: bold; }
+        .question-text { margin-top: 10px; margin-bottom: 20px; font-size: 16px; }
         footer {
             display: flex;
             justify-content: center;
@@ -97,8 +70,9 @@
             margin-top: 20px;
             border-top: 3px dashed black;
             padding-top: 10px;
+            gap: 16px;
+            flex-wrap: wrap;
         }
-
         .nav-button {
             padding: 10px 20px;
             background-color: #007bff;
@@ -108,14 +82,9 @@
             font-size: 16px;
             border-radius: 5px;
         }
-
-        .nav-button:hover {
-            background-color: #0056b3;
-        }
-
+        .nav-button:hover { background-color: #0056b3; }
         .choice-container {
-            cursor: pointer;
-            display: flex;
+            cursor: default;
             padding: 10px;
             border: 1px #505050 solid;
             color: #505050;
@@ -124,28 +93,23 @@
             font-size: 16px;
             border-radius: 10px;
             min-height: 50px;
-            align-items: center;
         }
-
-        .choice-container input[type="radio"] {
-            display: none;
-        }
-
+        .choice-container input[type="radio"] { display: none; }
         .choice-container label {
-            cursor: pointer;
+            cursor: default;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             position: relative;
             padding-left: 35px;
             width: 100%;
             color: #505050;
+            line-height: 1.5;
         }
-
         .choice-container .mark::before {
             content: attr(data-letter);
             position: absolute;
             left: 0;
-            top: 10px;
+            top: 12px;
             transform: translateY(-50%);
             width: 25px;
             height: 25px;
@@ -155,137 +119,166 @@
             line-height: 23px;
             background-color: #fff;
         }
-
-
-        .{{answered}} > label{
-            color: red;
-            font-weight: bold;
-        }
-
-        .{{question.answer}} > label{
-            color: green !important;
-            font-weight: bold;
-        }
-
-        .hid {
-            display: none;
+        .graph { width: 100%; margin-top: 20px; }
+        .review-meta { margin-top: 16px; }
+        .review-meta h3, .review-meta p { margin: 10px 0; }
+        @media (max-width: 900px) {
+            main { flex-direction: column; }
+            .question-container {
+                border-right: none;
+                padding-right: 0;
+                border-bottom: 1px dashed #cccccc;
+                padding-bottom: 20px;
+                margin-bottom: 20px;
+            }
+            .answers-container { padding-left: 0; }
         }
     </style>
 </head>
-
 <body class="scroll-hide">
     <div class="container">
         <header>
-            <a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
-            <h1 style="color: green;">Answer: {{question.answer}}</h1>
-            <h1 style="color: gray;">Your Answer: {{answered}}</h1>
+            <a href="/sat/results/{{ test }}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            <h1 style="color: green;">Answer: {{ question.answer }}</h1>
+            <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
         </header>
-        <form class="fm" id="quiz-form" >
-            {% csrf_token %}
-            <main>
-                <div class="question-container scroll-hide">
-                    <div class="just-div"></div>
-                    <p id="passage"></p>
-                    <h3>Domain:{{question.domain }}</h3>
-                    <h3>Type:{{question.type }}</h3>
-                    <p>Explanation: <br>{{question.explained}}</p>
+        <main>
+            <div class="question-container scroll-hide">
+                <div class="just-div" id="graph-container"></div>
+                <p id="passage"></p>
+                <div class="review-meta">
+                    <h3>Domain: {{ question.domain }}</h3>
+                    <h3>Type: {{ question.type }}</h3>
+                    <p>Explanation:</p>
+                    <div id="explanation">{{ question.explained|safe }}</div>
                 </div>
-                <div class="answers-container scroll-hide">
-                    <div class="question-header">
-                        <div class="question-number">Question Number: <span id="question-number"></span></div>
-                    </div>
-                    <div class="question-text" id="question-text"></div>
-                    <div class="answers" id="answers"></div>
+            </div>
+            <div class="answers-container scroll-hide">
+                <div class="question-header">
+                    <div class="question-number">Question Number: <span id="question-number"></span></div>
                 </div>
-            </main>
-            <footer>
-                {% if prev %}
-                <a href="{{prev}}"><button type="button" class="nav-button">Back</button></a>
-                {% else %}
-                <a href="/sat/results/{{test}}"><button type="button" class="nav-button">Back</button></a>
-                {% endif %}
-
-                {% if next %}
-                <a href="{{next}}"><button type="button" class="nav-button" style="margin-left: 50px;">Next</button></a>
-                {% endif %}
-            </footer>
-        </form>
+                <div class="question-text" id="question-text"></div>
+                <div class="answers" id="answers"></div>
+            </div>
+        </main>
+        <footer>
+            {% if prev %}
+            <a href="{{ prev }}"><button type="button" class="nav-button">Back</button></a>
+            {% else %}
+            <a href="/sat/results/{{ test }}"><button type="button" class="nav-button">Back</button></a>
+            {% endif %}
+            {% if next %}
+            <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
+            {% endif %}
+        </footer>
     </div>
 
     <script>
-        let currentQuestionIndex = 0;
-        let answers = ['{{answered}}']
-        const questions = [
-        {
-            passage: `{{ question.passage|safe }}`,
-                number: Number("{{ question.number }}"),
-                    question: `{{ question.question }}`,
-                        a: `{{ question.a | safe}}`,
-                            b: `{{ question.b | safe}}`,
-                                c: `{{ question.c | safe}}`,
-                                    d: `{{ question.d | safe}}`,
-                                        id: `{{ question.id }}`,
-                                            graph: `{{question.graph_url}}`,
-
+        function fixLatex(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+            cleaned = cleaned.replace(/\\\$/g, '$');
+            cleaned = cleaned.replace(/\\\\/g, '\\');
+            cleaned = cleaned.replace(/\\\(\s*/g, '\\(');
+            cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
+            cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
+            cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            return cleaned;
         }
-];
 
-        function loadQuestion(index) {
-            currentQuestionIndex = index
-            const question = questions[index];
-            document.getElementById('passage').innerHTML = question.passage;
-            document.getElementById('question-number').innerHTML = question.number;
-            document.getElementById('question-text').innerHTML = question.question;
-            const graphContainer = document.querySelector('.just-div');
-            const answersContainer = document.getElementById('answers');
-            answersContainer.innerHTML = `
-        <label class="choice-container A">
-            <input type="radio" id="choice1" name="answer" value="A" ${answers[index] === 'A' ? 'checked' : ''}>
-            <label class='mark' data-letter="A"></label>
-            <label for="choice1">${question.a}</label>
-        </label>
-        <label class="choice-container B">
-            <input type="radio" id="choice2" name="answer" value="B" ${answers[index] === 'B' ? 'checked' : ''}>
-            <label class='mark' data-letter="B"></label>
-            <label for="choice2">${question.b}</label>
-        </label>
-        <label class="choice-container C">
-            <input type="radio" id="choice3" name="answer" value="C" ${answers[index] === 'C' ? 'checked' : ''}>
-            <label class='mark' data-letter="C"></label>
-            <label for="choice3">${question.c}</label>
-        </label>
-        <label class="choice-container D">
-            <input type="radio" id="choice4" name="answer" value="D" ${answers[index] === 'D' ? 'checked' : ''}>
-            <label class='mark' data-letter="D"></label>
-            <label for="choice4">${question.d}</label>
-        </label>
-    `;
-            if (question.graph) {
-                graphContainer.innerHTML = `<div class='graph' ><img src="${question.graph}" alt="Graph" style="width: 100%; height: 100%;"></div>`;
-            } else {
-                graphContainer.innerHTML = ''
+        function renderMath(root = document.body) {
+            if (typeof renderMathInElement !== 'function') return;
+            try {
+                renderMathInElement(root, {
+                    delimiters: [
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true }
+                    ],
+                    throwOnError: false
+                });
+            } catch (error) {
+                console.error('KaTeX render failed:', error);
             }
         }
 
-        // Disable right-click and text selection
-        // Disable right-click and text selection
+        const question = {
+            passage: `{{ question.passage|default_if_none:""|escapejs }}`,
+            number: Number("{{ question.number }}"),
+            question: `{{ question.question|default_if_none:""|escapejs }}`,
+            a: `{{ question.a|default_if_none:""|escapejs }}`,
+            b: `{{ question.b|default_if_none:""|escapejs }}`,
+            c: `{{ question.c|default_if_none:""|escapejs }}`,
+            d: `{{ question.d|default_if_none:""|escapejs }}`,
+            graph: `{{ question.graph_url|default_if_none:""|escapejs }}`
+        };
+
+        const userAnswer = `{{ answered|default_if_none:""|escapejs }}`;
+        const correctAnswer = `{{ question.answer|default_if_none:""|escapejs }}`;
+
+        function loadQuestion() {
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
+            document.getElementById('question-number').innerText = question.number;
+            document.getElementById('question-text').innerHTML = fixLatex(question.question);
+
+            const graphContainer = document.getElementById('graph-container');
+            graphContainer.innerHTML = question.graph
+                ? `<div class="graph"><img src="${question.graph}" alt="Graph" style="width:100%;"></div>`
+                : '';
+
+            const answersContainer = document.getElementById('answers');
+            answersContainer.innerHTML = `
+                <label class="choice-container A">
+                    <input type="radio" disabled ${userAnswer === 'A' ? 'checked' : ''}>
+                    <label class="mark" data-letter="A"></label>
+                    <label>${fixLatex(question.a)}</label>
+                </label>
+                <label class="choice-container B">
+                    <input type="radio" disabled ${userAnswer === 'B' ? 'checked' : ''}>
+                    <label class="mark" data-letter="B"></label>
+                    <label>${fixLatex(question.b)}</label>
+                </label>
+                <label class="choice-container C">
+                    <input type="radio" disabled ${userAnswer === 'C' ? 'checked' : ''}>
+                    <label class="mark" data-letter="C"></label>
+                    <label>${fixLatex(question.c)}</label>
+                </label>
+                <label class="choice-container D">
+                    <input type="radio" disabled ${userAnswer === 'D' ? 'checked' : ''}>
+                    <label class="mark" data-letter="D"></label>
+                    <label>${fixLatex(question.d)}</label>
+                </label>
+            `;
+
+            document.querySelectorAll('.choice-container').forEach(container => {
+                container.classList.remove('answered-incorrect', 'answer-correct');
+            });
+
+            if (correctAnswer) {
+                const correctContainer = document.querySelector(`.choice-container.${correctAnswer}`);
+                if (correctContainer) correctContainer.classList.add('answer-correct');
+            }
+            if (userAnswer && userAnswer !== correctAnswer) {
+                const userContainer = document.querySelector(`.choice-container.${userAnswer}`);
+                if (userContainer) userContainer.classList.add('answered-incorrect');
+            }
+
+            renderMath(document.getElementById('passage'));
+            renderMath(document.getElementById('question-text'));
+            renderMath(document.getElementById('answers'));
+            renderMath(document.getElementById('explanation'));
+        }
+
+        document.addEventListener('DOMContentLoaded', loadQuestion);
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('selectstart', event => event.preventDefault());
-
-        // Disable common inspect shortcuts
         document.addEventListener('keydown', event => {
-            if (event.ctrlKey && (event.key === 'u' || event.key === 's' || event.key === 'p' || event.key === 'c' || event.key === 'j' || event.key === 'i')) {
+            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
             }
             if (event.key === 'F12') {
                 event.preventDefault();
             }
         });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadQuestion(currentQuestionIndex);
-        });
     </script>
 </body>
-
 </html>
