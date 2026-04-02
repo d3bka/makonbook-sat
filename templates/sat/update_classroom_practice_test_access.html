@@ -20,12 +20,14 @@
 
         <div style="margin-bottom: 20px;">
             <label style="display:block; margin-bottom:10px;">
-                <input type="radio" name="access_mode" value="all" checked>
+                <input type="radio" name="access_mode" value="all"
+                       {% if access_mode == 'all' %}checked{% endif %}>
                 Allow all practice tests
             </label>
 
             <label style="display:block;">
-                <input type="radio" name="access_mode" value="selected">
+                <input type="radio" name="access_mode" value="selected"
+                       {% if access_mode == 'selected' %}checked{% endif %}>
                 Allow only selected practice tests
             </label>
         </div>
@@ -36,7 +38,8 @@
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px;">
                 {% for test in tests %}
                     <label style="border:1px solid #ddd; border-radius:8px; padding:10px; display:block;">
-                        <input type="checkbox" name="tests" value="{{ test.id }}">
+                        <input type="checkbox" name="tests" value="{{ test.pk }}"
+                               {% if test.pk|stringformat:"s" in selected_test_ids %}checked{% endif %}>
                         {{ test.name }}
                     </label>
                 {% endfor %}
