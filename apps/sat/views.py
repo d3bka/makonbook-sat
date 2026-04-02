@@ -3128,9 +3128,6 @@ def get_student_allowed_practice_tests_queryset(membership):
         has_access=True
     )
 
-    if not custom_access_items.exists():
-        return Test.objects.all().distinct().order_by('name')
-
     allowed_test_ids = custom_access_items.values_list('test_id', flat=True)
     return Test.objects.filter(pk__in=allowed_test_ids).distinct().order_by('name')
 
@@ -3387,14 +3384,13 @@ def update_classroom_practice_test_access(request, classroom_id):
         ).select_related('user').prefetch_related('section_access')
     )
 
-    # Только те ученики, у кого вообще включен раздел Practice Tests
     eligible_memberships = [
         membership
         for membership in memberships
         if get_membership_section_access_map(membership).get('practice_tests')
     ]
 
-    tests = Test.objects.all().distinct()
+    tests = list(Test.objects.all().distinct())
 
     def get_day_number(test):
         try:
@@ -3408,10 +3404,28 @@ def update_classroom_practice_test_access(request, classroom_id):
             return 999999
 
     tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
+    all_test_ids = {str(test.pk) for test in tests}
+
+    selected_test_ids = set()
+    access_mode = 'selected'
+
+    if eligible_memberships:
+        first_membership = eligible_memberships[0]
+        selected_test_ids = set(
+            str(pk) for pk in StudentPracticeTestAccess.objects.filter(
+                membership=first_membership,
+                has_access=True
+            ).values_list('test__pk', flat=True)
+        )
+
+        if selected_test_ids == all_test_ids and all_test_ids:
+            access_mode = 'all'
+        else:
+            access_mode = 'selected'
 
     if request.method == 'POST':
-        access_mode = request.POST.get('access_mode', 'all')
-        selected_test_ids = request.POST.getlist('tests')
+        access_mode = request.POST.get('access_mode', 'selected')
+        selected_test_ids = set(request.POST.getlist('tests'))
 
         if not eligible_memberships:
             messages.error(
@@ -3420,41 +3434,52 @@ def update_classroom_practice_test_access(request, classroom_id):
             )
             return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
+        if access_mode == 'selected' and not selected_test_ids:
+            messages.error(request, "Select at least one practice test.")
+            return render(request, 'sat/update_classroom_practice_test_access.html', {
+                'classroom': classroom,
+                'tests': tests,
+                'eligible_count': len(eligible_memberships),
+                'total_students_count': len(memberships),
+                'selected_test_ids': selected_test_ids,
+                'access_mode': 'selected',
+            })
+
         membership_ids = [membership.id for membership in eligible_memberships]
 
-        # Сначала чистим старые кастомные доступы у всех учеников класса
         StudentPracticeTestAccess.objects.filter(
             membership_id__in=membership_ids
         ).delete()
 
-        # Если selected -> создаем одинаковый набор тестов для всех
-        if access_mode == 'selected':
-            selected_tests = Test.objects.filter(pk__in=selected_test_ids).distinct()
+        if access_mode == 'all':
+            selected_tests = tests
+            selected_test_ids = {str(test.pk) for test in tests}
+        else:
+            selected_tests = [test for test in tests if str(test.pk) in selected_test_ids]
 
-            bulk_items = []
-            for membership in eligible_memberships:
-                for test in selected_tests:
-                    bulk_items.append(
-                        StudentPracticeTestAccess(
-                            membership=membership,
-                            test=test,
-                            has_access=True
-                        )
+        bulk_items = []
+        for membership in eligible_memberships:
+            for test in selected_tests:
+                bulk_items.append(
+                    StudentPracticeTestAccess(
+                        membership=membership,
+                        test=test,
+                        has_access=True
                     )
+                )
 
-            if bulk_items:
-                StudentPracticeTestAccess.objects.bulk_create(bulk_items)
+        if bulk_items:
+            StudentPracticeTestAccess.objects.bulk_create(bulk_items)
 
         if access_mode == 'all':
             messages.success(
                 request,
-                f'Practice Tests access updated for {len(eligible_memberships)} students. '
-                f'All available tests are now allowed.'
+                f'All practice tests were granted for {len(eligible_memberships)} students.'
             )
         else:
             messages.success(
                 request,
-                f'Practice Tests access updated for {len(eligible_memberships)} students.'
+                f'Selected practice tests were granted for {len(eligible_memberships)} students.'
             )
 
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
@@ -3464,6 +3489,6 @@ def update_classroom_practice_test_access(request, classroom_id):
         'tests': tests,
         'eligible_count': len(eligible_memberships),
         'total_students_count': len(memberships),
-        'selected_test_ids': set(),
-        'access_mode': 'all',
+        'selected_test_ids': selected_test_ids,
+        'access_mode': access_mode,
     })
