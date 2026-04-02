@@ -4,7 +4,11 @@
 {% block title-main %}Makon Book{% endblock title-main %}
 
 {% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
+{% else %}
 <li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endif %}
 {% endblock breadcrumb_parent %}
 
 {% block title %}{{ section.title }}{% endblock title %}
@@ -210,7 +214,7 @@
 {% block content %}
 <main class="main-content">
   <div class="section-page">
-    <a href="{% url 'vocabulary' %}" class="back-btn">Back to Vocabulary</a>
+    {% if classroom %}<a href="{% url 'classroom_vocabulary' classroom.id %}" class="back-btn">Back to Vocabulary</a>{% else %}<a href="{% url 'vocabulary' %}" class="back-btn">Back to Vocabulary</a>{% endif %}
 
     <div class="section-hero">
       <h2>{{ section.title }}</h2>

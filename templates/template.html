@@ -54,6 +54,15 @@
         <div class="container">
           <ol>
             <li><a href="/">Home</a></li>
+            {% if classroom and request.resolver_match.url_name != 'student_classroom_home' %}
+              <li>
+                {% if role == 'teacher' or role == 'admin' or request.resolver_match.url_name == 'teacher_classroom_dashboard' or request.resolver_match.url_name == 'classroom_progress_dashboard' %}
+                  <a href="{% url 'teacher_classroom_dashboard' classroom.id %}">Classroom</a>
+                {% else %}
+                  <a href="{% url 'student_classroom_home' classroom.id %}">Classroom</a>
+                {% endif %}
+              </li>
+            {% endif %}
             {% block breadcrumb_parent %}{% endblock breadcrumb_parent %}
             <li>{% block title %}{% endblock title %}</li>
           </ol>

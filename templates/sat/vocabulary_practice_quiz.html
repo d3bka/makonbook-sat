@@ -4,7 +4,11 @@
 {% block title-main %}Makon Book{% endblock title-main %}
 
 {% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
+{% else %}
 <li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endif %}
 {% endblock breadcrumb_parent %}
 
 {% block title %}Practice Quiz{% endblock title %}
@@ -356,7 +360,7 @@
   <div class="modal-box">
     <h3>Create Practice Test</h3>
 
-    <form method="post" action="{% url 'vocabulary_practice_quiz_start' %}">
+    <form method="post" action="{% if classroom %}{{ request.path }}start/{% else %}{% url 'vocabulary_practice_quiz_start' %}{% endif %}">
       {% csrf_token %}
 
       <div class="modal-row">
@@ -403,7 +407,7 @@
       <div class="word-list" id="unitWordList"></div>
     </div>
 
-    <form method="post" action="{% url 'vocabulary_practice_quiz_start' %}">
+    <form method="post" action="{% if classroom %}{{ request.path }}start/{% else %}{% url 'vocabulary_practice_quiz_start' %}{% endif %}">
       {% csrf_token %}
       <input type="hidden" name="units" id="singleUnitId">
 

@@ -4,7 +4,11 @@
 {% block title-main %}Makon Book{% endblock title-main %}
 
 {% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'classroom_admissions' classroom.id %}">Admissions</a></li>
+{% else %}
 <li><a href="{% url 'admissions' %}">Admissions</a></li>
+{% endif %}
 {% endblock breadcrumb_parent %}
 
 {% block title %}{{ section.title }}{% endblock title %}
@@ -64,7 +68,7 @@
 {% block content %}
 <main class="main-content">
   <div class="section-page">
-    <a href="{% url 'admissions' %}" class="back-btn">Back to Admissions</a>
+    {% if classroom %}<a href="{% url 'classroom_admissions' classroom.id %}" class="back-btn">Back to Admissions</a>{% else %}<a href="{% url 'admissions' %}" class="back-btn">Back to Admissions</a>{% endif %}
 
     <div class="section-card">
       <h2>{{ section.title }}</h2>
