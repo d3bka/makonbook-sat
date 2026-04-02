@@ -21,6 +21,7 @@ from django.db.models import Q
 import json
 import random
 import re
+from django.db.models import Count
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
@@ -2906,19 +2907,30 @@ def parse_bulk_vocabulary_text(raw_text):
     parsed = []
     bad_lines = []
 
-    lines = raw_text.splitlines()
+    text = raw_text.replace('\r\n', '\n').replace('\r', '\n')
 
-    for line in lines:
-        original = line
-        line = line.strip()
+    # Склеиваем переносы из PDF: новая запись начинается только с "123. ..."
+    merged_lines = []
+    current = ""
 
+    for raw_line in text.split('\n'):
+        line = raw_line.strip()
         if not line:
             continue
 
-        # remove "1. "
-        line = re.sub(r'^\s*\d+\.\s*', '', line)
+        if re.match(r'^\d+\.\s+', line):
+            if current:
+                merged_lines.append(current.strip())
+            current = line
+        else:
+            current += " " + line
 
-        # split by dash between word and meaning
+    if current:
+        merged_lines.append(current.strip())
+
+    for original in merged_lines:
+        line = re.sub(r'^\d+\.\s*', '', original).strip()
+
         parts = re.split(r'\s+[—–-]\s+', line, maxsplit=1)
 
         if len(parts) != 2:
@@ -2959,50 +2971,109 @@ def bulk_import_vocabulary_words(request):
             messages.error(request, "Nothing valid was parsed. Check the text format.")
             return redirect('bulk_import_vocabulary_words')
 
-        # Если хочешь полный пересбор — оставь
-        VocabularyWord.objects.all().delete()
-        VocabularyUnit.objects.all().delete()
+        # Убираем дубли:
+        # 1) уже существующие в базе
+        # 2) повторы внутри самого вставленного текста
+        existing_words = {
+            w.strip().lower()
+            for w in VocabularyWord.objects.values_list('word', flat=True)
+        }
+
+        cleaned_items = []
+        seen_in_import = set()
+        skipped_duplicates = 0
+
+        for item in parsed_items:
+            key = item['word'].strip().lower()
+
+            if key in existing_words or key in seen_in_import:
+                skipped_duplicates += 1
+                continue
+
+            cleaned_items.append(item)
+            seen_in_import.add(key)
+
+        if not cleaned_items:
+            messages.warning(
+                request,
+                f"All parsed words were duplicates. Bad lines: {len(bad_lines)}."
+            )
+            request.session['bulk_vocab_bad_lines'] = bad_lines[:100]
+            return redirect('bulk_import_vocabulary_words')
 
         with transaction.atomic():
-            units = []
+            # Гарантируем наличие Unit 1..50
+            units_by_order = {u.order: u for u in VocabularyUnit.objects.all()}
+
             for i in range(1, 51):
-                unit = VocabularyUnit.objects.create(
-                    order=i,
-                    title=f"Unit {i}",
-                    description=f"Vocabulary Unit {i}"
-                )
-                units.append(unit)
-
-            to_create = []
-
-            for index, item in enumerate(parsed_items):
-                if index < 1225:
-                    unit_index = index // 25   # Units 1..49
-                else:
-                    unit_index = 49            # Unit 50
-
-                to_create.append(
-                    VocabularyWord(
-                        unit=units[unit_index],
-                        word=item['word'],
-                        meaning=item['meaning'],
-                        example=item['example'],
+                if i not in units_by_order:
+                    units_by_order[i] = VocabularyUnit.objects.create(
+                        order=i,
+                        title=f"Unit {i}",
+                        description=f"Vocabulary Unit {i}",
                         is_active=True,
                     )
-                )
 
-            VocabularyWord.objects.bulk_create(to_create, batch_size=500)
+            units = [units_by_order[i] for i in range(1, 51)]
 
-        messages.success(
-            request,
-            f"Imported {len(parsed_items)} words into 50 units. "
-            f"Unparsed lines: {len(bad_lines)}."
-        )
+            # Сколько слов уже в каждом юните
+            unit_counts = {
+                row['unit']: row['count']
+                for row in VocabularyWord.objects.values('unit').annotate(count=Count('id'))
+            }
+
+            to_create = []
+            item_index = 0
+
+            for unit in units:
+                current_count = unit_counts.get(unit.id, 0)
+                free_slots = max(0, 25 - current_count)
+
+                while free_slots > 0 and item_index < len(cleaned_items):
+                    item = cleaned_items[item_index]
+
+                    to_create.append(
+                        VocabularyWord(
+                            unit=unit,
+                            word=item['word'],
+                            meaning=item['meaning'],
+                            example=item['example'],
+                            is_active=True,
+                        )
+                    )
+
+                    item_index += 1
+                    free_slots -= 1
+
+                if item_index >= len(cleaned_items):
+                    break
+
+            if to_create:
+                VocabularyWord.objects.bulk_create(to_create, batch_size=500)
+
+        imported_count = len(to_create)
+        not_imported_count = len(cleaned_items) - imported_count
 
         if bad_lines:
             request.session['bulk_vocab_bad_lines'] = bad_lines[:100]
         else:
             request.session.pop('bulk_vocab_bad_lines', None)
+
+        if not_imported_count > 0:
+            messages.warning(
+                request,
+                f"Imported {imported_count} words. "
+                f"Skipped duplicates: {skipped_duplicates}. "
+                f"Unparsed lines: {len(bad_lines)}. "
+                f"{not_imported_count} words were not imported because all 50 units are full."
+            )
+        else:
+            messages.success(
+                request,
+                f"Imported {imported_count} words. "
+                f"Skipped duplicates: {skipped_duplicates}. "
+                f"Unparsed lines: {len(bad_lines)}."
+            )
 
         return redirect('teacher_vocabulary_units')
 
