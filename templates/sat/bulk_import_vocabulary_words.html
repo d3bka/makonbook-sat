@@ -1,0 +1,39 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title %}Bulk Import Vocabulary{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1100px; margin: 30px auto;">
+    <h2>Bulk Import Vocabulary</h2>
+    <p>
+        Paste lines in this format:
+        <br>
+        <code>1. banal — so lacking in originality as to be obvious and boring; unoriginal; ordinary</code>
+    </p>
+
+    <form method="post" style="margin-top: 20px;">
+        {% csrf_token %}
+        <textarea
+            name="raw_text"
+            rows="22"
+            style="width: 100%; padding: 14px; font-family: monospace; font-size: 14px;"
+            placeholder="Paste the full list here..."
+        ></textarea>
+
+        <div style="margin-top: 16px; display: flex; gap: 12px;">
+            <button type="submit" class="btn btn-primary">Import words</button>
+            <a href="{% url 'teacher_vocabulary_units' %}" class="btn btn-secondary">Back</a>
+        </div>
+    </form>
+
+    {% if bad_lines %}
+        <div style="margin-top: 30px;">
+            <h3>Unparsed lines</h3>
+            <p>These lines were skipped because the format was broken:</p>
+            <pre style="background:#f7f7f7; padding:12px; border:1px solid #ddd; overflow:auto;">{% for line in bad_lines %}{{ line }}
+{% endfor %}</pre>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
