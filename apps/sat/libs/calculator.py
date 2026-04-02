@@ -1,112 +1,120 @@
-i = {
-    0: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    1: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    2: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    3: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    4: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    5: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    6: {'readingAndWriting': {'lower': 200, 'upper': 200}, 'math': {'lower': 200, 'upper': 200}},
-    7: {'readingAndWriting': {'lower': 200, 'upper': 210}, 'math': {'lower': 200, 'upper': 220}},
-    8: {'readingAndWriting': {'lower': 200, 'upper': 220}, 'math': {'lower': 200, 'upper': 230}},
-    9: {'readingAndWriting': {'lower': 210, 'upper': 230}, 'math': {'lower': 220, 'upper': 250}},
-    10: {'readingAndWriting': {'lower': 230, 'upper': 250}, 'math': {'lower': 250, 'upper': 280}},
-    11: {'readingAndWriting': {'lower': 240, 'upper': 260}, 'math': {'lower': 280, 'upper': 310}},
-    12: {'readingAndWriting': {'lower': 250, 'upper': 270}, 'math': {'lower': 290, 'upper': 320}},
-    13: {'readingAndWriting': {'lower': 260, 'upper': 280}, 'math': {'lower': 300, 'upper': 330}},
-    14: {'readingAndWriting': {'lower': 280, 'upper': 300}, 'math': {'lower': 310, 'upper': 340}},
-    15: {'readingAndWriting': {'lower': 290, 'upper': 310}, 'math': {'lower': 320, 'upper': 350}},
-    16: {'readingAndWriting': {'lower': 320, 'upper': 340}, 'math': {'lower': 330, 'upper': 360}},
-    17: {'readingAndWriting': {'lower': 340, 'upper': 360}, 'math': {'lower': 330, 'upper': 360}},
-    18: {'readingAndWriting': {'lower': 350, 'upper': 370}, 'math': {'lower': 340, 'upper': 370}},
-    19: {'readingAndWriting': {'lower': 360, 'upper': 380}, 'math': {'lower': 350, 'upper': 380}},
-    20: {'readingAndWriting': {'lower': 370, 'upper': 390}, 'math': {'lower': 360, 'upper': 390}},
-    21: {'readingAndWriting': {'lower': 370, 'upper': 390}, 'math': {'lower': 370, 'upper': 400}},
-    22: {'readingAndWriting': {'lower': 380, 'upper': 400}, 'math': {'lower': 370, 'upper': 400}},
-    23: {'readingAndWriting': {'lower': 390, 'upper': 410}, 'math': {'lower': 380, 'upper': 410}},
-    24: {'readingAndWriting': {'lower': 400, 'upper': 420}, 'math': {'lower': 390, 'upper': 420}},
-    25: {'readingAndWriting': {'lower': 410, 'upper': 430}, 'math': {'lower': 400, 'upper': 430}},
-    26: {'readingAndWriting': {'lower': 420, 'upper': 440}, 'math': {'lower': 420, 'upper': 450}},
-    27: {'readingAndWriting': {'lower': 420, 'upper': 440}, 'math': {'lower': 430, 'upper': 460}},
-    28: {'readingAndWriting': {'lower': 430, 'upper': 450}, 'math': {'lower': 440, 'upper': 470}},
-    29: {'readingAndWriting': {'lower': 440, 'upper': 460}, 'math': {'lower': 460, 'upper': 490}},
-    30: {'readingAndWriting': {'lower': 450, 'upper': 470}, 'math': {'lower': 470, 'upper': 500}},
-    31: {'readingAndWriting': {'lower': 460, 'upper': 480}, 'math': {'lower': 480, 'upper': 510}},
-    32: {'readingAndWriting': {'lower': 460, 'upper': 480}, 'math': {'lower': 500, 'upper': 530}},
-    33: {'readingAndWriting': {'lower': 470, 'upper': 490}, 'math': {'lower': 510, 'upper': 540}},
-    34: {'readingAndWriting': {'lower': 480, 'upper': 500}, 'math': {'lower': 520, 'upper': 550}},
-    35: {'readingAndWriting': {'lower': 490, 'upper': 510}, 'math': {'lower': 530, 'upper': 560}},
-    36: {'readingAndWriting': {'lower': 490, 'upper': 510}, 'math': {'lower': 550, 'upper': 580}},
-    37: {'readingAndWriting': {'lower': 500, 'upper': 520}, 'math': {'lower': 560, 'upper': 590}},
-    38: {'readingAndWriting': {'lower': 510, 'upper': 530}, 'math': {'lower': 570, 'upper': 600}},
-    39: {'readingAndWriting': {'lower': 520, 'upper': 540}, 'math': {'lower': 580, 'upper': 610}},
-    40: {'readingAndWriting': {'lower': 530, 'upper': 550}, 'math': {'lower': 590, 'upper': 620}},
-    41: {'readingAndWriting': {'lower': 540, 'upper': 560}, 'math': {'lower': 600, 'upper': 630}},
-    42: {'readingAndWriting': {'lower': 540, 'upper': 560}, 'math': {'lower': 620, 'upper': 650}},
-    43: {'readingAndWriting': {'lower': 550, 'upper': 570}, 'math': {'lower': 630, 'upper': 660}},
-    44: {'readingAndWriting': {'lower': 560, 'upper': 580}, 'math': {'lower': 650, 'upper': 680}},
-    45: {'readingAndWriting': {'lower': 570, 'upper': 590}, 'math': {'lower': 670, 'upper': 700}},
-    46: {'readingAndWriting': {'lower': 580, 'upper': 600}, 'math': {'lower': 690, 'upper': 720}},
-    47: {'readingAndWriting': {'lower': 590, 'upper': 610}, 'math': {'lower': 710, 'upper': 740}},
-    48: {'readingAndWriting': {'lower': 590, 'upper': 610}, 'math': {'lower': 730, 'upper': 760}},
-    49: {'readingAndWriting': {'lower': 600, 'upper': 620}, 'math': {'lower': 740, 'upper': 770}},
-    50: {'readingAndWriting': {'lower': 610, 'upper': 630}, 'math': {'lower': 750, 'upper': 780}},
-    51: {'readingAndWriting': {'lower': 620, 'upper': 640}, 'math': {'lower': 760, 'upper': 790}},
-    52: {'readingAndWriting': {'lower': 630, 'upper': 650}, 'math': {'lower': 770, 'upper': 800}},
-    53: {'readingAndWriting': {'lower': 630, 'upper': 650}, 'math': {'lower': 780, 'upper': 800}},
-    54: {'readingAndWriting': {'lower': 640, 'upper': 660}, 'math': {'lower': 790, 'upper': 800}},
-    55: {'readingAndWriting': {'lower': 650, 'upper': 670}, 'math': None},
-    56: {'readingAndWriting': {'lower': 660, 'upper': 680}, 'math': None},
-    57: {'readingAndWriting': {'lower': 670, 'upper': 690}, 'math': None},
-    58: {'readingAndWriting': {'lower': 680, 'upper': 700}, 'math': None},
-    59: {'readingAndWriting': {'lower': 690, 'upper': 710}, 'math': None},
-    60: {'readingAndWriting': {'lower': 700, 'upper': 720}, 'math': None},
-    61: {'readingAndWriting': {'lower': 710, 'upper': 730}, 'math': None},
-    62: {'readingAndWriting': {'lower': 720, 'upper': 740}, 'math': None},
-    63: {'readingAndWriting': {'lower': 730, 'upper': 750}, 'math': None},
-    64: {'readingAndWriting': {'lower': 750, 'upper': 770}, 'math': None},
-    65: {'readingAndWriting': {'lower': 770, 'upper': 790}, 'math': None},
-    66: {'readingAndWriting': {'lower': 790, 'upper': 800}, 'math': None}
+from typing import Dict
+
+DEFAULT_BANDS = [
+    {
+        "name": "low",
+        "min_ratio": 0.00,
+        "max_ratio": 0.449999,
+        "m2_weight": 0.36,
+        "m2_multiplier": 0.92,
+        "section_cap": 650,
+        "curve_power": 1.02,
+        "range_half": 20,
+    },
+    {
+        "name": "mid",
+        "min_ratio": 0.45,
+        "max_ratio": 0.749999,
+        "m2_weight": 0.42,
+        "m2_multiplier": 1.00,
+        "section_cap": 730,
+        "curve_power": 0.97,
+        "range_half": 20,
+    },
+    {
+        "name": "high",
+        "min_ratio": 0.75,
+        "max_ratio": 1.00,
+        "m2_weight": 0.48,
+        "m2_multiplier": 1.05,
+        "section_cap": 800,
+        "curve_power": 0.92,
+        "range_half": 10,
+    },
+]
+
+SECTION_CONFIG = {
+    "english": {
+        "m1_total": 27,
+        "m2_total": 27,
+        "bands": DEFAULT_BANDS,
+    },
+    "math": {
+        "m1_total": 22,
+        "m2_total": 22,
+        "bands": DEFAULT_BANDS,
+    },
 }
 
+def _round_to_ten(value: float) -> int:
+    return int(round(value / 10.0) * 10)
 
-def get_english(m1,m2,e):
-    r = m2
-    if m1 < 18:
-        r = round(0.8 * m2)
-    r += m1
-    p = r / e
-    t = round(66 * p)
-    scores =  i[t]['readingAndWriting']
-    return 10 * round((scores['lower'] + scores['upper'] )/ 20), scores
+def _clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
 
+def _get_band(ratio: float, bands: list[dict]) -> dict:
+    for band in bands:
+        if band["min_ratio"] <= ratio <= band["max_ratio"]:
+            return band
+    return bands[-1]
 
-def get_math(m1,m2,e):
-    r = m2
-    if m1 < 15:
-        r = round(0.8 * m2)
-    r += m1
-    p = r / e
-    t = round(54 * p)
-    scores =  i[t]['math']
-    return 10 * round((scores['lower'] + scores['upper'] )/ 20), scores
-
-def get_total(e,a,l,u):
-    english, range_eng = get_english(e,a,54)
-    math, range_math = get_math(l,u,44)
+def _build_range(score: int, cap: int, half_width: int) -> Dict[str, int]:
     return {
-        'total':math+english,
-        'range_total':{
-            'lower': range_math['lower'] + range_eng['lower'],
-            'upper': range_math['upper'] + range_eng['upper']
-        },
-        'sections':{
-            'english':{
-                'score':english,
-                'range':range_eng
-            },            
-            'math':{
-                'score':math,
-                'range':range_math
-            },
-        }
+        "lower": max(200, score - half_width),
+        "upper": min(cap, score + half_width),
     }
+
+def _calculate_section_score(m1_correct: int, m2_correct: int, *, section_key: str) -> dict:
+    config = SECTION_CONFIG[section_key]
+    m1_total = config["m1_total"]
+    m2_total = config["m2_total"]
+
+    m1_ratio = _clamp(m1_correct / m1_total if m1_total else 0, 0.0, 1.0)
+    m2_ratio = _clamp(m2_correct / m2_total if m2_total else 0, 0.0, 1.0)
+
+    band = _get_band(m1_ratio, config["bands"])
+    adjusted_m2_ratio = _clamp(m2_ratio * band["m2_multiplier"], 0.0, 1.0)
+
+    m2_weight = band["m2_weight"]
+    m1_weight = 1.0 - m2_weight
+    combined_ratio = (m1_weight * m1_ratio) + (m2_weight * adjusted_m2_ratio)
+    combined_ratio = _clamp(combined_ratio, 0.0, 1.0)
+
+    raw_score = 200 + ((combined_ratio ** band["curve_power"]) * (band["section_cap"] - 200))
+    score = _round_to_ten(raw_score)
+    score = int(_clamp(score, 200, band["section_cap"]))
+
+    return {
+        "score": score,
+        "range": _build_range(score, band["section_cap"], band["range_half"]),
+        "band": band["name"],
+        "m1_ratio": round(m1_ratio, 4),
+        "m2_ratio": round(m2_ratio, 4),
+        "combined_ratio": round(combined_ratio, 4),
+        "cap": band["section_cap"],
+    }
+
+def get_english(m1, m2, _unused_total_questions=54):
+    section = _calculate_section_score(m1, m2, section_key="english")
+    return section["score"], section["range"]
+
+def get_math(m1, m2, _unused_total_questions=44):
+    section = _calculate_section_score(m1, m2, section_key="math")
+    return section["score"], section["range"]
+
+def get_total(e, a, l, u):
+    english_section = _calculate_section_score(e, a, section_key="english")
+    math_section = _calculate_section_score(l, u, section_key="math")
+    total_score = english_section["score"] + math_section["score"]
+    return {
+        "total": total_score,
+        "range_total": {
+            "lower": english_section["range"]["lower"] + math_section["range"]["lower"],
+            "upper": english_section["range"]["upper"] + math_section["range"]["upper"],
+        },
+        "sections": {
+            "english": english_section,
+            "math": math_section,
+        },
+    }
+
