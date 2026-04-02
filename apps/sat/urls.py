@@ -54,6 +54,7 @@ urlpatterns = [
     path('classroom/<int:classroom_id>/practice-tests/', views.classroom_practice_tests, name='classroom_practice_tests'),
     path('classroom/<int:classroom_id>/practice/<str:pk>/start/', views.classroom_start_practise, name='classroom_practise'),
     path('classroom/<int:classroom_id>/practice/<str:pk>/module/', views.classroom_module_test, name='classroom_test'),
+    path('teacher/classrooms/<int:classroom_id>/practice-tests/access/', views.update_classroom_practice_test_access, name='update_classroom_practice_test_access'),
 
     path('classroom/<int:classroom_id>/vocabulary/', views.classroom_vocabulary, name='classroom_vocabulary'),
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),

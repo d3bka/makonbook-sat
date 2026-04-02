@@ -1,0 +1,63 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title %}Manage Practice Tests{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>Manage Practice Tests</h2>
+    <p><strong>Classroom:</strong> {{ classroom.name }}</p>
+
+    <div style="margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 10px;">
+        <p style="margin: 0;">
+            Approved students: <strong>{{ total_students_count }}</strong><br>
+            Eligible for bulk update: <strong>{{ eligible_count }}</strong>
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:10px;">
+                <input type="radio" name="access_mode" value="all" checked>
+                Allow all practice tests
+            </label>
+
+            <label style="display:block;">
+                <input type="radio" name="access_mode" value="selected">
+                Allow only selected practice tests
+            </label>
+        </div>
+
+        <div id="tests-box" style="display:none; margin-bottom:20px;">
+            <h4>Select tests</h4>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px;">
+                {% for test in tests %}
+                    <label style="border:1px solid #ddd; border-radius:8px; padding:10px; display:block;">
+                        <input type="checkbox" name="tests" value="{{ test.id }}">
+                        {{ test.name }}
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="btn btn-secondary">Back</a>
+    </form>
+</div>
+
+<script>
+    const radios = document.querySelectorAll('input[name="access_mode"]');
+    const testsBox = document.getElementById('tests-box');
+
+    function toggleTestsBox() {
+        const selected = document.querySelector('input[name="access_mode"]:checked');
+        testsBox.style.display = selected && selected.value === 'selected' ? 'block' : 'none';
+    }
+
+    radios.forEach(r => r.addEventListener('change', toggleTestsBox));
+    toggleTestsBox();
+</script>
+{% endblock %}
