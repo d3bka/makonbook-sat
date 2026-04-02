@@ -64,6 +64,13 @@
     font-size: 14px;
     margin-bottom: 12px;
   }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
 </style>
 {% endblock style %}
 
@@ -74,6 +81,7 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <a href="{% url 'teacher_classroom_list' %}" class="btn-main btn-secondary">Back to Classrooms</a>
       <a href="{% url 'create_vocabulary_unit' %}" class="btn-main">Add Vocabulary Unit</a>
+      <a href="{% url 'bulk_import_vocabulary_words' %}" class="btn-main">Bulk Import</a>
     </div>
   </div>
 
@@ -82,13 +90,17 @@
       <div class="unit-card">
         <h3>Unit {{ unit.order }} — {{ unit.title }}</h3>
         <p>{{ unit.description|default:"No description." }}</p>
+
         <div class="meta">
           Words: {{ unit.words.count }}<br>
           Questions: {{ unit.questions.count }}
         </div>
-        <a href="{% url 'teacher_vocabulary_unit_detail' unit.id %}" class="btn-main">
-          Open Unit
-        </a>
+
+        <div class="actions">
+          <a href="{% url 'teacher_vocabulary_unit_detail' unit.id %}" class="btn-main">
+            Open Unit
+          </a>
+        </div>
       </div>
     {% empty %}
       <div class="unit-card">

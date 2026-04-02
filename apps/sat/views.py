@@ -20,6 +20,8 @@ from django.core.cache import cache
 from django.db.models import Q
 import json
 import random
+import re
+from django.db import transaction
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from django.urls import reverse
@@ -2875,21 +2877,21 @@ def create_vocabulary_word(request, unit_id):
 
     if request.method == 'POST':
         word = request.POST.get('word', '').strip()
-        definition = request.POST.get('definition', '').strip()
+        meaning = request.POST.get('meaning', '').strip()
         example = request.POST.get('example', '').strip()
 
         if not word:
             messages.error(request, "Word is required.")
             return redirect('create_vocabulary_word', unit_id=unit.id)
 
-        if not definition:
-            messages.error(request, "Definition is required.")
+        if not meaning:
+            messages.error(request, "Meaning is required.")
             return redirect('create_vocabulary_word', unit_id=unit.id)
 
         VocabularyWord.objects.create(
             unit=unit,
             word=word,
-            definition=definition,
+            meaning=meaning,
             example=example,
         )
 
@@ -2900,6 +2902,114 @@ def create_vocabulary_word(request, unit_id):
         'unit': unit,
     })
 
+def parse_bulk_vocabulary_text(raw_text):
+    parsed = []
+    bad_lines = []
+
+    lines = raw_text.splitlines()
+
+    for line in lines:
+        original = line
+        line = line.strip()
+
+        if not line:
+            continue
+
+        # remove "1. "
+        line = re.sub(r'^\s*\d+\.\s*', '', line)
+
+        # split by dash between word and meaning
+        parts = re.split(r'\s+[—–-]\s+', line, maxsplit=1)
+
+        if len(parts) != 2:
+            bad_lines.append(original)
+            continue
+
+        word = parts[0].strip()
+        meaning = parts[1].strip()
+
+        if not word or not meaning:
+            bad_lines.append(original)
+            continue
+
+        parsed.append({
+            'word': word,
+            'meaning': meaning,
+            'example': '',
+        })
+
+    return parsed, bad_lines
+
+
+@login_required(login_url='/login/')
+def bulk_import_vocabulary_words(request):
+    if not is_teacher(request.user):
+        return HttpResponseForbidden("Only teachers can import vocabulary words.")
+
+    if request.method == 'POST':
+        raw_text = request.POST.get('raw_text', '').strip()
+
+        if not raw_text:
+            messages.error(request, "Paste the vocabulary text first.")
+            return redirect('bulk_import_vocabulary_words')
+
+        parsed_items, bad_lines = parse_bulk_vocabulary_text(raw_text)
+
+        if not parsed_items:
+            messages.error(request, "Nothing valid was parsed. Check the text format.")
+            return redirect('bulk_import_vocabulary_words')
+
+        # Если хочешь полный пересбор — оставь
+        VocabularyWord.objects.all().delete()
+        VocabularyUnit.objects.all().delete()
+
+        with transaction.atomic():
+            units = []
+            for i in range(1, 51):
+                unit = VocabularyUnit.objects.create(
+                    order=i,
+                    title=f"Unit {i}",
+                    description=f"Vocabulary Unit {i}"
+                )
+                units.append(unit)
+
+            to_create = []
+
+            for index, item in enumerate(parsed_items):
+                if index < 1225:
+                    unit_index = index // 25   # Units 1..49
+                else:
+                    unit_index = 49            # Unit 50
+
+                to_create.append(
+                    VocabularyWord(
+                        unit=units[unit_index],
+                        word=item['word'],
+                        meaning=item['meaning'],
+                        example=item['example'],
+                        is_active=True,
+                    )
+                )
+
+            VocabularyWord.objects.bulk_create(to_create, batch_size=500)
+
+        messages.success(
+            request,
+            f"Imported {len(parsed_items)} words into 50 units. "
+            f"Unparsed lines: {len(bad_lines)}."
+        )
+
+        if bad_lines:
+            request.session['bulk_vocab_bad_lines'] = bad_lines[:100]
+        else:
+            request.session.pop('bulk_vocab_bad_lines', None)
+
+        return redirect('teacher_vocabulary_units')
+
+    bad_lines = request.session.pop('bulk_vocab_bad_lines', [])
+    return render(request, 'sat/bulk_import_vocabulary_words.html', {
+        'bad_lines': bad_lines,
+    })
 
 @login_required(login_url='/login/')
 def create_vocabulary_question(request, unit_id):
