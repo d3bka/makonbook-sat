@@ -4,7 +4,11 @@
 {% block title-main %}Makon Book{% endblock title-main %}
 
 {% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
+{% else %}
 <li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endif %}
 {% endblock breadcrumb_parent %}
 
 {% block title %}Practice Quiz Test{% endblock title %}
@@ -191,7 +195,7 @@
         </div>
       </div>
 
-      <form method="post" action="{% url 'vocabulary_practice_quiz_result' %}">
+      <form method="post" action="{% if classroom %}{{ request.path }}result/{% else %}{% url 'vocabulary_practice_quiz_result' %}{% endif %}">
         {% csrf_token %}
 
         {% for item in questions %}
@@ -211,7 +215,7 @@
         {% endfor %}
 
         <div class="quiz-actions">
-          <a href="{% url 'vocabulary_practice_quiz' %}" class="quiz-btn quiz-btn-secondary">Back to Units</a>
+          <a href="{% if classroom %}../{% else %}{% url 'vocabulary_practice_quiz' %}{% endif %}" class="quiz-btn quiz-btn-secondary">Back to Units</a>
           <button type="submit" class="quiz-btn quiz-btn-primary">Submit Test</button>
         </div>
       </form>
@@ -220,7 +224,7 @@
       <div class="empty-box">
         <h3>No units selected</h3>
         <p>You need to choose at least one unit before starting the test.</p>
-        <a href="{% url 'vocabulary_practice_quiz' %}" class="quiz-btn quiz-btn-primary">Choose Units</a>
+        <a href="{% if classroom %}../{% else %}{% url 'vocabulary_practice_quiz' %}{% endif %}" class="quiz-btn quiz-btn-primary">Choose Units</a>
       </div>
     {% endif %}
 

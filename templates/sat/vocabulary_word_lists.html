@@ -4,7 +4,11 @@
 {% block title-main %}Makon Book{% endblock title-main %}
 
 {% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
+{% else %}
 <li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+{% endif %}
 {% endblock breadcrumb_parent %}
 
 {% block title %}Word Lists{% endblock title %}

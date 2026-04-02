@@ -111,21 +111,21 @@ Makon Book
         <div class="vocab-card-icon"><i class="fa fa-book"></i></div>
         <h3>Word Lists</h3>
         <p>Browse all vocabulary units and see the words inside each unit.</p>
-        <a href="{% url 'vocabulary_section' 'word_lists' %}" class="vocab-button">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}word_lists/{% else %}{% url 'vocabulary_section' 'word_lists' %}{% endif %}" class="vocab-button">Open Section</a>
       </div>
 
       <div class="vocab-card">
         <div class="vocab-card-icon"><i class="fa fa-clone"></i></div>
         <h3>Flashcards</h3>
         <p>Review vocabulary words as flashcards built automatically from each unit.</p>
-        <a href="{% url 'vocabulary_section' 'flashcards' %}" class="vocab-button">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}flashcards/{% else %}{% url 'vocabulary_section' 'flashcards' %}{% endif %}" class="vocab-button">Open Section</a>
       </div>
 
       <div class="vocab-card">
         <div class="vocab-card-icon"><i class="fa fa-pencil-square-o"></i></div>
         <h3>Practice Quiz</h3>
         <p>Create a custom vocabulary test by selecting units and question count.</p>
-        <a href="{% url 'vocabulary_practice_quiz' %}" class="vocab-button">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}practice-quiz/{% else %}{% url 'vocabulary_practice_quiz' %}{% endif %}" class="vocab-button">Open Section</a>
       </div>
     </div>
 

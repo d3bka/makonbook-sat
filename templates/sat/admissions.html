@@ -104,21 +104,21 @@ Makon Book
         <div class="adm-icon"><i class="fa fa-university"></i></div>
         <h3>{{ sections.university_guide.title }}</h3>
         <p>{{ sections.university_guide.description }}</p>
-        <a href="{% url 'admissions_section' 'university_guide' %}" class="adm-btn">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}university_guide/{% else %}{% url 'admissions_section' 'university_guide' %}{% endif %}" class="adm-btn">Open Section</a>
       </div>
 
       <div class="adm-card">
         <div class="adm-icon"><i class="fa fa-file-text"></i></div>
         <h3>{{ sections.application_help.title }}</h3>
         <p>{{ sections.application_help.description }}</p>
-        <a href="{% url 'admissions_section' 'application_help' %}" class="adm-btn">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}application_help/{% else %}{% url 'admissions_section' 'application_help' %}{% endif %}" class="adm-btn">Open Section</a>
       </div>
 
       <div class="adm-card">
         <div class="adm-icon"><i class="fa fa-graduation-cap"></i></div>
         <h3>{{ sections.scholarships.title }}</h3>
         <p>{{ sections.scholarships.description }}</p>
-        <a href="{% url 'admissions_section' 'scholarships' %}" class="adm-btn">Open Section</a>
+        <a href="{% if classroom %}{{ request.path }}scholarships/{% else %}{% url 'admissions_section' 'scholarships' %}{% endif %}" class="adm-btn">Open Section</a>
       </div>
     </div>
   </section>
