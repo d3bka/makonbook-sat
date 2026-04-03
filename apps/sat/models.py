@@ -398,11 +398,13 @@ class TestReview(BaseModel):
         # Admin users get unlimited review time
         if self.user.groups.filter(name='Admin').exists():
             return True
+    
         # OFFLINE group users get infinite review time
         if self.user.groups.filter(name='OFFLINE').exists():
             return True
+    
         # Regular users follow the duration limit
-        return self.created_at + self.duration > datetime.datetime.now(timezone.utc)
+        return self.created_at + self.duration > timezone.now()
 
     def update_key(self):
         self.key = ''.join(random.choices(string.ascii_letters, k=100))

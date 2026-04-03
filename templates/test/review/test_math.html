@@ -238,7 +238,7 @@
 <body class="scroll-hide">
     <div class="container">
         <header>
-            <a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            {% if is_teacher_review %}<a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>{% else %}<a href="/sat/results/{{test}}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>{% endif %}
             <h1 style="color: green;">Answer: {{ question.answer }}</h1>
             <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
         </header>
@@ -270,7 +270,11 @@
             {% if prev %}
             <a href="{{ prev }}"><button type="button" class="nav-button">Back</button></a>
             {% else %}
+            {% if is_teacher_review %}
+            <a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}"><button type="button" class="nav-button">Back</button></a>
+            {% else %}
             <a href="/sat/results/{{test}}"><button type="button" class="nav-button">Back</button></a>
+            {% endif %}
             {% endif %}
 
             {% if next %}

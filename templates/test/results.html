@@ -163,7 +163,7 @@
     <div data-v-27935a7a="" class="col-md-4 sat_right row">
       <div data-v-27935a7a="" class="ml-3">
         <ul data-v-27935a7a="">
-          <li data-v-27935a7a=""><b data-v-27935a7a="">Name: </b><span data-v-27935a7a="">{{ user }}</span></li>
+          <li data-v-27935a7a=""><b data-v-27935a7a="">Name: </b><span data-v-27935a7a="">{{ display_user|default:user }}</span></li>
           <li data-v-27935a7a="">
             <b data-v-27935a7a="">Total Score: </b>
             <b data-v-27935a7a="" style="color: var(--themeColor);">{{ score.total }}</b>
@@ -172,6 +172,7 @@
         </ul>
       </div>
     </div>
+    {% if not is_teacher_review %}
     <div class="col-md-1" style="padding-top: 30px; padding-right: 30px;">
       <div class="button-container">
         <a href="/sat/results/certificate/{{stats.test}}/" style="text-decoration:none; color:inherit; margin-left:10px;">
@@ -179,6 +180,13 @@
         </a>
       </div>
     </div>
+    {% else %}
+    <div class="col-md-4" style="padding-top: 30px;">
+      <div style="padding:12px 16px; border-radius:14px; background:#eef2ff; color:#324dc7; font-weight:700;">
+        Teacher review mode · {{ display_user|default:user }}
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <div data-v-049b5cac="" class="row mx-auto total">
@@ -195,11 +203,13 @@
           {% endif %}
         </p>
       </div>
+      {% if not is_teacher_review %}
       <div class="restart-btn-container">
         <a href="{% url 'restart' pk=stats.test %}" class="btn btn-danger btn-sm">
           <i class="fa fa-refresh"></i> Retake Full Test
         </a>
       </div>
+      {% endif %}
       {% else %}
       <h4 data-v-049b5cac="" class="title" style="color: red;"> You need to complete all sections </h4>
       {% endif %}
@@ -226,11 +236,13 @@
           </p>
           {% endif %}
         </div>
+        {% if not is_teacher_review %}
         <div class="restart-btn-container">
           <a href="{% url 'restart_section' pk=stats.test section='english' %}" class="btn btn-warning btn-sm">
             <i class="fa fa-refresh"></i> Retake English Section
           </a>
         </div>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -253,11 +265,13 @@
           </p>
           {% endif %}
         </div>
+        {% if not is_teacher_review %}
         <div class="restart-btn-container">
           <a href="{% url 'restart_section' pk=stats.test section='math' %}" class="btn btn-warning btn-sm">
             <i class="fa fa-refresh"></i> Retake Math Section
           </a>
         </div>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -271,7 +285,7 @@
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.english.m1 %}
         <div class="rect-question {{ q.status }}">
-          <a href="/sat/question/{{ key }}/english/m1/{{ q.id }}">{{ q.number }}</a>
+          {% if is_teacher_review %}<a href="{% url 'classroom_student_review_question' classroom.id review_student.id key 'english' 'm1' q.id %}">{{ q.number }}</a>{% else %}<a href="{% url 'question' key 'english' 'm1' q.id %}">{{ q.number }}</a>{% endif %}
         </div>
         {% endfor %}
       </div>
@@ -282,7 +296,7 @@
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.english.m2 %}
         <div class="rect-question {{ q.status }}">
-          <a href="/sat/question/{{ key }}/english/m2/{{ q.id }}">{{ q.number }}</a>
+          {% if is_teacher_review %}<a href="{% url 'classroom_student_review_question' classroom.id review_student.id key 'english' 'm2' q.id %}">{{ q.number }}</a>{% else %}<a href="{% url 'question' key 'english' 'm2' q.id %}">{{ q.number }}</a>{% endif %}
         </div>
         {% endfor %}
       </div>
@@ -295,7 +309,7 @@
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.math.m1 %}
         <div class="rect-question {{ q.status }}">
-          <a href="/sat/question/{{ key }}/math/m1/{{ q.id }}">{{ q.number }}</a>
+          {% if is_teacher_review %}<a href="{% url 'classroom_student_review_question' classroom.id review_student.id key 'math' 'm1' q.id %}">{{ q.number }}</a>{% else %}<a href="{% url 'question' key 'math' 'm1' q.id %}">{{ q.number }}</a>{% endif %}
         </div>
         {% endfor %}
       </div>
@@ -306,7 +320,7 @@
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.math.m2 %}
         <div class="rect-question {{ q.status }}">
-          <a href="/sat/question/{{ key }}/math/m2/{{ q.id }}">{{ q.number }}</a>
+          {% if is_teacher_review %}<a href="{% url 'classroom_student_review_question' classroom.id review_student.id key 'math' 'm2' q.id %}">{{ q.number }}</a>{% else %}<a href="{% url 'question' key 'math' 'm2' q.id %}">{{ q.number }}</a>{% endif %}
         </div>
         {% endfor %}
       </div>

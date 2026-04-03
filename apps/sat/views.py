@@ -2353,6 +2353,270 @@ def classroom_admissions(request, classroom_id):
 
     return admissions(request)
 
+def _can_manage_classroom_progress(user, classroom):
+    return classroom.teacher_id == user.id or user.is_superuser
+
+
+def _get_classroom_student_membership_or_404(classroom, student_id):
+    return get_object_or_404(
+        ClassroomMembership.objects.select_related('user', 'classroom').prefetch_related('section_access'),
+        classroom=classroom,
+        user_id=student_id,
+        role='student',
+        status='approved'
+    )
+
+
+def _sort_tests_for_progress(tests):
+    def key_fn(test):
+        name = str(test.name).strip().lower()
+        if name.startswith('day'):
+            digits = ''.join(ch for ch in name if ch.isdigit())
+            if digits:
+                return (0, int(digits), str(test.name).lower())
+        return (1, 999999, str(test.name).lower())
+
+    return sorted(tests, key=key_fn)
+
+
+def _get_membership_allowed_tests(membership):
+    explicit_access = list(
+        StudentPracticeTestAccess.objects.filter(
+            membership=membership,
+            has_access=True
+        ).select_related('test')
+    )
+
+    if explicit_access:
+        tests = [item.test for item in explicit_access]
+    else:
+        tests = list(Test.objects.all().distinct())
+
+    return _sort_tests_for_progress(tests)
+
+
+def _build_test_progress_rows(student, tests):
+    rows = []
+
+    for test in tests:
+        modules = TestModule.objects.filter(user=student, test=test).order_by('-created_at')
+        review = TestReview.objects.filter(user=student, test=test).order_by('-created_at').first()
+        stage = TestStage.objects.filter(user=student, test=test).order_by('-created_at').first()
+
+        latest_module = modules.first()
+        latest_by_slot = {}
+        for module in modules:
+            slot = f"{module.section}_{module.module}"
+            if slot not in latest_by_slot:
+                latest_by_slot[slot] = module
+
+        answered_questions = 0
+        for module in latest_by_slot.values():
+            try:
+                payload = json.loads(module.answers or '{}')
+                answered_questions += len(payload.get('answers', []))
+            except Exception:
+                continue
+
+        if review and review.score is not None:
+            status = 'completed'
+        elif latest_module or stage:
+            status = 'in_progress'
+        else:
+            status = 'not_started'
+
+        rows.append({
+            'test': test,
+            'status': status,
+            'score': review.score if review and review.score is not None else None,
+            'review_key': review.key if review and review.score is not None else '',
+            'can_open_review': bool(review and review.key and review.score is not None),
+            'last_activity_at': latest_module.created_at if latest_module else (review.created_at if review else None),
+            'answered_questions': answered_questions,
+            'has_stage': bool(stage),
+            'stage_value': stage.stage if stage else None,
+        })
+
+    return rows
+
+
+def _build_test_results_context_for_user(test_obj, user):
+    test_mode = get_test_mode(test_obj)
+    has_english = test_mode in ['full', 'ebrw_only']
+    has_math = test_mode in ['full', 'math_only']
+
+    questions = {
+        'english': {'m1': [], 'm2': []},
+        'math': {'m1': [], 'm2': []}
+    }
+
+    correct_counts = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+
+    time_spent_totals = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0}
+    }
+
+    status = {
+        'english': False,
+        'math': False,
+        'total': False
+    }
+
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
+
+    latest_modules = {}
+    all_modules_query = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at')
+
+    for module in all_modules_query:
+        key = f"{module.section}_{module.module}"
+        if key not in latest_modules:
+            latest_modules[key] = module
+
+    missing_modules = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        if key not in latest_modules:
+            missing_modules.append(key)
+
+    if not missing_modules:
+        status['total'] = True
+    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
+        status['english'] = True
+    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
+        status['math'] = True
+
+    if missing_modules:
+        return {
+            'is_complete': False,
+            'missing_modules': missing_modules,
+            'status': status,
+            'test_mode': test_mode,
+            'has_english': has_english,
+            'has_math': has_math,
+            'questions': questions,
+        }
+
+    modules_to_process = []
+    for section, module in required_modules:
+        key = f"{section}_{module}"
+        module_obj = latest_modules.get(key)
+        if module_obj:
+            modules_to_process.append(module_obj)
+
+    for module in modules_to_process:
+        try:
+            answers_list = json.loads(module.answers or '{}').get('answers', [])
+        except Exception:
+            answers_list = []
+
+        sec = module.section
+        mod = module.module
+
+        if sec not in ['english', 'math'] or mod not in ['m1', 'm2']:
+            continue
+
+        for answer in answers_list:
+            try:
+                time_spent = int(answer.get('time_spent', 0) or 0)
+                time_spent_totals[sec][mod] += time_spent
+
+                if sec == 'english':
+                    q_obj = English_Question.objects.get(id=int(answer['questionID']))
+                    is_correct = (answer.get('answer') == q_obj.answer)
+                    display_answer = answer.get('answer')
+                else:
+                    q_obj = Math_Question.objects.get(id=int(answer['questionID']))
+                    raw_answer = answer.get('answer')
+                    is_correct = (raw_answer is not None and check_written(raw_answer, q_obj.answer))
+                    display_answer = raw_answer.replace('/', '-') if raw_answer else raw_answer
+
+                if is_correct:
+                    correct_counts[sec][mod] += 1
+
+                questions[sec][mod].append({
+                    'id': answer['questionID'],
+                    'status': 'correct' if is_correct else 'incorrect',
+                    'answer': display_answer,
+                    'number': q_obj.number,
+                    'time_spent': time_spent
+                })
+            except Exception:
+                continue
+
+    if test_mode == 'full':
+        score = calculator.get_total(
+            correct_counts['english']['m1'],
+            correct_counts['english']['m2'],
+            correct_counts['math']['m1'],
+            correct_counts['math']['m2']
+        )
+    elif test_mode == 'ebrw_only':
+        english_score = correct_counts['english']['m1'] + correct_counts['english']['m2']
+        score = {
+            'total': english_score,
+            'sections': {
+                'english': {'score': english_score, 'range': {'lower': 0, 'upper': english_score}},
+                'math': None,
+            }
+        }
+    elif test_mode == 'math_only':
+        math_score = correct_counts['math']['m1'] + correct_counts['math']['m2']
+        score = {
+            'total': math_score,
+            'sections': {
+                'english': None,
+                'math': {'score': math_score, 'range': {'lower': 0, 'upper': math_score}},
+            }
+        }
+    else:
+        score = {
+            'total': 0,
+            'sections': {
+                'english': None,
+                'math': None,
+            }
+        }
+
+    testreview = TestReview.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
+
+    english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
+    math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
+
+    english_total_time = time_spent_totals['english']['m1'] + time_spent_totals['english']['m2']
+    math_total_time = time_spent_totals['math']['m1'] + time_spent_totals['math']['m2']
+
+    total_correct = english_total_correct + math_total_correct
+
+    stats = {
+        'total': total_correct,
+        'test': test_obj.name,
+        'english_time': english_total_time,
+        'math_time': math_total_time,
+        'time_spent': english_total_time + math_total_time,
+    }
+
+    return {
+        'is_complete': True,
+        'status': status,
+        'score': score,
+        'stats': stats,
+        'key': testreview.key if testreview else '',
+        'questions': questions,
+        'test_mode': test_mode,
+        'has_english': has_english,
+        'has_math': has_math,
+        'review': testreview,
+    }
+
+
 def recalculate_practice_tests_progress(classroom, student):
     membership = ClassroomMembership.objects.filter(
         classroom=classroom,
@@ -2496,6 +2760,201 @@ def classroom_progress_dashboard(request, classroom_id):
         'classroom': classroom,
         'grouped_progress': grouped_progress.values(),
     })
+
+@login_required(login_url='/login/')
+def classroom_student_practice_progress(request, classroom_id, student_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = _get_classroom_student_membership_or_404(classroom, student_id)
+    student = membership.user
+
+    recalculate_student_progress_for_classroom(classroom, student)
+
+    access_map = get_membership_section_access_map(membership)
+    tests = _get_membership_allowed_tests(membership) if access_map.get('practice_tests') else []
+    test_rows = _build_test_progress_rows(student, tests)
+    practice_progress = StudentProgress.objects.filter(
+        classroom=classroom,
+        student=student,
+        section='practice_tests'
+    ).first()
+
+    return render(request, 'sat/classroom_student_practice_progress.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'student_obj': student,
+        'access_map': access_map,
+        'practice_progress': practice_progress,
+        'test_rows': test_rows,
+    })
+
+
+@login_required(login_url='/login/')
+def classroom_student_vocab_progress(request, classroom_id, student_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = _get_classroom_student_membership_or_404(classroom, student_id)
+    student = membership.user
+
+    recalculate_student_progress_for_classroom(classroom, student)
+
+    vocab_progress = StudentProgress.objects.filter(
+        classroom=classroom,
+        student=student,
+        section='vocabulary'
+    ).first()
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+
+    return render(request, 'sat/classroom_student_vocab_progress.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'student_obj': student,
+        'access_map': get_membership_section_access_map(membership),
+        'vocab_progress': vocab_progress,
+        'units': units,
+        'total_words': sum(unit.words.filter(is_active=True).count() for unit in units),
+    })
+
+
+@login_required(login_url='/login/')
+def classroom_student_admission_progress(request, classroom_id, student_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = _get_classroom_student_membership_or_404(classroom, student_id)
+    student = membership.user
+
+    recalculate_student_progress_for_classroom(classroom, student)
+
+    admission_progress = StudentProgress.objects.filter(
+        classroom=classroom,
+        student=student,
+        section='admissions'
+    ).first()
+
+    return render(request, 'sat/classroom_student_admission_progress.html', {
+        'classroom': classroom,
+        'membership': membership,
+        'student_obj': student,
+        'access_map': get_membership_section_access_map(membership),
+        'admission_progress': admission_progress,
+        'admission_sections': ADMISSIONS_SECTIONS,
+    })
+
+
+@login_required(login_url='/login/')
+def classroom_student_review_results(request, classroom_id, student_id, test_name):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = _get_classroom_student_membership_or_404(classroom, student_id)
+    student = membership.user
+    test_obj = get_object_or_404(Test, name=test_name)
+
+    result_context = _build_test_results_context_for_user(test_obj, student)
+    if not result_context.get('is_complete'):
+        return HttpResponse("Student has not finished all required modules for this test.")
+
+    context = {
+        'user': request.user,
+        'display_user': student,
+        'classroom': classroom,
+        'review_student': student,
+        'is_teacher_review': True,
+    }
+    context.update(result_context)
+
+    return render(request, 'test/results.html', context)
+
+
+@login_required(login_url='/login/')
+def classroom_student_review_question(request, classroom_id, student_id, key, section, module, id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    membership = _get_classroom_student_membership_or_404(classroom, student_id)
+    student = membership.user
+
+    group, _ = Group.objects.get_or_create(name='OFFLINE')
+
+    review = TestReview.objects.filter(key=key).select_related('user', 'test', 'makeup_test').first()
+    if not review or review.user_id != student.id:
+        return HttpResponse('This review is no longer available. A new retake may already be in progress.')
+
+    if not review.is_active() and not request.user.is_superuser:
+        if not request.user.groups.filter(name='Admin').exists():
+            review_started = review.created_at.strftime('%B %d, %Y at %I:%M %p')
+            review_duration = str(review.duration)
+            expired_time = (review.created_at + review.duration).strftime('%B %d, %Y at %I:%M %p')
+
+            return render(request, 'sat/review_time_over.html', {
+                'test_name': review.test.name if review.test else (review.makeup_test.name if review.makeup_test else 'Unknown'),
+                'review_started': review_started,
+                'review_duration': review_duration,
+                'expired_time': expired_time
+            })
+
+    if review.score is None:
+        return HttpResponse('Review is unavailable because a retake is currently in progress.')
+
+    module_obj = TestModule.objects.filter(
+        test=review.test,
+        user=review.user,
+        section=section,
+        module=module
+    ).first()
+
+    if not module_obj:
+        return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
+
+    prev, answer, new = module_obj.find_answer(question_id=id)
+    prev = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, prev]) if prev else ''
+    new = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, new]) if new else ''
+
+    if section == 'english':
+        question = English_Question.objects.filter(id=id).first()
+        if not question:
+            return HttpResponse('Question is not found!')
+        return render(request, 'test/review/test_eng.html', {
+            'question': question,
+            'answered': answer,
+            'prev': prev,
+            'next': new,
+            'test': review.test,
+            'is_teacher_review': True,
+            'classroom': classroom,
+            'review_student': student,
+        })
+
+    if section == 'math':
+        question = Math_Question.objects.filter(id=id).first()
+        if not question:
+            return HttpResponse('Question is not found!')
+        return render(request, 'test/review/test_math.html', {
+            'question': question,
+            'answered': answer,
+            'prev': prev,
+            'next': new,
+            'test': review.test,
+            'is_teacher_review': True,
+            'classroom': classroom,
+            'review_student': student,
+        })
+
+    return HttpResponse('Invalid section')
+
 
 def get_classroom_access_for_user(user, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
