@@ -60,6 +60,11 @@ urlpatterns = [
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
 
     path('teacher/classrooms/<int:classroom_id>/progress/', views.classroom_progress_dashboard, name='classroom_progress_dashboard'),
+    path('teacher/classrooms/<int:classroom_id>/progress/student/<int:student_id>/practice/', views.classroom_student_practice_progress, name='classroom_student_practice_progress'),
+    path('teacher/classrooms/<int:classroom_id>/progress/student/<int:student_id>/vocabulary/', views.classroom_student_vocab_progress, name='classroom_student_vocab_progress'),
+    path('teacher/classrooms/<int:classroom_id>/progress/student/<int:student_id>/admissions/', views.classroom_student_admission_progress, name='classroom_student_admission_progress'),
+    path('teacher/classrooms/<int:classroom_id>/progress/student/<int:student_id>/practice/<str:test_name>/review/', views.classroom_student_review_results, name='classroom_student_review_results'),
+    path('teacher/classrooms/<int:classroom_id>/progress/student/<int:student_id>/review/<str:key>/<str:section>/<str:module>/<str:id>/', views.classroom_student_review_question, name='classroom_student_review_question'),
 
     path('classroom/<int:classroom_id>/chat/', views.classroom_chat, name='classroom_chat'),
     path('classroom/<int:classroom_id>/chat/send/', views.send_classroom_message, name='send_classroom_message'),

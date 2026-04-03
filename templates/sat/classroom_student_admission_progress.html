@@ -1,0 +1,81 @@
+{% extends 'template.html' %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Admissions Progress{% endblock title %}
+
+{% block style %}
+<style>
+  .detail-shell { max-width: 1180px; margin: 0 auto; }
+  .detail-card { background:#fff; border:1px solid #e5e7eb; border-radius:24px; padding:28px; box-shadow:0 16px 36px rgba(15,23,42,.08); }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .eyebrow { color:#c2410c; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  .title { margin:0; font-size:34px; font-weight:800; color:#111827; }
+  .subtitle { margin:8px 0 0; color:#64748b; }
+  .back-btn { text-decoration:none; padding:11px 16px; border-radius:12px; background:#f8fafc; border:1px solid #dbe2ea; color:#0f172a; font-weight:700; }
+  .summary-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+  .summary-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:18px; padding:18px; }
+  .summary-label { color:#64748b; font-size:13px; font-weight:700; text-transform:uppercase; }
+  .summary-value { margin-top:10px; font-size:28px; font-weight:800; color:#111827; }
+  .summary-small { margin-top:8px; color:#64748b; font-size:14px; }
+  .note { margin-bottom:20px; padding:14px 16px; border-radius:14px; background:#fff7ed; color:#9a3412; border:1px solid #fdba74; font-weight:600; }
+  .sections-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  .section-card { border:1px solid #e5e7eb; border-radius:18px; padding:18px; background:#fff; }
+  .section-title { margin:0; font-size:20px; font-weight:800; color:#111827; }
+  .section-meta { margin-top:8px; color:#64748b; }
+  @media (max-width: 900px) { .summary-grid, .sections-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="detail-shell">
+  <div class="detail-card">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Student Admissions Progress</div>
+        <h2 class="title">{{ student_obj.get_full_name|default:student_obj.username }}</h2>
+        <p class="subtitle">@{{ student_obj.username }} · {{ classroom.name }}</p>
+      </div>
+      <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="back-btn">Back to Progress</a>
+    </div>
+
+    {% if not access_map.admissions %}
+      <div class="note">Admissions section is disabled for this student inside this classroom.</div>
+    {% endif %}
+
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-label">Completion</div>
+        <div class="summary-value">{% if admission_progress %}{{ admission_progress.completion_percent }}%{% else %}0.00%{% endif %}</div>
+        <div class="summary-small">Current tracked admissions completion</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Sections</div>
+        <div class="summary-value">{{ admission_sections|length }}</div>
+        <div class="summary-small">Admissions sections currently available</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Activity</div>
+        <div class="summary-value">{% if admission_progress %}{{ admission_progress.activity_count }}{% else %}0{% endif %}</div>
+        <div class="summary-small">No per-student submissions are tracked yet</div>
+      </div>
+    </div>
+
+    <div class="note">
+      Real per-student admissions completion is not stored in the current database yet. This page shows the available admissions structure instead of pretending the student finished something that is not actually tracked.
+    </div>
+
+    <div class="sections-grid">
+      {% for slug, section in admission_sections.items %}
+        <div class="section-card">
+          <h3 class="section-title">{{ section.title }}</h3>
+          <div class="section-meta">
+            Slug: {{ slug }}<br>
+            Description: {{ section.description }}<br>
+            Items: {{ section.items|length }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

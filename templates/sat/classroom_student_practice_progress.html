@@ -1,0 +1,211 @@
+{% extends 'template.html' %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Practice Progress{% endblock title %}
+
+{% block style %}
+<style>
+  .detail-shell { max-width: 1280px; margin: 0 auto; }
+  .detail-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+  }
+  .detail-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .detail-eyebrow {
+    color: #324dc7;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .detail-title { margin: 0; font-size: 34px; font-weight: 800; color: #111827; }
+  .detail-subtitle { margin: 8px 0 0; color: #64748b; }
+  .back-btn {
+    text-decoration: none;
+    padding: 11px 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #dbe2ea;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .summary-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 18px;
+  }
+  .summary-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .summary-value { margin-top: 10px; font-size: 28px; font-weight: 800; color: #111827; }
+  .summary-small { margin-top: 8px; color: #64748b; font-size: 14px; }
+  .section-note {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+    font-weight: 600;
+  }
+  .progress-table-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .progress-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .progress-table th,
+  .progress-table td {
+    padding: 16px;
+    border-bottom: 1px solid #eef2f7;
+    text-align: left;
+    vertical-align: middle;
+  }
+  .progress-table th {
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 800;
+    font-size: 14px;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .status-completed { background: #ecfdf5; color: #047857; }
+  .status-in_progress { background: #eff6ff; color: #1d4ed8; }
+  .status-not_started { background: #f1f5f9; color: #475569; }
+  .review-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #324dc7;
+    color: #fff;
+    font-weight: 700;
+  }
+  .review-btn.disabled {
+    background: #cbd5e1;
+    color: #475569;
+    pointer-events: none;
+  }
+  @media (max-width: 980px) {
+    .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .progress-table-wrap { overflow-x: auto; }
+    .progress-table { min-width: 900px; }
+  }
+  @media (max-width: 640px) {
+    .detail-card { padding: 20px; }
+    .detail-title { font-size: 28px; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="detail-shell">
+  <div class="detail-card">
+    <div class="detail-head">
+      <div>
+        <div class="detail-eyebrow">Student Practice Progress</div>
+        <h2 class="detail-title">{{ student_obj.get_full_name|default:student_obj.username }}</h2>
+        <p class="detail-subtitle">@{{ student_obj.username }} · {{ classroom.name }}</p>
+      </div>
+      <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="back-btn">Back to Progress</a>
+    </div>
+
+    {% if not access_map.practice_tests %}
+      <div class="section-note">Practice Tests section is disabled for this student inside this classroom.</div>
+    {% endif %}
+
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-label">Completion</div>
+        <div class="summary-value">{% if practice_progress %}{{ practice_progress.completion_percent }}%{% else %}0.00%{% endif %}</div>
+        <div class="summary-small">Across assigned practice tests</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Completed</div>
+        <div class="summary-value">{% if practice_progress %}{{ practice_progress.completed_items }}{% else %}0{% endif %}</div>
+        <div class="summary-small">Out of {% if practice_progress %}{{ practice_progress.total_items }}{% else %}0{% endif %} tracked tests</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Activity</div>
+        <div class="summary-value">{% if practice_progress %}{{ practice_progress.activity_count }}{% else %}0{% endif %}</div>
+        <div class="summary-small">Module activity records</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Last Activity</div>
+        <div class="summary-value" style="font-size:20px;">{% if practice_progress and practice_progress.last_activity_at %}{{ practice_progress.last_activity_at|date:"M d, Y" }}{% else %}—{% endif %}</div>
+        <div class="summary-small">{% if practice_progress and practice_progress.last_activity_at %}{{ practice_progress.last_activity_at|date:"H:i" }}{% else %}No activity yet{% endif %}</div>
+      </div>
+    </div>
+
+    <div class="progress-table-wrap">
+      <table class="progress-table">
+        <thead>
+          <tr>
+            <th>Practice Test</th>
+            <th>Status</th>
+            <th>Answered Questions</th>
+            <th>Score</th>
+            <th>Last Activity</th>
+            <th>Review</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in test_rows %}
+            <tr>
+              <td><strong>{{ row.test.name }}</strong></td>
+              <td>
+                <span class="status-pill status-{{ row.status }}">
+                  {% if row.status == 'completed' %}Completed{% elif row.status == 'in_progress' %}In Progress{% else %}Not Started{% endif %}
+                </span>
+              </td>
+              <td>{{ row.answered_questions }}</td>
+              <td>{% if row.score is not None %}{{ row.score }}{% else %}—{% endif %}</td>
+              <td>{% if row.last_activity_at %}{{ row.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}</td>
+              <td>
+                {% if row.can_open_review %}
+                  <a href="{% url 'classroom_student_review_results' classroom.id student_obj.id row.test.name %}" class="review-btn">Open Review</a>
+                {% else %}
+                  <span class="review-btn disabled">Unavailable</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">No practice tests are assigned to this student yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock content %}

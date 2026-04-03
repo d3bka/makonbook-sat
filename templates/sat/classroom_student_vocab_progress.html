@@ -1,0 +1,84 @@
+{% extends 'template.html' %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title %}Vocabulary Progress{% endblock title %}
+
+{% block style %}
+<style>
+  .detail-shell { max-width: 1180px; margin: 0 auto; }
+  .detail-card { background:#fff; border:1px solid #e5e7eb; border-radius:24px; padding:28px; box-shadow:0 16px 36px rgba(15,23,42,.08); }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .eyebrow { color:#0f766e; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  .title { margin:0; font-size:34px; font-weight:800; color:#111827; }
+  .subtitle { margin:8px 0 0; color:#64748b; }
+  .back-btn { text-decoration:none; padding:11px 16px; border-radius:12px; background:#f8fafc; border:1px solid #dbe2ea; color:#0f172a; font-weight:700; }
+  .summary-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+  .summary-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:18px; padding:18px; }
+  .summary-label { color:#64748b; font-size:13px; font-weight:700; text-transform:uppercase; }
+  .summary-value { margin-top:10px; font-size:28px; font-weight:800; color:#111827; }
+  .summary-small { margin-top:8px; color:#64748b; font-size:14px; }
+  .note { margin-bottom:20px; padding:14px 16px; border-radius:14px; background:#ecfeff; color:#155e75; border:1px solid #a5f3fc; font-weight:600; }
+  .note.warning { background:#fff7ed; color:#9a3412; border-color:#fdba74; }
+  .units-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+  .unit-card { border:1px solid #e5e7eb; border-radius:18px; padding:18px; background:#fff; }
+  .unit-title { margin:0; font-size:20px; font-weight:800; color:#111827; }
+  .unit-meta { margin-top:8px; color:#64748b; }
+  @media (max-width: 900px) { .summary-grid, .units-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="detail-shell">
+  <div class="detail-card">
+    <div class="head">
+      <div>
+        <div class="eyebrow">Student Vocabulary Progress</div>
+        <h2 class="title">{{ student_obj.get_full_name|default:student_obj.username }}</h2>
+        <p class="subtitle">@{{ student_obj.username }} · {{ classroom.name }}</p>
+      </div>
+      <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="back-btn">Back to Progress</a>
+    </div>
+
+    {% if not access_map.vocabulary %}
+      <div class="note warning">Vocabulary section is disabled for this student inside this classroom.</div>
+    {% endif %}
+
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-label">Completion</div>
+        <div class="summary-value">{% if vocab_progress %}{{ vocab_progress.completion_percent }}%{% else %}0.00%{% endif %}</div>
+        <div class="summary-small">Current tracked vocabulary completion</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Units</div>
+        <div class="summary-value">{{ units|length }}</div>
+        <div class="summary-small">Active units available in vocabulary</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">Words</div>
+        <div class="summary-value">{{ total_words }}</div>
+        <div class="summary-small">Total active words across all units</div>
+      </div>
+    </div>
+
+    <div class="note">
+      Detailed per-student vocabulary completion is not fully tracked in the current database yet. This page shows the student section status and the active unit structure instead of fake progress.
+    </div>
+
+    <div class="units-grid">
+      {% for unit in units %}
+        <div class="unit-card">
+          <h3 class="unit-title">{{ unit.title }}</h3>
+          <div class="unit-meta">
+            Order: {{ unit.order }}<br>
+            Active words: {{ unit.words_count }}<br>
+            Questions: {{ unit.questions.count }}
+          </div>
+        </div>
+      {% empty %}
+        <div class="unit-card">No vocabulary units found.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -6,136 +6,252 @@
 
 {% block style %}
 <style>
-  .progress-wrap {
-    max-width: 1300px;
+  .progress-shell {
+    max-width: 1320px;
     margin: 0 auto;
   }
-
-  .progress-card {
-    background: #fff;
-    border-radius: 18px;
-    padding: 24px;
+  .progress-hero {
+    background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
     border: 1px solid #e5e7eb;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    border-radius: 24px;
+    padding: 30px;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
   }
-
-  .progress-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 18px;
-  }
-
-  .progress-table th,
-  .progress-table td {
-    padding: 14px 12px;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .progress-table th {
-    background: #f8fafc;
-    color: #324dc7;
-    font-weight: 800;
-  }
-
-  .progress-badge {
-    display: inline-block;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #324dc7;
-    font-weight: 700;
-    font-size: 13px;
-  }
-
-  .student-name {
+  .progress-title {
+    margin: 0 0 8px;
+    font-size: 42px;
+    line-height: 1.1;
     font-weight: 800;
     color: #111827;
   }
-
-  .sub-meta {
-    font-size: 13px;
+  .progress-subtitle {
+    margin: 0;
     color: #64748b;
-    margin-top: 6px;
-    line-height: 1.5;
+    font-size: 17px;
+  }
+  .student-grid {
+    display: grid;
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .student-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 22px;
+    background: #fff;
+    padding: 22px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  }
+  .student-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .student-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 280px;
+  }
+  .student-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #324dc7 0%, #5b7cff 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .student-name {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+    color: #111827;
+  }
+  .student-username {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 14px;
+  }
+  .student-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .student-action {
+    text-decoration: none;
+    padding: 11px 16px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .student-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(50, 77, 199, 0.15);
+  }
+  .action-practice {
+    background: #eef2ff;
+    color: #3047bf;
+    border-color: #c7d2fe;
+  }
+  .action-vocab {
+    background: #ecfeff;
+    color: #0f766e;
+    border-color: #a5f3fc;
+  }
+  .action-admission {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fdba74;
+  }
+  .student-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .stat-card {
+    border-radius: 18px;
+    border: 1px solid #edf0f5;
+    background: #f8fafc;
+    padding: 18px;
+  }
+  .stat-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .stat-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #334155;
+  }
+  .stat-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 70px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    color: #324dc7;
+    font-weight: 800;
+    font-size: 13px;
+  }
+  .stat-meta {
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: #64748b;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: #fff;
+    margin-top: 22px;
+  }
+  @media (max-width: 980px) {
+    .student-stats {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 720px) {
+    .progress-hero { padding: 22px; }
+    .progress-title { font-size: 34px; }
+    .student-card { padding: 18px; }
+    .student-name { font-size: 20px; }
+    .student-action { width: 100%; justify-content: center; }
+    .student-actions { width: 100%; }
   }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="progress-wrap">
-  <div class="progress-card">
-    <h2>Student Progress</h2>
-    <p>Overview of approved students and their section progress inside this classroom.</p>
+<div class="progress-shell">
+  <div class="progress-hero">
+    <h2 class="progress-title">Student Progress</h2>
+    <p class="progress-subtitle">Overview of approved students and their section progress inside this classroom.</p>
 
-    <table class="progress-table">
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Practice Tests</th>
-          <th>Vocabulary</th>
-          <th>Admissions</th>
-        </tr>
-      </thead>
-      <tbody>
+    {% if grouped_progress %}
+      <div class="student-grid">
         {% for row in grouped_progress %}
-          <tr>
-            <td>
-              <div class="student-name">
-                {{ row.student.get_full_name|default:row.student.username }}
+          <div class="student-card">
+            <div class="student-top">
+              <div class="student-head">
+                <div class="student-avatar">{{ row.student.username|first|upper }}</div>
+                <div>
+                  <h3 class="student-name">{{ row.student.get_full_name|default:row.student.username }}</h3>
+                  <div class="student-username">@{{ row.student.username }}</div>
+                </div>
               </div>
-              <div class="sub-meta">
-                Username: {{ row.student.username }}
+
+              <div class="student-actions">
+                <a href="{% url 'classroom_student_practice_progress' classroom.id row.student.id %}" class="student-action action-practice">Practice</a>
+                <a href="{% url 'classroom_student_vocab_progress' classroom.id row.student.id %}" class="student-action action-vocab">Vocabulary</a>
+                <a href="{% url 'classroom_student_admission_progress' classroom.id row.student.id %}" class="student-action action-admission">Admissions</a>
               </div>
-            </td>
+            </div>
 
-            <td>
-              {% if row.practice_tests %}
-                <div class="progress-badge">{{ row.practice_tests.completion_percent }}%</div>
-                <div class="sub-meta">
-                  Completed: {{ row.practice_tests.completed_items }}/{{ row.practice_tests.total_items }}<br>
-                  Activity: {{ row.practice_tests.activity_count }}<br>
-                  Last: {{ row.practice_tests.last_activity_at|default:"—" }}
+            <div class="student-stats">
+              <div class="stat-card">
+                <div class="stat-top">
+                  <p class="stat-title">Practice Tests</p>
+                  <span class="stat-badge">{% if row.practice_tests %}{{ row.practice_tests.completion_percent }}%{% else %}0.00%{% endif %}</span>
                 </div>
-              {% else %}
-                —
-              {% endif %}
-            </td>
+                <div class="stat-meta">
+                  Completed: {% if row.practice_tests %}{{ row.practice_tests.completed_items }} / {{ row.practice_tests.total_items }}{% else %}0 / 0{% endif %}<br>
+                  Activity: {% if row.practice_tests %}{{ row.practice_tests.activity_count }}{% else %}0{% endif %}<br>
+                  Last: {% if row.practice_tests and row.practice_tests.last_activity_at %}{{ row.practice_tests.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
+                </div>
+              </div>
 
-            <td>
-              {% if row.vocabulary %}
-                <div class="progress-badge">{{ row.vocabulary.completion_percent }}%</div>
-                <div class="sub-meta">
-                  Completed: {{ row.vocabulary.completed_items }}/{{ row.vocabulary.total_items }}<br>
-                  Activity: {{ row.vocabulary.activity_count }}<br>
-                  Last: {{ row.vocabulary.last_activity_at|default:"—" }}
+              <div class="stat-card">
+                <div class="stat-top">
+                  <p class="stat-title">Vocabulary</p>
+                  <span class="stat-badge">{% if row.vocabulary %}{{ row.vocabulary.completion_percent }}%{% else %}0.00%{% endif %}</span>
                 </div>
-              {% else %}
-                —
-              {% endif %}
-            </td>
+                <div class="stat-meta">
+                  Completed: {% if row.vocabulary %}{{ row.vocabulary.completed_items }} / {{ row.vocabulary.total_items }}{% else %}0 / 0{% endif %}<br>
+                  Activity: {% if row.vocabulary %}{{ row.vocabulary.activity_count }}{% else %}0{% endif %}<br>
+                  Last: {% if row.vocabulary and row.vocabulary.last_activity_at %}{{ row.vocabulary.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
+                </div>
+              </div>
 
-            <td>
-              {% if row.admissions %}
-                <div class="progress-badge">{{ row.admissions.completion_percent }}%</div>
-                <div class="sub-meta">
-                  Completed: {{ row.admissions.completed_items }}/{{ row.admissions.total_items }}<br>
-                  Activity: {{ row.admissions.activity_count }}<br>
-                  Last: {{ row.admissions.last_activity_at|default:"—" }}
+              <div class="stat-card">
+                <div class="stat-top">
+                  <p class="stat-title">Admissions</p>
+                  <span class="stat-badge">{% if row.admissions %}{{ row.admissions.completion_percent }}%{% else %}0.00%{% endif %}</span>
                 </div>
-              {% else %}
-                —
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="4">No approved students yet.</td>
-          </tr>
+                <div class="stat-meta">
+                  Completed: {% if row.admissions %}{{ row.admissions.completed_items }} / {{ row.admissions.total_items }}{% else %}0 / 0{% endif %}<br>
+                  Activity: {% if row.admissions %}{{ row.admissions.activity_count }}{% else %}0{% endif %}<br>
+                  Last: {% if row.admissions and row.admissions.last_activity_at %}{{ row.admissions.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    {% else %}
+      <div class="empty-state">No approved students yet.</div>
+    {% endif %}
   </div>
 </div>
 {% endblock content %}
