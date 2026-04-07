@@ -1848,6 +1848,7 @@ def vocabulary_practice_quiz_result(request):
 
     questions = request.session.get('vocab_quiz_questions', [])
     score = 0
+    total_questions = len(questions)
     results = []
 
     for i, q in enumerate(questions):
@@ -1863,12 +1864,23 @@ def vocabulary_practice_quiz_result(request):
             'correct_answer': q['answer'],
             'user_answer': user_answer,
             'is_correct': is_correct,
+            'word': q.get('word', ''),
         })
+
+    percentage = (score / total_questions * 100) if total_questions > 0 else 0
+
+    # Clear session data
+    request.session.pop('vocab_quiz_questions', None)
+    request.session.pop('vocab_quiz_units', None)
+    request.session.pop('vocab_quiz_classroom_id', None)
 
     return render(request, 'sat/vocabulary_practice_quiz_result.html', {
         'results': results,
         'score': score,
-        'total': len(questions),
+        'total': total_questions,
+        'total_questions': total_questions,
+        'percentage': percentage,
+        'selected_units': request.session.get('vocab_quiz_units', []),
     })
 
 @login_required(login_url='/login/')
@@ -2641,6 +2653,7 @@ def classroom_vocabulary_practice_quiz_result(request, classroom_id):
     return render(request, 'sat/vocabulary_practice_quiz_result.html', {
         'results': results,
         'score': score,
+        'total': total_questions,
         'total_questions': total_questions,
         'percentage': percentage,
         'selected_units': request.session.get('vocab_quiz_units', []),
