@@ -98,8 +98,12 @@
               <p>{{ event.description|truncatewords:20 }}</p>
             {% endif %}
 
-            <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
-            <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
+            {% if event.always_live %}
+              <div class="event-meta"><strong>Availability:</strong> Always Live (24/7)</div>
+            {% else %}
+              <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
+              <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
+            {% endif %}
             <div class="event-meta"><strong>Duration:</strong> {{ event.duration_minutes }} min</div>
 
             <div class="event-actions">

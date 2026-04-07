@@ -939,6 +939,7 @@ class GlobalEvent(models.Model):
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
     duration_minutes = models.PositiveIntegerField(default=60)
+    always_live = models.BooleanField(default=False, help_text="If checked, event is available 24/7 regardless of start/end times")
 
     status = models.CharField(
         max_length=20,
@@ -956,6 +957,8 @@ class GlobalEvent(models.Model):
     @property
     def is_live_now(self):
         now = timezone.now()
+        if self.always_live:
+            return self.is_public and self.status == "live"
         return (
             self.is_public and
             self.status == "live" and

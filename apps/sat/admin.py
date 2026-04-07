@@ -832,15 +832,17 @@ class GlobalEventAdmin(admin.ModelAdmin):
         "slug",
         "status",
         "is_public",
+        "always_live",
         "show_score_immediately",
         "show_leaderboard",
         "start_at",
         "end_at",
+        "duration_minutes",
     )
     search_fields = ("title", "slug", "test__title")
-    list_filter = ("status", "is_public", "show_score_immediately", "show_leaderboard")
+    list_filter = ("status", "is_public", "always_live", "show_score_immediately", "show_leaderboard")
     autocomplete_fields = ("test",)
-    list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public")
+    list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public", "always_live")
 
 
 @admin.register(GuestParticipant)
