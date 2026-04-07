@@ -320,47 +320,61 @@ class TestModule(BaseModel):
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name="modules")
     makeup_test = models.ForeignKey(MakeupTest, on_delete=models.SET_NULL, null=True, blank=True, related_name="test_modules")
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+
     section = models.CharField(max_length=8)
-    module = models.CharField(choices=[('m1', 'Module 1'), ('m2', 'Module 2')], max_length=8, blank=True, null=True)
+    module = models.CharField(
+        choices=[('m1', 'Module 1'), ('m2', 'Module 2')],
+        max_length=8,
+        blank=True,
+        null=True
+    )
+
     answers = models.TextField(blank=True, null=True)
+
     created = models.DateTimeField(auto_now_add=True, null=True)
-    
+
     TEST_TYPE_CHOICES = [
         ('regular', 'Regular Test'),
         ('makeup', 'Makeup Test'),
     ]
-    test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default='regular')
+    test_type = models.CharField(
+        max_length=20,
+        choices=TEST_TYPE_CHOICES,
+        default='regular'
+    )
+
+    attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
 
     def find_answer(self, question_id):
         previous, now, future = '', '', ''
         target_id = str(question_id)
-    
+
         try:
             payload = json.loads(self.answers or '{"answers": []}')
             answers = payload.get('answers', [])
         except Exception:
             return previous, now, future
-    
+
         for item in answers:
             item_id = str(item.get('questionID', ''))
-    
+
             if now:
                 future = item_id
                 break
-            
+
             if item_id == target_id:
                 raw_answer = item.get('answer')
                 now = '' if raw_answer is None else str(raw_answer)
             else:
                 previous = item_id
-    
+
         return previous, now, future
 
     def __str__(self):
-        return f'{self.user}>{self.test}_{self.section}_{self.module}'
+        return f'{self.user}>{self.test}_{self.section}_{self.module}_{self.attempt_id}'
 
     class Meta:
-        unique_together = ('user', 'test', 'makeup_test', 'section', 'module')
+        ordering = ['created']
 
 # Test review and scoring
 class TestReview(BaseModel):
@@ -368,6 +382,7 @@ class TestReview(BaseModel):
     makeup_test = models.ForeignKey(MakeupTest, on_delete=models.SET_NULL, null=True, blank=True, related_name="makeup_test_reviews")
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     key = models.CharField(max_length=100, blank=True, unique=True)
+    attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(default=timedelta(hours=24))
     score = models.IntegerField(default=400,null=True)
@@ -421,7 +436,8 @@ class TestStage(BaseModel):
     stage = models.IntegerField()
     again = models.BooleanField(default=True)
     retake_count = models.IntegerField(default=0, help_text="Number of retakes used by this user")
-    
+    attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
+
     TEST_TYPE_CHOICES = [
         ('regular', 'Regular Test'),
         ('makeup', 'Makeup Test'),
@@ -429,14 +445,13 @@ class TestStage(BaseModel):
     test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default='regular')
 
     def get_max_retakes(self):
-        if self.user.groups.filter(name='OFFLINE').exists():
-            return 4
-        return 2
+        # unlimited
+        return None
 
     def invalidate_review(self):
         """
-        Do not delete review on retake.
-        Mark it unavailable while a new attempt is in progress.
+        Keep the review row, but mark it unavailable while a new attempt is in progress.
+        This prevents stale review links from crashing with Invalid Key.
         """
         reviews = TestReview.objects.filter(test=self.test, user=self.user)
         for review in reviews:
@@ -445,6 +460,7 @@ class TestStage(BaseModel):
             review.save(update_fields=['score', 'certificate'])
 
     def delete_modules(self, section=None):
+        """Delete TestModule records for this test."""
         modules = TestModule.objects.filter(test=self.test, user=self.user)
         if section:
             modules = modules.filter(section=section)
@@ -452,27 +468,34 @@ class TestStage(BaseModel):
 
     def resolve(self):
         """
-        Full retake.
-        Keep review object, but invalidate it.
+        Full test restart. With unlimited retakes (max_retakes=None), always allows restart.
         """
         max_retakes = self.get_max_retakes()
-
-        if self.retake_count < max_retakes:
-            self.stage = 1
-            self.delete_modules()
-            self.invalidate_review()
-            self.retake_count += 1
-            self.save(update_fields=['stage', 'retake_count'])
-            return True
-        return False
+        
+        # For unlimited retakes, max_retakes is None, so always allow
+        if max_retakes is not None and self.retake_count >= max_retakes:
+            self.again = False
+            self.save(update_fields=['again'])
+            return False
+        
+        self.stage = 1
+        self.delete_modules()
+        self.invalidate_review()
+        self.retake_count += 1
+        self.attempt_id = uuid.uuid4()
+        self.save(update_fields=['stage', 'retake_count', 'attempt_id'])
+        return True
 
     def resolve_section(self, section):
         """
-        Section retake.
-        Also invalidates review, because old review is no longer trustworthy.
+        Section restart. Check if retakes are available before allowing.
         """
         max_retakes = self.get_max_retakes()
-        if self.retake_count >= max_retakes:
+        
+        # For unlimited retakes, max_retakes is None, so always allow
+        if max_retakes is not None and self.retake_count >= max_retakes:
+            self.again = False
+            self.save(update_fields=['again'])
             return False
 
         has_english = English_Question.objects.filter(test=self.test).exists()
@@ -511,71 +534,13 @@ class TestStage(BaseModel):
         self.invalidate_review()
         self.stage = start_stage
         self.retake_count += 1
-        self.save(update_fields=['stage', 'retake_count'])
+        self.attempt_id = uuid.uuid4()
+        self.save(update_fields=['stage', 'retake_count', 'attempt_id'])
         return True
 
     def get_retakes_remaining(self):
-        max_retakes = self.get_max_retakes()
-        return max_retakes - self.retake_count
-
-    def next_stage(self):
-        has_english = English_Question.objects.filter(test=self.test).exists()
-        has_math = Math_Question.objects.filter(test=self.test).exists()
-
-        if has_english and has_math:
-            total_stages = 4
-        elif has_english or has_math:
-            total_stages = 2
-        else:
-            total_stages = 0
-
-        if total_stages == 0:
-            return True
-
-        if self.stage >= total_stages:
-            return True
-
-        self.stage += 1
-        self.save()
-        return False
-
-    def delete_related(self):
-        """
-        Real cleanup when stage itself is deleted.
-        Here review can still be deleted.
-        """
-        self.delete_modules()
-        TestReview.objects.filter(test=self.test, user=self.user).delete()
-
-    def get_models(self):
-        has_english = English_Question.objects.filter(test=self.test).exists()
-        has_math = Math_Question.objects.filter(test=self.test).exists()
-
-        if has_english and has_math:
-            sequence = [
-                ('english', 'm1'),
-                ('english', 'm2'),
-                ('math', 'm1'),
-                ('math', 'm2'),
-            ]
-        elif has_english:
-            sequence = [
-                ('english', 'm1'),
-                ('english', 'm2'),
-            ]
-        elif has_math:
-            sequence = [
-                ('math', 'm1'),
-                ('math', 'm2'),
-            ]
-        else:
-            return None, None, None
-
-        if self.stage < 1 or self.stage > len(sequence):
-            return self.test, None, None
-
-        section, module = sequence[self.stage - 1]
-        return self.test, section, module
+        # unlimited
+        return None
 
 # Lesson packages and lessons
 class LessonPackage(BaseModel):

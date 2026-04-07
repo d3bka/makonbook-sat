@@ -57,8 +57,11 @@
         #passage {
             margin-bottom: 20px;
             padding: 10px;
-            line-height: 1.5;
-            font-family: 'Times New Roman', Times, serif; /* Changed font to Times New Roman */
+            line-height: 1.6;
+            white-space: pre-wrap; /* ВАЖНО */
+            word-wrap: break-word;
+            display: block;
+            font-family: 'Times New Roman', Times, serif;
         }
     </style>
 </head>
@@ -130,18 +133,19 @@
         let currentQuestionIndex = 0;
         const questions = [
             {% for question in questions %}
-        {
-            passage: `{{ question.passage|default_if_none:""|escapejs }}`,
+            {
+                // Добавляем замену текстового \n на реальный перенос строки
+                passage: `{{ question.passage|default_if_none:""|escapejs }}`.replace(/\\n/g, '\n'),
                 number: Number("{{ question.number }}"),
-                    question: `{{ question.question|default_if_none:""|escapejs }}`,
-                        a: `{{ question.a|default_if_none:""|escapejs }}`,
-                            b: `{{ question.b|default_if_none:""|escapejs }}`,
-                                c: `{{ question.c|default_if_none:""|escapejs }}`,
-                                    d: `{{ question.d|default_if_none:""|escapejs }}`,
-                                        id: '{{ question.id }}',
-                                            graph: `{{ question.graph_url|default_if_none:""|escapejs }}`
-        },
-        {% endfor %}
+                question: `{{ question.question|default_if_none:""|escapejs }}`.replace(/\\n/g, '\n'),
+                a: `{{ question.a|default_if_none:""|escapejs }}`,
+                b: `{{ question.b|default_if_none:""|escapejs }}`,
+                c: `{{ question.c|default_if_none:""|escapejs }}`,
+                d: `{{ question.d|default_if_none:""|escapejs }}`,
+                id: '{{ question.id }}',
+                graph: `{{ question.graph_url|default_if_none:""|escapejs }}`
+            },
+            {% endfor %}
         ];
         let eliminate_options = false;
         let answers = Array(questions.length).fill(null);
@@ -273,20 +277,25 @@
             currentQuestionIndex = index;
             const question = questions[index];
             updateQuestionProgress();
-
-            // Display passage and question directly as plain text (no LaTeX processing needed)
-            document.getElementById('passage').innerHTML = fixLatex(question.passage);
+                
+            // ✅ PASSAGE (без KaTeX, с переносами)
+            document.getElementById('passage').innerText = question.passage;
+                
             document.getElementsByClassName('question-number')[0].innerHTML = question.number;
+                
+            // ✅ QUESTION (с KaTeX можно)
             document.getElementById('question-text').innerHTML = fixLatex(question.question);
-
+                
+            const passageElem = document.getElementById('passage');
+            const questionTextElem = document.getElementById('question-text');
             const graphContainer = document.querySelector('.just-div');
             const answersContainer = document.getElementById('answers');
-
+                
             const buildChoice = (letter, content) => {
                 const checked = answers[index] === letter ? 'checked' : '';
                 const inputId = `choice-${index}-${letter}`;
                 const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
-
+            
                 return `
                     <div class="big-container">
                         <input
@@ -307,7 +316,6 @@
                             class="crossing-zone ${eliminate_options ? 'active' : ''}"
                             data-letter="${letter}"
                             data-index="${index}"
-                            aria-label="Eliminate choice ${letter}"
                         >
                             <span class="cross-label">${letter}</span>
                             <span class="cross-btn-line"></span>
@@ -315,44 +323,25 @@
                     </div>
                 `;
             };
-
+        
             answersContainer.innerHTML = `
                 ${buildChoice('A', question.a)}
                 ${buildChoice('B', question.b)}
                 ${buildChoice('C', question.c)}
                 ${buildChoice('D', question.d)}
             `;
-
+        
             if (question.graph) {
-                graphContainer.innerHTML = `<div class='graph'><img src="${question.graph}" alt="Graph" style="width: 100%; height: 100%;"></div>`;
+                graphContainer.innerHTML = `<div class='graph'><img src="${question.graph}" style="width:100%"></div>`;
             } else {
                 graphContainer.innerHTML = '';
             }
-
+        
             updateAnsweredStatus();
-            renderMath(document.getElementById('passage'));
-            renderMath(document.getElementById('question-text'));
+        
+            // ✅ KaTeX только там где надо
+            renderMath(questionTextElem);
             renderMath(document.getElementById('answers'));
-
-            answersContainer.querySelectorAll('.choice-input').forEach((input) => {
-                input.addEventListener('change', (event) => {
-                    answers[currentQuestionIndex] = event.target.value;
-                    saveProgress();
-                    updateAnsweredStatus();
-                });
-            });
-
-            answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
-                button.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (!eliminate_options) return;
-
-                    const letter = button.dataset.letter;
-                    eliminate(letter, currentQuestionIndex);
-                });
-            });
         }
 
         function show_eliminate() {

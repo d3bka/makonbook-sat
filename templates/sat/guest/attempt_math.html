@@ -1008,20 +1008,29 @@
 
         document.addEventListener('keydown', event => {
             const target = event.target;
+                
+            const isRadioChoice =
+                target &&
+                target.classList &&
+                target.classList.contains('choice-input');
+                
             const isTypingField =
                 target &&
                 (
-                    target.tagName === 'INPUT' ||
                     target.tagName === 'TEXTAREA' ||
-                    target.isContentEditable
+                    target.isContentEditable ||
+                    (
+                        target.tagName === 'INPUT' &&
+                        !target.classList.contains('choice-input')
+                    )
                 );
-
+                
             if (event.key === 'Escape') {
                 closeReference();
                 closeCalculator();
                 return;
             }
-
+        
             if (
                 event.key === 'Enter' &&
                 target &&
@@ -1033,32 +1042,46 @@
                 nextQuestion();
                 return;
             }
-
+        
             if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
                 return;
             }
-
+        
             if (event.key === 'F12') {
                 event.preventDefault();
                 return;
             }
-
+        
             if (isDesmosFocused()) {
                 return;
             }
-
+        
+            if (isRadioChoice) {
+                if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+                    event.preventDefault();
+                    prevQuestion();
+                    return;
+                }
+            
+                if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+                    event.preventDefault();
+                    nextQuestion();
+                    return;
+                }
+            }
+        
             if (isTypingField) {
                 return;
             }
-
-            if (event.key === 'ArrowLeft') {
+        
+            if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
                 event.preventDefault();
                 prevQuestion();
                 return;
             }
-
-            if (event.key === 'ArrowRight') {
+        
+            if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
                 event.preventDefault();
                 nextQuestion();
                 return;

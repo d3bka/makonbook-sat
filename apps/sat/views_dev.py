@@ -417,3 +417,58 @@ def test_statistics(request):
     return render(request, 'sat/dev/test_statistics.html', context)
 
 # More views will be added here... 
+
+@login_required
+@dev_required
+def dev_question_detail(request, section, pk):
+    """Show full detail of a single question with Prev / Next navigation."""
+    if section == 'english':
+        question = get_object_or_404(English_Question, pk=pk)
+        siblings = list(
+            English_Question.objects
+            .filter(test=question.test, module=question.module)
+            .order_by('number')
+            .values_list('pk', flat=True)
+        )
+        choices = [
+            ('A', question.a, None),
+            ('B', question.b, None),
+            ('C', question.c, None),
+            ('D', question.d, None),
+        ]
+    elif section == 'math':
+        question = get_object_or_404(Math_Question, pk=pk)
+        siblings = list(
+            Math_Question.objects
+            .filter(test=question.test, module=question.module)
+            .order_by('number')
+            .values_list('pk', flat=True)
+        )
+        choices = [
+            ('A', question.a, question.image_a if question.choice_graph else None),
+            ('B', question.b, question.image_b if question.choice_graph else None),
+            ('C', question.c, question.image_c if question.choice_graph else None),
+            ('D', question.d, question.image_d if question.choice_graph else None),
+        ]
+    else:
+        from django.http import Http404
+        raise Http404("Unknown section")
+
+    try:
+        idx = siblings.index(pk)
+    except ValueError:
+        idx = 0
+
+    prev_pk = siblings[idx - 1] if idx > 0 else None
+    next_pk = siblings[idx + 1] if idx < len(siblings) - 1 else None
+
+    return render(request, 'sat/dev/question_detail.html', {
+        'question': question,
+        'section': section,
+        'choices': choices,
+        'prev_pk': prev_pk,
+        'next_pk': next_pk,
+        'position': idx + 1,
+        'total': len(siblings),
+        'page_title': f'{section.title()} Q{question.number} — {question.test}',
+    })

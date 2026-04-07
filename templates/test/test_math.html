@@ -908,14 +908,17 @@
         }
 
         function isDesmosFocused() {
+            const popup = document.getElementById('calculator-popup');
+            if (!popup || popup.style.display !== 'block') return false;
             const active = document.activeElement;
-            return !!(
-                active &&
-                (
-                    active.closest('#calculator-popup') ||
-                    active.closest('.dcg-container')
-                )
-            );
+            if (!active) return false;
+            // Element is inside our popup
+            if (active.closest('#calculator-popup')) return true;
+            // Desmos appends some UI (autocomplete, etc.) directly to <body> with dcg- classes
+            if (active.closest('[class*="dcg-"]')) return true;
+            // After deleting an expression, Desmos may leave focus on <body> momentarily
+            if (active === document.body || active === document.documentElement) return true;
+            return false;
         }
 
         function updateTimer() {
@@ -986,25 +989,46 @@
             }
         });
 
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('selectstart', event => event.preventDefault());
+        document.addEventListener('contextmenu', event => {
+            if (isDesmosFocused()) return;
+            event.preventDefault();
+        });
+        document.addEventListener('selectstart', event => {
+            if (isDesmosFocused()) return;
+            event.preventDefault();
+        });
 
         document.addEventListener('keydown', event => {
             const target = event.target;
-            const isTypingField =
-                target &&
-                (
-                    target.tagName === 'INPUT' ||
-                    target.tagName === 'TEXTAREA' ||
-                    target.isContentEditable
-                );
 
+            // Allow Escape to always close overlays, even from Desmos
             if (event.key === 'Escape') {
                 closeReference();
                 closeCalculator();
                 return;
             }
 
+            // Let Desmos handle ALL its own keystrokes — must be before any preventDefault
+            if (isDesmosFocused()) {
+                return;
+            }
+
+            const isRadioChoice =
+                target &&
+                target.classList &&
+                target.classList.contains('choice-input');
+                
+            const isTypingField =
+                target &&
+                (
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable ||
+                    (
+                        target.tagName === 'INPUT' &&
+                        !target.classList.contains('choice-input')
+                    )
+                );
+        
             if (
                 event.key === 'Enter' &&
                 target &&
@@ -1016,32 +1040,42 @@
                 nextQuestion();
                 return;
             }
-
-            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
+        
+            if (event.ctrlKey && ['u', 's', 'p', 'j', 'i'].includes(event.key.toLowerCase())) {
                 event.preventDefault();
                 return;
             }
-
+        
             if (event.key === 'F12') {
                 event.preventDefault();
                 return;
             }
-
-            if (isDesmosFocused()) {
-                return;
+        
+            if (isRadioChoice) {
+                if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+                    event.preventDefault();
+                    prevQuestion();
+                    return;
+                }
+            
+                if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+                    event.preventDefault();
+                    nextQuestion();
+                    return;
+                }
             }
-
+        
             if (isTypingField) {
                 return;
             }
-
-            if (event.key === 'ArrowLeft') {
+        
+            if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
                 event.preventDefault();
                 prevQuestion();
                 return;
             }
-
-            if (event.key === 'ArrowRight') {
+        
+            if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
                 event.preventDefault();
                 nextQuestion();
                 return;

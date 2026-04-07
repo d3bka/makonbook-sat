@@ -1,0 +1,226 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Manage All Sections{% endblock title-main %}
+{% block title %}Classroom Section Access{% endblock title %}
+
+{% block style %}
+<style>
+  .access-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 18px;
+    padding: 32px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+  }
+
+  .access-wrap h2 {
+    margin-bottom: 6px;
+    font-size: 22px;
+    color: #111827;
+  }
+
+  .access-subtitle {
+    color: #6b7280;
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .section-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .section-row:last-of-type {
+    border-bottom: none;
+    margin-bottom: 24px;
+  }
+
+  .section-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .section-name {
+    font-weight: 700;
+    font-size: 17px;
+    color: #111827;
+  }
+
+  .section-count {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .toggle-wrap {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .toggle-wrap input {
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    cursor: pointer;
+    margin: 0;
+    z-index: 2;
+  }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 999px;
+    transition: background 0.2s;
+    pointer-events: none;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  }
+
+  .toggle-wrap input:checked ~ .toggle-track {
+    background: #324dc7;
+  }
+
+  .toggle-wrap input:checked ~ .toggle-thumb {
+    transform: translateX(22px);
+  }
+
+  .btn-save {
+    width: 100%;
+    padding: 14px;
+    background: #324dc7;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-save:hover { background: #273ca3; }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: 20px;
+    color: #324dc7;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .back-link:hover { text-decoration: underline; }
+
+  .warning-note {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #92400e;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="access-wrap">
+  <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
+
+  <h2>Manage Section Access</h2>
+  <p class="access-subtitle">
+    These settings apply to <strong>all {{ student_count }} approved student{{ student_count|pluralize }}</strong> in <strong>{{ classroom.name }}</strong> at once.
+  </p>
+
+  {% if student_count == 0 %}
+    <div class="warning-note">
+      ⚠ There are no approved students in this classroom yet. Add and approve students first.
+    </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Practice Tests</span>
+        <span class="section-count">{{ section_counts.practice_tests }} of {{ student_count }} students currently have access</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="practice_tests" {% if majority_access.practice_tests %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Vocabulary</span>
+        <span class="section-count">{{ section_counts.vocabulary }} of {{ student_count }} students currently have access</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="vocabulary" {% if majority_access.vocabulary %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Admissions</span>
+        <span class="section-count">{{ section_counts.admissions }} of {{ student_count }} students currently have access</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="admissions" {% if majority_access.admissions %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <button type="submit" class="btn-save" {% if student_count == 0 %}disabled{% endif %}>
+      Apply to All Students
+    </button>
+  </form>
+</div>
+
+<script>
+  /* Live preview: reflect toggle state visually without submit */
+  document.querySelectorAll('.toggle-wrap input').forEach(function(input) {
+    input.addEventListener('change', function() {
+      var thumb = this.parentElement.querySelector('.toggle-thumb');
+      var track = this.parentElement.querySelector('.toggle-track');
+      if (this.checked) {
+        track.style.background = '#324dc7';
+        thumb.style.transform = 'translateX(22px)';
+      } else {
+        track.style.background = '#d1d5db';
+        thumb.style.transform = '';
+      }
+    });
+  });
+</script>
+{% endblock content %}

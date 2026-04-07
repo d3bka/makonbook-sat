@@ -50,6 +50,7 @@ urlpatterns = [
 
     path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/access/', views.update_student_section_access, name='update_student_section_access'),
     path('teacher/classrooms/<int:classroom_id>/students/<int:user_id>/remove/', views.remove_student_from_classroom, name='remove_student_from_classroom'),
+    path('teacher/classrooms/<int:classroom_id>/section-access/', views.update_classroom_section_access, name='update_classroom_section_access'),
 
     path('classroom/<int:classroom_id>/practice-tests/', views.classroom_practice_tests, name='classroom_practice_tests'),
     path('classroom/<int:classroom_id>/practice/<str:pk>/start/', views.classroom_start_practise, name='classroom_practise'),
@@ -57,6 +58,7 @@ urlpatterns = [
     path('teacher/classrooms/<int:classroom_id>/practice-tests/access/', views.update_classroom_practice_test_access, name='update_classroom_practice_test_access'),
 
     path('classroom/<int:classroom_id>/vocabulary/', views.classroom_vocabulary, name='classroom_vocabulary'),
+    path('classroom/<int:classroom_id>/vocabulary/<slug:slug>/', views.classroom_vocabulary_section, name='classroom_vocabulary_section'),
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
 
     path('teacher/classrooms/<int:classroom_id>/progress/', views.classroom_progress_dashboard, name='classroom_progress_dashboard'),

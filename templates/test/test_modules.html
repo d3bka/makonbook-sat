@@ -192,8 +192,7 @@
                     <div class="desc-icon"><i class="bi bi-clock"></i></div>
                     <span>Timing</span>
                 </div>
-                <span class="desc-cont">Full-length practice tests are timed like real exams, but you can save and exit
-                    the test any time. If you continue on a different device, you’ll need to start over.</span>
+                <span class="desc-cont">Full-length practice tests are timed like real exams. You can save and exit the test anytime and continue from where you left off. If you continue on a different device, you'll need to start over.</span>
             </div>
             <div class="single-desc">
                 <div class="desc-title">
@@ -229,9 +228,9 @@
             {% endif %}
 
             {% if start_url %}
-                <a class="btn" href="{{ start_url }}">Next</a>
+                <a class="btn" href="{{ start_url }}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
             {% else %}
-                <a class="btn" href="{% url 'test' test.name %}">Next</a>
+                <a class="btn" href="{% url 'test' test.name %}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
             {% endif %}
         </footer>
     </div>

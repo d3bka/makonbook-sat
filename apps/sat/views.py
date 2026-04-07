@@ -21,6 +21,7 @@ from django.db.models import Q
 import json
 import random
 import re
+import uuid
 from django.db.models import Count
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
@@ -37,28 +38,39 @@ def custom_round(number, base=0.4):
 
 def restart(request, pk):
     close_old_connections()
+
     user = request.user
+
     test = Test.objects.filter(name=pk).first()
 
     if not test:
-        return HttpResponse("Test not found")
+        return HttpResponse(f"Test '{pk}' not found")
 
-    if not is_member(user, ['OFFLINE', 'Admin']):
-        return HttpResponse("you are not offline user")
+    if not user_has_test_access(user, test):
+        return HttpResponse(
+            f"Test '{pk}' is not assigned to your account.",
+            status=403
+        )
 
-    stage = TestStage.objects.filter(user=user, test=test).first()
-    if not stage:
-        return HttpResponse("Test stage not found")
+    stage, _ = TestStage.objects.get_or_create(
+        user=user,
+        test=test,
+        defaults={"stage": 1}
+    )
 
+    # Try to restart the full test
     response = stage.resolve()
+
     if response:
+        # Restart successful
         return render(request, 'sat/restart_success.html', {
             'test_name': pk,
             'section': None
         })
     else:
+        # Retake limit exceeded
         user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
-
+        
         return render(request, 'sat/retake_limit_exceeded.html', {
             'test_name': pk,
             'section': None,
@@ -162,6 +174,37 @@ def is_member(user, names):
     for name in names:
         if user.groups.filter(name=name).exists():
             return True
+    return False
+
+
+def user_has_test_access(user, test):
+    if user.is_superuser or user.is_staff or is_member(user, ['Admin', 'Tester']) or is_teacher(user):
+        return True
+
+    if not test.groups.exists():
+        return True
+
+    if test.groups.filter(id__in=user.groups.all()).exists():
+        return True
+
+    student_memberships = ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='approved'
+    )
+
+    allowed_membership_ids = [
+        membership.id for membership in student_memberships
+        if get_membership_section_access_map(membership).get('practice_tests')
+    ]
+
+    if allowed_membership_ids:
+        return StudentPracticeTestAccess.objects.filter(
+            membership_id__in=allowed_membership_ids,
+            test=test,
+            has_access=True
+        ).exists()
+
     return False
 
 
@@ -271,11 +314,15 @@ def check_the_answers(request):
         if not isinstance(answers, list):
             return JsonResponse({'ok': False, 'error': 'answers must be a list.'}, status=400)
 
+        test_stage = TestStage.objects.filter(user=request.user, test=test_obj).order_by('-created_at').first()
+        attempt_id = test_stage.attempt_id if test_stage else uuid.uuid4()
+
         module_obj, created = TestModule.objects.get_or_create(
             user=request.user,
             test=test_obj,
             section=section,
             module=module,
+            attempt_id=attempt_id,
             defaults={
                 'answers': json.dumps({'answers': answers})
             }
@@ -346,6 +393,16 @@ def results(request, test):
     user = request.user
     test_obj = Test.objects.get(name=test)
 
+    review_key = request.GET.get('review_key')
+    attempts = list(TestReview.objects.filter(user=user, test=test_obj, score__isnull=False).order_by('-created_at'))
+    selected_review = None
+
+    if review_key:
+        selected_review = next((rev for rev in attempts if rev.key == review_key), None)
+
+    if not selected_review:
+        selected_review = attempts[0] if attempts else None
+
     test_mode = get_test_mode(test_obj)
     has_english = test_mode in ['full', 'ebrw_only']
     has_math = test_mode in ['full', 'math_only']
@@ -357,12 +414,36 @@ def results(request, test):
         required_modules.extend([('math', 'm1'), ('math', 'm2')])
 
     latest_modules = {}
-    all_modules_query = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at')
-
-    for module in all_modules_query:
-        key = f"{module.section}_{module.module}"
-        if key not in latest_modules:
-            latest_modules[key] = module
+    # Determine which attempt_id to use: from selected_review if exists, otherwise from current TestStage
+    attempt_id = None
+    if selected_review and selected_review.attempt_id:
+        attempt_id = selected_review.attempt_id
+    else:
+        # Get current test stage to fetch modules for the in-progress/latest attempt
+        test_stage = TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
+        if test_stage:
+            attempt_id = test_stage.attempt_id
+    
+    # Try to get modules matching the attempt_id
+    if attempt_id:
+        all_modules_query = TestModule.objects.filter(
+            user=user,
+            test=test_obj,
+            attempt_id=attempt_id
+        ).order_by('-created_at')
+        
+        for module in all_modules_query:
+            key = f"{module.section}_{module.module}"
+            if key not in latest_modules:
+                latest_modules[key] = module
+    
+    # If no modules found with specific attempt_id, fall back to most recent modules by timestamp
+    if not latest_modules:
+        all_modules_query = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at')
+        for module in all_modules_query:
+            key = f"{module.section}_{module.module}"
+            if key not in latest_modules:
+                latest_modules[key] = module
 
     missing_modules = []
     for section, module in required_modules:
@@ -466,17 +547,37 @@ def results(request, test):
             }
         }
 
-    key = 'default'
-    testreview, created = TestReview.objects.get_or_create(user=user, test=test_obj)
-    if created:
-        testreview.update_key()
-        if user.groups.filter(name='OFFLINE').exists():
-            testreview.duration = timedelta(days=3)
-            testreview.save()
+    current_stage = TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
+    current_attempt_id = current_stage.attempt_id if current_stage else None
+
+    if selected_review and selected_review.attempt_id:
+        testreview = selected_review
+    else:
+        testreview = None
+        if current_attempt_id:
+            testreview = TestReview.objects.filter(
+                user=user,
+                test=test_obj,
+                attempt_id=current_attempt_id
+            ).order_by('-created_at').first()
+
+        if not testreview:
+            testreview = TestReview.objects.create(
+                user=user,
+                test=test_obj,
+                attempt_id=current_attempt_id or uuid.uuid4()
+            )
+            testreview.update_key()
+            if user.groups.filter(name='OFFLINE').exists():
+                testreview.duration = timedelta(days=3)
+                testreview.save()
+
+    if not review_key:
+        testreview.score = score['total'] if isinstance(score, dict) else 0
+        testreview.save()
 
     key = testreview.key
-    testreview.score = score['total'] if isinstance(score, dict) else 0
-    testreview.save()
+    selected_review = testreview if not review_key else selected_review
 
     english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
     math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
@@ -511,6 +612,10 @@ def results(request, test):
         'test_mode': test_mode,
         'has_english': has_english,
         'has_math': has_math,
+        'attempts': attempts,
+        'selected_review_key': selected_review.key if selected_review else '',
+        'selected_review': selected_review,
+        'review_key': review_key,
     })
 
     
@@ -519,28 +624,53 @@ def results(request, test):
 def start_Practise(request, pk):
     user = request.user
 
-    # единая логика доступа: админ/стaff/суперюзер или группа Admin/Tester
-    is_admin_like = (
-        user.is_superuser
-        or user.is_staff
-        or is_member(user, ['Admin', 'Tester'])
+    # сначала ищем тест без ограничений групп
+    test = Test.objects.filter(name=pk).first()
+
+    if not test:
+        return HttpResponse(
+            f"Test '{pk}' does not exist.",
+            status=404
+        )
+
+    if not user_has_test_access(user, test):
+        return HttpResponse(
+            f"Test '{pk}' is not assigned to your account.",
+            status=403
+        )
+
+    # Check if test is already completed
+    completed_review = TestReview.objects.filter(
+        user=user,
+        test=test,
+        score__isnull=False
+    ).order_by('-created_at').first()
+    
+    if completed_review:
+        return redirect('results', test=test.name)
+
+    test_stage = TestStage.objects.filter(
+        user=user,
+        test=test
     )
 
-    if is_admin_like:
-        test_qs = Test.objects.filter(name=pk)
-    else:
-        user_groups = user.groups.all()
-        test_qs = Test.objects.filter(name=pk, groups__in=user_groups).distinct()
-
-    test = test_qs.first()
-    if not test:
-        return HttpResponse(f"Test '{pk}' is not found or not assigned to your account.", status=404)
-
-    test_stage = TestStage.objects.filter(user=user, test=test)
     if test_stage.exists():
         return redirect('test', pk=test.name)
 
-    return render(request, 'test/test_modules.html', {'test': test})
+    # Check if there's an in-progress attempt by checking for incomplete modules
+    has_active_attempt = TestModule.objects.filter(
+        user=user,
+        test=test
+    ).exists()
+
+    return render(
+        request,
+        'test/test_modules.html',
+        {
+            'test': test,
+            'has_active_attempt': has_active_attempt,
+        }
+    )
 
 
 @login_required(login_url='/login/')
@@ -578,7 +708,8 @@ def question(request, key, section, module, id):
         test=review.test,
         user=review.user,
         section=section,
-        module=module
+        module=module,
+        attempt_id=review.attempt_id
     ).first()
 
     if not module_obj:
@@ -703,61 +834,85 @@ def makeup_test_module(request, pk):
 
 @login_required(login_url='/login/')
 def module_test(request, pk):
+
     user = request.user
-    user_groups = request.user.groups.all()
 
-    try:
-        test = Test.objects.filter(name=pk, groups__in=user_groups).distinct()[0]
-    except Exception:
-        return HttpResponse('Permission Error')
+    # получаем тест БЕЗ жесткой фильтрации по группам
+    test = Test.objects.filter(name=pk).first()
 
+    if not test:
+        return HttpResponse("Test not found")
+
+    if not user_has_test_access(user, test):
+        return HttpResponse("Permission Error")
+
+    # получаем последовательность модулей
     sequence = get_test_sequence(test)
-    if not sequence:
-        return HttpResponse('Questions are not found')
 
+    if not sequence:
+        return HttpResponse("Questions are not found")
+
+    # получаем stage
     test_stage, created = TestStage.objects.get_or_create(
         user=user,
         test=test,
         defaults={'stage': 1}
     )
 
+    # определяем текущий шаг
     current_step = get_current_test_step(test_stage)
+
     if current_step is None:
         return redirect('results', test=test)
 
     section, module = current_step
 
+    # проверяем существует ли уже завершённый модуль для текущей попытки
     existing_module = TestModule.objects.filter(
         test=test,
         section=section,
         module=module,
-        user=user
+        user=user,
+        attempt_id=test_stage.attempt_id
     )
 
     if existing_module.exists():
+
         finished = advance_test_stage(test_stage)
+
         if finished:
             return redirect('results', test=test)
+
         return module_test(request, pk=test.pk)
 
+    # кастомное время для OFFLINE режима
     custom_time_seconds = None
+
     if user.groups.filter(name='OFFLINE').exists():
+
         profile, created = UserProfile.objects.get_or_create(user=user)
+
         if section == 'english':
             custom_time_seconds = profile.get_english_time_seconds()
+
         elif section == 'math':
             custom_time_seconds = profile.get_math_time_seconds()
 
+    # ENGLISH
     if section == 'english':
+
         questions = English_Question.objects.filter(
             test=test,
             module=f'module_{module[1]}'
         ).order_by('number')
 
         if not questions.exists():
+
             finished = advance_test_stage(test_stage)
+
             if finished:
                 return redirect('results', test=test)
+
             return module_test(request, pk=test.pk)
 
         return render(request, 'test/test_eng.html', {
@@ -768,39 +923,53 @@ def module_test(request, pk):
             'custom_time_seconds': custom_time_seconds
         })
 
+    # MATH
     if section == 'math':
+
         questions = Math_Question.objects.filter(
             test=test,
             module=f'module_{module[1]}'
         ).order_by('number')
 
         if not questions.exists():
+
             finished = advance_test_stage(test_stage)
+
             if finished:
                 return redirect('results', test=test)
+
             return module_test(request, pk=test.pk)
 
         questions_data = []
+
         for q in questions:
+
             questions_data.append({
+
                 "id": q.id,
                 "passage": q.passage or "",
                 "number": q.number,
                 "question": q.question or "",
+
                 "a": q.get_a() if hasattr(q, "get_a") else "",
                 "b": q.get_b() if hasattr(q, "get_b") else "",
                 "c": q.get_c() if hasattr(q, "get_c") else "",
                 "d": q.get_d() if hasattr(q, "get_d") else "",
+
                 "type": str(q.written),
+
                 "graph": q.get_graph() if hasattr(q, "get_graph") else "",
             })
 
         return render(request, 'test/test_math.html', {
+
             'questions': questions,
             'questions_data': questions_data,
+
             'module': module,
             'test': test,
             'section': section,
+
             'custom_time_seconds': custom_time_seconds
         })
 
@@ -1402,28 +1571,39 @@ def enter_secret_code(request):
 @login_required(login_url='login')
 def restart_section(request, pk, section):
     close_old_connections()
+
     user = request.user
+
     test = Test.objects.filter(name=pk).first()
 
     if not test:
-        return HttpResponse("Test not found")
+        return HttpResponse(f"Test '{pk}' not found")
 
-    if not is_member(user, ['OFFLINE', 'Admin']):
-        return HttpResponse("You do not have permission to restart sections")
+    if not user_has_test_access(user, test):
+        return HttpResponse(
+            f"Test '{pk}' is not assigned to your account.",
+            status=403
+        )
 
-    stage = TestStage.objects.filter(user=user, test=test).first()
-    if not stage:
-        return HttpResponse("Test stage not found")
+    stage, _ = TestStage.objects.get_or_create(
+        user=user,
+        test=test,
+        defaults={"stage": 1}
+    )
 
+    # Try to restart the section
     response = stage.resolve_section(section)
+
     if response:
+        # Restart successful
         return render(request, 'sat/restart_success.html', {
             'test_name': pk,
             'section': section
         })
     else:
+        # Retake limit exceeded
         user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
-
+        
         return render(request, 'sat/retake_limit_exceeded.html', {
             'test_name': pk,
             'section': section,
@@ -1440,32 +1620,6 @@ def vocabulary(request):
     return render(request, 'sat/vocabulary.html', {
         'units': units
     })
-
-
-@login_required(login_url='/login/')
-def admissions(request):
-
-    return render(request, 'sat/admissions.html', {
-        'sections': ADMISSIONS_SECTIONS
-    })
-
-
-@login_required(login_url='/login/')
-def vocabulary_section(request, slug):
-
-    if slug == 'word_lists':
-        units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
-        return render(request, 'sat/vocabulary_word_lists.html', {
-            'units': units
-        })
-
-    if slug == 'flashcards':
-        units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
-        return render(request, 'sat/vocabulary_flashcards.html', {
-            'units': units
-        })
-
-    raise Http404("Vocabulary section not found")
 
 
 ADMISSIONS_SECTIONS = {
@@ -2223,6 +2377,105 @@ def update_student_section_access(request, classroom_id, user_id):
     })
 
 @login_required(login_url='/login/')
+def update_classroom_section_access(request, classroom_id):
+    """Set section access for ALL approved students in the classroom at once."""
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    memberships = list(
+        ClassroomMembership.objects.filter(
+            classroom=classroom,
+            role='student',
+            status='approved'
+        ).select_related('user').prefetch_related('section_access')
+    )
+
+    all_sections = ['practice_tests', 'vocabulary', 'admissions']
+
+    if request.method == 'POST':
+        selected_sections = request.POST.getlist('sections')
+        for membership in memberships:
+            for section in all_sections:
+                access_obj, _ = StudentSectionAccess.objects.get_or_create(
+                    membership=membership,
+                    section=section,
+                    defaults={'has_access': False}
+                )
+                access_obj.has_access = section in selected_sections
+                access_obj.save()
+        messages.success(request, f"Section access updated for all {len(memberships)} students.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    # Pre-populate: a section shows as checked if more than half of students have it
+    section_counts = {s: 0 for s in all_sections}
+    for membership in memberships:
+        amap = get_membership_section_access_map(membership)
+        for section in all_sections:
+            if amap.get(section):
+                section_counts[section] += 1
+    total = len(memberships)
+    majority_access = {
+        s: (section_counts[s] > total / 2) for s in all_sections
+    } if total else {s: False for s in all_sections}
+
+    return render(request, 'sat/update_classroom_section_access.html', {
+        'classroom': classroom,
+        'student_count': total,
+        'majority_access': majority_access,
+        'section_counts': section_counts,
+    })
+
+
+@login_required(login_url='/login/')
+def classroom_vocabulary_section(request, classroom_id, slug):
+    """Classroom-aware vocabulary sub-section (word_lists / flashcards)."""
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('vocabulary'):
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Vocabulary."
+            )
+
+    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+
+    if slug == 'word_lists':
+        return render(request, 'sat/vocabulary_word_lists.html', {
+            'units': units,
+            'classroom': classroom,
+        })
+
+    if slug == 'flashcards':
+        return render(request, 'sat/vocabulary_flashcards.html', {
+            'units': units,
+            'classroom': classroom,
+        })
+
+    if slug == 'practice-quiz':
+        return render(request, 'sat/vocabulary_practice_quiz.html', {
+            'units': units,
+            'classroom': classroom,
+        })
+
+    raise Http404("Vocabulary section not found")
+
+
+@login_required(login_url='/login/')
 def remove_student_from_classroom(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
@@ -2892,19 +3145,6 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
     review = TestReview.objects.filter(key=key).select_related('user', 'test', 'makeup_test').first()
     if not review or review.user_id != student.id:
         return HttpResponse('This review is no longer available. A new retake may already be in progress.')
-
-    if not review.is_active() and not request.user.is_superuser:
-        if not request.user.groups.filter(name='Admin').exists():
-            review_started = review.created_at.strftime('%B %d, %Y at %I:%M %p')
-            review_duration = str(review.duration)
-            expired_time = (review.created_at + review.duration).strftime('%B %d, %Y at %I:%M %p')
-
-            return render(request, 'sat/review_time_over.html', {
-                'test_name': review.test.name if review.test else (review.makeup_test.name if review.makeup_test else 'Unknown'),
-                'review_started': review_started,
-                'review_duration': review_duration,
-                'expired_time': expired_time
-            })
 
     if review.score is None:
         return HttpResponse('Review is unavailable because a retake is currently in progress.')
@@ -3691,10 +3931,27 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
+    # Check if test is already completed
+    completed_review = TestReview.objects.filter(
+        user=request.user,
+        test=test,
+        score__isnull=False
+    ).order_by('-created_at').first()
+    
+    if completed_review:
+        return redirect('results', test=test.name)
+
+    # Check if there's an in-progress attempt
+    has_active_attempt = TestModule.objects.filter(
+        user=request.user,
+        test=test
+    ).exists()
+
     return render(request, 'test/test_modules.html', {
         'test': test,
         'classroom': classroom,
         'role': role,
+        'has_active_attempt': has_active_attempt,
         'start_url': reverse('classroom_test', kwargs={
             'classroom_id': classroom.id,
             'pk': test.name
@@ -3752,7 +4009,8 @@ def classroom_module_test(request, classroom_id, pk):
         test=test,
         section=section,
         module=module,
-        user=user
+        user=user,
+        attempt_id=test_stage.attempt_id
     )
 
     if existing_module.exists():

@@ -156,6 +156,7 @@
           <th>Type</th>
           <th>Question Text</th>
           <th>Answer</th>
+          <th>Detail</th>
         </tr>
       </thead>
       <tbody>
@@ -168,6 +169,7 @@
             <td>{% if q.type %}{{ q.type.name }}{% else %}N/A{% endif %}</td>
             <td><pre class="question-text">{{ q.question|default:"(No text)" }}</pre></td>
             <td>{{ q.answer|default:"N/A" }}</td>
+            <td><a href="{% url 'dev_question_detail' 'english' q.pk %}" style="color:#324dc7; font-weight:600; white-space:nowrap;">View →</a></td>
           </tr>
         {% endfor %}
       </tbody>
@@ -186,6 +188,7 @@
           <th>Type</th>
           <th>Question Text</th>
           <th>Answer</th>
+          <th>Detail</th>
         </tr>
       </thead>
       <tbody>
@@ -198,6 +201,7 @@
             <td>{{ q.type.name|default:"N/A" }}</td>
             <td><pre class="question-text">{{ q.question|default:"(No text)" }}</pre></td>
             <td>{{ q.answer|default:"N/A" }}</td>
+            <td><a href="{% url 'dev_question_detail' 'math' q.pk %}" style="color:#324dc7; font-weight:600; white-space:nowrap;">View →</a></td>
           </tr>
         {% endfor %}
       </tbody>

@@ -9,5 +9,6 @@ urlpatterns = [
     path('create-bulk-users/', views_dev.create_bulk_users, name='dev_create_bulk_users'),
     path('assign-test/', views_dev.assign_test, name='dev_assign_test'),
     path('test-statistics/', views_dev.test_statistics, name='dev_test_statistics'),
+    path('question/<str:section>/<int:pk>/', views_dev.dev_question_detail, name='dev_question_detail'),
     # Add other dev-specific URLs here
 ] 
