@@ -5,9 +5,15 @@
 {% block title %}Add Vocabulary Question{% endblock title %}
 
 {% block style %}
+<!-- TinyMCE -->
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<!-- MathJax -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 <style>
   .form-wrap {
-    max-width: 860px;
+    max-width: 1000px;
     margin: 0 auto;
     background: #fff;
     border: 1px solid #e5e7eb;
@@ -28,12 +34,61 @@
   }
 
   .form-group input,
-  .form-group textarea,
   .form-group select {
     width: 100%;
     border: 1px solid #d1d5db;
     border-radius: 12px;
     padding: 12px 14px;
+  }
+
+  .editor-container {
+    position: relative;
+  }
+
+  .editor-mode-switch {
+    display: flex;
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+
+  .mode-btn {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #f9fafb;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .mode-btn.active {
+    background: #324dc7;
+    color: white;
+    border-color: #324dc7;
+  }
+
+  .editor-wrapper {
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .editor-wrapper.rich-text .latex-editor,
+  .editor-wrapper.latex .rich-editor {
+    display: none;
+  }
+
+  .rich-editor, .latex-editor {
+    min-height: 120px;
+  }
+
+  .latex-editor textarea {
+    width: 100%;
+    min-height: 120px;
+    border: none;
+    padding: 12px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    resize: vertical;
   }
 
   .btn-main {
@@ -45,10 +100,24 @@
     text-decoration: none;
     font-weight: 700;
     border: none;
+    cursor: pointer;
   }
 
   .btn-secondary {
     background: #475569;
+  }
+
+  .math-preview {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+  }
+
+  .math-preview .math-display {
+    font-size: 16px;
+    color: #495057;
   }
 </style>
 {% endblock style %}
@@ -62,27 +131,112 @@
 
     <div class="form-group">
       <label for="question">Question</label>
-      <textarea id="question" name="question" rows="3" required></textarea>
+      <div class="editor-container">
+        <div class="editor-mode-switch">
+          <button type="button" class="mode-btn active" data-mode="rich">Rich Text</button>
+          <button type="button" class="mode-btn" data-mode="latex">LaTeX/Math</button>
+        </div>
+        <div class="editor-wrapper rich-text">
+          <div class="rich-editor">
+            <textarea id="question_rich" name="question_rich" rows="4"></textarea>
+          </div>
+          <div class="latex-editor">
+            <textarea id="question_latex" name="question_latex" placeholder="Enter LaTeX/Math expressions (e.g., $x^2 + y^2 = z^2$)"></textarea>
+            <div class="math-preview" id="question_preview" style="display: none;">
+              <strong>Preview:</strong>
+              <div class="math-display" id="question_math"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="option_a">Option A</label>
-      <input type="text" id="option_a" name="option_a" required>
+      <div class="editor-container">
+        <div class="editor-mode-switch">
+          <button type="button" class="mode-btn active" data-mode="rich">Rich Text</button>
+          <button type="button" class="mode-btn" data-mode="latex">LaTeX/Math</button>
+        </div>
+        <div class="editor-wrapper rich-text">
+          <div class="rich-editor">
+            <input type="text" id="option_a_rich" name="option_a_rich">
+          </div>
+          <div class="latex-editor">
+            <textarea id="option_a_latex" name="option_a_latex" placeholder="Enter LaTeX/Math expressions"></textarea>
+            <div class="math-preview" id="option_a_preview" style="display: none;">
+              <strong>Preview:</strong>
+              <div class="math-display" id="option_a_math"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="option_b">Option B</label>
-      <input type="text" id="option_b" name="option_b" required>
+      <div class="editor-container">
+        <div class="editor-mode-switch">
+          <button type="button" class="mode-btn active" data-mode="rich">Rich Text</button>
+          <button type="button" class="mode-btn" data-mode="latex">LaTeX/Math</button>
+        </div>
+        <div class="editor-wrapper rich-text">
+          <div class="rich-editor">
+            <input type="text" id="option_b_rich" name="option_b_rich">
+          </div>
+          <div class="latex-editor">
+            <textarea id="option_b_latex" name="option_b_latex" placeholder="Enter LaTeX/Math expressions"></textarea>
+            <div class="math-preview" id="option_b_preview" style="display: none;">
+              <strong>Preview:</strong>
+              <div class="math-display" id="option_b_math"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="option_c">Option C</label>
-      <input type="text" id="option_c" name="option_c" required>
+      <div class="editor-container">
+        <div class="editor-mode-switch">
+          <button type="button" class="mode-btn active" data-mode="rich">Rich Text</button>
+          <button type="button" class="mode-btn" data-mode="latex">LaTeX/Math</button>
+        </div>
+        <div class="editor-wrapper rich-text">
+          <div class="rich-editor">
+            <input type="text" id="option_c_rich" name="option_c_rich">
+          </div>
+          <div class="latex-editor">
+            <textarea id="option_c_latex" name="option_c_latex" placeholder="Enter LaTeX/Math expressions"></textarea>
+            <div class="math-preview" id="option_c_preview" style="display: none;">
+              <strong>Preview:</strong>
+              <div class="math-display" id="option_c_math"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="option_d">Option D</label>
-      <input type="text" id="option_d" name="option_d" required>
+      <div class="editor-container">
+        <div class="editor-mode-switch">
+          <button type="button" class="mode-btn active" data-mode="rich">Rich Text</button>
+          <button type="button" class="mode-btn" data-mode="latex">LaTeX/Math</button>
+        </div>
+        <div class="editor-wrapper rich-text">
+          <div class="rich-editor">
+            <input type="text" id="option_d_rich" name="option_d_rich">
+          </div>
+          <div class="latex-editor">
+            <textarea id="option_d_latex" name="option_d_latex" placeholder="Enter LaTeX/Math expressions"></textarea>
+            <div class="math-preview" id="option_d_preview" style="display: none;">
+              <strong>Preview:</strong>
+              <div class="math-display" id="option_d_math"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
@@ -102,4 +256,113 @@
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize TinyMCE for rich text editors
+  tinymce.init({
+    selector: '.rich-editor textarea',
+    height: 120,
+    menubar: false,
+    plugins: [
+      'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+      'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+      'insertdatetime', 'media', 'table', 'help', 'wordcount', 'paste'
+    ],
+    toolbar: 'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
+    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px; }',
+    setup: function(editor) {
+      editor.on('change', function() {
+        editor.save();
+      });
+    }
+  });
+
+  // Mode switching functionality
+  document.querySelectorAll('.editor-mode-switch').forEach(function(switchContainer) {
+    const buttons = switchContainer.querySelectorAll('.mode-btn');
+    const wrapper = switchContainer.nextElementSibling;
+
+    buttons.forEach(function(button) {
+      button.addEventListener('click', function() {
+        const mode = this.getAttribute('data-mode');
+
+        // Update button states
+        buttons.forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+
+        // Update wrapper class
+        wrapper.className = 'editor-wrapper ' + mode;
+
+        // Trigger MathJax re-render if switching to LaTeX mode
+        if (mode === 'latex') {
+          setTimeout(function() {
+            if (window.MathJax) {
+              window.MathJax.typeset();
+            }
+          }, 100);
+        }
+      });
+    });
+  });
+
+  // LaTeX preview functionality
+  function setupLatexPreview(textareaId, previewId, mathId) {
+    const textarea = document.getElementById(textareaId);
+    const preview = document.getElementById(previewId);
+    const math = document.getElementById(mathId);
+
+    if (textarea && preview && math) {
+      textarea.addEventListener('input', function() {
+        const latex = textarea.value.trim();
+        if (latex) {
+          math.innerHTML = '\\(' + latex + '\\)';
+          preview.style.display = 'block';
+          if (window.MathJax) {
+            window.MathJax.typesetPromise([math]).catch(function(err) {
+              console.warn('MathJax rendering failed:', err);
+            });
+          }
+        } else {
+          preview.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  // Setup LaTeX previews for all fields
+  setupLatexPreview('question_latex', 'question_preview', 'question_math');
+  setupLatexPreview('option_a_latex', 'option_a_preview', 'option_a_math');
+  setupLatexPreview('option_b_latex', 'option_b_preview', 'option_b_math');
+  setupLatexPreview('option_c_latex', 'option_c_preview', 'option_c_math');
+  setupLatexPreview('option_d_latex', 'option_d_preview', 'option_d_math');
+
+  // Form submission handling
+  document.querySelector('form').addEventListener('submit', function(e) {
+    // For each editor container, determine which mode is active and set the appropriate field
+    document.querySelectorAll('.editor-container').forEach(function(container) {
+      const wrapper = container.querySelector('.editor-wrapper');
+      const isRichText = wrapper.classList.contains('rich-text');
+
+      if (isRichText) {
+        // Rich text mode - TinyMCE content
+        const richEditor = container.querySelector('.rich-editor textarea');
+        const latexField = container.querySelector('.latex-editor textarea');
+        if (richEditor && latexField) {
+          const richContent = tinymce.get(richEditor.id)?.getContent() || '';
+          // Store rich content in a hidden field or use the rich field
+          richEditor.value = richContent;
+          latexField.value = ''; // Clear LaTeX field
+        }
+      } else {
+        // LaTeX mode - use LaTeX content
+        const richField = container.querySelector('.rich-editor textarea');
+        if (richField) {
+          richField.value = ''; // Clear rich text field
+        }
+      }
+    });
+  });
+});
+</script>
 {% endblock content %}

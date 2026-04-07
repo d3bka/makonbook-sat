@@ -3975,12 +3975,30 @@ def create_vocabulary_question(request, unit_id):
     unit = get_object_or_404(VocabularyUnit, id=unit_id)
 
     if request.method == 'POST':
-        question_text = request.POST.get('question', '').strip()
-        option_a = request.POST.get('option_a', '').strip()
-        option_b = request.POST.get('option_b', '').strip()
-        option_c = request.POST.get('option_c', '').strip()
-        option_d = request.POST.get('option_d', '').strip()
+        # Determine which content to use based on the mode
+        question_rich = request.POST.get('question_rich', '').strip()
+        question_latex = request.POST.get('question_latex', '').strip()
+
+        option_a_rich = request.POST.get('option_a_rich', '').strip()
+        option_a_latex = request.POST.get('option_a_latex', '').strip()
+
+        option_b_rich = request.POST.get('option_b_rich', '').strip()
+        option_b_latex = request.POST.get('option_b_latex', '').strip()
+
+        option_c_rich = request.POST.get('option_c_rich', '').strip()
+        option_c_latex = request.POST.get('option_c_latex', '').strip()
+
+        option_d_rich = request.POST.get('option_d_rich', '').strip()
+        option_d_latex = request.POST.get('option_d_latex', '').strip()
+
         correct_answer = request.POST.get('correct_answer', '').strip().upper()
+
+        # Use rich text if available, otherwise use LaTeX
+        question_text = question_rich or question_latex
+        option_a = option_a_rich or option_a_latex
+        option_b = option_b_rich or option_b_latex
+        option_c = option_c_rich or option_c_latex
+        option_d = option_d_rich or option_d_latex
 
         if not all([question_text, option_a, option_b, option_c, option_d, correct_answer]):
             messages.error(request, "All fields are required.")
