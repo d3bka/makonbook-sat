@@ -940,7 +940,15 @@ class GlobalEvent(models.Model):
     end_at = models.DateTimeField()
     duration_minutes = models.PositiveIntegerField(
         default=60,
-        help_text="Duration in minutes for each module (total time = duration_minutes × number of modules)"
+        help_text="Fallback duration in minutes for each module if section-specific duration is not set."
+    )
+    english_duration_minutes = models.PositiveIntegerField(
+        default=60,
+        help_text="Duration in minutes for each English module."
+    )
+    math_duration_minutes = models.PositiveIntegerField(
+        default=60,
+        help_text="Duration in minutes for each Math module."
     )
     always_live = models.BooleanField(default=False, help_text="If checked, event is available 24/7 regardless of start/end times")
 
@@ -967,6 +975,13 @@ class GlobalEvent(models.Model):
             self.status == "live" and
             self.start_at <= now <= self.end_at
         )
+
+    def get_module_duration(self, section):
+        if section == "english":
+            return self.english_duration_minutes or self.duration_minutes
+        if section == "math":
+            return self.math_duration_minutes or self.duration_minutes
+        return self.duration_minutes
 
     def __str__(self):
         return self.title
@@ -1031,22 +1046,21 @@ class GlobalEventAttempt(models.Model):
             )
         ]
 
+    def get_time_left_seconds(self, section=None):
+        """Calculate time remaining for the current module/section."""
+        module_start = self.current_module_started_at or self.started_at
+        elapsed = (timezone.now() - module_start).total_seconds()
+
+        if section:
+            module_duration_seconds = self.event.get_module_duration(section) * 60
+        else:
+            module_duration_seconds = self.event.duration_minutes * 60
+
+        return max(0, int(module_duration_seconds - elapsed))
+
     @property
     def time_left_seconds(self):
-        """Calculate time remaining for the current module only"""
-        # If module hasn't started yet, use started_at as reference
-        module_start = self.current_module_started_at or self.started_at
-        
-        # Calculate how much time has been spent on this module
-        elapsed = (timezone.now() - module_start).total_seconds()
-        
-        # Get the duration for this module from the event
-        module_duration_seconds = self.event.duration_minutes * 60
-        
-        # Time left for this module
-        time_left = max(0, int(module_duration_seconds - elapsed))
-        
-        return time_left
+        return self.get_time_left_seconds()
 
     def __str__(self):
         return f"{self.guest} - {self.event}"

@@ -401,14 +401,14 @@ def global_event_attempt_view(request, guest_token):
     if attempt.status == "submitted":
         return redirect("global_event_result", guest_token=attempt.guest_token)
 
-    if attempt.time_left_seconds <= 0:
-        auto_submit_attempt(attempt)
-        return redirect("global_event_result", guest_token=attempt.guest_token)
-
     test = attempt.event.test
 
     current_step = get_guest_current_step(attempt)
     if current_step is None:
+        return redirect("global_event_result", guest_token=attempt.guest_token)
+
+    if attempt.get_time_left_seconds(current_step[0]) <= 0:
+        auto_submit_attempt(attempt)
         return redirect("global_event_result", guest_token=attempt.guest_token)
 
     default_section, default_module = current_step
@@ -438,8 +438,8 @@ def global_event_attempt_view(request, guest_token):
             "questions": questions,
             "section": section,
             "module": module,
-            "time_left_seconds": attempt.time_left_seconds,
-            "custom_time_seconds": attempt.time_left_seconds,
+            "time_left_seconds": attempt.get_time_left_seconds(section),
+            "custom_time_seconds": attempt.get_time_left_seconds(section),
         })
 
     elif section == "math":
@@ -471,8 +471,8 @@ def global_event_attempt_view(request, guest_token):
             "questions_data": questions_data,
             "section": section,
             "module": module,
-            "time_left_seconds": attempt.time_left_seconds,
-            "custom_time_seconds": attempt.time_left_seconds,
+            "time_left_seconds": attempt.get_time_left_seconds(section),
+            "custom_time_seconds": attempt.get_time_left_seconds(section),
         })
 
     return redirect("global_event_detail", slug=attempt.event.slug)
@@ -491,7 +491,20 @@ def save_global_event_answer_view(request, guest_token):
     if attempt.status != "in_progress":
         return JsonResponse({"ok": False, "error": "Attempt already closed"}, status=400)
 
-    if attempt.time_left_seconds <= 0:
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+        except Exception:
+            payload = {}
+    else:
+        payload = {}
+
+    section = payload.get("section")
+    if not section:
+        current_step = get_guest_current_step(attempt)
+        section = current_step[0] if current_step else None
+
+    if attempt.get_time_left_seconds(section) <= 0:
         auto_submit_attempt(attempt)
         return JsonResponse({"ok": False, "error": "Time is over"}, status=400)
 

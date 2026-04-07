@@ -838,6 +838,8 @@ class GlobalEventAdmin(admin.ModelAdmin):
         "start_at",
         "end_at",
         "duration_minutes",
+        "english_duration_minutes",
+        "math_duration_minutes",
     )
     search_fields = ("title", "slug", "test__title")
     list_filter = ("status", "is_public", "always_live", "show_score_immediately", "show_leaderboard")

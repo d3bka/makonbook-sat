@@ -4048,26 +4048,21 @@ def get_test_mode(test):
 
 
 def get_test_sequence(test):
-    mode = get_test_mode(test)
+    english_modules = sorted(
+        set(English_Question.objects.filter(test=test).values_list('module', flat=True)),
+        key=lambda m: ['module_1', 'module_2'].index(m) if m in ['module_1', 'module_2'] else 99
+    )
+    math_modules = sorted(
+        set(Math_Question.objects.filter(test=test).values_list('module', flat=True)),
+        key=lambda m: ['module_1', 'module_2'].index(m) if m in ['module_1', 'module_2'] else 99
+    )
 
-    if mode == 'full':
-        return [
-            ('english', 'm1'),
-            ('english', 'm2'),
-            ('math', 'm1'),
-            ('math', 'm2'),
-        ]
-    if mode == 'ebrw_only':
-        return [
-            ('english', 'm1'),
-            ('english', 'm2'),
-        ]
-    if mode == 'math_only':
-        return [
-            ('math', 'm1'),
-            ('math', 'm2'),
-        ]
-    return []
+    sequence = []
+    for module in english_modules:
+        sequence.append(('english', module))
+    for module in math_modules:
+        sequence.append(('math', module))
+    return sequence
 
 
 def get_current_test_step(test_stage):
