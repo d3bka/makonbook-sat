@@ -59,6 +59,8 @@ urlpatterns = [
 
     path('classroom/<int:classroom_id>/vocabulary/', views.classroom_vocabulary, name='classroom_vocabulary'),
     path('classroom/<int:classroom_id>/vocabulary/<slug:slug>/', views.classroom_vocabulary_section, name='classroom_vocabulary_section'),
+    path('classroom/<int:classroom_id>/vocabulary/practice-quiz/start/', views.classroom_vocabulary_practice_quiz_start, name='classroom_vocabulary_practice_quiz_start'),
+    path('classroom/<int:classroom_id>/vocabulary/practice-quiz/result/', views.classroom_vocabulary_practice_quiz_result, name='classroom_vocabulary_practice_quiz_result'),
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
 
     path('teacher/classrooms/<int:classroom_id>/progress/', views.classroom_progress_dashboard, name='classroom_progress_dashboard'),

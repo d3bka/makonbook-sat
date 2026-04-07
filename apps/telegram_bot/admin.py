@@ -18,18 +18,22 @@ class BulkUserRequestAdmin(admin.ModelAdmin):
     search_fields = ['prefix', 'telegram_admin__username']
     readonly_fields = ['created_at', 'completed_at']
     ordering = ['-created_at']
-    
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('telegram_admin')
 
 
 @admin.register(GeneratedUser)
 class GeneratedUserAdmin(admin.ModelAdmin):
-    list_display = ['username', 'password', 'bulk_request', 'created_at']
+    list_display = ['username', 'bulk_request', 'created_at', 'password_status']
     list_filter = ['created_at', 'bulk_request__telegram_admin']
     search_fields = ['username', 'user__username']
     readonly_fields = ['created_at']
     ordering = ['-created_at']
     
+    def password_status(self, obj):
+        return 'visible' if obj.password else 'hidden'
+    password_status.short_description = 'Password'
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('bulk_request', 'user')

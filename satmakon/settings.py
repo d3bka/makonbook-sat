@@ -3,9 +3,10 @@ import os
 from urllib.parse import urlparse, parse_qs, unquote
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+dotenv_path = BASE_DIR / '.env'
+load_dotenv(dotenv_path)
+
 
 
 def env_bool(name: str, default: bool = False) -> bool:

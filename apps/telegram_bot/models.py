@@ -52,7 +52,11 @@ class GeneratedUser(models.Model):
     bulk_request = models.ForeignKey(BulkUserRequest, on_delete=models.CASCADE)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     username = models.CharField(max_length=150)
-    password = models.CharField(max_length=8)  # Store plain password for admin use
+    password = models.CharField(
+        max_length=8,
+        blank=True,
+        help_text="Temporary password storage. Raw passwords are hidden in UI and only stored when necessary."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

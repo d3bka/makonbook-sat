@@ -2476,6 +2476,179 @@ def classroom_vocabulary_section(request, classroom_id, slug):
 
 
 @login_required(login_url='/login/')
+def classroom_vocabulary_practice_quiz_start(request, classroom_id):
+    """Classroom-aware vocabulary practice quiz start."""
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('vocabulary'):
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Vocabulary."
+            )
+
+    if request.method != 'POST':
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    selected_ids = request.POST.getlist('units')
+    selected_ids = [int(x) for x in selected_ids if x.isdigit()]
+    requested_count = request.POST.get('question_count')
+
+    if not selected_ids:
+        messages.error(request, "Select at least one unit.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    try:
+        requested_count = int(requested_count)
+    except (TypeError, ValueError):
+        messages.error(request, "Enter a valid number of questions.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    selected_units = VocabularyUnit.objects.filter(
+        id__in=selected_ids,
+        is_active=True
+    ).prefetch_related('words')
+
+    selected_words = []
+    for unit in selected_units:
+        for word in unit.words.filter(is_active=True):
+            selected_words.append(word)
+
+    if len(selected_words) < 4:
+        messages.error(request, "You need at least 4 words in the selected units to generate a quiz.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    max_available = len(selected_words)
+
+    if requested_count < 1:
+        messages.error(request, "Question count must be at least 1.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    if requested_count > max_available:
+        messages.error(request, f"You selected {requested_count} questions, but only {max_available} words are available.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    random.shuffle(selected_words)
+    test_words = selected_words[:requested_count]
+
+    all_meanings_pool = [w.meaning for w in selected_words]
+
+    questions = []
+    for word_obj in test_words:
+        correct_answer = word_obj.meaning
+
+        wrong_answers = [m for m in all_meanings_pool if m != correct_answer]
+        wrong_answers = list(set(wrong_answers))
+        random.shuffle(wrong_answers)
+        wrong_answers = wrong_answers[:3]
+
+        if len(wrong_answers) < 3:
+            continue
+
+        choices = [correct_answer] + wrong_answers
+        random.shuffle(choices)
+
+        questions.append({
+            'unit': word_obj.unit.title,
+            'question': f"What is the meaning of '{word_obj.word}'?",
+            'choices': choices,
+            'answer': correct_answer,
+            'word': word_obj.word,
+        })
+
+    if not questions:
+        messages.error(request, "Could not generate quiz questions from selected words.")
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    request.session['vocab_quiz_questions'] = questions
+    request.session['vocab_quiz_units'] = [u.title for u in selected_units]
+    request.session['vocab_quiz_classroom_id'] = classroom_id
+
+    return render(request, 'sat/vocabulary_practice_quiz_test.html', {
+        'questions': questions,
+        'selected_units': selected_units,
+        'requested_count': len(questions),
+        'classroom': classroom,
+    })
+
+
+@login_required(login_url='/login/')
+def classroom_vocabulary_practice_quiz_result(request, classroom_id):
+    """Classroom-aware vocabulary practice quiz result."""
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('vocabulary'):
+            return classroom_access_denied(
+                request,
+                classroom=classroom,
+                message="You do not have access to Vocabulary."
+            )
+
+    if request.method != 'POST':
+        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
+
+    questions = request.session.get('vocab_quiz_questions', [])
+    score = 0
+    total_questions = len(questions)
+    results = []
+
+    for i, question in enumerate(questions):
+        user_answer = request.POST.get(f'question_{i}')
+        is_correct = user_answer == question['answer']
+        if is_correct:
+            score += 1
+
+        results.append({
+            'question': question['question'],
+            'user_answer': user_answer,
+            'correct_answer': question['answer'],
+            'is_correct': is_correct,
+            'unit': question['unit'],
+            'word': question['word'],
+        })
+
+    percentage = (score / total_questions * 100) if total_questions > 0 else 0
+
+    # Clear session data
+    request.session.pop('vocab_quiz_questions', None)
+    request.session.pop('vocab_quiz_units', None)
+    request.session.pop('vocab_quiz_classroom_id', None)
+
+    return render(request, 'sat/vocabulary_practice_quiz_result.html', {
+        'results': results,
+        'score': score,
+        'total_questions': total_questions,
+        'percentage': percentage,
+        'selected_units': request.session.get('vocab_quiz_units', []),
+        'classroom': classroom,
+    })
+
+
+@login_required(login_url='/login/')
 def remove_student_from_classroom(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 

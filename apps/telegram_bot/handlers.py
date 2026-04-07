@@ -440,12 +440,12 @@ class UserExecutionHandler(BaseHandler):
                         for group in groups:
                             await sync_to_async(user.groups.add)(group)
                     
-                    # Create generated user record
+                    # Create generated user record without storing the raw password in the database
                     await sync_to_async(GeneratedUser.objects.create)(
                         bulk_request=bulk_request,
                         user=user,
                         username=username,
-                        password=password  # Store plain password for admin use
+                        password=""
                     )
                     
                     # Format: username:Student234, password:dsfbsfe4
@@ -723,10 +723,11 @@ class RequestHistoryHandler(BaseHandler):
             
             if generated_users:
                 text_lines.append(f"<b>👥 All Created Users:</b>")
+                text_lines.append("<i>Passwords are hidden here for security. Download the original request file to view credentials.</i>")
                 
-                # Add all users with proper formatting
+                # Add all users without exposing raw passwords
                 for gen_user in generated_users:
-                    text_lines.append(f"<code>username:{gen_user.username}, password:{gen_user.password}</code>")
+                    text_lines.append(f"<code>username:{gen_user.username}</code>")
             else:
                 text_lines.append(f"<b>⚠️ No users were successfully created for this request.</b>")
             
@@ -760,7 +761,7 @@ class RequestHistoryHandler(BaseHandler):
                 # Send users in chunks if any exist
                 if generated_users:
                     users_per_chunk = 20
-                    user_lines = [f"<code>username:{gen.username}, password:{gen.password}</code>" for gen in generated_users]
+                    user_lines = [f"<code>username:{gen.username}</code>" for gen in generated_users]
                     
                     for i in range(0, len(user_lines), users_per_chunk):
                         chunk = user_lines[i:i + users_per_chunk]
@@ -812,7 +813,12 @@ class RequestHistoryHandler(BaseHandler):
                     GeneratedUser.objects.filter(bulk_request=bulk_request).order_by('username')
                 )
                 
-                created_users = [f"username:{gen.username}, password:{gen.password}" for gen in generated_users]
+                created_users = []
+                for gen in generated_users:
+                    if gen.password:
+                        created_users.append(f"username:{gen.username}, password:{gen.password}")
+                    else:
+                        created_users.append(f"username:{gen.username}, password:<hidden>")
                 failed_users = []
                 
                 if bulk_request.status == 'failed' and bulk_request.error_message:
