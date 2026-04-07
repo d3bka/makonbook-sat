@@ -2,6 +2,11 @@
 {% load static %}
 
 {% block title-main %}Join Classroom{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'sat_menu' %}">Menu</a></li>
+{% endblock breadcrumb_parent %}
+
 {% block title %}Join Classroom{% endblock title %}
 
 {% block style %}

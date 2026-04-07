@@ -2,6 +2,11 @@
 {% load static %}
 
 {% block title-main %}Create Classroom{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'teacher_classroom_list' %}">Classrooms</a></li>
+{% endblock breadcrumb_parent %}
+
 {% block title %}Create Classroom{% endblock title %}
 
 {% block style %}

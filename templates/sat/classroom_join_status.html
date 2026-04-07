@@ -2,6 +2,11 @@
 {% load static %}
 
 {% block title-main %}Classroom Status{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'sat_menu' %}">Menu</a></li>
+{% endblock breadcrumb_parent %}
+
 {% block title %}Classroom Status{% endblock title %}
 
 {% block style %}

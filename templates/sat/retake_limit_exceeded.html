@@ -1,6 +1,12 @@
 {% extends 'template.html' %}
 
 {% block title-main %}Retake Limit Exceeded{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'dashboard' %}">Tests</a></li>
+<li><a href="{% url 'results' test_name %}">Results</a></li>
+{% endblock breadcrumb_parent %}
+
 {% block title %}Retake Limit Exceeded{% endblock title %}
 
 {% block style %}

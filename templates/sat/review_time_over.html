@@ -1,6 +1,11 @@
 {% extends 'template.html' %}
 
 {% block title-main %}Review Time Over{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+<li><a href="{% url 'dashboard' %}">Tests</a></li>
+{% endblock breadcrumb_parent %}
+
 {% block title %}Review Time Over{% endblock title %}
 
 {% block style %}

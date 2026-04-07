@@ -2,6 +2,13 @@
 {% load static %}
 
 {% block title-main %}Access Denied{% endblock title-main %}
+
+{% block breadcrumb_parent %}
+{% if classroom %}
+<li><a href="{% url 'student_classroom_home' classroom.id %}">Classroom</a></li>
+{% endif %}
+{% endblock breadcrumb_parent %}
+
 {% block title %}Access Denied{% endblock title %}
 
 {% block style %}
