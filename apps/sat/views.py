@@ -4048,6 +4048,13 @@ def get_test_mode(test):
 
 
 def get_test_sequence(test):
+    def normalize_module(module):
+        if module == 'module_1':
+            return 'm1'
+        if module == 'module_2':
+            return 'm2'
+        return module
+
     english_modules = sorted(
         set(English_Question.objects.filter(test=test).values_list('module', flat=True)),
         key=lambda m: ['module_1', 'module_2'].index(m) if m in ['module_1', 'module_2'] else 99
@@ -4059,9 +4066,9 @@ def get_test_sequence(test):
 
     sequence = []
     for module in english_modules:
-        sequence.append(('english', module))
+        sequence.append(('english', normalize_module(module)))
     for module in math_modules:
-        sequence.append(('math', module))
+        sequence.append(('math', normalize_module(module)))
     return sequence
 
 
