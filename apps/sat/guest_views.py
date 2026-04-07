@@ -377,10 +377,8 @@ def start_global_event_view(request, slug):
     attempt = GlobalEventAttempt.objects.create(
         event=event,
         guest=guest,
-        expires_at=min(
-            now + timedelta(minutes=event.duration_minutes * len(sequence)),
-            event.end_at
-        ),
+        expires_at=event.end_at,
+        current_module_started_at=now,
         total_questions=total_questions,
     )
 
@@ -403,7 +401,7 @@ def global_event_attempt_view(request, guest_token):
     if attempt.status == "submitted":
         return redirect("global_event_result", guest_token=attempt.guest_token)
 
-    if timezone.now() > attempt.expires_at:
+    if attempt.time_left_seconds <= 0:
         auto_submit_attempt(attempt)
         return redirect("global_event_result", guest_token=attempt.guest_token)
 
@@ -493,7 +491,7 @@ def save_global_event_answer_view(request, guest_token):
     if attempt.status != "in_progress":
         return JsonResponse({"ok": False, "error": "Attempt already closed"}, status=400)
 
-    if timezone.now() > attempt.expires_at:
+    if attempt.time_left_seconds <= 0:
         auto_submit_attempt(attempt)
         return JsonResponse({"ok": False, "error": "Time is over"}, status=400)
 
@@ -575,7 +573,7 @@ def submit_global_event_view(request, guest_token):
     if attempt.status != "in_progress":
         return JsonResponse({"ok": False, "error": "Attempt already closed"}, status=400)
 
-    if timezone.now() > attempt.expires_at:
+    if attempt.time_left_seconds <= 0:
         auto_submit_attempt(attempt)
         return JsonResponse({
             "ok": True,
@@ -604,6 +602,10 @@ def submit_global_event_view(request, guest_token):
     result_url = reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
     if redirect_url == result_url:
         finalize_attempt(attempt)
+    else:
+        # Reset the module timer when moving to the next module
+        attempt.current_module_started_at = timezone.now()
+        attempt.save(update_fields=["current_module_started_at"])
 
     return JsonResponse({
         "ok": True,

@@ -1009,6 +1009,7 @@ class GlobalEventAttempt(models.Model):
     started_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     submitted_at = models.DateTimeField(null=True, blank=True)
+    current_module_started_at = models.DateTimeField(null=True, blank=True, help_text="When the current module started")
 
     status = models.CharField(
         max_length=20,
@@ -1032,8 +1033,20 @@ class GlobalEventAttempt(models.Model):
 
     @property
     def time_left_seconds(self):
-        diff = int((self.expires_at - timezone.now()).total_seconds())
-        return max(diff, 0)
+        """Calculate time remaining for the current module only"""
+        # If module hasn't started yet, use started_at as reference
+        module_start = self.current_module_started_at or self.started_at
+        
+        # Calculate how much time has been spent on this module
+        elapsed = (timezone.now() - module_start).total_seconds()
+        
+        # Get the duration for this module from the event
+        module_duration_seconds = self.event.duration_minutes * 60
+        
+        # Time left for this module
+        time_left = max(0, int(module_duration_seconds - elapsed))
+        
+        return time_left
 
     def __str__(self):
         return f"{self.guest} - {self.event}"
