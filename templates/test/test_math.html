@@ -548,6 +548,8 @@
             cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
             cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
             cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            // Convert escaped newlines to actual newlines
+            cleaned = cleaned.replace(/\\n/g, '\n');
             return cleaned;
         }
 

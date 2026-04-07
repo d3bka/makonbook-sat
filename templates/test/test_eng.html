@@ -134,8 +134,8 @@
         const questions = [
             {% for question in questions %}
             {
-                // Добавляем замену текстового \n на реальный перенос строки
-                passage: `{{ question.passage|default_if_none:""|escapejs }}`.replace(/\\n/g, '\n'),
+                // Passage with line breaks preserved
+                passage: `{{ question.passage|default_if_none:""|escapejs }}`,
                 number: Number("{{ question.number }}"),
                 question: `{{ question.question|default_if_none:""|escapejs }}`.replace(/\\n/g, '\n'),
                 a: `{{ question.a|default_if_none:""|escapejs }}`,
@@ -170,6 +170,8 @@
             cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
             cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
             cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            // Convert escaped newlines to actual newlines
+            cleaned = cleaned.replace(/\\n/g, '\n');
             return cleaned;
         }
 
@@ -279,7 +281,7 @@
             updateQuestionProgress();
                 
             // ✅ PASSAGE (без KaTeX, с переносами)
-            document.getElementById('passage').innerText = question.passage;
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
                 
             document.getElementsByClassName('question-number')[0].innerHTML = question.number;
                 
