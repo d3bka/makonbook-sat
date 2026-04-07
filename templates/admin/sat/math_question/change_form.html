@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load admin_urls %}
+
+{% block submit_buttons_bottom %}
+<div class="submit-row">
+    <input type="submit" value="Save" class="default" name="_save">
+    <input type="submit" value="Save and continue editing" name="_continue">
+    <input type="submit" value="Save and add another" name="_addanother">
+    {% if show_save_and_next %}
+    <input type="submit" value="Save and next question" name="_save_and_next">
+    {% endif %}
+</div>
+{% endblock %}

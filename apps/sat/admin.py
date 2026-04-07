@@ -166,6 +166,7 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
     list_select_related = ['test', 'domain', 'type']
     form = EnglishQuestionForm
     ordering = ['test_id', 'module', 'number']
+    change_form_template = 'admin/sat/english_question/change_form.html'
 
     fieldsets = (
         ('Basic Information', {
@@ -192,6 +193,26 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
     has_explanation.boolean = True
     has_explanation.short_description = 'Explanation'
 
+    def response_change(self, request, obj):
+        if "_save_and_next" in request.POST:
+            next_question = self.get_next_question(obj)
+            if next_question:
+                return redirect(reverse('admin:sat_english_question_change', args=(next_question.pk,)))
+        return super().response_change(request, obj)
+
+    def get_next_question(self, obj):
+        return English_Question.objects.filter(
+            test=obj.test,
+            module=obj.module,
+            number__gt=obj.number
+        ).order_by('number').first()
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_save_and_next'] = True
+        return super().change_view(request, object_id, form_url, extra_context)
+
+
 # Enhanced Math Question Admin
 @admin.register(Math_Question)
 class MathQuestionAdmin(admin.ModelAdmin):
@@ -201,6 +222,7 @@ class MathQuestionAdmin(admin.ModelAdmin):
     list_per_page = 50
     form = MathQuestionForm
     ordering = ['test', 'module', 'number']
+    change_form_template = 'admin/sat/math_question/change_form.html'
     
     fieldsets = (
         ('Basic Information', {
@@ -226,6 +248,26 @@ class MathQuestionAdmin(admin.ModelAdmin):
         return bool(obj.explained or obj.img_explain)
     has_explanation.boolean = True
     has_explanation.short_description = 'Explanation'
+
+    def response_change(self, request, obj):
+        if "_save_and_next" in request.POST:
+            next_question = self.get_next_question(obj)
+            if next_question:
+                return redirect(reverse('admin:sat_math_question_change', args=(next_question.pk,)))
+        return super().response_change(request, obj)
+
+    def get_next_question(self, obj):
+        return Math_Question.objects.filter(
+            test=obj.test,
+            module=obj.module,
+            number__gt=obj.number
+        ).order_by('number').first()
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        extra_context['show_save_and_next'] = True
+        return super().change_view(request, object_id, form_url, extra_context)
+
 
 # Comprehensive TestReview Admin with Advanced Search and Filtering
 class ScoreRangeFilter(admin.SimpleListFilter):
