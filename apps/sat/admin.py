@@ -598,7 +598,14 @@ class TestStageAdmin(admin.ModelAdmin):
     retake_info.short_description = 'Retakes Used'
     
     def can_retake(self, obj):
-        if obj.retake_count < obj.get_max_retakes():
+        max_retakes = obj.get_max_retakes()
+        retake_count = obj.retake_count or 0
+        
+        # If max_retakes is None, it means unlimited retakes
+        if max_retakes is None:
+            return format_html('<span style="color: #2e7d32;">✅ Yes (Unlimited)</span>')
+        
+        if retake_count < max_retakes:
             return format_html('<span style="color: #2e7d32;">✅ Yes</span>')
         else:
             return format_html('<span style="color: #f44336;">❌ No</span>')
