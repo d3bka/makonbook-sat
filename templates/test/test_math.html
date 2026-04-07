@@ -950,43 +950,72 @@
             const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
             if (!confirmed) return;
 
-            const form = document.getElementById('math-quiz-form');
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            const answerData = answers.map((answer, index) => ({
-                questionID: questions[index] ? questions[index].id : null,
-                answer: answer,
-                time_spent: timeSpent[index]
-            }));
+            // Show loading state
+            const finishButton = document.getElementById('finishButton');
+            const originalText = finishButton.textContent;
+            finishButton.textContent = 'Submitting...';
+            finishButton.disabled = true;
 
             try {
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({
-                        answers: answerData,
-                        section: sectionName,
-                        test: testName,
-                        module: moduleName
-                    })
-                });
+                const form = document.getElementById('math-quiz-form');
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const answerData = answers.map((answer, index) => ({
+                    questionID: questions[index] ? questions[index].id : null,
+                    answer: answer,
+                    time_spent: timeSpent[index]
+                }));
 
-                if (!response.ok) {
-                    alert('Failed to submit answers.');
-                    return;
+                // Try up to 3 times with exponential backoff
+                let attempts = 0;
+                const maxAttempts = 3;
+
+                while (attempts < maxAttempts) {
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify({
+                                answers: answerData,
+                                section: sectionName,
+                                test: testName,
+                                module: moduleName
+                            }),
+                            // Add timeout
+                            signal: AbortSignal.timeout(30000) // 30 second timeout
+                        });
+
+                        if (response.ok) {
+                            clearProgress();
+                            {% if classroom %}
+                                window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
+                            {% else %}
+                                window.location.href = `/sat/practise/${testName}/start`;
+                            {% endif %}
+                            return;
+                        } else {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || `Server error: ${response.status}`);
+                        }
+                    } catch (error) {
+                        attempts++;
+                        if (attempts >= maxAttempts) {
+                            throw error;
+                        }
+                        // Exponential backoff: 1s, 2s, 4s
+                        const delay = Math.pow(2, attempts - 1) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
                 }
-
-                clearProgress();
-                {% if classroom %}
-                    window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
-                {% else %}
-                    window.location.href = `/sat/practise/${testName}/start`;
-                {% endif %}
             } catch (error) {
-                console.error('Error submitting answers:', error);
-                alert('Network error while submitting answers.');
+                console.error('Finish test error:', error);
+                alert(`Failed to submit test: ${error.message}. Please try again or contact support.`);
+            } finally {
+                // Restore button state
+                finishButton.textContent = originalText;
+                finishButton.disabled = false;
             }
         }
 
