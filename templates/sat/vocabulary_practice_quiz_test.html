@@ -195,7 +195,7 @@
         </div>
       </div>
 
-      <form method="post" action="{% if classroom %}{{ request.path }}result/{% else %}{% url 'vocabulary_practice_quiz_result' %}{% endif %}">
+      <form method="post" action="{% if classroom %}../result/{% else %}{% url 'vocabulary_practice_quiz_result' %}{% endif %}">
         {% csrf_token %}
 
         {% for item in questions %}
