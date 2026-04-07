@@ -378,7 +378,7 @@ def start_global_event_view(request, slug):
         event=event,
         guest=guest,
         expires_at=min(
-            now + timedelta(minutes=event.duration_minutes),
+            now + timedelta(minutes=event.duration_minutes * len(sequence)),
             event.end_at
         ),
         total_questions=total_questions,

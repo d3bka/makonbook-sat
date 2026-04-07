@@ -104,7 +104,7 @@
               <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
               <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
             {% endif %}
-            <div class="event-meta"><strong>Duration:</strong> {{ event.duration_minutes }} min</div>
+            <div class="event-meta"><strong>Duration:</strong> {{ event.duration_minutes }} min per module</div>
 
             <div class="event-actions">
               <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open Event</a>

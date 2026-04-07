@@ -938,7 +938,10 @@ class GlobalEvent(models.Model):
 
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
-    duration_minutes = models.PositiveIntegerField(default=60)
+    duration_minutes = models.PositiveIntegerField(
+        default=60,
+        help_text="Duration in minutes for each module (total time = duration_minutes × number of modules)"
+    )
     always_live = models.BooleanField(default=False, help_text="If checked, event is available 24/7 regardless of start/end times")
 
     status = models.CharField(
