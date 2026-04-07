@@ -65,11 +65,12 @@ def create_certificate(replacements, code, path, black_counts):
             else:
                 page.insert_image(rect, filename=WHITE_IMG)
     # Create a temporary file to save the PDF
-    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
-        doc.save(temp_file.name)
+    temp_filename = tempfile.mktemp(suffix='.pdf')
+    try:
+        doc.save(temp_filename)
         
         # Read the PDF content
-        with open(temp_file.name, 'rb') as pdf_file:
+        with open(temp_filename, 'rb') as pdf_file:
             pdf_content = pdf_file.read()
         
         # Upload to R2 storage
@@ -79,8 +80,10 @@ def create_certificate(replacements, code, path, black_counts):
         # Save to R2 and get the URL
         file_path = storage.save(file_name, certificate_file)
         
+    finally:
         # Clean up temporary file
-        os.unlink(temp_file.name)
+        if os.path.exists(temp_filename):
+            os.unlink(temp_filename)
         
         # Return the R2 file path (not URL, we'll generate URL when needed)
         return file_path
