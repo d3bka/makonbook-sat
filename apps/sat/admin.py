@@ -67,12 +67,31 @@ class QuestionTypeAdmin(admin.ModelAdmin):
 # Enhanced Test Admin
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
-    list_display = ['name', 'groups_display', 'total_questions', 'english_questions_count', 'math_questions_count', 
+    list_display = ['name', 'icon_preview', 'groups_display', 'total_questions', 'english_questions_count', 'math_questions_count', 
                    'reviews_count', 'average_score', 'created']
     list_filter = ['created', 'groups']
     search_fields = ['name']
     filter_horizontal = ['groups']
     ordering = ['-created']
+    readonly_fields = ['icon_preview']
+
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'groups', 'icon')
+        }),
+        ('Additional info', {
+            'fields': ('created',)
+        }),
+    )
+
+    def icon_preview(self, obj):
+        if obj.icon:
+            return format_html(
+                '<img src="{}" style="max-height:50px; max-width:50px; object-fit:contain;" />',
+                obj.icon.url
+            )
+        return '-'
+    icon_preview.short_description = 'Icon'
     
     def get_queryset(self, request):
         queryset = super().get_queryset(request)

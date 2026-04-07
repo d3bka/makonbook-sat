@@ -145,6 +145,14 @@ class Test(BaseModel):
     name = models.CharField(max_length=400, unique=True, primary_key=True)
     created = models.DateTimeField(auto_now=True)
     groups = models.ManyToManyField(Group, related_name='tests')
+    icon = models.ImageField(
+        'Icon',
+        upload_to='sat/test_icons',
+        storage=PublicStorage(),
+        null=True,
+        blank=True,
+        help_text='Upload an icon or photo for this test.'
+    )
 
     def get_number(self):
         return int(self.name)
