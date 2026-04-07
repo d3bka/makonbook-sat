@@ -73,7 +73,7 @@ class TestAdmin(admin.ModelAdmin):
     search_fields = ['name']
     filter_horizontal = ['groups']
     ordering = ['-created']
-    readonly_fields = ['icon_preview']
+    readonly_fields = ['icon_preview', 'created']
 
     fieldsets = (
         (None, {
