@@ -1,0 +1,228 @@
+.button-container {
+  display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.35em 0.6em;
+      border: 2px solid #939393;
+      border-radius: 32px;
+      font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      font-size: 16px;
+      font-weight: 400;
+      text-align: center;
+      color: #757575;
+      background-color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      background-color: #c7b0ff;
+  }
+  
+  .button-container:hover {
+      border-color: black; /* Darker border on hover */
+      font-weight: bold; /* Bold text */
+      color: black; /* Darker text */
+      background-color: #f5f5f5; /* Slightly darker background */
+  }
+  
+      /* Basic reset */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* Body styling */
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #fff;
+    color: #333;
+  }
+  
+  /* ===========================
+     Top Header
+     =========================== */
+  .head-filler {
+    background-color: #c7b0ff; /* Light bluish background */
+    height: 10px;
+  }
+  
+  .top-header {
+    background-color: #c7b0ff; /* Light bluish background */
+    padding: 0.5rem 0;        /* Vertical padding */
+  }
+  
+  /* Header container to center content and add side margins */
+  .header-container {
+    font-size: 24px;
+    max-width: 1200px; /* Adjust to your desired max width */
+    margin: 25px auto;    /* Centers the header on large screens */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 3.5rem; /* Horizontal padding for “margin on both sides” */
+  }
+  .user-icon-style {
+    font-size: 24px;
+  }
+  /* Logo section */
+  .logo-section {
+    display: flex;
+    align-items: center;
+  }
+  
+  .logo {
+    height: 30px;
+    width: auto;
+    margin-right: 5px;
+  }
+  
+  .brand-name {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #3d008e;
+  }
+  
+  /* Profile section (top right) */
+  .profile-section {
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-name {
+    font-size: 18px;
+    margin-right: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .user-icon {
+    font-size: 1.4rem;
+    color: #333;
+  }
+  
+  /* ===========================
+     Welcome Banner
+     =========================== */
+  
+  .welcome-banner {
+    background-color: #c7b0ff; /* Another light shade of blue/purple */
+    padding: 2rem 0;
+  }
+  
+  /* Container for the welcome banner text */
+  .banner-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 3.5rem; /* Same side padding as header */
+    text-align: left;  /* Left-aligned text */
+  }
+  
+  .banner-container h1 {
+    font-size: 2rem;   /* Bigger font size */
+    color: #3d008e;
+    font-weight: 400;
+    /* You can increase further if needed, e.g. 2.4rem */
+  }
+  
+  /* ===========================
+     Main Content
+     =========================== */
+  
+  .main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 3.5rem;
+  }
+  
+  /* Section headers (Your Tests, Practice and Prepare) */
+  .section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .section-header h2 {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-right: auto; /* pushes tab-buttons + link to the right */
+  }
+  
+  /* Tab buttons: Active, Past */
+  .tab-buttons {
+    margin-right: 1rem;
+  }
+  
+  .tab-button {
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #333;
+    padding: 0.3rem 0.8rem;
+    margin-right: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  
+  .tab-button:hover {
+    background-color: #f1f1f1;
+  }
+  
+  .tab-button.active {
+    background-color: #333;
+    color: #fff;
+    border-color: #333;
+  }
+  
+  /* “Don’t see your test here?” or “Learn more …” link */
+  .test-help-link {
+    font-size: 0.9rem;
+    color: #4764c9;
+    text-decoration: none;
+    margin-top: 0.5rem;
+  }
+  
+  .test-help-link:hover {
+    text-decoration: underline;
+  }
+  
+  /* Cards */
+  .card {
+    background-color: #3d008e;
+    color: white;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 12.2), 0 6px 20px 0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .practice-card{
+    padding: 1.6rem;
+  }
+  .test-logo {
+    width: -webkit-fill-available;
+    margin-bottom: 10px;
+  }
+  
+  /* “You Have No Upcoming Tests” card */
+  .no-tests-card {
+    max-width: 550px;
+  }
+  
+  /* Practice cards container (grid) */
+  .practice-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .practice-card h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Responsive tweaks */
+  @media (max-width: 600px) {
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }

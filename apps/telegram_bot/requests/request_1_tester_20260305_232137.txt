@@ -1,0 +1,12 @@
+MakonBook SAT System - Bulk User Creation Report
+==================================================
+Request ID: 1
+Prefix: tester
+Created: 2026-03-05 23:21:37
+Total Users Created: 2
+==================================================
+
+CREATED USERS:
+------------------------------
+username:tester001, password:nYyQxRox
+username:tester002, password:i50APYjG
