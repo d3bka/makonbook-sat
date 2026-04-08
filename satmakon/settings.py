@@ -316,3 +316,7 @@ LOGGING = {
         },
     },
 }
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = 'sat_menu'
+LOGOUT_REDIRECT_URL = '/login/'

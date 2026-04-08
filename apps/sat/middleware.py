@@ -7,36 +7,44 @@ logger = logging.getLogger(__name__)
 
 class ClientSoftwareMiddleware:
     """
-    Middleware that ensures that only requests coming from the dedicated client (which
-    includes the correct secret token in the X-Client-Token header) can access views beyond
-    the login (or other exempt) pages—unless the user is not logged in, in which case the login
-    process is allowed.
+    Allows browser access to classroom pages.
+    Restricts software-only pages to MakonBook client.
     """
+
     def __init__(self, get_response):
         self.get_response = get_response
         self.expected_agent = "MakonBookClient/1.0"
 
+        # pages that must work in browser
+        self.allowed_paths = [
+            "/login/",
+            "/logout/",
+            "/sat/",
+            "/sat/join/",
+        ]
+
     def __call__(self, request):
-        if request.path in '/software/':
+
+        # allow admin always
+        if request.user.is_authenticated and request.user.is_staff:
+            return self.get_response(request)
+
+        # allow classroom pages in browser
+        if request.path.startswith("/sat/classroom/"):
+            return self.get_response(request)
+
+        # allow login/logout
+        for path in self.allowed_paths:
+            if request.path.startswith(path):
                 return self.get_response(request)
 
-        if request.user.is_authenticated:
-            if request.path in '/logout/':
-                return self.get_response(request)
-            # If user is admin/staff, allow without token.
-            if request.user.is_staff:
-                return self.get_response(request)
-            # For non-admin authenticated users, require the secret token in header.
-            ua = request.META.get("HTTP_USER_AGENT", "")
+        ua = request.META.get("HTTP_USER_AGENT", "")
+
+        # restrict software pages to client only
+        if request.path.startswith("/software/"):
             if ua != self.expected_agent:
-                return redirect('software')
-        else:
-            if request.path in '/login/':
-                return self.get_response(request)
-            ua = request.META.get("HTTP_USER_AGENT", "")
-            if ua != self.expected_agent:
-                return redirect('software')
-        # If the user is not authenticated, let Django handle login/redirection.
+                return redirect("sat_menu")
+
         return self.get_response(request)
 
 
