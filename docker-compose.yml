@@ -20,7 +20,6 @@ services:
   web:
     build: .
     restart: always
-    command: gunicorn satmakon.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 50
     volumes:
       - static_files:/app/staticfiles
       - media_files:/app/media
@@ -31,6 +30,7 @@ services:
       DB_ENGINE: django.db.backends.postgresql
       DB_HOST: db
       DB_PORT: 5432
+      GUNICORN_CMD_ARGS: --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 50 --worker-tmp-dir /dev/shm
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +49,8 @@ services:
       DB_ENGINE: django.db.backends.postgresql
       DB_HOST: db
       DB_PORT: 5432
+      RUN_MIGRATIONS: 0
+      COLLECTSTATIC_ON_START: 0
     depends_on:
       db:
         condition: service_healthy

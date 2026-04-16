@@ -1,0 +1,196 @@
+
+:root {
+  --mk-va-surface: rgba(255, 255, 255, 0.96);
+  --mk-va-surface-soft: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(245,240,255,0.94) 100%);
+  --mk-va-outline: rgba(221, 214, 254, 0.95);
+  --mk-va-shadow: 0 18px 40px rgba(76, 29, 149, 0.10);
+  --mk-va-shadow-hover: 0 22px 44px rgba(76, 29, 149, 0.14);
+}
+
+.adm-card,
+.vocab-card,
+.section-card,
+.unit-card,
+.flashcard,
+.result-card,
+.quiz-card,
+.empty-box,
+.detail-card,
+.summary-item,
+.word-item,
+.modal-box,
+.unit-check-item {
+  background: var(--mk-va-surface-soft) !important;
+  border: 1px solid var(--mk-va-outline) !important;
+  box-shadow: var(--mk-va-shadow) !important;
+}
+
+.adm-card:hover,
+.vocab-card:hover,
+.flashcard:hover,
+.unit-card:hover,
+.quiz-card:hover {
+  box-shadow: var(--mk-va-shadow-hover) !important;
+}
+
+.adm-icon,
+.vocab-card-icon,
+.flashcard-label,
+.result-unit,
+.question-unit,
+.unit-badge,
+.flashcard-btn-secondary,
+.modal-btn-secondary,
+.quiz-btn-secondary,
+.result-btn-secondary,
+.back-btn,
+.quiz-badge {
+  background: rgba(109, 40, 217, 0.10) !important;
+  color: var(--mk-primary-strong) !important;
+  border: 1px solid rgba(196, 181, 253, 0.85) !important;
+  box-shadow: none !important;
+}
+
+.hero,
+.result-hero,
+.quiz-hero,
+.section-hero {
+  background: var(--mk-gradient-main) !important;
+  box-shadow: 0 18px 38px rgba(76, 29, 149, 0.18) !important;
+}
+
+.adm-card h3,
+.vocab-card h3,
+.section-card h2,
+.section-card h3,
+.unit-card h3,
+.unit-title,
+.result-question,
+.flashcard-front,
+.title,
+.section-header h2,
+.hero h2,
+.result-hero h2,
+.quiz-hero h2,
+.section-hero h2,
+.modal-box h3,
+.question-title {
+  color: var(--mk-primary-strong) !important;
+}
+
+.adm-card p,
+.vocab-card p,
+.section-card p,
+.section-card li,
+.word-item span,
+.result-answer,
+.unit-description,
+.subtitle,
+.summary-small,
+.unit-meta,
+.section-meta,
+.flashcards-count,
+.hero p,
+.result-subtitle,
+.quiz-hero p,
+.section-hero p,
+.flashcard-answer,
+.empty-box p {
+  color: var(--mk-text-muted) !important;
+}
+
+.adm-btn,
+.vocab-button,
+.flashcard-btn,
+.toolbar button,
+.modal-btn-primary,
+.result-btn-primary,
+.quiz-btn-primary,
+.back-btn:hover {
+  background: var(--mk-gradient-main) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 14px 28px rgba(109, 40, 217, 0.18) !important;
+}
+
+.adm-btn:hover,
+.vocab-button:hover,
+.flashcard-btn:hover,
+.toolbar button:hover,
+.modal-btn-primary:hover,
+.result-btn-primary:hover,
+.quiz-btn-primary:hover {
+  background: linear-gradient(135deg, #3b0f82 0%, #5b21b6 100%) !important;
+}
+
+.back-btn {
+  color: var(--mk-primary-strong) !important;
+}
+
+.flashcard-answer,
+.word-item,
+.unit-check-item,
+.messages-box .alert,
+.note,
+.note.warning,
+.empty-state {
+  background: rgba(245, 240, 255, 0.72) !important;
+  border: 1px solid var(--mk-va-outline) !important;
+}
+
+.messages-box .alert-info,
+.note {
+  color: var(--mk-primary-strong) !important;
+}
+
+.note.warning,
+.messages-box .alert-error,
+.result-status.incorrect {
+  background: rgba(254, 242, 242, 0.92) !important;
+  color: #991b1b !important;
+  border-color: rgba(252, 165, 165, 0.9) !important;
+}
+
+.messages-box .alert-success,
+.result-status.correct {
+  background: rgba(236, 253, 245, 0.92) !important;
+  color: #166534 !important;
+  border-color: rgba(134, 239, 172, 0.9) !important;
+}
+
+.summary-value,
+.result-score {
+  color: var(--mk-primary) !important;
+}
+
+.summary-label,
+.eyebrow {
+  color: var(--mk-primary-soft) !important;
+}
+
+.toolbar input,
+.modal-row input[type="number"] {
+  border: 1px solid var(--mk-border) !important;
+  background: rgba(248, 245, 255, 0.84) !important;
+  color: var(--mk-text) !important;
+}
+
+.toolbar input:focus,
+.modal-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--mk-primary-soft) !important;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.14) !important;
+}
+
+.choice-item:hover,
+.choice-item:has(input:checked) {
+  border-color: var(--mk-primary-soft) !important;
+  background: rgba(245, 240, 255, 0.95) !important;
+}
+
+@supports not selector(:has(*)) {
+  .choice-item:hover {
+    border-color: var(--mk-primary-soft) !important;
+    background: rgba(245, 240, 255, 0.95) !important;
+  }
+}

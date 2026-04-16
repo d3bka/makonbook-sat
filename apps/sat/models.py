@@ -383,6 +383,10 @@ class TestModule(BaseModel):
 
     class Meta:
         ordering = ['created']
+        indexes = [
+            models.Index(fields=['user', 'test', 'attempt_id', 'created'], name='sat_tm_u_t_att_cr'),
+            models.Index(fields=['user', 'test', 'section', 'module', 'created'], name='sat_tm_u_t_sec_mod'),
+        ]
 
 # Test review and scoring
 class TestReview(BaseModel):
@@ -436,6 +440,12 @@ class TestReview(BaseModel):
     def __str__(self):
         return f"{self.user.username} - {self.test} - {self.score}"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'test', 'attempt_id', 'created_at'], name='sat_tr_u_t_att_cr'),
+            models.Index(fields=['user', 'test', 'created_at'], name='sat_tr_u_t_cr'),
+        ]
+
 # Test stages for user progress
 class TestStage(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -466,6 +476,12 @@ class TestStage(BaseModel):
             review.score = None
             review.certificate = ''
             review.save(update_fields=['score', 'certificate'])
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'test', 'created_at'], name='sat_ts_u_t_cr'),
+            models.Index(fields=['user', 'test', 'attempt_id'], name='sat_ts_u_t_att'),
+        ]
 
     def delete_modules(self, section=None):
         """Delete TestModule records for this test."""

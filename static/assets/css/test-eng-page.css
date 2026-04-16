@@ -1,0 +1,47 @@
+
+        main p,
+        main h1,
+        main h2,
+        main h3,
+        main h4,
+        main h5,
+        main h6 {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        main {
+            font-family: 'Times New Roman', Times, serif;  
+        }
+        .question-title .bookmark {
+            background-image: url('../img/bookmark_empty.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+            font-family: Roboto;
+        }
+
+        .filledbook {
+            background-image: url('../img/bookmark_filled.png') !important;
+        }
+
+        .question-title .crossing-options {
+            background-image: url('../img/crossAbc.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+        }
+
+        .active-options {
+            background-image: url('../img/crossAbcActive.png') !important;
+        }
+
+        /* Style for the passage to preserve formatting */
+        #passage {
+            margin-bottom: 20px;
+            padding: 10px;
+            line-height: 1.6;
+            white-space: pre-wrap; /* ВАЖНО */
+            word-wrap: break-word;
+            display: block;
+            font-family: 'Times New Roman', Times, serif;
+        }
+    

@@ -17,10 +17,14 @@ except Exception:
 done
 echo "Database is ready!"
 
-echo "Running migrations..."
-python manage.py migrate --noinput
+if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
+    echo "Running migrations..."
+    python manage.py migrate --noinput
+fi
 
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+if [ "${COLLECTSTATIC_ON_START:-1}" = "1" ]; then
+    echo "Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
 
-exec gunicorn satmakon.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 120
+exec "$@"

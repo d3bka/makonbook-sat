@@ -30,6 +30,54 @@
   <!-- Template Main CSS File -->
   <link href="{% static 'assets/css/main.css' %}" rel="stylesheet">
   {% block style %}  {% endblock style %}
+  <link href="{% static 'assets/css/makon-theme.css' %}" rel="stylesheet">
+
+  <style>
+    .breadcrumbs .page-header {
+      background: linear-gradient(180deg, #f6f1ff 0%, #efe7ff 100%) !important;
+      border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+    }
+
+    .page-title-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: #4c1d95;
+      font-family: var(--font-secondary);
+      line-height: 1.15;
+      text-shadow: none;
+    }
+
+    .page-title-wrap > :first-child,
+    .page-title-wrap {
+      font-size: 56px;
+      font-weight: 700;
+      color: #4c1d95;
+    }
+
+    .page-title-wrap > div,
+    .page-title-wrap > small,
+    .page-title-wrap > span {
+      font-size: 28px;
+      font-weight: 500;
+      color: #6d28d9;
+      margin-top: 0 !important;
+    }
+
+    @media (max-width: 768px) {
+      .page-title-wrap,
+      .page-title-wrap > :first-child {
+        font-size: 38px;
+      }
+
+      .page-title-wrap > div,
+      .page-title-wrap > small,
+      .page-title-wrap > span {
+        font-size: 22px;
+      }
+    }
+  </style>
 
 </head>
 
@@ -41,11 +89,11 @@
 
     <!-- ======= Breadcrumbs ======= -->
     <div class="breadcrumbs">
-      <div class="page-header d-flex align-items-center" style="background-image: url('');">
+      <div class="page-header d-flex align-items-center">
         <div class="container position-relative">
           <div class="row d-flex justify-content-center">
-            <div class="col-lg-6 text-center">
-              <h2>{% block title-main %} {% endblock title-main %}<h2>
+            <div class="col-lg-8 text-center">
+              <div class="page-title-wrap">{% block title-main %}{% endblock title-main %}</div>
             </div>
           </div>
         </div>

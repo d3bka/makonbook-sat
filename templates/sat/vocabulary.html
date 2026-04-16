@@ -1,12 +1,9 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}
-Makon Book
-<div style="font-size: 28px; font-weight: 500; margin-top: 10px;">
-  Vocabulary
-</div>
-{% endblock title-main %}
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block title-subtitle %}<p class="page-title-subtitle">Vocabulary</p>{% endblock title-subtitle %}
 
 {% block title %}Vocabulary{% endblock title %}
 
@@ -47,7 +44,7 @@ Makon Book
     height: 68px;
     border-radius: 16px;
     background: #eef2ff;
-    color: #4338ca;
+    color: #7c3aed;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -57,7 +54,7 @@ Makon Book
 
   .vocab-card h3 {
     font-size: 24px;
-    color: #324dc7;
+    color: #7c3aed;
     margin-bottom: 12px;
     font-weight: 700;
   }
@@ -78,14 +75,14 @@ Makon Book
     height: 44px;
     padding: 0 22px;
     border-radius: 999px;
-    background: #324dc7;
+    background: #7c3aed;
     color: #fff !important;
     text-decoration: none;
     font-weight: 600;
   }
 
   .vocab-button:hover {
-    background: #273ca3;
+    background: #7c3aed;
   }
 
   .unit-summary {

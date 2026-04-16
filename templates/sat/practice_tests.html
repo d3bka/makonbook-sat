@@ -3,12 +3,9 @@
 {% load sat_extras %}
 {% load dev_tags %}
 
-{% block title-main %}
-Makon Book
-<div style="font-size:28px; font-weight:500; margin-top:10px;">
-  Practice Tests
-</div>
-{% endblock title-main %}
+{% block title-main %}Makon Book{% endblock title-main %}
+
+{% block title-subtitle %}<p class="page-title-subtitle">Practice Tests</p>{% endblock title-subtitle %}
 {% block title %}Practice Tests{% endblock title %}
 
 {% block style %}
@@ -33,7 +30,7 @@ Makon Book
     padding: 10px 0;
   }
   .score-badge h1 {
-    color: #324dc7;
+    color: #7c3aed;
     margin: 0;
     font-size: 48px;
     font-weight: bold;
@@ -157,9 +154,9 @@ Makon Book
             <h3>{{ test.name }}</h3>
             <div class="button-container">
               {% if classroom %}
-                <a href="{% url 'classroom_practise' classroom.id test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
+                <a href="{% url 'classroom_practise' classroom.id test.name %}" style="text-decoration:none; color:inherit;">{% if test.has_active_attempt %}Continue{% else %}Start Test{% endif %}</a>
               {% else %}
-                <a href="{% url 'practise' test.name %}" style="text-decoration:none; color:inherit;">Start Test</a>
+                <a href="{% url 'practise' test.name %}" style="text-decoration:none; color:inherit;">{% if test.has_active_attempt %}Continue{% else %}Start Test{% endif %}</a>
               {% endif %}
             </div>
           </div>

@@ -1,0 +1,129 @@
+{% load static %}
+{% if attempt %}
+    {% url 'save_global_event_answer' guest_token=attempt.guest_token as form_action %}
+    {% url 'submit_global_event' guest_token=attempt.guest_token as submit_url %}
+    {% url 'global_event_list' as home_url %}
+{% else %}
+    {% url 'check_the_answers' as form_action %}
+    {% if classroom %}
+        {% url 'classroom_test' classroom.id test.name as next_url %}
+    {% else %}
+        {% url 'test' pk=test.name as next_url %}
+    {% endif %}
+{% endif %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+</head>
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            <h1>Section 1: Reading and Writing</h1>
+            <div class="timer" id="timer">0:00</div>
+            <a href="{{ home_url|default:'/' }}" style="text-decoration: none;">
+                <div>Home <i class="fa fa-home fa-2" style="font-size: x-large;" aria-hidden="true"></i></div>
+            </a>
+        </header>
+        <form class="fm" id="quiz-form" action="{{ form_action }}" method="post">
+            {% csrf_token %}
+            <main>
+                <div class="question-container scroll-hide">
+                    <div class="just-div"></div>
+                    <p id="passage"></p>
+                </div>
+                <div class="answers-container scroll-hide">
+                    <div class="question-title">
+                        <div class="question-number"></div>
+                        <div class="bookmark" onclick="markForReview()">Mark for Review</div>
+                        <div class="crossing-options" onclick="show_eliminate()"></div>
+                    </div>
+                    <div class="question-text" id="question-text"></div>
+                    <div class="answers" id="answers"></div>
+                </div>
+            </main>
+        </form>
+        <footer>
+            <div class="footer-left">
+                {% if attempt %}
+                    {{ request.session.guest_name }}
+                {% else %}
+                    {{ request.user.first_name }} {{ request.user.last_name }}
+                {% endif %}
+            </div>
+            <div class="footer-center">
+                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">Question
+                    <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">{{ questions|length }}</span></button>
+            </div>
+            <div class="footer-right">
+                <button id="clear-button" type="button" class="nav-button" title="Clear Highlights">
+                    <i class="fa fa-eraser" aria-hidden="true"></i>
+                </button>
+                <button id="pen-button" type="button" class="nav-button" title="Toggle Highlighter">
+                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                </button>
+                <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
+                <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+            </div>
+        </footer>
+    </div>
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="toggleQuestionModal()">×</span>
+            <div class="question-grid">
+                {% for q in questions %}
+                <div class="rect-question" onclick="loadQuestion(Number('{{ q.number }}')-1); toggleQuestionModal();">
+                    {{ q.number }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <canvas id="drawing-canvas"></canvas>
+
+    <script id="sat-test-config" type="application/json">
+    {
+        "mode": "{% if attempt %}guest{% else %}standard{% endif %}",
+        "testName": "{{ test.name|default_if_none:''|escapejs }}",
+        "moduleName": "{{ module|escapejs }}",
+        "sectionName": "{{ section|escapejs }}",
+        "timeRemaining": {% if attempt %}{{ time_left_seconds|default:1920 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}1920{% endif %},
+        "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
+        "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",
+        "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
+        "submitTimeoutMs": 30000
+    }
+    </script>
+
+    <script id="sat-test-questions" type="application/json">[
+    {% for question in questions %}
+        {
+            "passage": "{{ question.passage|default_if_none:''|escapejs }}",
+            "number": {{ question.number|default:forloop.counter }},
+            "question": "{{ question.question|default_if_none:''|escapejs }}",
+            "a": "{{ question.a|default_if_none:''|escapejs }}",
+            "b": "{{ question.b|default_if_none:''|escapejs }}",
+            "c": "{{ question.c|default_if_none:''|escapejs }}",
+            "d": "{{ question.d|default_if_none:''|escapejs }}",
+            "id": {{ question.id }},
+            "graph": "{{ question.graph_url|default_if_none:''|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+    ]</script>
+
+    <script src="{% static 'assets/js/test-eng.js' %}"></script>
+</body>
+</html>
