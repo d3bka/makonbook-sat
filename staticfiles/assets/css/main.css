@@ -20,8 +20,8 @@
 /* Colors */
 :root {
   --color-default: #222222;
-  --color-primary: #3b048c;
-  --color-secondary: #f85a40;
+  --color-primary: #6d28d9;
+  --color-secondary: #8b5cf6;
 }
 
 /* Smooth scroll behavior */
@@ -43,7 +43,7 @@ a {
 }
 
 a:hover {
-  color: #00b6a1;
+  color: #4c1d95;
   text-decoration: none;
 }
 
@@ -182,7 +182,7 @@ section {
 }
 
 .scroll-top:hover {
-  background: rgba(248, 90, 64, 0.8);
+  background: rgba(109, 40, 217, 0.82);
   color: #fff;
 }
 

@@ -265,89 +265,23 @@ def _safe_answers_list(raw_answers):
     return answers if isinstance(answers, list) else []
 
 
-def _get_required_modules_for_test(test_obj):
-    return list(get_test_sequence(test_obj))
-
-
-def _get_latest_scored_review(user, test_obj):
-    return TestReview.objects.filter(
-        user=user,
-        test=test_obj,
-        score__isnull=False
-    ).order_by('-created_at').first()
-
-
-def _get_latest_test_stage(user, test_obj):
-    return TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
-
-
-def _get_latest_test_module(user, test_obj):
-    return TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
-
-
-def _get_test_progress_state(user, test_obj):
-    latest_review = _get_latest_scored_review(user, test_obj)
-    latest_stage = _get_latest_test_stage(user, test_obj)
-    latest_module = _get_latest_test_module(user, test_obj)
-
-    latest_activity = None
-    for candidate in [latest_stage, latest_module]:
-        if not candidate:
-            continue
-        if latest_activity is None or candidate.created_at > latest_activity.created_at:
-            latest_activity = candidate
-
-    if latest_activity:
-        if latest_review and latest_review.attempt_id == latest_activity.attempt_id and latest_review.created_at >= latest_activity.created_at:
-            status = 'completed'
-        else:
-            status = 'in_progress'
-    elif latest_review:
-        status = 'completed'
-    else:
-        status = 'not_started'
-
-    return {
-        'status': status,
-        'has_active_attempt': status == 'in_progress',
-        'latest_review': latest_review,
-        'latest_stage': latest_stage,
-        'latest_module': latest_module,
-        'latest_activity': latest_activity,
-    }
-
-
-def _sync_test_stage_to_first_unfinished_step(test_stage):
-    sequence = get_test_sequence(test_stage.test)
-    if not sequence:
-        return None
-
-    latest_modules = _load_latest_modules(test_stage.user, test_stage.test, attempt_id=test_stage.attempt_id)
-
-    for index, (section, module) in enumerate(sequence, start=1):
-        key = f"{section}_{module}"
-        if key not in latest_modules:
-            if test_stage.stage != index:
-                test_stage.stage = index
-                test_stage.save(update_fields=['stage'])
-            return section, module
-
-    return None
-
-
 def _resolve_attempt_id(user, test_obj, selected_review=None):
     if selected_review and selected_review.attempt_id:
         return selected_review.attempt_id
 
-    latest_stage = _get_latest_test_stage(user, test_obj)
+    latest_stage = TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
     if latest_stage and latest_stage.attempt_id:
         return latest_stage.attempt_id
 
-    latest_scored_review = _get_latest_scored_review(user, test_obj)
+    latest_scored_review = TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        score__isnull=False
+    ).order_by('-created_at').first()
     if latest_scored_review and latest_scored_review.attempt_id:
         return latest_scored_review.attempt_id
 
-    latest_module = _get_latest_test_module(user, test_obj)
+    latest_module = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
     if latest_module and latest_module.attempt_id:
         return latest_module.attempt_id
 
@@ -435,15 +369,16 @@ def practice_tests(request):
 
     tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
 
+    latest_reviews = _latest_by_test_id(
+        TestReview.objects.filter(test__in=tests, user=user).order_by('test_id', '-created_at')
+    )
+
     active_tests = []
     past_tests = []
 
     for test in tests:
-        progress_state = _get_test_progress_state(user, test)
-        test.practice_status = progress_state['status']
-        test.has_active_attempt = progress_state['has_active_attempt']
-
-        if progress_state['status'] == 'completed':
+        review = latest_reviews.get(test.pk)
+        if review and review.score not in [None, 0]:
             past_tests.append(test)
         else:
             active_tests.append(test)
@@ -517,13 +452,52 @@ def check_the_answers(request):
         if not test_name or not section or not module:
             return JsonResponse({'ok': False, 'error': 'test, section, and module are required.'}, status=400)
 
+        if not isinstance(answers, list):
+            return JsonResponse({'ok': False, 'error': 'answers must be a list.'}, status=400)
+
+        test_type = payload.get('test_type') or payload.get('testType') or 'regular'
+        answers_payload = json.dumps({'answers': answers})
+
+        if test_type == 'makeup':
+            try:
+                makeup_test_obj = MakeupTest.objects.get(name=test_name)
+            except MakeupTest.DoesNotExist:
+                return JsonResponse({'ok': False, 'error': 'Makeup test not found.'}, status=404)
+
+            test_stage = TestStage.objects.filter(
+                user=request.user,
+                makeup_test=makeup_test_obj,
+                test_type='makeup'
+            ).order_by('-created_at').first()
+            attempt_id = test_stage.attempt_id if test_stage else uuid.uuid4()
+
+            module_obj, created = TestModule.objects.get_or_create(
+                user=request.user,
+                makeup_test=makeup_test_obj,
+                test_type='makeup',
+                section=section,
+                module=module,
+                attempt_id=attempt_id,
+                defaults={'answers': answers_payload}
+            )
+
+            if not created:
+                module_obj.answers = answers_payload
+                module_obj.save(update_fields=['answers'])
+
+            return JsonResponse({
+                'ok': True,
+                'saved': True,
+                'section': section,
+                'module': module,
+                'test': test_name,
+                'test_type': 'makeup',
+            })
+
         try:
             test_obj = Test.objects.get(name=test_name)
         except Test.DoesNotExist:
             return JsonResponse({'ok': False, 'error': 'Test not found.'}, status=404)
-
-        if not isinstance(answers, list):
-            return JsonResponse({'ok': False, 'error': 'answers must be a list.'}, status=400)
 
         test_stage = TestStage.objects.filter(user=request.user, test=test_obj).order_by('-created_at').first()
         attempt_id = test_stage.attempt_id if test_stage else uuid.uuid4()
@@ -531,17 +505,16 @@ def check_the_answers(request):
         module_obj, created = TestModule.objects.get_or_create(
             user=request.user,
             test=test_obj,
+            test_type='regular',
             section=section,
             module=module,
             attempt_id=attempt_id,
-            defaults={
-                'answers': json.dumps({'answers': answers})
-            }
+            defaults={'answers': answers_payload}
         )
 
         if not created:
-            module_obj.answers = json.dumps({'answers': answers})
-            module_obj.save()
+            module_obj.answers = answers_payload
+            module_obj.save(update_fields=['answers'])
 
         return JsonResponse({
             'ok': True,
@@ -549,6 +522,7 @@ def check_the_answers(request):
             'section': section,
             'module': module,
             'test': test_name,
+            'test_type': 'regular',
         })
 
     # ---------- CASE 2: single answer check ----------
@@ -618,7 +592,11 @@ def results(request, test):
     has_english = test_mode in ['full', 'ebrw_only']
     has_math = test_mode in ['full', 'math_only']
 
-    required_modules = _get_required_modules_for_test(test_obj)
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
 
     attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review)
     latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
@@ -819,15 +797,29 @@ def start_Practise(request, pk):
             status=403
         )
 
-    progress_state = _get_test_progress_state(user, test)
-
-    if progress_state['status'] == 'completed':
+    # Check if test is already completed
+    completed_review = TestReview.objects.filter(
+        user=user,
+        test=test,
+        score__isnull=False
+    ).order_by('-created_at').first()
+    
+    if completed_review:
         return redirect('results', test=test.name)
 
-    if progress_state['has_active_attempt']:
+    test_stage = TestStage.objects.filter(
+        user=user,
+        test=test
+    )
+
+    if test_stage.exists():
         return redirect('test', pk=test.name)
 
-    has_active_attempt = progress_state['has_active_attempt']
+    # Check if there's an in-progress attempt by checking for incomplete modules
+    has_active_attempt = TestModule.objects.filter(
+        user=user,
+        test=test
+    ).exists()
 
     return render(
         request,
@@ -955,10 +947,10 @@ def start_makeup_test(request, pk):
 def makeup_test_module(request, pk):
     user = request.user
     user_groups = user.groups.all()
-    try:
-        makeup_test = MakeupTest.objects.filter(name=pk, groups__in=user_groups).distinct()[0]
-    except MakeupTest.DoesNotExist:
-        return HttpResponse('Permission Error')
+
+    makeup_test = MakeupTest.objects.filter(name=pk, groups__in=user_groups).distinct().first()
+    if not makeup_test:
+        return HttpResponse('Permission Error', status=403)
 
     test_stage, created = TestStage.objects.get_or_create(
         user=user,
@@ -967,15 +959,39 @@ def makeup_test_module(request, pk):
         defaults={'stage': 1}
     )
 
-    test, section, module = test_stage.get_models()
-    m = TestModule.objects.filter(makeup_test=makeup_test, section=section, module=module, user=user, test_type='makeup')
-    if m.exists():
-        if test_stage.next_stage():
-            return redirect('makeup_results', pk=makeup_test.name)
-        return makeup_test_module(request, pk=makeup_test.name)
+    sequence = get_makeup_test_sequence(makeup_test)
+    if not sequence:
+        return HttpResponse('No questions available for this module')
+
+    if test_stage.stage < 1:
+        test_stage.stage = 1
+        test_stage.save(update_fields=['stage'])
+
+    if test_stage.stage > len(sequence):
+        return redirect('dashboard')
+
+    section, module = sequence[test_stage.stage - 1]
+
+    existing_module = TestModule.objects.filter(
+        makeup_test=makeup_test,
+        section=section,
+        module=module,
+        user=user,
+        test_type='makeup',
+        attempt_id=test_stage.attempt_id
+    )
+
+    if existing_module.exists():
+        if test_stage.stage >= len(sequence):
+            return redirect('dashboard')
+        test_stage.stage += 1
+        test_stage.save(update_fields=['stage'])
+        return redirect('makeup_test_module', pk=makeup_test.name)
+
+    module_name = f'module_{module[1]}'
 
     if section == 'english':
-        questions = makeup_test.get_module_questions(section, f'module_{module[1]}')
+        questions = makeup_test.get_module_questions(section, module_name)
         if questions.exists():
             return render(request, 'test/makeup_eng.html', {
                 'questions': questions,
@@ -984,19 +1000,35 @@ def makeup_test_module(request, pk):
                 'section': section,
                 'is_makeup': True
             })
-    elif section == 'math':
-        questions = makeup_test.get_module_questions(section, f'module_{module[1]}')
+
+    if section == 'math':
+        questions = makeup_test.get_module_questions(section, module_name)
         if questions.exists():
+            questions_data = []
+            for q in questions:
+                questions_data.append({
+                    'id': q.id,
+                    'passage': q.passage or '',
+                    'number': q.number,
+                    'question': q.question or '',
+                    'a': q.get_a() if hasattr(q, 'get_a') else '',
+                    'b': q.get_b() if hasattr(q, 'get_b') else '',
+                    'c': q.get_c() if hasattr(q, 'get_c') else '',
+                    'd': q.get_d() if hasattr(q, 'get_d') else '',
+                    'type': str(q.written),
+                    'graph': q.get_graph() if hasattr(q, 'get_graph') else '',
+                })
+
             return render(request, 'test/test_math.html', {
                 'questions': questions,
+                'questions_data': questions_data,
                 'module': module,
                 'test': makeup_test,
                 'section': section,
                 'is_makeup': True
             })
 
-    return HttpResponse("No questions available for this module")
-
+    return HttpResponse('No questions available for this module')
 
 @login_required(login_url='/login/')
 def module_test(request, pk):
@@ -1025,8 +1057,8 @@ def module_test(request, pk):
         defaults={'stage': 1}
     )
 
-    # определяем текущий или первый незавершённый шаг
-    current_step = _sync_test_stage_to_first_unfinished_step(test_stage)
+    # определяем текущий шаг
+    current_step = get_current_test_step(test_stage)
 
     if current_step is None:
         return redirect('results', test=test)
@@ -1186,7 +1218,11 @@ def results_by_user(request, test, username):
         'total': False
     }
 
-    required_modules = _get_required_modules_for_test(test_obj)
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
 
     attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review)
     latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
@@ -1197,14 +1233,11 @@ def results_by_user(request, test, username):
         if key not in latest_modules:
             missing_modules.append(key)
 
-    english_required = [f"{section}_{module}" for section, module in required_modules if section == 'english']
-    math_required = [f"{section}_{module}" for section, module in required_modules if section == 'math']
-
     if not missing_modules:
         status['total'] = True
-    if english_required and all(key not in missing_modules for key in english_required):
+    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
         status['english'] = True
-    if math_required and all(key not in missing_modules for key in math_required):
+    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
         status['math'] = True
 
     if missing_modules:
@@ -2886,22 +2919,9 @@ def classroom_practice_tests(request, classroom_id):
 
     tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
 
-    active_tests = []
-    past_tests = []
-
-    for test in tests:
-        progress_state = _get_test_progress_state(request.user, test)
-        test.practice_status = progress_state['status']
-        test.has_active_attempt = progress_state['has_active_attempt']
-
-        if progress_state['status'] == 'completed':
-            past_tests.append(test)
-        else:
-            active_tests.append(test)
-
     context = {
-        'active_tests': active_tests,
-        'past_tests': past_tests,
+        'active_tests': tests,
+        'past_tests': [],
         'classroom': classroom,
         'is_teacher_view': role in ['teacher', 'admin'],
         'purchased': True,
@@ -3019,7 +3039,7 @@ def _build_test_progress_rows(student, tests):
     if not tests:
         return rows
 
-    test_ids = [test.pk for test in tests]
+    test_ids = [test.id for test in tests]
 
     modules = TestModule.objects.filter(user=student, test_id__in=test_ids).select_related('test').order_by('test_id', '-created_at')
     reviews = TestReview.objects.filter(user=student, test_id__in=test_ids).select_related('test').order_by('test_id', '-created_at')
@@ -3041,17 +3061,21 @@ def _build_test_progress_rows(student, tests):
             latest_by_slot_by_test[test_id][slot] = module
 
     for test in tests:
-        review = latest_review_by_test.get(test.pk)
-        stage = latest_stage_by_test.get(test.pk)
-        latest_module = latest_module_by_test.get(test.pk)
-        latest_by_slot = latest_by_slot_by_test.get(test.pk, {})
+        review = latest_review_by_test.get(test.id)
+        stage = latest_stage_by_test.get(test.id)
+        latest_module = latest_module_by_test.get(test.id)
+        latest_by_slot = latest_by_slot_by_test.get(test.id, {})
 
         answered_questions = 0
         for module in latest_by_slot.values():
             answered_questions += len(_safe_answers_list(module.answers))
 
-        progress_state = _get_test_progress_state(student, test)
-        status = progress_state['status']
+        if review and review.score is not None:
+            status = 'completed'
+        elif latest_module or stage:
+            status = 'in_progress'
+        else:
+            status = 'not_started'
 
         rows.append({
             'test': test,
@@ -3094,7 +3118,11 @@ def _build_test_results_context_for_user(test_obj, user):
         'total': False
     }
 
-    required_modules = _get_required_modules_for_test(test_obj)
+    required_modules = []
+    if has_english:
+        required_modules.extend([('english', 'm1'), ('english', 'm2')])
+    if has_math:
+        required_modules.extend([('math', 'm1'), ('math', 'm2')])
 
     attempt_id = _resolve_attempt_id(user, test_obj)
     latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
@@ -3105,14 +3133,11 @@ def _build_test_results_context_for_user(test_obj, user):
         if key not in latest_modules:
             missing_modules.append(key)
 
-    english_required = [f"{section}_{module}" for section, module in required_modules if section == 'english']
-    math_required = [f"{section}_{module}" for section, module in required_modules if section == 'math']
-
     if not missing_modules:
         status['total'] = True
-    if english_required and all(key not in missing_modules for key in english_required):
+    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
         status['english'] = True
-    if math_required and all(key not in missing_modules for key in math_required):
+    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
         status['math'] = True
 
     if missing_modules:
@@ -4264,6 +4289,33 @@ def get_test_sequence(test):
     return sequence
 
 
+def get_makeup_test_sequence(makeup_test):
+    def normalize_module(module):
+        if module == 'module_1':
+            return 'm1'
+        if module == 'module_2':
+            return 'm2'
+        return module
+
+    def module_sort_key(module):
+        return ['module_1', 'module_2'].index(module) if module in ['module_1', 'module_2'] else 99
+
+    english_modules = sorted(
+        set(makeup_test.english_questions.values_list('module', flat=True)),
+        key=module_sort_key
+    )
+    math_modules = sorted(
+        set(makeup_test.math_questions.values_list('module', flat=True)),
+        key=module_sort_key
+    )
+
+    sequence = []
+    for module in english_modules:
+        sequence.append(('english', normalize_module(module)))
+    for module in math_modules:
+        sequence.append(('math', normalize_module(module)))
+    return sequence
+
 def get_current_test_step(test_stage):
     sequence = get_test_sequence(test_stage.test)
 
@@ -4329,12 +4381,21 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
-    progress_state = _get_test_progress_state(request.user, test)
-
-    if progress_state['status'] == 'completed':
+    # Check if test is already completed
+    completed_review = TestReview.objects.filter(
+        user=request.user,
+        test=test,
+        score__isnull=False
+    ).order_by('-created_at').first()
+    
+    if completed_review:
         return redirect('results', test=test.name)
 
-    has_active_attempt = progress_state['has_active_attempt']
+    # Check if there's an in-progress attempt
+    has_active_attempt = TestModule.objects.filter(
+        user=request.user,
+        test=test
+    ).exists()
 
     return render(request, 'test/test_modules.html', {
         'test': test,
@@ -4388,7 +4449,7 @@ def classroom_module_test(request, classroom_id, pk):
         defaults={'stage': 1}
     )
 
-    current_step = _sync_test_stage_to_first_unfinished_step(test_stage)
+    current_step = get_current_test_step(test_stage)
     if current_step is None:
         return redirect('results', test=test.name)
 

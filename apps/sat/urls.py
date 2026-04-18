@@ -5,10 +5,6 @@ urlpatterns = [
     path('', views.classroom_entry, name='sat_menu'),
     path('', views.home, name="home"),
 
-    path('login/', views.loginPage, name="login"),
-
-    path('logout/', views.logoutUser, name="logout"),
-
     path('dashboard/', views.dashboard, name="dashboard"),
 
     path('clear/<str:test>/<str:section>/<str:module>/', views.clear),

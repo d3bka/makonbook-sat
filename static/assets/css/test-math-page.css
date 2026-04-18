@@ -49,6 +49,11 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.12);
             border-radius: 8px;
             overflow: hidden;
+            resize: both;
+            min-width: 340px;
+            min-height: 360px;
+            max-width: calc(100vw - 24px);
+            max-height: calc(100vh - 24px);
         }
 
         #calculator-header {

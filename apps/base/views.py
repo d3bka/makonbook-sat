@@ -26,9 +26,11 @@ def edit_profile(request):
         form = EditProfileForm(instance=user)
     return render(request, 'base/edit_profile.html', {'form': form})
 
-@login_required(login_url='/login/')
 def home(request):
-    return redirect('sat_menu')
+    """Public landing page for guests; dashboard entry for logged-in users."""
+    if request.user.is_authenticated:
+        return redirect('sat_menu')
+    return render(request, 'landing/home.html')
 
 @unauthenticated_user
 def loginUser(request):

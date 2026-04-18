@@ -274,6 +274,66 @@
             localStorage.removeItem(`${key}_timeSpent`);
         }
 
+        function escapeChoiceValue(value) {
+            if (window.CSS && typeof CSS.escape === 'function') return CSS.escape(value);
+            return String(value).replace(/"/g, '\"');
+        }
+
+        function recordAnswerChoice(letter, index = currentQuestionIndex) {
+            if (!letter || index < 0 || index >= questions.length) return;
+            answers[index] = String(letter).trim();
+
+            if (index === currentQuestionIndex) {
+                const currentInput = document.querySelector(`#answers .choice-input[value="${escapeChoiceValue(answers[index])}"]`);
+                if (currentInput) currentInput.checked = true;
+            }
+
+            saveProgress();
+            updateAnsweredStatus();
+        }
+
+        function syncCurrentAnswerFromDom() {
+            const checkedInput = document.querySelector('#answers .choice-input:checked');
+            if (checkedInput) {
+                answers[currentQuestionIndex] = checkedInput.value;
+                saveProgress();
+                updateAnsweredStatus();
+            }
+        }
+
+        function bindAnswerChoiceEvents(container) {
+            if (!container || container.dataset.answerEventsBound === '1') return;
+            container.dataset.answerEventsBound = '1';
+
+            container.addEventListener('change', (event) => {
+                const input = event.target.closest('.choice-input');
+                if (!input) return;
+                recordAnswerChoice(input.value);
+            });
+
+            container.addEventListener('click', (event) => {
+                const crossingButton = event.target.closest('.crossing-zone');
+                if (crossingButton) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!eliminate_options) return;
+                    eliminate(crossingButton.dataset.letter, currentQuestionIndex);
+                    return;
+                }
+
+                const choiceContainer = event.target.closest('.choice-container, .big-container');
+                if (!choiceContainer || !container.contains(choiceContainer)) return;
+
+                const input = choiceContainer.classList.contains('big-container')
+                    ? choiceContainer.querySelector('.choice-input')
+                    : document.getElementById(choiceContainer.getAttribute('for'));
+
+                if (!input) return;
+                input.checked = true;
+                recordAnswerChoice(input.value);
+            });
+        }
+
         function loadQuestion(index) {
             currentQuestionIndex = index;
             const question = questions[index];
@@ -328,6 +388,8 @@
                 ${buildChoice('D', question.d)}
             `;
 
+            bindAnswerChoiceEvents(answersContainer);
+
             if (question.graph) {
                 graphContainer.innerHTML = `<div class='graph'><img src="${question.graph}" alt="Graph" style="width: 100%; height: 100%;"></div>`;
             } else {
@@ -341,9 +403,7 @@
 
             answersContainer.querySelectorAll('.choice-input').forEach((input) => {
                 input.addEventListener('change', (event) => {
-                    answers[currentQuestionIndex] = event.target.value;
-                    saveProgress();
-                    updateAnsweredStatus();
+                    recordAnswerChoice(event.target.value);
                 });
             });
 
@@ -383,6 +443,7 @@
         }
 
         function nextQuestion() {
+            syncCurrentAnswerFromDom();
             if (currentQuestionIndex < questions.length - 1) {
                 currentQuestionIndex++;
                 loadQuestion(currentQuestionIndex);
@@ -391,6 +452,7 @@
         }
 
         function prevQuestion() {
+            syncCurrentAnswerFromDom();
             if (currentQuestionIndex > 0) {
                 currentQuestionIndex--;
                 loadQuestion(currentQuestionIndex);
@@ -416,6 +478,7 @@
         }
 
         function finishTest(confirmation) {
+            syncCurrentAnswerFromDom();
             if (!confirmation) {
                 confirmation = confirm("Are you sure you want to finish the test? Make sure you are ready.");
             }
@@ -444,7 +507,7 @@
                 }).then(response => {
                     if (response.ok) {
                         clearProgress();
-                        window.location.href = '{% url "dashboard" %}';  // Redirect to dashboard after submission
+                        window.location.href = '{% url "makeup_test_module" pk=test.name %}';
                     }
                 });
             }

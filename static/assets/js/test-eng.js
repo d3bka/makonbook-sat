@@ -135,10 +135,118 @@
             localStorage.removeItem(`${key}_markedForReview`);
         }
 
+        function normalizeChoice(value) {
+            const choice = String(value || '').trim().toUpperCase();
+            return ['A', 'B', 'C', 'D'].includes(choice) ? choice : null;
+        }
+
+        function paintCurrentAnswer() {
+            const selected = normalizeChoice(answers[currentQuestionIndex]);
+            document.querySelectorAll('#answers .big-container').forEach((box) => {
+                const input = box.querySelector('input[name="answer"]');
+                const letter = normalizeChoice(box.dataset.choiceLetter || (input && input.value));
+                const isSelected = Boolean(selected && letter === selected);
+                box.classList.toggle('selected', isSelected);
+                const label = box.querySelector('.choice-container');
+                if (label) label.classList.toggle('selected', isSelected);
+                if (input) input.checked = isSelected;
+            });
+        }
+
+        function setCurrentAnswer(value) {
+            const choice = normalizeChoice(value);
+            if (!choice) return false;
+
+            answers[currentQuestionIndex] = choice;
+            paintCurrentAnswer();
+            updateAnsweredStatus();
+            saveProgress();
+            return true;
+        }
+
+        function syncCurrentAnswerFromDom() {
+            const checkedInput = document.querySelector('#answers input[name="answer"]:checked');
+            if (checkedInput && setCurrentAnswer(checkedInput.value)) {
+                return true;
+            }
+
+            const selectedBox = document.querySelector('#answers .big-container.selected, #answers .choice-container.selected');
+            const letter = selectedBox && normalizeChoice(selectedBox.dataset.choiceLetter || selectedBox.closest('.big-container')?.dataset.choiceLetter);
+            if (letter) {
+                return setCurrentAnswer(letter);
+            }
+            return false;
+        }
+
+        function choiceFromEvent(event) {
+            if (!event || !event.target || !document.getElementById('answers')) return null;
+            const target = event.target;
+            if (!target.closest || !target.closest('#answers')) return null;
+            if (target.closest('.crossing-zone')) return null;
+
+            const input = target.closest('input[name="answer"]');
+            if (input) return normalizeChoice(input.value);
+
+            const box = target.closest('.big-container');
+            if (box) return normalizeChoice(box.dataset.choiceLetter || box.querySelector('input[name="answer"]')?.value);
+
+            const label = target.closest('.choice-container');
+            if (label) return normalizeChoice(label.dataset.choiceLetter || label.closest('.big-container')?.dataset.choiceLetter);
+
+            return null;
+        }
+
+        function captureChoiceEvent(event) {
+            const choice = choiceFromEvent(event);
+            if (!choice) return;
+            setCurrentAnswer(choice);
+        }
+
+        function bindAnswerChoiceEvents(container) {
+            if (!container) return;
+
+            container.onchange = captureChoiceEvent;
+            container.onclick = (event) => {
+                const eliminateButton = event.target.closest('.crossing-zone');
+                if (eliminateButton) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const letter = normalizeChoice(eliminateButton.dataset.letter);
+                    const index = Number(eliminateButton.dataset.index);
+                    if (letter && Number.isInteger(index)) {
+                        eliminate(letter, index);
+                    }
+                    return;
+                }
+                captureChoiceEvent(event);
+            };
+        }
+
+        window.SATAnswerDebug = function () {
+            const checkedInput = document.querySelector('#answers input[name="answer"]:checked');
+            return {
+                currentQuestionIndex,
+                currentQuestionNumber: questions[currentQuestionIndex] ? questions[currentQuestionIndex].number : null,
+                currentAnswer: answers[currentQuestionIndex],
+                checkedInDom: checkedInput ? checkedInput.value : null,
+                answers: answers.slice(),
+                storageKey: storageKey(),
+                savedAnswers: localStorage.getItem(`${storageKey()}_answers`)
+            };
+        };
+        window.setCurrentAnswer = setCurrentAnswer;
+        window.syncCurrentAnswerFromDom = syncCurrentAnswerFromDom;
 
         function loadQuestion(index) {
-            currentQuestionIndex = index;
-            const question = questions[index];
+            const nextIndex = Number(index);
+            if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= questions.length) return;
+
+            if (nextIndex !== currentQuestionIndex) {
+                syncCurrentAnswerFromDom();
+            }
+
+            currentQuestionIndex = nextIndex;
+            const question = questions[currentQuestionIndex];
             updateQuestionProgress();
                 
             // ✅ PASSAGE (без KaTeX, с переносами)
@@ -155,12 +263,12 @@
             const answersContainer = document.getElementById('answers');
                 
             const buildChoice = (letter, content) => {
-                const checked = answers[index] === letter ? 'checked' : '';
-                const inputId = `choice-${index}-${letter}`;
-                const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
+                const checked = answers[currentQuestionIndex] === letter ? 'checked' : '';
+                const inputId = `choice-${currentQuestionIndex}-${letter}`;
+                const isEliminated = eliminatedChoices[currentQuestionIndex].includes(letter) ? 'active' : '';
             
                 return `
-                    <div class="big-container">
+                    <div class="big-container" data-choice-letter="${letter}">
                         <input
                             class="choice-input"
                             type="radio"
@@ -169,7 +277,7 @@
                             value="${letter}"
                             ${checked}
                         >
-                        <label class="choice-container" for="${inputId}">
+                        <label class="choice-container" for="${inputId}" data-choice-letter="${letter}">
                             <span class="mark" data-letter="${letter}"></span>
                             <span class="choice-content">${fixLatex(content)}</span>
                         </label>
@@ -178,7 +286,7 @@
                             type="button"
                             class="crossing-zone ${eliminate_options ? 'active' : ''}"
                             data-letter="${letter}"
-                            data-index="${index}"
+                            data-index="${currentQuestionIndex}"
                         >
                             <span class="cross-label">${letter}</span>
                             <span class="cross-btn-line"></span>
@@ -193,6 +301,8 @@
                 ${buildChoice('C', question.c)}
                 ${buildChoice('D', question.d)}
             `;
+            bindAnswerChoiceEvents(answersContainer);
+            paintCurrentAnswer();
         
             if (question.graph) {
                 graphContainer.innerHTML = `<div class='graph'><img src="${question.graph}" style="width:100%"></div>`;
@@ -205,6 +315,7 @@
             // ✅ KaTeX только там где надо
             renderMath(questionTextElem);
             renderMath(document.getElementById('answers'));
+            paintCurrentAnswer();
         }
 
         function show_eliminate() {
@@ -231,16 +342,14 @@
 
         function nextQuestion() {
             if (currentQuestionIndex < questions.length - 1) {
-                currentQuestionIndex++;
-                loadQuestion(currentQuestionIndex);
+                loadQuestion(currentQuestionIndex + 1);
             }
             saveProgress();
         }
 
         function prevQuestion() {
             if (currentQuestionIndex > 0) {
-                currentQuestionIndex--;
-                loadQuestion(currentQuestionIndex);
+                loadQuestion(currentQuestionIndex - 1);
             }
             saveProgress();
         }
@@ -281,6 +390,8 @@
                 confirmation = confirm('Are you sure you want to finish the test? Make sure you are ready.');
             }
             if (!confirmation) return;
+
+            syncCurrentAnswerFromDom();
 
             const finishButton = document.getElementById('finishButton');
             const originalText = finishButton.textContent;

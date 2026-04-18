@@ -85,7 +85,7 @@
             <span class="close-button" onclick="toggleQuestionModal()">×</span>
             <div class="question-grid">
                 {% for q in questions %}
-                <div class="rect-question" onclick="loadQuestion(Number('{{ q.number }}')-1); toggleQuestionModal();">
+                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); toggleQuestionModal();">
                     {{ q.number }}
                 </div>
                 {% endfor %}

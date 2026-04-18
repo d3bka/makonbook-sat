@@ -21,6 +21,64 @@
 
         const calculatorElement = document.getElementById('calculator');
         let calculator = null;
+        let blankDesmosState = null;
+        let desmosStates = Array(questions.length).fill(null);
+
+        function cloneDesmosState(state) {
+            if (!state) return null;
+            try {
+                return JSON.parse(JSON.stringify(state));
+            } catch (error) {
+                console.warn('Unable to clone Desmos state:', error);
+                return null;
+            }
+        }
+
+        function isCalculatorVisible() {
+            const popup = document.getElementById('calculator-popup');
+            return !!(popup && popup.style.display === 'block');
+        }
+
+        function ensureDesmosExpressionPanel() {
+            if (!calculator || typeof calculator.updateSettings !== 'function') return;
+            try {
+                calculator.updateSettings({ expressions: true, keypad: true });
+            } catch (error) {
+                console.warn('Unable to restore Desmos expression panel:', error);
+            }
+        }
+
+        function persistDesmosStates() {
+            try {
+                localStorage.setItem(`${storageKey()}_desmosStates_v2`, JSON.stringify(desmosStates));
+            } catch (error) {
+                console.warn('Unable to persist Desmos states:', error);
+            }
+        }
+
+        function saveCurrentDesmosState() {
+            if (!calculator || currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) return;
+            try {
+                desmosStates[currentQuestionIndex] = cloneDesmosState(calculator.getState());
+                persistDesmosStates();
+            } catch (error) {
+                console.warn('Unable to save Desmos state:', error);
+            }
+        }
+
+        function loadDesmosStateForQuestion(index) {
+            if (!calculator) return;
+            try {
+                const stateToLoad = cloneDesmosState(desmosStates[index] || blankDesmosState);
+                if (stateToLoad) calculator.setState(stateToLoad);
+                ensureDesmosExpressionPanel();
+                requestDesmosResize();
+            } catch (error) {
+                console.warn('Unable to load Desmos state:', error);
+                ensureDesmosExpressionPanel();
+                requestDesmosResize();
+            }
+        }
 
         function fixLatex(text) {
 
@@ -44,22 +102,60 @@
                     delimiters: [
                         { left: "\\(", right: "\\)", display: false },
                         { left: "\\[", right: "\\]", display: true }
-                    ],
-                    ignoredClasses: ['katex', 'dcg-container', 'dcg-exppanel', 'dcg-grapher']
+                    ]
                 });
             } catch (error) {
                 console.error('KaTeX render failed:', error);
             }
         }
 
+
         function renderQuestionMath() {
-            [
-                document.getElementById('passage'),
-                document.getElementById('question-text'),
-                document.getElementById('answers'),
-                document.getElementById('questionModal'),
-                document.getElementById('reference-overlay')
-            ].filter(Boolean).forEach((element) => renderMath(element));
+            ['passage', 'question-text', 'answers', 'graph-container'].forEach((id) => {
+                const node = document.getElementById(id);
+                if (node) renderMath(node);
+            });
+        }
+
+        function getDesmosEditableFrom(target) {
+            if (!calculatorElement || !target) return null;
+            const selector = 'textarea:not([disabled]), input:not([disabled]), [contenteditable="true"], .dcg-mq-editable-field';
+
+            let node = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+            while (node && node !== calculatorElement) {
+                if (node.matches && node.matches(selector)) return node;
+                if (node.querySelector) {
+                    const found = node.querySelector(selector);
+                    if (found) return found;
+                }
+                node = node.parentElement;
+            }
+
+            return calculatorElement.querySelector(selector);
+        }
+
+        let lastDesmosPointerTarget = null;
+
+        function repairDesmosFocusIfLost(preferredTarget = null) {
+            if (!calculator || !calculatorElement || !isCalculatorVisible()) return;
+            const active = document.activeElement;
+
+            if (active && active !== document.body && active !== document.documentElement && calculatorElement.contains(active)) {
+                return;
+            }
+
+            ensureDesmosExpressionPanel();
+
+            window.setTimeout(() => {
+                const editable = getDesmosEditableFrom(preferredTarget || lastDesmosPointerTarget);
+                if (editable && typeof editable.focus === 'function') {
+                    try {
+                        editable.focus({ preventScroll: true });
+                    } catch (error) {
+                        editable.focus();
+                    }
+                }
+            }, 0);
         }
 
         function showCalculatorFallback() {
@@ -80,7 +176,9 @@
 
             if (calculatorElement && typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function') {
                 try {
-                    calculator = Desmos.GraphingCalculator(calculatorElement);
+                    calculator = Desmos.GraphingCalculator(calculatorElement, { expressions: true, keypad: true });
+                    blankDesmosState = cloneDesmosState(calculator.getState());
+                    loadDesmosStateForQuestion(currentQuestionIndex);
                     hideCalculatorFallback();
                 } catch (error) {
                     console.error('Desmos init failed:', error);
@@ -89,6 +187,23 @@
             } else {
                 showCalculatorFallback();
             }
+        }
+
+        function requestDesmosResize() {
+            if (!calculator || typeof calculator.resize !== 'function') return;
+            window.requestAnimationFrame(() => {
+                try {
+                    calculator.resize();
+                } catch (error) {
+                    console.warn('Desmos resize failed:', error);
+                }
+            });
+        }
+
+        function switchDesmosQuestionState(nextQuestionIndex) {
+            if (nextQuestionIndex === currentQuestionIndex) return;
+            saveCurrentDesmosState();
+            loadDesmosStateForQuestion(nextQuestionIndex);
         }
 
         function dragElement(elmnt, header) {
@@ -146,6 +261,7 @@
             const savedTime = localStorage.getItem(`${key}_timeRemaining`);
             const savedReview = localStorage.getItem(`${key}_markedForReview`);
             const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+            const savedDesmosStates = localStorage.getItem(`${key}_desmosStates_v2`);
 
             if (savedAnswers) answers = JSON.parse(savedAnswers);
             if (savedEliminatedChoices) eliminatedChoices = JSON.parse(savedEliminatedChoices);
@@ -153,6 +269,16 @@
             if (savedTimeSpent) timeSpent = JSON.parse(savedTimeSpent);
             if (savedIndex) currentQuestionIndex = parseInt(savedIndex, 10);
             if (savedTime) timeRemaining = parseInt(savedTime, 10);
+            if (savedDesmosStates) {
+                try {
+                    const parsedStates = JSON.parse(savedDesmosStates);
+                    if (Array.isArray(parsedStates)) {
+                        desmosStates = Array.from({ length: questions.length }, (_, i) => parsedStates[i] || null);
+                    }
+                } catch (error) {
+                    console.warn('Unable to load saved Desmos states:', error);
+                }
+            }
 
             updateAnsweredStatus();
         }
@@ -165,6 +291,8 @@
             localStorage.removeItem(`${key}_currentQuestionIndex`);
             localStorage.removeItem(`${key}_timeRemaining`);
             localStorage.removeItem(`${key}_markedForReview`);
+            localStorage.removeItem(`${key}_desmosStates_v2`);
+            localStorage.removeItem(`${key}_desmosStates`);
         }
 
         function buildMultipleChoice(question, index) {
@@ -223,6 +351,7 @@
         }
 
         function loadQuestion(index) {
+            switchDesmosQuestionState(index);
             currentQuestionIndex = index;
             const question = questions[index];
 
@@ -299,13 +428,6 @@
 
             renderQuestionMath();
             updateNavigationButtons();
-
-            if (isCalculatorOpen()) {
-                requestAnimationFrame(() => {
-                    restoreDesmosInputFocus();
-                });
-            }
-
             updateAnsweredStatus();
             saveProgress();
         }
@@ -404,6 +526,7 @@
         }
 
         function closeCalculator() {
+            saveCurrentDesmosState();
             document.getElementById('calculator-popup').style.display = 'none';
         }
 
@@ -419,59 +542,24 @@
             document.getElementById('calculator-popup').style.display = 'block';
             if (!calculator) {
                 initDesmos();
+            } else {
+                loadDesmosStateForQuestion(currentQuestionIndex);
+                ensureDesmosExpressionPanel();
+                requestDesmosResize();
+                repairDesmosFocusIfLost(calculatorElement);
             }
-            requestAnimationFrame(() => {
-                restoreDesmosInputFocus();
-            });
-        }
-
-        function isCalculatorOpen() {
-            const popup = document.getElementById('calculator-popup');
-            return !!(popup && popup.style.display === 'block');
-        }
-
-        function restoreDesmosInputFocus() {
-            if (!isCalculatorOpen()) return false;
-
-            try {
-                if (calculator && typeof calculator.focusFirstExpression === 'function') {
-                    calculator.focusFirstExpression();
-                }
-            } catch (error) {
-                console.warn('Desmos focus recovery via API failed:', error);
-            }
-
-            const editable = document.querySelector(
-                '#calculator-popup .dcg-mq-root-block, ' +
-                '#calculator-popup .dcg-mathquill-root-block, ' +
-                '#calculator-popup .dcg-mq-textarea textarea, ' +
-                '#calculator-popup textarea, ' +
-                '#calculator-popup [contenteditable="true"]'
-            );
-
-            if (editable && typeof editable.focus === 'function') {
-                editable.focus();
-                if (typeof editable.click === 'function') {
-                    editable.click();
-                }
-                return true;
-            }
-
-            return false;
         }
 
         function isDesmosFocused() {
-            if (!isCalculatorOpen()) return false;
+            if (!isCalculatorVisible()) return false;
             const active = document.activeElement;
             if (!active) return false;
-
-            if (active === document.body || active === document.documentElement) {
-                return true;
-            }
-
             return !!(
                 active.closest('#calculator-popup') ||
-                active.closest('.dcg-container')
+                active.closest('.dcg-container') ||
+                active.closest('[class*="dcg-"]') ||
+                active === document.body ||
+                active === document.documentElement
             );
         }
 
@@ -505,6 +593,7 @@
         }
 
         async function finishTest(force = false) {
+            saveCurrentDesmosState();
             const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
             if (!confirmed) return;
 
@@ -637,9 +726,8 @@
                 return;
             }
 
-            // If the calculator is open, keep keyboard control inside Desmos.
-            if (isCalculatorOpen() && isDesmosFocused()) {
-                restoreDesmosInputFocus();
+            // Let Desmos handle ALL its own keystrokes — must be before any preventDefault
+            if (isDesmosFocused()) {
                 return;
             }
 
@@ -712,10 +800,41 @@
             }
         });
 
+        window.addEventListener('beforeunload', saveCurrentDesmosState);
+
+        const calculatorPopup = document.getElementById('calculator-popup');
+        if (calculatorPopup) {
+            calculatorPopup.addEventListener('click', () => {
+                window.setTimeout(() => {
+                    ensureDesmosExpressionPanel();
+                    repairDesmosFocusIfLost(lastDesmosPointerTarget);
+                }, 0);
+            });
+        }
+
+        if (calculatorElement) {
+            calculatorElement.addEventListener('pointerdown', (event) => {
+                lastDesmosPointerTarget = event.target;
+            }, true);
+
+            calculatorElement.addEventListener('pointerup', (event) => {
+                lastDesmosPointerTarget = event.target;
+                window.setTimeout(() => repairDesmosFocusIfLost(event.target), 0);
+            }, true);
+        }
+
         dragElement(
             document.getElementById('calculator-popup'),
             document.getElementById('calculator-header')
         );
+
+        if ('ResizeObserver' in window) {
+            const popup = document.getElementById('calculator-popup');
+            if (popup) {
+                const observer = new ResizeObserver(() => requestDesmosResize());
+                observer.observe(popup);
+            }
+        }
 
         loadProgress();
         loadQuestion(currentQuestionIndex);

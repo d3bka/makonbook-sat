@@ -1,1 +1,1486 @@
-{% include "test/shared/attempt_math.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz</title>
+
+    <script src="https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"
+        onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
+
+    <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-math.css' %}">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        .question-title .bookmark {
+            background-image: url({% static 'assets/img/bookmark_empty.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        .filledbook {
+            background-image: url({% static 'assets/img/bookmark_filled.png' %}) !important;
+        }
+
+        .question-title .crossing-options {
+            background-image: url({% static 'assets/img/crossAbc.png' %});
+            background-size: contain;
+            background-repeat: no-repeat;
+            padding-left: 36px;
+        }
+
+        .active-options {
+            background-image: url({% static "assets/img/crossAbcActive.png" %}) !important;
+        }
+
+        #passage {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #question-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        main {
+            font-family: 'Times New Roman', Times, serif;
+        }
+
+        #calculator-popup {
+            display: none;
+            position: fixed;
+            top: 50px;
+            right: 50px;
+            width: min(560px, calc(100vw - 48px));
+            height: min(640px, calc(100vh - 96px));
+            min-width: 360px;
+            min-height: 420px;
+            max-width: calc(100vw - 24px);
+            max-height: calc(100vh - 24px);
+            border: 1px solid rgba(109, 40, 217, 0.22);
+            background: white;
+            z-index: 1000;
+            box-shadow: 0 20px 60px rgba(17, 24, 39, 0.22);
+            border-radius: 12px;
+            overflow: hidden;
+            resize: both;
+        }
+
+        #calculator-header {
+            height: 56px;
+            padding: 10px 14px 10px 16px;
+            background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 100%);
+            color: white;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 18px;
+            box-sizing: border-box;
+        }
+
+        .desmos-header-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .desmos-close-btn {
+            border: none;
+            background: rgba(255, 255, 255, 0.16);
+            color: white;
+            height: 36px;
+            border-radius: 10px;
+            line-height: 1;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .desmos-close-btn {
+            width: 38px;
+            font-size: 22px;
+        }
+
+        .desmos-close-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .desmos-close-btn:active {
+            transform: scale(0.96);
+        }
+
+        #calculator-body {
+            width: 100%;
+            height: calc(100% - 56px);
+        }
+
+        #calculator-resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 22px;
+            height: 22px;
+            cursor: nwse-resize;
+            z-index: 4;
+            background:
+                linear-gradient(135deg, transparent 50%, rgba(109, 40, 217, 0.18) 50%),
+                linear-gradient(135deg, transparent 62%, rgba(109, 40, 217, 0.32) 62%);
+        }
+
+        #calculator-resize-handle::after {
+            content: "";
+            position: absolute;
+            right: 5px;
+            bottom: 5px;
+            width: 9px;
+            height: 9px;
+            border-right: 2px solid rgba(91, 33, 182, 0.7);
+            border-bottom: 2px solid rgba(91, 33, 182, 0.7);
+        }
+
+        #calculator {
+            width: 100% !important;
+            height: 100% !important;
+            pointer-events: auto !important;
+        }
+
+        #calculator .dcg-container,
+        #calculator .dcg-grapher {
+            pointer-events: auto !important;
+        }
+
+        .choice-image {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .written-answer-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        mjx-container {
+            margin: 5px 0;
+        }
+
+        .katex {
+            font-size: 1.5em;
+        }
+
+        .choice-image {
+            max-width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            display: block;
+            margin: 6px 0;
+        }
+
+        .reference-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.28);
+            z-index: 2000;
+            align-items: stretch;
+            justify-content: flex-end;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .reference-overlay.active {
+            display: flex;
+        }
+
+        .reference-sheet {
+            width: min(460px, 100%);
+            height: 100vh;
+            background: #fff;
+            overflow: hidden;
+            box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+            animation: referenceSlideIn 0.18s ease;
+        }
+
+        @keyframes referenceSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .reference-header {
+            background: #ffffff;
+            color: #111;
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: 700;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .reference-close-btn {
+            border: 1px solid #d1d5db;
+            background: white;
+            color: #111;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .reference-close-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .reference-body {
+            padding: 18px;
+            overflow-y: auto;
+            height: calc(100vh - 69px);
+            background: #fff;
+        }
+
+        .reference-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .reference-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .reference-card h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #111827;
+            font-size: 17px;
+        }
+
+        .reference-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .reference-formulas {
+            flex: 1;
+        }
+
+        .reference-figure {
+            width: 130px;
+            min-width: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .reference-figure svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .formula {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            font-family: "Times New Roman", serif;
+            font-size: 18px;
+        }
+
+        .reference-note {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+            .reference-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .reference-figure {
+                width: 100%;
+                min-width: 0;
+                justify-content: flex-start;
+            }
+
+            .reference-header {
+                font-size: 18px;
+            }
+
+            .formula {
+                font-size: 17px;
+            }
+        }
+    </style>
+</head>
+
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            <h1>Section 2: Mathematics</h1>
+            <div class="timer" id="timer">0:00</div>
+
+            <div style="display:flex; align-items:center; gap:12px; color:#3d008e;">
+                <div id="open-reference" style="align-content:center; cursor:pointer;" title="Reference Sheet">
+                    <i class="fa fa-book" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
+                </div>
+
+                <div id="open-calculator" style="align-content:center; cursor:pointer;" title="Calculator">
+                    <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
+                </div>
+
+                <a href="/" style="text-decoration:none;" title="Home">
+                    <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
+                </a>
+            </div>
+        </header>
+
+        <form class="fm" id="math-quiz-form" method="post" action="{% url 'check_the_answers' %}">
+            {% csrf_token %}
+            <main>
+                <div class="question-container scroll-hide">
+                    <div class="just-div" id="graph-container"></div>
+                    <p id="passage"></p>
+                </div>
+
+                <div class="answers-container scroll-hide">
+                    <div class="question-title">
+                        <div class="question-number"></div>
+                        <div class="bookmark" onclick="markForReview()">Mark for Review</div>
+                        <div class="crossing-options" onclick="toggleEliminateMode()"></div>
+                    </div>
+
+                    <div class="question-text" id="question-text"></div>
+                    <div class="answers" id="answers"></div>
+                </div>
+            </main>
+        </form>
+
+        <footer>
+            <div class="footer-left">
+                {{ request.user.first_name }} {{ request.user.last_name }}
+            </div>
+
+            <div class="footer-center">
+                <button type="button" class="question-progress nav-button" onclick="toggleQuestionModal()">
+                    Question <span id="currentQuestionIndex">1</span> of <span id="totalQuestions">{{ questions|length }}</span>
+                </button>
+            </div>
+
+            <div class="footer-right">
+                <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
+                <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+            </div>
+        </footer>
+    </div>
+
+    <div id="calculator-popup">
+        <div id="calculator-header">
+            <span>Desmos Calculator</span>
+            <div class="desmos-header-actions" aria-label="Calculator controls">
+                <button type="button" onclick="closeCalculator()" class="desmos-close-btn" title="Close calculator">✕</button>
+            </div>
+        </div>
+        <div id="calculator-body">
+            <div id="calculator"></div>
+            <div id="calculator-fallback" style="display:none; padding:20px; text-align:center; color:#666;">
+                <h3>Calculator Unavailable</h3>
+                <p>The graphing calculator could not be loaded. Please check your internet connection and reload the page.</p>
+                <p>You can still complete the test using external calculation tools.</p>
+            </div>
+        </div>
+        <div id="calculator-resize-handle" title="Drag to resize calculator" aria-hidden="true"></div>
+    </div>
+
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="toggleQuestionModal()">×</span>
+            <div class="question-grid">
+                {% for q in questions %}
+                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); toggleQuestionModal();">
+                    {{ q.number }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div id="reference-overlay" class="reference-overlay">
+        <div class="reference-sheet">
+            <div class="reference-header">
+                <span>Reference Sheet</span>
+                <button type="button" class="reference-close-btn" onclick="closeReference()">✕</button>
+            </div>
+
+            <div class="reference-body">
+                <div class="reference-grid">
+                    <div class="reference-card">
+                        <h3>General Facts</h3>
+                        <div class="formula">The number of degrees of arc in a circle is 360.</div>
+                        <div class="formula">The number of radians of arc in a circle is 2π.</div>
+                        <div class="formula">The sum of the measures in degrees of the angles of a triangle is 180.</div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Circle</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Circumference = 2πr</div>
+                                <div class="formula">Area = πr²</div>
+                                <div class="formula">Arc length = (n/360) × 2πr</div>
+                                <div class="formula">Area of a sector = (n/360) × πr²</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 160" width="120" height="120" aria-hidden="true">
+                                    <circle cx="80" cy="80" r="48" fill="none" stroke="#324dc7" stroke-width="4"/>
+                                    <line x1="80" y1="80" x2="128" y2="80" stroke="#324dc7" stroke-width="4"/>
+                                    <text x="102" y="72" font-size="18" fill="#324dc7">r</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Area</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Rectangle = lw</div>
+                                <div class="formula">Triangle = ½bh</div>
+                                <div class="formula">Parallelogram = bh</div>
+                                <div class="formula">Trapezoid = ½(a + b)h</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 160" width="120" height="120" aria-hidden="true">
+                                    <rect x="18" y="18" width="54" height="38" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="38" y="14" font-size="14" fill="#324dc7">w</text>
+                                    <text x="74" y="42" font-size="14" fill="#324dc7">l</text>
+
+                                    <polygon points="22,124 72,124 47,78" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="47" y1="78" x2="47" y2="124" stroke="#324dc7" stroke-dasharray="4 3" stroke-width="2"/>
+                                    <text x="49" y="104" font-size="14" fill="#324dc7">h</text>
+                                    <text x="41" y="139" font-size="14" fill="#324dc7">b</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Volume</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">Rectangular prism = lwh</div>
+                                <div class="formula">Cylinder = πr²h</div>
+                                <div class="formula">Cone = ⅓πr²h</div>
+                                <div class="formula">Sphere = ⁴⁄₃πr³</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 160 180" width="120" height="130" aria-hidden="true">
+                                    <ellipse cx="80" cy="28" rx="26" ry="10" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="54" y1="28" x2="54" y2="82" stroke="#324dc7" stroke-width="3"/>
+                                    <line x1="106" y1="28" x2="106" y2="82" stroke="#324dc7" stroke-width="3"/>
+                                    <ellipse cx="80" cy="82" rx="26" ry="10" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="110" y="58" font-size="14" fill="#324dc7">h</text>
+
+                                    <ellipse cx="42" cy="132" rx="18" ry="7" fill="none" stroke="#324dc7" stroke-width="2.5"/>
+                                    <line x1="24" y1="132" x2="42" y2="164" stroke="#324dc7" stroke-width="2.5"/>
+                                    <line x1="60" y1="132" x2="42" y2="164" stroke="#324dc7" stroke-width="2.5"/>
+
+                                    <circle cx="116" cy="146" r="18" fill="none" stroke="#324dc7" stroke-width="2.5"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <h3>Special Right Triangles</h3>
+                        <div class="reference-row">
+                            <div class="reference-formulas">
+                                <div class="formula">45°-45°-90° triangle: side lengths are x, x, and x√2</div>
+                                <div class="formula">30°-60°-90° triangle: side lengths are x, x√3, and 2x</div>
+                            </div>
+                            <div class="reference-figure">
+                                <svg viewBox="0 0 170 170" width="130" height="130" aria-hidden="true">
+                                    <polygon points="18,72 18,132 78,132" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="22" y="106" font-size="13" fill="#324dc7">x</text>
+                                    <text x="44" y="146" font-size="13" fill="#324dc7">x</text>
+                                    <text x="46" y="92" font-size="13" fill="#324dc7">x√2</text>
+                                    <text x="20" y="144" font-size="11" fill="#324dc7">45°</text>
+                                    <text x="61" y="126" font-size="11" fill="#324dc7">45°</text>
+
+                                    <polygon points="98,72 98,132 152,132" fill="none" stroke="#324dc7" stroke-width="3"/>
+                                    <text x="102" y="105" font-size="13" fill="#324dc7">x</text>
+                                    <text x="118" y="146" font-size="13" fill="#324dc7">x√3</text>
+                                    <text x="123" y="98" font-size="13" fill="#324dc7">2x</text>
+                                    <text x="100" y="144" font-size="11" fill="#324dc7">60°</text>
+                                    <text x="135" y="126" font-size="11" fill="#324dc7">30°</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="reference-card">
+                        <div class="reference-note">
+                            This sheet provides common formulas and facts that may be useful as you answer some questions in the module.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{ custom_time_seconds|json_script:"custom-time" }}
+    {{ questions_data|json_script:"questions-data" }}
+
+    <script>
+        const testName = "{{ test }}";
+        const moduleName = "{{ module }}";
+        const sectionName = "{{ section }}";
+
+        const questions = JSON.parse(document.getElementById('questions-data').textContent);
+        const customTimeData = JSON.parse(document.getElementById('custom-time').textContent);
+
+        let currentQuestionIndex = 0;
+        let timeRemaining = customTimeData || (35 * 60);
+
+        let eliminateOptions = false;
+        let answers = Array(questions.length).fill(null);
+        let eliminatedChoices = Array.from({ length: questions.length }, () => []);
+        let markedForReview = Array(questions.length).fill(false);
+        let timeSpent = Array(questions.length).fill(0);
+
+        const calculatorElement = document.getElementById('calculator');
+        let calculator = null;
+        let blankDesmosState = null;
+        let desmosStates = Array(questions.length).fill(null);
+
+        function cloneDesmosState(state) {
+            if (!state) return null;
+            try {
+                return JSON.parse(JSON.stringify(state));
+            } catch (error) {
+                console.warn('Unable to clone Desmos state:', error);
+                return null;
+            }
+        }
+
+        function isCalculatorVisible() {
+            const popup = document.getElementById('calculator-popup');
+            return !!(popup && popup.style.display === 'block');
+        }
+
+        function ensureDesmosExpressionPanel() {
+            if (!calculator || typeof calculator.updateSettings !== 'function') return;
+            try {
+                calculator.updateSettings({ expressions: true, keypad: true });
+            } catch (error) {
+                console.warn('Unable to restore Desmos expression panel:', error);
+            }
+        }
+
+        function persistDesmosStates() {
+            try {
+                localStorage.setItem(`${storageKey()}_desmosStates_v2`, JSON.stringify(desmosStates));
+            } catch (error) {
+                console.warn('Unable to persist Desmos states:', error);
+            }
+        }
+
+        function saveCurrentDesmosState() {
+            if (!calculator || currentQuestionIndex < 0 || currentQuestionIndex >= questions.length) return;
+            try {
+                desmosStates[currentQuestionIndex] = cloneDesmosState(calculator.getState());
+                persistDesmosStates();
+            } catch (error) {
+                console.warn('Unable to save Desmos state:', error);
+            }
+        }
+
+        function loadDesmosStateForQuestion(index) {
+            if (!calculator) return;
+            try {
+                const stateToLoad = cloneDesmosState(desmosStates[index] || blankDesmosState);
+                if (stateToLoad) calculator.setState(stateToLoad);
+                ensureDesmosExpressionPanel();
+                requestDesmosResize();
+            } catch (error) {
+                console.warn('Unable to load Desmos state:', error);
+                ensureDesmosExpressionPanel();
+                requestDesmosResize();
+            }
+        }
+        const DESMOS_DEFAULT_SIZE = { width: 560, height: 640 };
+        const DESMOS_MIN_SIZE = { width: 360, height: 420 };
+
+        function fixLatex(text) {
+            if (!text) return '';
+            let cleaned = String(text);
+            cleaned = cleaned.replace(/\\\$/g, '$');
+            cleaned = cleaned.replace(/\\\\/g, '\\');
+            cleaned = cleaned.replace(/\\\(\s*/g, '\\(');
+            cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
+            cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
+            cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
+            // Convert escaped newlines and tabs to actual characters
+            cleaned = cleaned.replace(/\\n/g, '\n');
+            cleaned = cleaned.replace(/\\t/g, '\t');
+            return cleaned;
+        }
+
+        function renderMath(root = document.body) {
+            try {
+                renderMathInElement(root, {
+                    delimiters: [
+                        { left: "\\(", right: "\\)", display: false },
+                        { left: "\\[", right: "\\]", display: true }
+                    ]
+                });
+            } catch (error) {
+                console.error('KaTeX render failed:', error);
+            }
+        }
+
+
+        function renderQuestionMath() {
+            ['passage', 'question-text', 'answers', 'graph-container'].forEach((id) => {
+                const node = document.getElementById(id);
+                if (node) renderMath(node);
+            });
+        }
+
+        function getDesmosEditableFrom(target) {
+            if (!calculatorElement || !target) return null;
+            const selector = 'textarea:not([disabled]), input:not([disabled]), [contenteditable="true"], .dcg-mq-editable-field';
+
+            let node = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+            while (node && node !== calculatorElement) {
+                if (node.matches && node.matches(selector)) return node;
+                if (node.querySelector) {
+                    const found = node.querySelector(selector);
+                    if (found) return found;
+                }
+                node = node.parentElement;
+            }
+
+            return calculatorElement.querySelector(selector);
+        }
+
+        let lastDesmosPointerTarget = null;
+
+        function repairDesmosFocusIfLost(preferredTarget = null) {
+            if (!calculator || !calculatorElement || !isCalculatorVisible()) return;
+            const active = document.activeElement;
+
+            if (active && active !== document.body && active !== document.documentElement && calculatorElement.contains(active)) {
+                return;
+            }
+
+            ensureDesmosExpressionPanel();
+
+            window.setTimeout(() => {
+                const editable = getDesmosEditableFrom(preferredTarget || lastDesmosPointerTarget);
+                if (editable && typeof editable.focus === 'function') {
+                    try {
+                        editable.focus({ preventScroll: true });
+                    } catch (error) {
+                        editable.focus();
+                    }
+                }
+            }, 0);
+        }
+
+        function showCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) fallback.style.display = 'block';
+        }
+
+        function hideCalculatorFallback() {
+            const fallback = document.getElementById('calculator-fallback');
+            if (fallback) fallback.style.display = 'none';
+        }
+
+        function initDesmos() {
+            if (window.desmosLoadError) {
+                showCalculatorFallback();
+                return;
+            }
+
+            if (calculatorElement && typeof Desmos !== 'undefined' && typeof Desmos.GraphingCalculator === 'function') {
+                try {
+                    calculator = Desmos.GraphingCalculator(calculatorElement, { expressions: true, keypad: true });
+                    blankDesmosState = cloneDesmosState(calculator.getState());
+                    loadDesmosStateForQuestion(currentQuestionIndex);
+                    hideCalculatorFallback();
+                    requestDesmosResize();
+                } catch (error) {
+                    console.error('Desmos init failed:', error);
+                    showCalculatorFallback();
+                }
+            } else {
+                showCalculatorFallback();
+            }
+        }
+
+        function getDesmosSizeLimits() {
+            return {
+                minWidth: DESMOS_MIN_SIZE.width,
+                minHeight: DESMOS_MIN_SIZE.height,
+                maxWidth: Math.max(DESMOS_MIN_SIZE.width, window.innerWidth - 24),
+                maxHeight: Math.max(DESMOS_MIN_SIZE.height, window.innerHeight - 24)
+            };
+        }
+
+        function clampDesmosSize(width, height) {
+            const limits = getDesmosSizeLimits();
+            return {
+                width: Math.min(Math.max(width, limits.minWidth), limits.maxWidth),
+                height: Math.min(Math.max(height, limits.minHeight), limits.maxHeight)
+            };
+        }
+
+        function requestDesmosResize() {
+            if (!calculator || typeof calculator.resize !== 'function') return;
+            window.requestAnimationFrame(() => {
+                try {
+                    calculator.resize();
+                } catch (error) {
+                    console.warn('Desmos resize failed:', error);
+                }
+            });
+        }
+
+        function switchDesmosQuestionState(nextQuestionIndex) {
+            if (nextQuestionIndex === currentQuestionIndex) return;
+            saveCurrentDesmosState();
+            loadDesmosStateForQuestion(nextQuestionIndex);
+        }
+
+        function setCalculatorSize(width, height, persist = true) {
+            const popup = document.getElementById('calculator-popup');
+            if (!popup) return;
+
+            const size = clampDesmosSize(width, height);
+            popup.style.width = `${size.width}px`;
+            popup.style.height = `${size.height}px`;
+
+            if (persist) {
+                localStorage.setItem('desmos_calculator_size', JSON.stringify(size));
+            }
+
+            keepCalculatorInViewport();
+            requestDesmosResize();
+        }
+
+        function resizeCalculator(action) {
+            const popup = document.getElementById('calculator-popup');
+            if (!popup) return;
+
+            const rect = popup.getBoundingClientRect();
+            if (action === 'reset') {
+                localStorage.removeItem('desmos_calculator_size');
+                setCalculatorSize(DESMOS_DEFAULT_SIZE.width, DESMOS_DEFAULT_SIZE.height, false);
+                return;
+            }
+
+            const delta = action === 'larger' ? 80 : -80;
+            setCalculatorSize(rect.width + delta, rect.height + delta);
+        }
+
+        function keepCalculatorInViewport() {
+            const popup = document.getElementById('calculator-popup');
+            if (!popup) return;
+
+            const rect = popup.getBoundingClientRect();
+            let nextLeft = rect.left;
+            let nextTop = rect.top;
+
+            if (rect.right > window.innerWidth - 8) nextLeft -= rect.right - (window.innerWidth - 8);
+            if (rect.bottom > window.innerHeight - 8) nextTop -= rect.bottom - (window.innerHeight - 8);
+            if (nextLeft < 8) nextLeft = 8;
+            if (nextTop < 8) nextTop = 8;
+
+            if (Math.abs(nextLeft - rect.left) > 1 || Math.abs(nextTop - rect.top) > 1) {
+                popup.style.left = `${nextLeft}px`;
+                popup.style.top = `${nextTop}px`;
+                popup.style.right = 'auto';
+                popup.style.bottom = 'auto';
+            }
+        }
+
+        function initCalculatorResizeControls() {
+            const popup = document.getElementById('calculator-popup');
+            const handle = document.getElementById('calculator-resize-handle');
+            if (!popup) return;
+
+            const savedSize = localStorage.getItem('desmos_calculator_size');
+            if (savedSize) {
+                try {
+                    const parsed = JSON.parse(savedSize);
+                    if (parsed && parsed.width && parsed.height) {
+                        setCalculatorSize(Number(parsed.width), Number(parsed.height), false);
+                    }
+                } catch (error) {
+                    localStorage.removeItem('desmos_calculator_size');
+                }
+            }
+
+            if ('ResizeObserver' in window) {
+                const observer = new ResizeObserver(() => requestDesmosResize());
+                observer.observe(popup);
+            }
+
+            if (!handle) return;
+
+            handle.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const startRect = popup.getBoundingClientRect();
+                const startX = event.clientX;
+                const startY = event.clientY;
+
+                popup.style.left = `${startRect.left}px`;
+                popup.style.top = `${startRect.top}px`;
+                popup.style.right = 'auto';
+                popup.style.bottom = 'auto';
+
+                function onMove(moveEvent) {
+                    const width = startRect.width + (moveEvent.clientX - startX);
+                    const height = startRect.height + (moveEvent.clientY - startY);
+                    setCalculatorSize(width, height);
+                }
+
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+
+            window.addEventListener('resize', keepCalculatorInViewport);
+        }
+
+        function dragElement(elmnt, header) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            if (!header) return;
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                if (e.target && e.target.closest && e.target.closest('.desmos-header-actions')) return;
+                e.preventDefault();
+
+                const rect = elmnt.getBoundingClientRect();
+                elmnt.style.left = `${rect.left}px`;
+                elmnt.style.top = `${rect.top}px`;
+                elmnt.style.right = 'auto';
+                elmnt.style.bottom = 'auto';
+
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + 'px';
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + 'px';
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function storageKey() {
+            return `${testName}_${moduleName}_${sectionName}`;
+        }
+
+        function saveProgress() {
+            const key = storageKey();
+            localStorage.setItem(`${key}_timeSpent`, JSON.stringify(timeSpent));
+            localStorage.setItem(`${key}_answers`, JSON.stringify(answers));
+            localStorage.setItem(`${key}_eliminatedChoices`, JSON.stringify(eliminatedChoices));
+            localStorage.setItem(`${key}_currentQuestionIndex`, String(currentQuestionIndex));
+            localStorage.setItem(`${key}_timeRemaining`, String(timeRemaining));
+            localStorage.setItem(`${key}_markedForReview`, JSON.stringify(markedForReview));
+        }
+
+        function loadProgress() {
+            const key = storageKey();
+
+            const savedAnswers = localStorage.getItem(`${key}_answers`);
+            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
+            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
+            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
+            const savedReview = localStorage.getItem(`${key}_markedForReview`);
+            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+            const savedDesmosStates = localStorage.getItem(`${key}_desmosStates_v2`);
+
+            if (savedAnswers) answers = JSON.parse(savedAnswers);
+            if (savedEliminatedChoices) eliminatedChoices = JSON.parse(savedEliminatedChoices);
+            if (savedReview) markedForReview = JSON.parse(savedReview);
+            if (savedTimeSpent) timeSpent = JSON.parse(savedTimeSpent);
+            if (savedIndex) currentQuestionIndex = parseInt(savedIndex, 10);
+            if (savedTime) timeRemaining = parseInt(savedTime, 10);
+            if (savedDesmosStates) {
+                try {
+                    const parsedStates = JSON.parse(savedDesmosStates);
+                    if (Array.isArray(parsedStates)) {
+                        desmosStates = Array.from({ length: questions.length }, (_, i) => parsedStates[i] || null);
+                    }
+                } catch (error) {
+                    console.warn('Unable to load saved Desmos states:', error);
+                }
+            }
+
+            updateAnsweredStatus();
+        }
+
+        function clearProgress() {
+            const key = storageKey();
+            localStorage.removeItem(`${key}_timeSpent`);
+            localStorage.removeItem(`${key}_answers`);
+            localStorage.removeItem(`${key}_eliminatedChoices`);
+            localStorage.removeItem(`${key}_currentQuestionIndex`);
+            localStorage.removeItem(`${key}_timeRemaining`);
+            localStorage.removeItem(`${key}_markedForReview`);
+            localStorage.removeItem(`${key}_desmosStates_v2`);
+            localStorage.removeItem(`${key}_desmosStates`);
+        }
+
+        function buildMultipleChoice(question, index) {
+            return `
+                ${buildChoice('A', question.a, index)}
+                ${buildChoice('B', question.b, index)}
+                ${buildChoice('C', question.c, index)}
+                ${buildChoice('D', question.d, index)}
+            `;
+        }
+
+        function buildChoice(letter, content, index) {
+            const checked = answers[index] === letter ? 'checked' : '';
+            const isEliminated = eliminatedChoices[index].includes(letter) ? 'active' : '';
+            const inputId = `answer-${index}-${letter}`;
+
+            let renderedContent = content || '';
+
+            if (typeof renderedContent === 'string' && renderedContent.startsWith('IMAGE:')) {
+                const imageUrl = renderedContent.slice(6);
+                renderedContent = `<img class="choice-image" src="${imageUrl}" alt="Choice ${letter}">`;
+            } else {
+                renderedContent = fixLatex(renderedContent);
+            }
+
+            return `
+                <div class="big-container">
+                    <input
+                        class="choice-input"
+                        type="radio"
+                        id="${inputId}"
+                        name="answer"
+                        value="${letter}"
+                        ${checked}
+                    >
+
+                    <label class="choice-container" for="${inputId}">
+                        <span class="mark" data-letter="${letter}"></span>
+                        <span class="choice-content">${renderedContent}</span>
+                    </label>
+
+                    <hr class="cross-line ${letter}zone ${isEliminated}">
+
+                    <button
+                        type="button"
+                        class="crossing-zone ${eliminateOptions ? 'active' : ''}"
+                        data-letter="${letter}"
+                        data-index="${index}"
+                        aria-label="Eliminate choice ${letter}"
+                    >
+                        <span class="cross-label">${letter}</span>
+                        <span class="cross-btn-line"></span>
+                    </button>
+                </div>
+            `;
+        }
+
+        function loadQuestion(index) {
+            switchDesmosQuestionState(index);
+            currentQuestionIndex = index;
+            const question = questions[index];
+
+            document.getElementById('currentQuestionIndex').textContent = index + 1;
+            document.getElementById('totalQuestions').textContent = questions.length;
+            document.querySelector('.question-number').innerText = question.number;
+
+            document.getElementById('passage').innerHTML = fixLatex(question.passage);
+            document.getElementById('question-text').innerHTML = fixLatex(question.question);
+
+            const graphContainer = document.getElementById('graph-container');
+            graphContainer.innerHTML = question.graph
+                ? `<div class="graph"><img src="${question.graph}" alt="Graph" style="width:100%;"></div>`
+                : '';
+
+            const answersContainer = document.getElementById('answers');
+
+            if (question.type === 'True') {
+                answersContainer.innerHTML = `
+                    <input
+                        type="text"
+                        id="written-answer"
+                        class="written-answer-input"
+                        value="${answers[index] || ''}"
+                        maxlength="6"
+                        inputmode="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                `;
+
+                const writtenInput = document.getElementById('written-answer');
+                if (writtenInput) {
+                    writtenInput.addEventListener('input', function () {
+                        let value = this.value;
+                        if (value.length > 6) {
+                            value = value.slice(0, 6);
+                        }
+                        this.value = value;
+                        updateWrittenAnswer(value);
+                    });
+
+                    writtenInput.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            updateWrittenAnswer(this.value);
+                            nextQuestion();
+                        }
+                    });
+                }
+            } else {
+                answersContainer.innerHTML = buildMultipleChoice(question, index);
+
+                answersContainer.querySelectorAll('.choice-input').forEach((input) => {
+                    input.addEventListener('change', (event) => {
+                        answers[currentQuestionIndex] = event.target.value;
+                        saveProgress();
+                        updateAnsweredStatus();
+                    });
+                });
+
+                answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (!eliminateOptions) return;
+
+                        const letter = button.dataset.letter;
+                        eliminate(letter, currentQuestionIndex);
+                    });
+                });
+            }
+
+            renderQuestionMath();
+            updateNavigationButtons();
+            updateAnsweredStatus();
+            saveProgress();
+        }
+
+        function updateNavigationButtons() {
+            const backButton = document.getElementById('backButton');
+            const nextButton = document.getElementById('nextButton');
+            const finishButton = document.getElementById('finishButton');
+
+            if (questions.length <= 1) {
+                backButton.style.display = 'none';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
+                return;
+            }
+
+            if (currentQuestionIndex === 0) {
+                backButton.style.display = 'none';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
+            } else if (currentQuestionIndex === questions.length - 1) {
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'none';
+                finishButton.style.display = 'inline-block';
+            } else {
+                backButton.style.display = 'inline-block';
+                nextButton.style.display = 'inline-block';
+                finishButton.style.display = 'none';
+            }
+        }
+
+        function updateWrittenAnswer(value) {
+            answers[currentQuestionIndex] = value;
+            saveProgress();
+            updateAnsweredStatus();
+        }
+
+        function toggleEliminateMode() {
+            eliminateOptions = !eliminateOptions;
+            const button = document.querySelector('.crossing-options');
+            button.classList.toggle('active-options');
+
+            document.querySelectorAll('.crossing-zone').forEach(el => {
+                el.classList.toggle('active');
+            });
+        }
+
+        function eliminate(choice, index) {
+            const line = document.querySelector(`.${choice}zone`);
+            if (line) line.classList.toggle('active');
+
+            if (eliminatedChoices[index].includes(choice)) {
+                eliminatedChoices[index] = eliminatedChoices[index].filter(c => c !== choice);
+            } else {
+                eliminatedChoices[index].push(choice);
+            }
+
+            saveProgress();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questions.length - 1) {
+                loadQuestion(currentQuestionIndex + 1);
+            }
+        }
+
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                loadQuestion(currentQuestionIndex - 1);
+            }
+        }
+
+        function markForReview() {
+            markedForReview[currentQuestionIndex] = !markedForReview[currentQuestionIndex];
+            updateAnsweredStatus();
+            saveProgress();
+        }
+
+        function updateAnsweredStatus() {
+            const mark = document.querySelector('.bookmark');
+            if (mark) {
+                mark.classList.toggle('filledbook', markedForReview[currentQuestionIndex]);
+            }
+
+            const rectQuestions = document.querySelectorAll('.rect-question');
+            rectQuestions.forEach((rect, index) => {
+                rect.classList.toggle('here', index === currentQuestionIndex);
+                rect.classList.toggle('marked', markedForReview[index]);
+                rect.classList.toggle('answered', !!answers[index]);
+            });
+        }
+
+        function toggleQuestionModal() {
+            const modal = document.getElementById('questionModal');
+            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function closeCalculator() {
+            saveCurrentDesmosState();
+            document.getElementById('calculator-popup').style.display = 'none';
+        }
+
+        function openReference() {
+            document.getElementById('reference-overlay').classList.add('active');
+        }
+
+        function closeReference() {
+            document.getElementById('reference-overlay').classList.remove('active');
+        }
+
+        function openCalculator() {
+            const popup = document.getElementById('calculator-popup');
+            popup.style.display = 'block';
+            keepCalculatorInViewport();
+            if (!calculator) {
+                initDesmos();
+            } else {
+                requestDesmosResize();
+                repairDesmosFocusIfLost(calculatorElement);
+            }
+        }
+
+        function isDesmosFocused() {
+            if (!isCalculatorVisible()) return false;
+            const active = document.activeElement;
+            if (!active) return false;
+            return !!(
+                active.closest('#calculator-popup') ||
+                active.closest('.dcg-container') ||
+                active.closest('[class*="dcg-"]') ||
+                active === document.body ||
+                active === document.documentElement
+            );
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+            timeSpent[currentQuestionIndex] += 1;
+            saveProgress();
+
+            if (timeRemaining <= 0) {
+                finishTest(true);
+            } else {
+                timeRemaining--;
+            }
+        }
+
+        async function finishTest(force = false) {
+            saveCurrentDesmosState();
+            const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
+            if (!confirmed) return;
+
+            // Show loading state
+            const finishButton = document.getElementById('finishButton');
+            const originalText = finishButton.textContent;
+            finishButton.textContent = 'Submitting...';
+            finishButton.disabled = true;
+
+            try {
+                const form = document.getElementById('math-quiz-form');
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const answerData = answers.map((answer, index) => ({
+                    questionID: questions[index] ? questions[index].id : null,
+                    answer: answer,
+                    time_spent: timeSpent[index]
+                }));
+
+                // Try up to 3 times with exponential backoff
+                let attempts = 0;
+                const maxAttempts = 3;
+
+                while (attempts < maxAttempts) {
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify({
+                                answers: answerData,
+                                section: sectionName,
+                                test: testName,
+                                module: moduleName
+                            }),
+                            // Add timeout
+                            signal: AbortSignal.timeout(30000) // 30 second timeout
+                        });
+
+                        if (response.ok) {
+                            clearProgress();
+                            {% if classroom %}
+                                window.location.href = "{% url 'classroom_test' classroom.id test.name %}";
+                            {% else %}
+                                window.location.href = `/sat/practise/${testName}/start`;
+                            {% endif %}
+                            return;
+                        } else {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || `Server error: ${response.status}`);
+                        }
+                    } catch (error) {
+                        attempts++;
+                        if (attempts >= maxAttempts) {
+                            throw error;
+                        }
+                        // Exponential backoff: 1s, 2s, 4s
+                        const delay = Math.pow(2, attempts - 1) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            } catch (error) {
+                console.error('Finish test error:', error);
+                alert(`Failed to submit test: ${error.message}. Please try again or contact support.`);
+            } finally {
+                // Restore button state
+                finishButton.textContent = originalText;
+                finishButton.disabled = false;
+            }
+        }
+
+        document.getElementById('open-reference').addEventListener('click', openReference);
+        document.getElementById('open-calculator').addEventListener('click', openCalculator);
+        initCalculatorResizeControls();
+
+        document.getElementById('reference-overlay').addEventListener('click', function (e) {
+            if (e.target.id === 'reference-overlay') {
+                closeReference();
+            }
+        });
+
+        document.addEventListener('contextmenu', event => {
+            if (isDesmosFocused()) return;
+            event.preventDefault();
+        });
+        document.addEventListener('selectstart', event => {
+            if (isDesmosFocused()) return;
+            event.preventDefault();
+        });
+
+        document.addEventListener('keydown', event => {
+            const target = event.target;
+
+            // Allow Escape to always close overlays, even from Desmos
+            if (event.key === 'Escape') {
+                closeReference();
+                closeCalculator();
+                return;
+            }
+
+            // Let Desmos handle ALL its own keystrokes — must be before any preventDefault
+            if (isDesmosFocused()) {
+                return;
+            }
+
+            const isRadioChoice =
+                target &&
+                target.classList &&
+                target.classList.contains('choice-input');
+                
+            const isTypingField =
+                target &&
+                (
+                    target.tagName === 'TEXTAREA' ||
+                    target.isContentEditable ||
+                    (
+                        target.tagName === 'INPUT' &&
+                        !target.classList.contains('choice-input')
+                    )
+                );
+        
+            if (
+                event.key === 'Enter' &&
+                target &&
+                target.classList &&
+                target.classList.contains('written-answer-input')
+            ) {
+                event.preventDefault();
+                updateWrittenAnswer(target.value);
+                nextQuestion();
+                return;
+            }
+        
+            if (event.ctrlKey && ['u', 's', 'p', 'j', 'i'].includes(event.key.toLowerCase())) {
+                event.preventDefault();
+                return;
+            }
+        
+            if (event.key === 'F12') {
+                event.preventDefault();
+                return;
+            }
+        
+            if (isRadioChoice) {
+                if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+                    event.preventDefault();
+                    prevQuestion();
+                    return;
+                }
+            
+                if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+                    event.preventDefault();
+                    nextQuestion();
+                    return;
+                }
+            }
+        
+            if (isTypingField) {
+                return;
+            }
+        
+            if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+                event.preventDefault();
+                prevQuestion();
+                return;
+            }
+        
+            if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+                event.preventDefault();
+                nextQuestion();
+                return;
+            }
+        });
+
+        window.addEventListener('beforeunload', saveCurrentDesmosState);
+
+        const calculatorPopup = document.getElementById('calculator-popup');
+        if (calculatorPopup) {
+            calculatorPopup.addEventListener('click', () => {
+                window.setTimeout(() => {
+                    ensureDesmosExpressionPanel();
+                    repairDesmosFocusIfLost(lastDesmosPointerTarget);
+                }, 0);
+            });
+        }
+
+        if (calculatorElement) {
+            calculatorElement.addEventListener('pointerdown', (event) => {
+                lastDesmosPointerTarget = event.target;
+            }, true);
+
+            calculatorElement.addEventListener('pointerup', (event) => {
+                lastDesmosPointerTarget = event.target;
+                window.setTimeout(() => repairDesmosFocusIfLost(event.target), 0);
+            }, true);
+        }
+
+        dragElement(
+            document.getElementById('calculator-popup'),
+            document.getElementById('calculator-header')
+        );
+
+        loadProgress();
+        loadQuestion(currentQuestionIndex);
+        setInterval(updateTimer, 1000);
+    </script>
+</body>
+</html>
