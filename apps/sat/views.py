@@ -32,6 +32,11 @@ from django.urls import reverse
 from django.db import close_old_connections
 from django.contrib.auth import authenticate, login, logout
 
+try:
+    from apps.apclasses.models import APExamEvent
+except Exception:  # keeps SAT views import-safe if AP app is unavailable
+    APExamEvent = None
+
 
 def home(request):
 
@@ -1729,11 +1734,11 @@ def enter_secret_code(request):
             request.POST.get(f'code_{i}', '').strip() for i in range(1, 7)
         ]
 
-        code = ''.join(code_digits)
+        code = ''.join(code_digits).upper()
 
         # Validate the code
-        if not code or len(code) != 6 or not code.isdigit():
-            messages.error(request, "Please enter a valid 6-digit code using numbers only.")
+        if not code or len(code) != 6 or not code.isalnum():
+            messages.error(request, "Please enter a valid 6-character code using letters or numbers only.")
         else:
             try:
                 secret_code = SecretCode.objects.get(code=code)
@@ -1754,6 +1759,20 @@ def enter_secret_code(request):
                     return redirect('start_makeup_test', pk=secret_code.makeup_test.name)  # Existing makeup_test redirection
                 return redirect('dashboard')  # Default redirection if no test or makeup_test
             except SecretCode.DoesNotExist:
+                ap_event = None
+                if APExamEvent is not None:
+                    ap_event = APExamEvent.objects.filter(
+                        access_code__iexact=code,
+                        is_public=True,
+                        status='live',
+                    ).order_by('-updated_at').first()
+                if ap_event:
+                    if not ap_event.is_live_now:
+                        messages.error(request, "This AP mock exam is not live now.")
+                        return redirect('enter_secret_code')
+                    request.session[f"ap_event_{ap_event.pk}_secret_ok"] = True
+                    request.session.modified = True
+                    return redirect('apclasses:start_event', slug=ap_event.slug)
                 messages.error(request, "Invalid secret code. Please try again.")
 
     return render(request, 'sat/enter_code.html', {})

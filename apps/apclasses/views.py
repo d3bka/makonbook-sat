@@ -190,16 +190,97 @@ def start_ap_event_view(request, slug):
 
 
 
+def _ap_part_url(attempt, part, q=1):
+    return f"{reverse('apclasses:attempt', args=[attempt.token])}?part={part}&q={q}"
+
+
+def _ap_part_session_key(attempt, part):
+    return f"ap_attempt_{attempt.token}_part_{part}_started_at"
+
+
+def _get_or_start_ap_part_timer(request, attempt, part):
+    key = _ap_part_session_key(attempt, part)
+    started_iso = request.session.get(key)
+    if started_iso:
+        try:
+            return timezone.datetime.fromisoformat(started_iso)
+        except (TypeError, ValueError):
+            pass
+    started_at = timezone.now()
+    request.session[key] = started_at.isoformat()
+    request.session.modified = True
+    return started_at
+
+
+def _duration_for_ap_part(event, exam, part):
+    if part == APMultipleChoiceQuestion.PART_A:
+        return int(getattr(event, "part_a_duration_minutes", None) or getattr(exam, "part_a_duration_minutes", 60) or 60)
+    if part == APMultipleChoiceQuestion.PART_B:
+        return int(getattr(event, "part_b_duration_minutes", None) or getattr(exam, "part_b_duration_minutes", 45) or 45)
+    if part == "frq":
+        return int(getattr(event, "frq_duration_minutes", None) or getattr(exam, "frq_duration_minutes", 30) or 30)
+    return 60
+
+
+def _first_available_ap_part(exam):
+    if exam.questions.filter(part=APMultipleChoiceQuestion.PART_A).exists():
+        return APMultipleChoiceQuestion.PART_A
+    if exam.questions.filter(part=APMultipleChoiceQuestion.PART_B).exists():
+        return APMultipleChoiceQuestion.PART_B
+    if exam.frq_pages.exists():
+        return "frq"
+    return APMultipleChoiceQuestion.PART_A
+
+
+def _next_ap_part_after(exam, part):
+    if part == APMultipleChoiceQuestion.PART_A:
+        if exam.questions.filter(part=APMultipleChoiceQuestion.PART_B).exists():
+            return APMultipleChoiceQuestion.PART_B
+        if exam.frq_pages.exists():
+            return "frq"
+    if part == APMultipleChoiceQuestion.PART_B:
+        if exam.frq_pages.exists():
+            return "frq"
+    return None
+
+
 def ap_attempt_view(request, token):
     attempt = get_object_or_404(APExamAttempt.objects.select_related("event", "event__exam", "student"), token=token)
     if not _attempt_belongs_to_request(request, attempt):
         raise Http404("Attempt not found")
+    if attempt.status == "submitted":
+        return redirect("apclasses:event_result", token=attempt.token)
 
     exam = attempt.event.exam
-    ordered_questions = list(exam.questions.order_by("part", "number", "id"))
-    total_questions = len(ordered_questions)
+    valid_parts = {APMultipleChoiceQuestion.PART_A, APMultipleChoiceQuestion.PART_B, "frq"}
+    requested_part = request.GET.get("part") or request.POST.get("part") or _first_available_ap_part(exam)
+    if requested_part not in valid_parts:
+        requested_part = _first_available_ap_part(exam)
 
-    current_index = request.GET.get("q", "1")
+    # Do not allow empty modules to trap students on a blank page.
+    if requested_part == APMultipleChoiceQuestion.PART_A and not exam.questions.filter(part=APMultipleChoiceQuestion.PART_A).exists():
+        requested_part = _first_available_ap_part(exam)
+    if requested_part == APMultipleChoiceQuestion.PART_B and not exam.questions.filter(part=APMultipleChoiceQuestion.PART_B).exists():
+        requested_part = "frq" if exam.frq_pages.exists() else _first_available_ap_part(exam)
+    if requested_part == "frq" and not exam.frq_pages.exists():
+        fallback = _first_available_ap_part(exam)
+        if fallback == "frq":
+            return redirect("apclasses:submit_attempt", token=attempt.token)
+        requested_part = fallback
+
+    ordered_questions = []
+    frq_pages = []
+    current_question = None
+    current_frq_page = None
+
+    if requested_part == "frq":
+        frq_pages = list(exam.frq_pages.order_by("page_number", "id"))
+        total_questions = len(frq_pages)
+    else:
+        ordered_questions = list(exam.questions.filter(part=requested_part).order_by("number", "id"))
+        total_questions = len(ordered_questions)
+
+    current_index = request.GET.get("q", request.POST.get("q", "1"))
     try:
         current_index = int(current_index)
     except ValueError:
@@ -210,35 +291,78 @@ def ap_attempt_view(request, token):
     if total_questions and current_index > total_questions:
         current_index = total_questions
 
-    current_question = ordered_questions[current_index - 1] if ordered_questions else None
+    if requested_part == "frq":
+        current_frq_page = frq_pages[current_index - 1] if frq_pages else None
+    else:
+        current_question = ordered_questions[current_index - 1] if ordered_questions else None
 
-    if request.method == "POST" and current_question:
-        selected_answer = (request.POST.get(f"question_{current_question.id}") or "").strip()
-        APExamAnswer.objects.update_or_create(
-            attempt=attempt,
-            question=current_question,
-            defaults={"selected_answer": selected_answer},
-        )
-        _recalculate_attempt(attempt)
+    if request.method == "POST":
+        if requested_part == "frq":
+            action = request.POST.get("action")
+            if action == "back":
+                if current_index > 1:
+                    return redirect(_ap_part_url(attempt, "frq", current_index - 1))
+                part_b_total = exam.questions.filter(part=APMultipleChoiceQuestion.PART_B).count()
+                if part_b_total:
+                    return redirect(_ap_part_url(attempt, APMultipleChoiceQuestion.PART_B, part_b_total))
+                part_a_total = exam.questions.filter(part=APMultipleChoiceQuestion.PART_A).count()
+                if part_a_total:
+                    return redirect(_ap_part_url(attempt, APMultipleChoiceQuestion.PART_A, part_a_total))
+                return redirect(_ap_part_url(attempt, "frq", current_index))
+            if action == "next":
+                if current_index < total_questions:
+                    return redirect(_ap_part_url(attempt, "frq", current_index + 1))
+                return redirect("apclasses:submit_attempt", token=attempt.token)
+            if action == "goto":
+                try:
+                    target_index = int(request.POST.get("target_q") or current_index)
+                except ValueError:
+                    target_index = current_index
+                target_index = max(1, min(total_questions, target_index)) if total_questions else 1
+                return redirect(_ap_part_url(attempt, "frq", target_index))
+            if action == "finish":
+                return redirect("apclasses:submit_attempt", token=attempt.token)
+            return redirect(_ap_part_url(attempt, "frq", current_index))
+
+        if current_question:
+            selected_answer = (request.POST.get(f"question_{current_question.id}") or "").strip()
+            APExamAnswer.objects.update_or_create(
+                attempt=attempt,
+                question=current_question,
+                defaults={"selected_answer": selected_answer},
+            )
+            _recalculate_attempt(attempt)
 
         action = request.POST.get("action")
         if action == "back":
-            target_index = max(1, current_index - 1)
-            return redirect(f"{reverse('apclasses:attempt', args=[attempt.token])}?q={target_index}")
+            if current_index > 1:
+                return redirect(_ap_part_url(attempt, requested_part, current_index - 1))
+            if requested_part == APMultipleChoiceQuestion.PART_B:
+                part_a_total = exam.questions.filter(part=APMultipleChoiceQuestion.PART_A).count()
+                if part_a_total:
+                    return redirect(_ap_part_url(attempt, APMultipleChoiceQuestion.PART_A, max(1, part_a_total)))
+            return redirect(_ap_part_url(attempt, requested_part, current_index))
         if action == "next":
-            target_index = min(total_questions, current_index + 1)
-            return redirect(f"{reverse('apclasses:attempt', args=[attempt.token])}?q={target_index}")
+            if current_index < total_questions:
+                return redirect(_ap_part_url(attempt, requested_part, current_index + 1))
+            next_part = _next_ap_part_after(exam, requested_part)
+            if next_part:
+                return redirect(_ap_part_url(attempt, next_part, 1))
+            return redirect("apclasses:submit_attempt", token=attempt.token)
         if action == "goto":
             try:
                 target_index = int(request.POST.get("target_q") or current_index)
             except ValueError:
                 target_index = current_index
             target_index = max(1, min(total_questions, target_index)) if total_questions else 1
-            return redirect(f"{reverse('apclasses:attempt', args=[attempt.token])}?q={target_index}")
+            return redirect(_ap_part_url(attempt, requested_part, target_index))
         if action == "finish":
+            next_part = _next_ap_part_after(exam, requested_part)
+            if next_part:
+                return redirect(_ap_part_url(attempt, next_part, 1))
             return redirect("apclasses:submit_attempt", token=attempt.token)
 
-        return redirect(f"{reverse('apclasses:attempt', args=[attempt.token])}?q={current_index}")
+        return redirect(_ap_part_url(attempt, requested_part, current_index))
 
     selected_answer = ""
     if current_question:
@@ -246,15 +370,36 @@ def ap_attempt_view(request, token):
         if saved and saved.selected_answer:
             selected_answer = saved.selected_answer
 
-    current_part = current_question.get_part_label_short() if current_question else ""
-    section_title = current_part or "AP Section"
-    duration_minutes = exam.part_a_duration_minutes
-    if current_question and getattr(current_question, "part", "") == APMultipleChoiceQuestion.PART_B:
-        duration_minutes = exam.part_b_duration_minutes
-    elapsed_seconds = int((timezone.now() - attempt.started_at).total_seconds()) if attempt.started_at else 0
+    current_part = "FRQ" if requested_part == "frq" else ("Part A" if requested_part == APMultipleChoiceQuestion.PART_A else "Part B")
+    section_title = current_part
+    duration_minutes = _duration_for_ap_part(attempt.event, exam, requested_part)
+    part_started_at = _get_or_start_ap_part_timer(request, attempt, requested_part)
+    elapsed_seconds = int((timezone.now() - part_started_at).total_seconds())
     remaining_seconds = max(0, int(duration_minutes) * 60 - elapsed_seconds)
 
-    frq_pages = exam.frq_pages.order_by("page_number")
+    if remaining_seconds <= 0 and total_questions:
+        next_part = _next_ap_part_after(exam, requested_part)
+        if next_part:
+            return redirect(_ap_part_url(attempt, next_part, 1))
+        return redirect("apclasses:submit_attempt", token=attempt.token)
+
+    answered_ids = set()
+    if requested_part != "frq":
+        answered_ids = set(
+            attempt.answers.filter(question__part=requested_part)
+            .exclude(selected_answer="")
+            .values_list("question_id", flat=True)
+        )
+        question_index_items = [
+            {"number": idx, "id": question.id, "answered": question.id in answered_ids}
+            for idx, question in enumerate(ordered_questions, start=1)
+        ]
+    else:
+        question_index_items = [
+            {"number": idx, "id": f"frq-{page.id}", "answered": False}
+            for idx, page in enumerate(frq_pages, start=1)
+        ]
+
     submissions = attempt.frq_submissions.order_by("page_number")
 
     return render(request, "apclasses/attempt.html", {
@@ -262,19 +407,22 @@ def ap_attempt_view(request, token):
         "event": attempt.event,
         "exam": exam,
         "current_question": current_question,
+        "current_frq_page": current_frq_page,
+        "current_item_id": (current_question.id if current_question else (f"frq-{current_frq_page.id}" if current_frq_page else "none")),
         "selected_answer": selected_answer,
         "current_index": current_index,
         "total_questions": total_questions,
         "question_numbers": range(1, total_questions + 1),
-        "is_first_question": current_index <= 1,
+        "question_index_items": question_index_items,
+        "is_first_question": (current_index <= 1 and requested_part == APMultipleChoiceQuestion.PART_A),
         "is_last_question": current_index >= total_questions if total_questions else True,
         "current_part": current_part,
+        "current_part_key": requested_part,
         "section_title": section_title,
         "remaining_seconds": remaining_seconds,
         "frq_pages": frq_pages,
         "submissions": submissions,
     })
-
 
 def upload_frq_submission_view(request, token):
     attempt = get_object_or_404(APExamAttempt, token=token)

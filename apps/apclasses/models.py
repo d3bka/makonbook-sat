@@ -51,7 +51,7 @@ class APMockExam(models.Model):
 
     part_a_duration_minutes = models.PositiveIntegerField(default=60, help_text="30 MCQ, no Desmos/calculator")
     part_b_duration_minutes = models.PositiveIntegerField(default=45, help_text="15 MCQ, Desmos/calculator allowed")
-    frq_duration_minutes = models.PositiveIntegerField(default=45, help_text="FRQ pages shown on screen; students answer on paper")
+    frq_duration_minutes = models.PositiveIntegerField(default=30, help_text="FRQ pages shown on screen; students answer on paper")
 
     show_score_immediately = models.BooleanField(default=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)

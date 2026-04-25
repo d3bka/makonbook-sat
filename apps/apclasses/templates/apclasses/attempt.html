@@ -4,6 +4,10 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
+{% if current_part_key == "part_b" %}
+<script src="https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"
+        onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
+{% endif %}
 <style>
     :root {
         --sat-purple: #5b21b6;
@@ -136,6 +140,53 @@
         overflow-y: auto;
         padding: 12px 14px 16px 26px;
         box-sizing: border-box;
+    }
+
+    .sat-main.frq-main .question-container {
+        flex: 1 1 100%;
+        border-right: 0;
+        padding: 16px 28px;
+    }
+
+    .sat-main.frq-main .answers-container {
+        display: none;
+    }
+
+    .frq-page-wrap {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+        font-family: Arial, sans-serif;
+        color: var(--sat-ink);
+    }
+
+    .frq-page-title {
+        margin: 0 0 14px;
+        font-size: 24px;
+        font-weight: 800;
+    }
+
+    .frq-page-image {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 0 0 1px rgba(91,33,182,.18);
+    }
+
+    .frq-instructions {
+        margin: 0 0 16px;
+        font-size: 17px;
+        line-height: 1.45;
+    }
+
+    .frq-file-link {
+        display: inline-block;
+        margin-top: 14px;
+        color: var(--sat-purple);
+        font-weight: 800;
     }
 
     .passage-box {
@@ -561,10 +612,37 @@
         background: #fff;
     }
 
+    .question-grid a.answered {
+        background: #ede9fe;
+        border-color: var(--sat-purple-2);
+        box-shadow: inset 0 0 0 2px rgba(91,33,182,.18);
+    }
+
+    .question-grid a.reviewed {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 2px rgba(220,38,38,.18);
+    }
+
     .question-grid a.current {
         background: var(--sat-purple);
         color: #fff;
         border-color: var(--sat-purple);
+    }
+
+    .question-progress.reviewed {
+        border-color: #dc2626;
+
+    #calculator-popup { display: none; position: fixed !important; top: 84px; right: 32px; width: min(560px, calc(100vw - 48px)); height: min(620px, calc(100vh - 120px)); min-width: 360px; min-height: 420px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); border: 1px solid rgba(91, 33, 182, .28); background: #fff; z-index: 2500; box-shadow: 0 22px 70px rgba(17, 24, 39, .28); border-radius: 14px; overflow: hidden; resize: both; font-family: Arial, sans-serif; }
+    #calculator-header { height: 54px; padding: 10px 14px 10px 16px; background: linear-gradient(135deg, var(--sat-purple), var(--sat-purple-2)); color: #fff; cursor: move; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 800; font-size: 18px; box-sizing: border-box; }
+    .desmos-header-actions { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    .desmos-close-btn { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 38px; height: 36px; border-radius: 10px; font-size: 22px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; position: relative; z-index: 2605; pointer-events: auto; }
+    .desmos-close-btn:hover { background: rgba(255,255,255,.28); }
+    #calculator-body { width: 100%; height: calc(100% - 54px); position: relative; background: #fff; }
+    #calculator { width: 100% !important; height: 100% !important; }
+    #calculator-iframe { display: none; width: 100%; height: 100%; border: 0; }
+    #calculator-loading, #calculator-fallback { display: none; padding: 20px; color: #374151; text-align: center; font-family: Arial, sans-serif; }
+    #calculator-resize-handle { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; z-index: 4; background: linear-gradient(135deg, transparent 55%, rgba(91,33,182,.26) 55%); }
+        box-shadow: 0 0 0 3px rgba(220,38,38,.22);
     }
 
     @media (max-width: 1366px) {
@@ -607,28 +685,51 @@
         <h1>{{ section_title|default:"Part A" }}</h1>
         <div class="timer" id="apTimer" data-seconds="{{ remaining_seconds|default:0 }}">--:--</div>
         <div class="header-actions">
+            {% if current_part_key == "part_b" %}
+            <button id="openCalculatorButton" type="button" title="Calculator" style="border:0;background:transparent;color:var(--sat-purple);cursor:pointer;padding:0;display:inline-flex;align-items:center;" aria-label="Open calculator">
+                <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
+            </button>
+            {% endif %}
             <a href="{% url 'global_event_list' %}" class="home-link" title="Home">Home <i class="fa fa-home" aria-hidden="true"></i></a>
         </div>
     </header>
 
-    {% if current_question %}
+    {% if current_question or current_frq_page %}
     <form class="sat-form" id="apAttemptForm" method="post">
         {% csrf_token %}
-        <main class="sat-main">
+        <input type="hidden" name="part" value="{{ current_part_key }}">
+        <input type="hidden" name="q" value="{{ current_index }}">
+        <main class="sat-main {% if current_part_key == 'frq' %}frq-main{% endif %}">
             <div class="question-container scroll-hide">
-                <div class="passage-box latex-content">
-                    {% if current_question.image %}
-                        <img src="{{ current_question.image.url }}" alt="Question {{ current_question.number }}">
-                    {% endif %}
+                {% if current_part_key == "frq" %}
+                    <div class="frq-page-wrap">
+                        <h2 class="frq-page-title">FRQ Page {{ current_index }} of {{ total_questions }}</h2>
+                        {% if current_frq_page.title %}<div class="frq-instructions"><strong>{{ current_frq_page.title }}</strong></div>{% endif %}
+                        {% if current_frq_page.instructions %}<div class="frq-instructions">{{ current_frq_page.instructions|linebreaks }}</div>{% endif %}
+                        {% if current_frq_page.image %}
+                            <img class="frq-page-image" src="{{ current_frq_page.image.url }}" alt="FRQ page {{ current_frq_page.page_number }}">
+                        {% elif current_frq_page.file %}
+                            <a class="frq-file-link" href="{{ current_frq_page.file.url }}" target="_blank" rel="noopener">Open FRQ file</a>
+                        {% else %}
+                            <div class="passage-box">No FRQ image uploaded for this page.</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="passage-box latex-content">
+                        {% if current_question.image %}
+                            <img src="{{ current_question.image.url }}" alt="Question {{ current_question.number }}">
+                        {% endif %}
 
-                    {% if current_question.passage %}
-                        {{ current_question.passage|linebreaks }}
-                    {% else %}
-                        <span class="empty-state">No passage for this question.</span>
-                    {% endif %}
-                </div>
+                        {% if current_question.passage %}
+                            {{ current_question.passage|linebreaks }}
+                        {% else %}
+                            <span class="empty-state">No passage for this question.</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
             </div>
 
+            {% if current_question %}
             <div class="answers-container scroll-hide">
                 <div class="question-title">
                     <div class="question-number">{{ current_question.number }}</div>
@@ -692,6 +793,7 @@
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
         </main>
 
         <footer class="sat-footer">
@@ -705,7 +807,7 @@
 
             <div class="footer-center">
                 <button type="button" class="question-progress nav-button" id="questionProgressButton">
-                    Question {{ current_index }} of {{ total_questions }}
+                    {% if current_part_key == "frq" %}FRQ Page{% else %}Question{% endif %} {{ current_index }} of {{ total_questions }}
                 </button>
             </div>
 
@@ -716,10 +818,28 @@
                 {% if not is_last_question %}
                     <button class="nav-button" type="submit" name="action" value="next">Next</button>
                 {% endif %}
-                <button class="finish-button nav-button" type="submit" name="action" value="finish">Finish Test</button>
+
+                <button class="finish-button nav-button" type="submit" name="action" value="finish">{% if current_part_key == "part_a" %}Start Part B{% elif current_part_key == "part_b" and frq_pages %}Start FRQ{% else %}Finish Test{% endif %}</button>
             </div>
         </footer>
     </form>
+{% if current_part_key == "part_b" %}
+<div id="calculator-popup" aria-hidden="true" style="display:none;position:fixed;top:84px;right:32px;width:min(560px,calc(100vw - 48px));height:min(620px,calc(100vh - 120px));min-width:360px;min-height:420px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);border:1px solid rgba(91,33,182,.28);background:#fff;z-index:2500;box-shadow:0 22px 70px rgba(17,24,39,.28);border-radius:14px;overflow:hidden;resize:both;font-family:Arial,sans-serif;">
+    <div id="calculator-header" style="height:54px;padding:10px 14px 10px 16px;background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;cursor:move;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:800;font-size:18px;box-sizing:border-box;">
+        <span>Desmos Calculator</span>
+        <div class="desmos-header-actions" aria-label="Calculator controls">
+            <button type="button" onclick="closeCalculator()" class="desmos-close-btn" id="closeCalculatorButton" title="Close calculator">✕</button>
+        </div>
+    </div>
+    <div id="calculator-body" style="width:100%;height:calc(100% - 54px);position:relative;background:#fff;">
+        <div id="calculator" style="width:100%;height:100%;"></div>
+        <iframe id="calculator-iframe" title="Desmos Calculator" src="about:blank" allow="fullscreen" style="display:none;width:100%;height:100%;border:0;"></iframe>
+        <div id="calculator-loading" style="display:none;padding:20px;color:#374151;text-align:center;font-family:Arial,sans-serif;"><h3>Loading calculator…</h3></div>
+        <div id="calculator-fallback" style="display:none;padding:20px;color:#374151;text-align:center;font-family:Arial,sans-serif;"><h3>Calculator unavailable</h3><p>Desmos was blocked by the browser or network. Try allowing third-party scripts for desmos.com.</p></div>
+    </div>
+    <div id="calculator-resize-handle" title="Drag to resize calculator" aria-hidden="true"></div>
+</div>
+{% endif %}
     {% else %}
         <main class="sat-main">
             <div class="question-container"><div class="passage-box">No questions available.</div></div>
@@ -730,12 +850,15 @@
 <div class="question-modal" id="questionModal" aria-hidden="true">
     <div class="question-modal-card">
         <div class="question-modal-head">
-            <h2>Questions</h2>
+            <h2>{% if current_part_key == "frq" %}FRQ Pages{% else %}Questions{% endif %}</h2>
             <button type="button" class="question-modal-close" id="questionModalClose" aria-label="Close">×</button>
         </div>
         <div class="question-grid">
-            {% for n in question_numbers %}
-                <a href="?q={{ n }}" data-question-target="{{ n }}" class="{% if n == current_index %}current{% endif %}">{{ n }}</a>
+            {% for item in question_index_items %}
+                <a href="?part={{ current_part_key }}&q={{ item.number }}"
+                   data-question-target="{{ item.number }}"
+                   data-question-id="{{ item.id }}"
+                   class="{% if item.answered %}answered{% endif %} {% if item.number == current_index %}current{% endif %}">{{ item.number }}</a>
             {% endfor %}
         </div>
     </div>
@@ -746,20 +869,38 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const timer = document.getElementById('apTimer');
+    const attemptForm = document.getElementById('apAttemptForm');
     let seconds = Number(timer ? timer.dataset.seconds : 0) || 0;
+
+    let timerSubmitted = false;
+
+    function submitBecauseTimeExpired() {
+        if (timerSubmitted || !attemptForm) return;
+        timerSubmitted = true;
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'finish';
+        attemptForm.appendChild(actionInput);
+        attemptForm.submit();
+    }
 
     function paintTimer() {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         if (timer) timer.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
-        if (seconds > 0) seconds -= 1;
+        if (seconds > 0) {
+            seconds -= 1;
+        } else {
+            submitBecauseTimeExpired();
+        }
     }
 
     paintTimer();
     setInterval(paintTimer, 1000);
 
     const attemptKey = 'ap_attempt_{{ attempt.token }}';
-    const questionKey = attemptKey + '_q_{{ current_question.id|default:"none" }}';
+    const questionKey = attemptKey + '_q_{{ current_item_id|default:"none" }}';
     const markReviewButton = document.getElementById('markReviewButton');
     const crossOutButton = document.getElementById('crossOutButton');
     const eraserButton = document.getElementById('eraserButton');
@@ -767,10 +908,168 @@ document.addEventListener('DOMContentLoaded', function () {
     const questionProgressButton = document.getElementById('questionProgressButton');
     const questionModal = document.getElementById('questionModal');
     const questionModalClose = document.getElementById('questionModalClose');
-    const attemptForm = document.getElementById('apAttemptForm');
     const satContainer = document.querySelector('.sat-container');
     const choiceInputs = Array.from(document.querySelectorAll('.choice-input'));
     const choiceLabels = Array.from(document.querySelectorAll('.choice-container'));
+    const openCalculatorButton = document.getElementById('openCalculatorButton');
+    const closeCalculatorButton = document.getElementById('closeCalculatorButton');
+    const calculatorPopup = document.getElementById('calculator-popup');
+    const calculatorHeader = document.getElementById('calculator-header');
+    const calculatorElement = document.getElementById('calculator');
+    const calculatorIframe = document.getElementById('calculator-iframe');
+    const calculatorLoading = document.getElementById('calculator-loading');
+    const calculatorFallback = document.getElementById('calculator-fallback');
+    let desmosCalculator = null;
+    let desmosInitialized = false;
+    let desmosLoadPromise = null;
+
+    function resizeDesmos() {
+        if (desmosCalculator && typeof desmosCalculator.resize === 'function') {
+            try { desmosCalculator.resize(); } catch (error) {}
+        }
+    }
+
+    function setCalculatorPane(mode) {
+        if (calculatorElement) calculatorElement.style.display = mode === 'api' ? 'block' : 'none';
+        if (calculatorIframe) calculatorIframe.style.display = mode === 'iframe' ? 'block' : 'none';
+        if (calculatorLoading) calculatorLoading.style.display = mode === 'loading' ? 'block' : 'none';
+        if (calculatorFallback) calculatorFallback.style.display = mode === 'fallback' ? 'block' : 'none';
+    }
+
+    function loadDesmosScript() {
+        if (typeof window.Desmos !== 'undefined' && typeof window.Desmos.GraphingCalculator === 'function') {
+            return Promise.resolve(true);
+        }
+        if (desmosLoadPromise) return desmosLoadPromise;
+        desmosLoadPromise = new Promise(function(resolve) {
+            const existing = document.querySelector('script[src*="desmos.com/api/v1.10/calculator.js"]');
+            if (existing) {
+                existing.addEventListener('load', function() { resolve(true); }, { once: true });
+                existing.addEventListener('error', function() { resolve(false); }, { once: true });
+                window.setTimeout(function() {
+                    resolve(typeof window.Desmos !== 'undefined' && typeof window.Desmos.GraphingCalculator === 'function');
+                }, 1200);
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6';
+            script.async = true;
+            script.onerror = function() { console.error('Failed to load Desmos script'); window.desmosLoadError = true; resolve(false); };
+            script.onload = function() { window.desmosLoadError = false; resolve(true); };
+            document.head.appendChild(script);
+        });
+        return desmosLoadPromise;
+    }
+
+    function openDesmosIframeFallback() {
+        if (!calculatorIframe) {
+            setCalculatorPane('fallback');
+            return;
+        }
+        if (calculatorIframe.getAttribute('src') === 'about:blank') {
+            calculatorIframe.src = 'https://www.desmos.com/calculator?embed';
+        }
+        setCalculatorPane('iframe');
+    }
+
+    async function initDesmosCalculator() {
+        if (desmosInitialized) return;
+        setCalculatorPane('loading');
+        const loaded = await loadDesmosScript();
+        if (!loaded || typeof window.Desmos === 'undefined' || typeof window.Desmos.GraphingCalculator !== 'function') {
+            openDesmosIframeFallback();
+            return;
+        }
+        try {
+            setCalculatorPane('api');
+            desmosCalculator = window.Desmos.GraphingCalculator(calculatorElement, { expressions: true, keypad: true });
+            desmosInitialized = true;
+            const savedState = localStorage.getItem(questionKey + '_desmos_state');
+            if (savedState) desmosCalculator.setState(JSON.parse(savedState));
+            resizeDesmos();
+        } catch (error) {
+            openDesmosIframeFallback();
+        }
+    }
+
+    function saveDesmosState() {
+        if (!desmosCalculator || typeof desmosCalculator.getState !== 'function') return;
+        try { localStorage.setItem(questionKey + '_desmos_state', JSON.stringify(desmosCalculator.getState())); } catch (error) {}
+    }
+
+    function openCalculator() {
+        if (!calculatorPopup) return;
+        calculatorPopup.style.display = 'block';
+        calculatorPopup.setAttribute('aria-hidden', 'false');
+        initDesmosCalculator();
+        window.setTimeout(resizeDesmos, 50);
+    }
+
+    function closeCalculator(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+        }
+        saveDesmosState();
+        if (!calculatorPopup) return false;
+        calculatorPopup.style.display = 'none';
+        calculatorPopup.setAttribute('aria-hidden', 'true');
+        return false;
+    }
+    window.closeCalculator = closeCalculator;
+
+    if (openCalculatorButton) openCalculatorButton.addEventListener('click', openCalculator);
+    if (closeCalculatorButton) {
+        ['pointerdown', 'mousedown', 'touchstart'].forEach(function(eventName) {
+            closeCalculatorButton.addEventListener(eventName, function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+            });
+        });
+        closeCalculatorButton.addEventListener('click', closeCalculator);
+    }
+    document.addEventListener('click', function(event) {
+        const target = event.target;
+        if (target && (target.id === 'closeCalculatorButton' || (target.closest && target.closest('#closeCalculatorButton')))) {
+            closeCalculator(event);
+        }
+    }, true);
+
+    if (calculatorHeader && calculatorPopup) {
+        let dragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        calculatorHeader.addEventListener('pointerdown', function (event) {
+            if (event.target && event.target.closest && event.target.closest('button')) return;
+            dragging = true;
+            const rect = calculatorPopup.getBoundingClientRect();
+            dragOffsetX = event.clientX - rect.left;
+            dragOffsetY = event.clientY - rect.top;
+            calculatorHeader.setPointerCapture(event.pointerId);
+        });
+        calculatorHeader.addEventListener('pointermove', function (event) {
+            if (!dragging) return;
+            const maxLeft = window.innerWidth - calculatorPopup.offsetWidth - 12;
+            const maxTop = window.innerHeight - calculatorPopup.offsetHeight - 12;
+            calculatorPopup.style.left = Math.max(12, Math.min(maxLeft, event.clientX - dragOffsetX)) + 'px';
+            calculatorPopup.style.top = Math.max(12, Math.min(maxTop, event.clientY - dragOffsetY)) + 'px';
+            calculatorPopup.style.right = 'auto';
+        });
+        function stopDrag(event) {
+            dragging = false;
+            try { calculatorHeader.releasePointerCapture(event.pointerId); } catch (error) {}
+        }
+        calculatorHeader.addEventListener('pointerup', stopDrag);
+        calculatorHeader.addEventListener('pointercancel', stopDrag);
+    }
+
+    if (attemptForm) attemptForm.addEventListener('submit', saveDesmosState);
+    window.addEventListener('beforeunload', saveDesmosState);
+    if (window.ResizeObserver && calculatorPopup) {
+        new ResizeObserver(resizeDesmos).observe(calculatorPopup);
+    }
 
     let crossOutMode = localStorage.getItem(questionKey + '_cross_mode') === '1';
     let highlightMode = localStorage.getItem(questionKey + '_highlight_mode') === '1';
@@ -811,11 +1110,30 @@ document.addEventListener('DOMContentLoaded', function () {
         applyEliminatedState();
     }
 
+    function keyForQuestion(questionId) {
+        return attemptKey + '_q_' + questionId;
+    }
+
+    function updateQuestionStatuses() {
+        document.querySelectorAll('[data-question-id]').forEach((link) => {
+            const reviewed = localStorage.getItem(keyForQuestion(link.dataset.questionId) + '_review') === '1';
+            link.classList.toggle('reviewed', reviewed);
+        });
+        const currentReviewed = localStorage.getItem(questionKey + '_review') === '1';
+        if (questionProgressButton) questionProgressButton.classList.toggle('reviewed', currentReviewed);
+    }
+
+    function markCurrentAnswered() {
+        const currentLink = document.querySelector('[data-question-id="{{ current_item_id|default:"" }}"]');
+        if (currentLink) currentLink.classList.add('answered');
+    }
+
     function applyToolStates() {
         if (crossOutButton) crossOutButton.classList.toggle('active', crossOutMode);
         if (highlightButton) highlightButton.classList.toggle('active', highlightMode);
         if (satContainer) satContainer.classList.toggle('highlighting-active', highlightMode);
         if (markReviewButton) { const reviewed = localStorage.getItem(questionKey + '_review') === '1'; markReviewButton.classList.toggle('active', reviewed); markReviewButton.setAttribute('aria-pressed', reviewed ? 'true' : 'false'); }
+        updateQuestionStatuses();
     }
 
     if (markReviewButton) {
@@ -837,6 +1155,10 @@ document.addEventListener('DOMContentLoaded', function () {
             applyToolStates();
         });
     }
+
+    choiceInputs.forEach((input) => {
+        input.addEventListener('change', markCurrentAnswered);
+    });
 
     choiceLabels.forEach((label) => {
         label.addEventListener('click', function (event) {
