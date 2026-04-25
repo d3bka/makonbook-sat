@@ -149,6 +149,8 @@ else:
         db_sslmode = os.getenv("DB_SSLMODE", "").strip()
         if db_sslmode:
             db_options["sslmode"] = db_sslmode
+        elif not DEBUG:
+            db_options["sslmode"] = "require"
 
         DATABASES = {
             "default": {
@@ -160,6 +162,7 @@ else:
                 "PORT": os.getenv("DB_PORT"),
                 "CONN_MAX_AGE": 0,
                 "CONN_HEALTH_CHECKS": True,
+                "OPTIONS": db_options,
             }
         }
     else:
