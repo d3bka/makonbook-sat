@@ -1,0 +1,10 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>{{ page_title }}</h2>
+<form method="post" class="admin-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn-admin btn-primary" type="submit">Save</button>
+  <a class="btn-admin btn-secondary" href="{% url 'ap_admin_exam_list' %}">Cancel</a>
+</form>
+{% endblock %}

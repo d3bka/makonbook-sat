@@ -1,0 +1,13 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>{{ attempt.user.username }} — {{ attempt.exam.title }}</h2>
+<div class="admin-card"><p><b>Status:</b> {{ attempt.get_status_display }} | <b>MCQ score:</b> {{ attempt.mcq_score }} | <b>Submitted:</b> {{ attempt.submitted_at|default:'—' }}</p></div>
+<div class="admin-card"><h3>MCQ answers</h3><table class="admin-table"><thead><tr><th>Part</th><th>#</th><th>Selected</th><th>Correct</th></tr></thead><tbody>{% for answer in answers %}<tr><td>{{ answer.question.get_part_display }}</td><td>{{ answer.question.number }}</td><td>{{ answer.selected_answer }}</td><td>{{ answer.question.correct_answer }}</td></tr>{% empty %}<tr><td colspan="4">No MCQ answers.</td></tr>{% endfor %}</tbody></table></div>
+<div class="admin-card"><h3>FRQ answer uploads</h3><table class="admin-table"><tbody>{% for item in submissions %}<tr><td>Page {{ item.page_number }}</td><td><a href="{{ item.file.url }}" target="_blank">Open uploaded answer</a></td><td>{{ item.uploaded_at }}</td></tr>{% empty %}<tr><td>No FRQ uploads.</td></tr>{% endfor %}</tbody></table></div>
+<form method="post" class="admin-card">
+  {% csrf_token %}
+  <div class="form-group"><label>Teacher score</label><input class="form-control" type="number" step="0.01" name="teacher_score" value="{{ attempt.teacher_score|default:'' }}"></div>
+  <div class="form-group"><label>Teacher comment</label><textarea class="form-control" name="teacher_comment" rows="4">{{ attempt.teacher_comment }}</textarea></div>
+  <button class="btn-admin btn-primary" type="submit">Save review</button>
+</form>
+{% endblock %}

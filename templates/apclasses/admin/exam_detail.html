@@ -1,0 +1,24 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>{{ exam.title }}</h2>
+<div class="admin-card">
+  <p><b>Subject:</b> {{ exam.subject }} | <b>Status:</b> {{ exam.get_status_display }} | <b>Date:</b> {{ exam.exam_date|default:'—' }}</p>
+  <p>{{ exam.description|linebreaksbr }}</p>
+  <a class="btn-admin btn-secondary" href="{% url 'ap_admin_exam_edit' exam.id %}">Edit exam</a>
+  <a class="btn-admin btn-primary" href="{% url 'ap_admin_question_add' exam.id %}">Add MCQ</a>
+  <a class="btn-admin btn-success" href="{% url 'ap_admin_frq_add' exam.id %}">Add FRQ page</a>
+</div>
+<div class="stat-cards">
+  <div class="stat-card"><h3>{{ exam.part_a_count }}</h3><p>Part A / target 30</p></div>
+  <div class="stat-card"><h3>{{ exam.part_b_count }}</h3><p>Part B / target 15</p></div>
+  <div class="stat-card"><h3>{{ exam.frq_page_count }}</h3><p>FRQ pages / target 4</p></div>
+  <div class="stat-card"><h3>{{ attempts.count }}</h3><p>Attempts</p></div>
+</div>
+<div class="admin-card"><h3>Part A — no Desmos</h3><table class="admin-table"><tbody>{% for q in part_a_questions %}<tr><td>#{{ q.number }}</td><td>{{ q.prompt|truncatechars:120 }}</td><td>{{ q.correct_answer }}</td></tr>{% empty %}<tr><td>No questions.</td></tr>{% endfor %}</tbody></table></div>
+<div class="admin-card"><h3>Part B — Desmos allowed</h3><table class="admin-table"><tbody>{% for q in part_b_questions %}<tr><td>#{{ q.number }}</td><td>{{ q.prompt|truncatechars:120 }}</td><td>{{ q.correct_answer }}</td></tr>{% empty %}<tr><td>No questions.</td></tr>{% endfor %}</tbody></table></div>
+<div class="admin-card"><h3>FRQ pages</h3><table class="admin-table"><tbody>{% for page in frq_pages %}<tr><td>Page {{ page.page_number }}</td><td>{{ page.title }}</td><td><a href="{{ page.file.url }}" target="_blank">Open</a></td></tr>{% empty %}<tr><td>No FRQ pages uploaded.</td></tr>{% endfor %}</tbody></table></div>
+<div class="admin-card">
+  <h3>Student attempts</h3>
+  <table class="admin-table"><thead><tr><th>Student</th><th>Status</th><th>MCQ score</th><th>FRQ uploads</th><th></th></tr></thead><tbody>{% for attempt in attempts %}<tr><td>{{ attempt.user.username }}</td><td>{{ attempt.get_status_display }}</td><td>{{ attempt.mcq_score }}</td><td>{{ attempt.frq_submissions.count }}</td><td><a class="btn-admin btn-sm btn-primary" href="{% url 'ap_admin_attempt_detail' attempt.id %}">Review</a></td></tr>{% empty %}<tr><td colspan="5">No attempts yet.</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

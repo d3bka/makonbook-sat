@@ -1,0 +1,29 @@
+{% extends 'template.html' %}
+{% block title-main %}AP Classes{% endblock %}
+{% block title %}AP Classes{% endblock %}
+{% block content %}
+<div class="container">
+  {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="row">
+    {% for exam in exams %}
+      <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h4>{{ exam.title }}</h4>
+            <p class="text-muted">{{ exam.subject }}{% if exam.exam_date %} · {{ exam.exam_date }}{% endif %}</p>
+            <p>{{ exam.description|truncatechars:180 }}</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="badge bg-secondary">Part A: {{ exam.part_a_count }}/30</span>
+              <span class="badge bg-primary">Part B: {{ exam.part_b_count }}/15</span>
+              <span class="badge bg-success">FRQ: {{ exam.frq_page_count }} pages</span>
+            </div>
+            <a class="btn btn-primary" href="{% url 'ap_exam_detail' exam.id %}">Open exam</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12"><div class="alert alert-info">No AP exams are available for your account yet.</div></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

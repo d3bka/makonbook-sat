@@ -1,0 +1,42 @@
+{% extends 'template.html' %}
+{% block title-main %}{{ exam.title }} FRQ{% endblock %}
+{% block title %}FRQ{% endblock %}
+{% block content %}
+<div class="container">
+  {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="alert alert-warning">
+    FRQ mode: read the questions on screen. Write your answers on paper. Upload photos/files of your answer sheets below.
+  </div>
+  {% for page in frq_pages %}
+    <div class="card mb-4 shadow-sm">
+      <div class="card-body">
+        <h4>FRQ Page {{ page.page_number }}{% if page.title %}: {{ page.title }}{% endif %}</h4>
+        {% if page.file.url|lower|slice:'-4:' == '.pdf' %}
+          <a class="btn btn-outline-primary" target="_blank" href="{{ page.file.url }}">Open PDF page</a>
+        {% else %}
+          <img src="{{ page.file.url }}" class="img-fluid" alt="FRQ page {{ page.page_number }}">
+        {% endif %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="alert alert-warning">No FRQ pages uploaded yet.</div>
+  {% endfor %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4>Upload handwritten answer photo/file</h4>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary" type="submit">Upload</button>
+      </form>
+    </div>
+  </div>
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4>Your uploaded answer files</h4>
+      <ul>{% for item in submissions %}<li>Page {{ item.page_number }} — <a target="_blank" href="{{ item.file.url }}">open</a></li>{% empty %}<li>No uploads yet.</li>{% endfor %}</ul>
+    </div>
+  </div>
+  <form method="post" action="{% url 'ap_exam_submit' attempt.attempt_id %}">{% csrf_token %}<button class="btn btn-success" type="submit">Submit AP mock exam</button></form>
+</div>
+{% endblock %}

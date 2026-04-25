@@ -1,0 +1,22 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>AP Classes</h2>
+<div class="admin-card">
+  <a class="btn-admin btn-primary" href="{% url 'ap_admin_exam_create' %}">Create AP mock exam</a>
+</div>
+<div class="admin-card">
+  <table class="admin-table">
+    <thead><tr><th>Title</th><th>Subject</th><th>Date</th><th>Status</th><th>Part A</th><th>Part B</th><th>FRQ</th><th></th></tr></thead>
+    <tbody>
+      {% for exam in exams %}
+        <tr>
+          <td>{{ exam.title }}</td><td>{{ exam.subject }}</td><td>{{ exam.exam_date|default:'—' }}</td>
+          <td><span class="badge badge-info">{{ exam.get_status_display }}</span></td>
+          <td>{{ exam.part_a_count }}/30</td><td>{{ exam.part_b_count }}/15</td><td>{{ exam.frq_page_count }} pages</td>
+          <td><a class="btn-admin btn-sm btn-primary" href="{% url 'ap_admin_exam_detail' exam.id %}">Open</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="8">No AP exams yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

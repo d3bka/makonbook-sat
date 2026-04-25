@@ -1,0 +1,11 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>Add question: {{ exam.title }}</h2>
+<div class="alert alert-info">Part A = 30 MCQ without Desmos. Part B = 15 MCQ with Desmos allowed.</div>
+<form method="post" enctype="multipart/form-data" class="admin-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn-admin btn-primary" type="submit">Add question</button>
+  <a class="btn-admin btn-secondary" href="{% url 'ap_admin_exam_detail' exam.id %}">Cancel</a>
+</form>
+{% endblock %}

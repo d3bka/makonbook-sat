@@ -1,0 +1,11 @@
+<div class="question">
+  <h4>#{{ q.number }}</h4>
+  {% if q.image %}<p><img src="{{ q.image.url }}" style="max-width:100%;border-radius:10px;border:1px solid #ddd;"></p>{% endif %}
+  {% if q.passage %}<p>{{ q.passage|linebreaks }}</p>{% endif %}
+  {% if q.question %}<p><b>{{ q.question|linebreaks }}</b></p>{% endif %}
+  <label class="choice"><input type="radio" name="question_{{ q.id }}" value="A" {% if q.selected_answer == "A" %}checked{% endif %}> A. {{ q.a }}</label>
+  <label class="choice"><input type="radio" name="question_{{ q.id }}" value="B" {% if q.selected_answer == "B" %}checked{% endif %}> B. {{ q.b }}</label>
+  <label class="choice"><input type="radio" name="question_{{ q.id }}" value="C" {% if q.selected_answer == "C" %}checked{% endif %}> C. {{ q.c }}</label>
+  <label class="choice"><input type="radio" name="question_{{ q.id }}" value="D" {% if q.selected_answer == "D" %}checked{% endif %}> D. {{ q.d }}</label>
+  {% if q.e %}<label class="choice"><input type="radio" name="question_{{ q.id }}" value="E" {% if q.selected_answer == "E" %}checked{% endif %}> E. {{ q.e }}</label>{% endif %}
+</div>

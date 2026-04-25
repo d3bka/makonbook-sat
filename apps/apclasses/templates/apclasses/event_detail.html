@@ -59,7 +59,9 @@
   </header>
 
   <div class="page-wrap">
-    <a href="{% url 'global_event_list' %}" class="back-link">← Back to Global Events</a>
+    <a href="{% if event.is_global %}{% url 'global_event_list' %}{% else %}{% url 'apclasses:event_list' %}{% endif %}" class="back-link">
+      ← Back to {% if event.is_global %}Global Events{% else %}AP Events{% endif %}
+    </a>
 
     <div class="detail-card">
       <h1>{{ event.title }}</h1>
@@ -82,8 +84,9 @@
         <div class="meta-row"><strong>Start:</strong> {{ event.start_at }}</div>
         <div class="meta-row"><strong>End:</strong> {{ event.end_at }}</div>
       {% endif %}
-      <div class="meta-row"><strong>English duration:</strong> {{ event.english_duration_minutes }} minutes</div>
-      <div class="meta-row"><strong>Math duration:</strong> {{ event.math_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>Part A duration:</strong> {{ event.exam.part_a_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>Part B duration:</strong> {{ event.exam.part_b_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>FRQ duration:</strong> {{ event.exam.frq_duration_minutes }} minutes</div>
       <div class="meta-row"><strong>Status:</strong> {{ event.status|title }}</div>
 
       {% if event.rules %}
@@ -93,28 +96,26 @@
         </div>
       {% endif %}
 
-      {% if existing_attempt and existing_attempt.status == "in_progress" %}
+      {% if existing_attempt and existing_attempt.status == "submitted" %}
         <div class="actions">
-          <a href="{% url 'global_event_attempt' existing_attempt.guest_token %}" class="primary-btn full-width-btn">Resume Attempt</a>
+          <a class="primary-btn full-width-btn" href="{% url 'apclasses:event_result' existing_attempt.token %}">View Result</a>
         </div>
-      {% elif existing_attempt and existing_attempt.status == "submitted" %}
+      {% elif existing_attempt %}
         <div class="actions">
-          <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn full-width-btn">View Result</a>
+          <a class="primary-btn full-width-btn" href="{% url 'apclasses:attempt' existing_attempt.token %}">Resume Attempt</a>
         </div>
       {% else %}
-        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form">
+        <form method="post" class="signin-form">
           {% csrf_token %}
           <div class="form-group">
-            <input type="text" name="access_code" placeholder="Access code" {% if event.access_code %}required{% endif %}>
+            {% if event.requires_secret_code and not secret_unlocked %}<input type="text" name="access_code" placeholder="Access code" autocomplete="off" required>{% endif %}
           </div>
 
           <div class="actions">
-            <button type="submit" class="primary-btn full-width-btn">Start Event</button>
+            {% if not event.is_live_now %}<button type="button" class="primary-btn full-width-btn" disabled>This event is not live now</button>{% elif event.requires_secret_code and not secret_unlocked %}<button type="submit" class="primary-btn full-width-btn">Start Event</button>{% else %}<a class="primary-btn full-width-btn" href="{% url 'apclasses:start_event' event.slug %}">Start Event</a>{% endif %}
           </div>
 
-          {% if event.show_leaderboard %}
-            <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link-inline">View Leaderboard</a>
-          {% endif %}
+          
         </form>
       {% endif %}
     </div>

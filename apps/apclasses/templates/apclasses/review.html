@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Question Review</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+    <style>
+        body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; background: #fff; color: #111; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 28px 32px 18px; }
+        header { display: flex; justify-content: space-between; align-items: center; gap: 20px; border-bottom: 4px dashed #222; padding-bottom: 14px; flex-wrap: wrap; }
+        header h1 { margin: 0; font-size: 34px; line-height: 1.2; }
+        .answer-good { color: #138f23; }
+        .answer-user { color: #7a7a7a; }
+        main { display: flex; gap: 28px; margin-top: 22px; min-height: 560px; }
+        .question-container, .answers-container { flex: 1; }
+        .question-container { padding-right: 28px; border-right: 1px dashed #c9c9c9; }
+        .answers-container { padding-left: 8px; }
+        .question-header { border-bottom: 1px dashed #d2d2d2; padding-bottom: 10px; margin-bottom: 14px; }
+        .question-number { font-size: 26px; font-weight: 700; }
+        .question-text, .question-passage, .review-meta, .review-meta p, .review-meta h3 { font-size: 18px; line-height: 1.55; }
+        .question-passage { white-space: pre-wrap; word-break: break-word; }
+        .question-image, .choice-image { max-width: 100%; border: 1px solid #ddd; border-radius: 8px; margin: 8px 0 14px; }
+        .review-meta { margin-top: 20px; }
+        .review-meta h3 { margin: 14px 0 8px; font-size: 22px; }
+        .review-meta p { margin: 10px 0; }
+        .answers { margin-top: 10px; }
+        .choice-card { border: 1px solid #8d8d8d; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 18px; background: #fff; }
+        .choice-letter { width: 38px; height: 38px; min-width: 38px; border-radius: 50%; border: 1px solid #666; display: inline-flex; justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: #222; background: #fff; }
+        .choice-body { flex: 1; font-size: 18px; line-height: 1.6; }
+        .choice-card.correct, .choice-card.selected-correct { border-color: #1e9b2f; background: #eef9ef; color: #178a21; }
+        .choice-card.correct .choice-letter, .choice-card.selected-correct .choice-letter { border-color: #1e9b2f; color: #178a21; }
+        .choice-card.selected-incorrect { border-color: #d93025; background: #fff1f1; color: #b42318; }
+        .choice-card.selected-incorrect .choice-letter { border-color: #d93025; color: #d93025; }
+        .choice-note { display: inline-block; margin-top: 10px; padding: 5px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; background: rgba(0,0,0,.08); color: inherit; }
+        footer { display: flex; justify-content: center; gap: 18px; border-top: 4px dashed #222; padding-top: 18px; margin-top: 22px; }
+        .nav-button { min-width: 120px; height: 44px; border: none; border-radius: 6px; background: #1677ff; color: #fff; font-size: 18px; cursor: pointer; }
+        .nav-button:hover { background: #0f5fd1; }
+        .katex { font-size: 1.15em; }
+        mjx-container { margin: 4px 0 !important; }
+        @media (max-width: 980px) {
+            .container { padding: 18px 16px; }
+            header h1 { font-size: 28px; }
+            main { flex-direction: column; }
+            .question-container { border-right: none; border-bottom: 1px dashed #c9c9c9; padding-right: 0; padding-bottom: 18px; }
+            .answers-container { padding-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="{% url 'apclasses:event_result' attempt.token %}" style="text-decoration:none; color:black;">
+                <h1>Question Review</h1>
+            </a>
+            <h1 class="answer-good">Answer: {{ correct_answer }}</h1>
+            <h1 class="answer-user">Your Answer: {{ selected_answer }}</h1>
+        </header>
+
+        <main>
+            <div class="question-container">
+                {% if review_question.image %}
+                    <img src="{{ review_question.image.url }}" alt="Question {{ review_question.number }}" class="question-image">
+                {% endif %}
+
+                <div class="question-passage latex-content">
+                    {% if review_question.passage %}{{ review_question.passage|linebreaks }}{% endif %}
+                </div>
+
+                <div class="review-meta">
+                    <h3>Explanation:</h3>
+                    <div class="latex-content">
+                        {% if review_question.explanation %}
+                            {{ review_question.explanation|linebreaks }}
+                        {% else %}
+                            No explanation added yet.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="answers-container">
+                <div class="question-header">
+                    <div class="question-number">Question Number: {{ review_question.number }}</div>
+                </div>
+
+                <div class="question-text latex-content">
+                    {% if review_question.question %}
+                        {{ review_question.question|linebreaks }}
+                    {% endif %}
+                </div>
+
+                <div class="answers">
+                    {% for choice in choices %}
+                        <div class="choice-card {{ choice.state }}">
+                            <div class="choice-letter">{{ choice.letter }}</div>
+                            <div class="choice-body latex-content">
+                                {% if choice.text %}{{ choice.text|linebreaks }}{% endif %}
+                                {% if choice.image %}<img src="{{ choice.image.url }}" alt="Choice {{ choice.letter }}" class="choice-image">{% endif %}
+
+                                {% if choice.state == 'selected-correct' %}
+                                    <span class="choice-note">Your answer · Correct answer</span>
+                                {% elif choice.state == 'correct' %}
+                                    <span class="choice-note">Correct answer</span>
+                                {% elif choice.state == 'selected-incorrect' %}
+                                    <span class="choice-note">Your answer</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            {% if previous_question %}
+                <a href="{% url 'apclasses:question_review' attempt.token previous_question.id %}">
+                    <button type="button" class="nav-button">Back</button>
+                </a>
+            {% else %}
+                <a href="{% url 'apclasses:event_result' attempt.token %}">
+                    <button type="button" class="nav-button">Back</button>
+                </a>
+            {% endif %}
+
+            {% if next_question %}
+                <a href="{% url 'apclasses:question_review' attempt.token next_question.id %}">
+                    <button type="button" class="nav-button">Next</button>
+                </a>
+            {% else %}
+                <a href="{% url 'apclasses:event_result' attempt.token %}">
+                    <button type="button" class="nav-button">Finish</button>
+                </a>
+            {% endif %}
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '\\[', right: '\\]', display: true},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        });
+    </script>
+</body>
+</html>

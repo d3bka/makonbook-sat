@@ -1,0 +1,11 @@
+{% extends 'sat/admin/base_admin.html' %}
+{% block admin_content %}
+<h2>Add FRQ page: {{ exam.title }}</h2>
+<div class="alert alert-warning">Upload screenshots/photos/PDF pages of the FRQ questions. Students will write answers on paper and can upload photos later.</div>
+<form method="post" enctype="multipart/form-data" class="admin-card">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn-admin btn-primary" type="submit">Upload FRQ page</button>
+  <a class="btn-admin btn-secondary" href="{% url 'ap_admin_exam_detail' exam.id %}">Cancel</a>
+</form>
+{% endblock %}

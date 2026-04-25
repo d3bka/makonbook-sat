@@ -313,6 +313,7 @@
             updateAnsweredStatus();
         
             // ✅ KaTeX только там где надо
+            renderMath(passageElem);
             renderMath(questionTextElem);
             renderMath(document.getElementById('answers'));
             paintCurrentAnswer();

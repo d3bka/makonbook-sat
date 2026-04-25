@@ -1,0 +1,42 @@
+{% extends 'template.html' %}
+{% block title-main %}{{ exam.title }}{% endblock %}
+{% block title %}{% if desmos_allowed %}Part B{% else %}Part A{% endif %}{% endblock %}
+{% block content %}
+<div class="container">
+  {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="alert {% if desmos_allowed %}alert-success{% else %}alert-danger{% endif %}">
+    {% if desmos_allowed %}
+      Part B: Desmos/calculator is allowed.
+    {% else %}
+      Part A: Desmos/calculator is NOT allowed.
+    {% endif %}
+  </div>
+  {% if desmos_allowed %}
+    <div class="mb-3"><a class="btn btn-outline-primary" target="_blank" href="https://www.desmos.com/calculator">Open Desmos</a></div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {% for question in questions %}
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h5>Question {{ question.number }}</h5>
+          {% if question.prompt %}<p>{{ question.prompt|linebreaksbr }}</p>{% endif %}
+          {% if question.image %}<img src="{{ question.image.url }}" class="img-fluid mb-3" alt="Question image">{% endif %}
+          {% for letter, text in question.choices %}
+            {% if text %}
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="radio" name="question_{{ question.id }}" id="q{{ question.id }}_{{ letter }}" value="{{ letter }}" {% if question.saved_answer == letter %}checked{% endif %}>
+                <label class="form-check-label" for="q{{ question.id }}_{{ letter }}"><b>{{ letter }}.</b> {{ text|linebreaksbr }}</label>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="alert alert-warning">No questions loaded for this part yet.</div>
+    {% endfor %}
+    <button class="btn btn-primary" type="submit">Save and continue</button>
+    {% if part == 'part_b' %}<a class="btn btn-secondary" href="{% url 'ap_exam_frq' attempt.attempt_id %}">Go to FRQ</a>{% endif %}
+  </form>
+</div>
+{% endblock %}

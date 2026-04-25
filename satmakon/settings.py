@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 
     "apps.base.apps.BaseConfig",
     "apps.sat.apps.SatConfig",
+    "apps.apclasses.apps.ApClassesConfig",
     "apps.telegram_bot",
 ]
 

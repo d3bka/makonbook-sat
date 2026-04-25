@@ -1,0 +1,326 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results</title>
+    <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+    <link rel="stylesheet" href="{% static 'assets/vendor/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/vendor/fontawesome-free/css/all.min.css' %}">
+    <style>
+      :root { --themeColor: #5b21b6; }
+      body {
+        margin: 0;
+        background: #f6f3ff;
+        color: #19124b;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .topbar {
+        background: linear-gradient(90deg, #4c1d95 0%, #7c3aed 55%, #9f67ff 100%);
+        padding: 14px 0;
+      }
+      .topbar-inner {
+        width: 92%;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .brand img {
+        height: 56px;
+        display: block;
+      }
+      .top-links {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .top-links a {
+        color: #fff;
+        text-decoration: none;
+      }
+      .hero {
+        background: #ece4ff;
+        text-align: center;
+        padding: 56px 20px 62px;
+        border-bottom: 1px solid #e2d8ff;
+      }
+      .hero h1 {
+        margin: 0;
+        color: var(--themeColor);
+        font-size: 68px;
+        font-weight: 800;
+      }
+      .breadcrumbs-wrap {
+        background: #fff;
+        border-bottom: 1px solid #ebe6ff;
+      }
+      .breadcrumbs-inner {
+        width: 92%;
+        margin: 0 auto;
+        padding: 18px 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .breadcrumbs-inner a {
+        color: #6d28d9;
+        text-decoration: none;
+      }
+
+      .page {
+        width: 92%;
+        margin: 34px auto 48px;
+      }
+      .sat {
+        align-items: flex-start;
+      }
+      .sat_left {
+        display: flex;
+        color: var(--themeColor);
+        text-decoration: none;
+      }
+      .sat_left > p:first-child {
+        font-size: 160px;
+        font-weight: 700;
+        line-height: 150px;
+        margin-bottom: 0;
+      }
+      .sat_left > span {
+        font-size: 52px;
+        font-weight: 700;
+        margin-top: 8px;
+        margin-left: 4px;
+      }
+      .sat_right {
+        padding-top: 18px;
+      }
+      .sat_right ul {
+        padding-left: 0;
+        margin: 0;
+      }
+      .sat_right ul li {
+        font-size: 22px;
+        line-height: 1.6;
+        list-style: none;
+      }
+      .button-container {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 98px;
+        height: 98px;
+        background: var(--themeColor);
+        color: #fff;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 700;
+        box-shadow: 0 6px 18px rgba(76, 29, 149, 0.18);
+      }
+      .button-container a {
+        text-decoration: none;
+        color: inherit;
+        line-height: 1.15;
+      }
+
+      .total .title {
+        font-size: 58px;
+        color: #3554d1;
+        margin-bottom: 18px;
+      }
+      .total_above .score {
+        width: auto;
+        font-size: 72px;
+        color: #222;
+        font-weight: 700;
+        line-height: 78px;
+        height: 78px;
+        margin-right: 1rem;
+        margin-bottom: 0;
+      }
+      .total .score + p {
+        width: auto;
+        margin-top: 22px;
+        height: 44px;
+        line-height: 44px;
+        padding-left: 20px;
+        border-left: 4px solid #ccc;
+        font-size: 20px;
+        margin-bottom: 0;
+      }
+      .restart-btn-container {
+        margin-top: 18px;
+      }
+      .result-note {
+        color: #444;
+        margin-top: 12px;
+        font-size: 16px;
+      }
+      .rect-question {
+        font-size: smaller;
+        margin: 10px 10px 0 0;
+        text-align: center;
+        border: 1px solid #000;
+        width: 28px;
+        height: 28px;
+        line-height: 26px;
+        display: inline-block;
+      }
+      .rect-question a {
+        color: white;
+        text-decoration: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .incorrect { background-color: red; color: white; }
+      .correct { background-color: green; color: white; }
+      .neutral { background-color: #9ca3af; color: white; }
+      .module-note {
+        margin-top: 18px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: #f6f1ff;
+        color: #26124d;
+        font-size: 18px;
+      }
+
+      @media (max-width: 900px) {
+        .hero h1 { font-size: 48px; }
+        .top-links { gap: 16px; font-size: 16px; }
+        .sat_left > p:first-child { font-size: 110px; line-height: 104px; }
+        .sat_left > span { font-size: 38px; }
+        .total .title { font-size: 40px; }
+        .total_above .score { font-size: 56px; line-height: 60px; height: 60px; }
+      }
+    </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/">
+        <img src="{% static 'assets/img/icons/SAT MAKON logo 3.png' %}" alt="SAT Makon">
+      </a>
+      <div class="top-links">
+        <a href="/">Home</a>
+        {% if display_name %}
+          <span>{{ display_name }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Results</h1>
+  </section>
+
+  <div class="breadcrumbs-wrap">
+    <div class="breadcrumbs-inner">
+      <a href="/">Home</a>
+      <span style="margin:0 10px; color:#999;">/</span>
+      <span style="color:#5b4b83;">Results</span>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="row mx-auto sat">
+      <a href="{% url 'apclasses:event_detail' event.slug %}" class="col-md-4 sat_left print_div">
+        <p>AP</p><span>®</span>
+      </a>
+      <div class="col-md-4 sat_right row">
+        <div class="ml-3">
+          <ul>
+            <li><b>Name: </b><span>{{ display_name }}</span></li>
+            <li><b>Total Score: </b><b style="color: var(--themeColor);">{{ total_score_value }}</b></li>
+            <li><b>Test Name: </b><span>{{ event.title }}</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-1" style="padding-top: 30px; padding-right: 30px;">
+        <div class="button-container">
+          <a href="{% url 'apclasses:coming_soon' %}">
+            <i class="fa fa-vcard" style="font-size: 42px;"></i>Certificate
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mx-auto total" style="margin-top: 18px;">
+      <div class="col-md-6 col-sm-12 total_score print_div">
+        <h4 class="title">Your Total Score</h4>
+        <div class="row total_above">
+          <p class="col-xs-8 score">{{ total_score_value }}</p>
+          <p class="col-xs-4 t_score">0 to 100</p>
+        </div>
+        <div class="restart-btn-container">
+          <a href="{% url 'apclasses:event_detail' event.slug %}" class="btn btn-danger btn-sm">
+            <i class="fa fa-refresh"></i> Retake Event
+          </a>
+        </div>
+        <p class="result-note">Raw Score: {{ attempt.raw_score }} · Answered: {{ attempt.answered_questions }}/{{ attempt.total_questions }}</p>
+      </div>
+    </div>
+
+    <hr style="margin-top: 24px; margin-bottom: 30px;">
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="col-md-10 col-sm-12 total_score print_div">
+          <h4 class="title" style="font-size: 34px;">Your Part A Score</h4>
+          <div class="row total_above">
+            <p class="col-xs-8 score" style="font-size: 56px;">{{ part_a.percent }}</p>
+            <p class="col-xs-4 t_score">{{ part_a.correct }} to {{ part_a.total }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="col-md-10 col-sm-12 total_score print_div">
+          <h4 class="title" style="font-size: 34px;">Your Part B Score</h4>
+          <div class="row total_above">
+            <p class="col-xs-8 score" style="font-size: 56px;">{{ part_b.percent }}</p>
+            <p class="col-xs-4 t_score">{{ part_b.correct }} to {{ part_b.total }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr style="margin-top: 10px; margin-bottom: 30px;">
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Part A</h5>
+        <div class="navigation" style="display:flex; flex-wrap:wrap;">
+          {% for q in part_a.questions %}
+            <div class="rect-question {{ q.status }}">
+              <a href="{% url 'apclasses:question_review' attempt.token q.id %}">{{ q.number }}</a>
+            </div>
+          {% empty %}
+            <div>No Part A questions.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <h5>Part B</h5>
+        <div class="navigation" style="display:flex; flex-wrap:wrap;">
+          {% for q in part_b.questions %}
+            <div class="rect-question {{ q.status }}">
+              <a href="{% url 'apclasses:question_review' attempt.token q.id %}">{{ q.number }}</a>
+            </div>
+          {% empty %}
+            <div>No Part B questions.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="module-note">
+      <b>FRQ:</b> Coming soon. Teacher will review handwritten FRQ answers manually.
+    </div>
+  </div>
+</body>
+</html>

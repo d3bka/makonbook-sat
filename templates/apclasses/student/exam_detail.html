@@ -1,0 +1,27 @@
+{% extends 'template.html' %}
+{% block title-main %}{{ exam.title }}{% endblock %}
+{% block title %}AP Exam{% endblock %}
+{% block content %}
+<div class="container">
+  {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h3>{{ exam.title }}</h3>
+      <p class="text-muted">{{ exam.subject }}{% if exam.exam_date %} · {{ exam.exam_date }}{% endif %}</p>
+      <p>{{ exam.description|linebreaksbr }}</p>
+      <hr>
+      <ol>
+        <li><b>Part A:</b> 30 math MCQ. Desmos/calculator is not allowed.</li>
+        <li><b>Part B:</b> 15 math MCQ. Desmos/calculator is allowed.</li>
+        <li><b>FRQ:</b> questions are shown on screen; write answers on paper and upload answer photos/files.</li>
+      </ol>
+      {% if attempt %}
+        <p><b>Status:</b> {{ attempt.get_status_display }} | <b>MCQ score:</b> {{ attempt.mcq_score }}</p>
+        <a class="btn btn-primary" href="{% url 'ap_exam_part' attempt.attempt_id 'part_a' %}">Continue / Review</a>
+      {% else %}
+        <a class="btn btn-primary" href="{% url 'ap_exam_start' exam.id %}">Start mock exam</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse
+from itertools import chain
 
 from .models import (
     GlobalEvent,
@@ -19,6 +20,12 @@ from .models import (
 
 # Используем существующую проверку written math из обычного SAT flow
 from .views import *
+from .text_formatting import format_english_questions_for_display
+
+try:
+    from apps.apclasses.models import APExamEvent
+except Exception:  # pragma: no cover
+    APExamEvent = None
 
 
 # =========================
@@ -257,7 +264,7 @@ def guest_entry_view(request):
 
         request.session["guest_mode"] = True
         request.session["guest_id"] = str(guest.guest_id)
-        request.session["guest_name"] = guest.display_name or guest.full_name
+        request.session["guest_name"] = guest.full_name
 
         return redirect("global_event_list")
 
@@ -265,21 +272,80 @@ def guest_entry_view(request):
 
 
 def guest_logout_view(request):
-    request.session.pop("guest_mode", None)
-    request.session.pop("guest_id", None)
-    request.session.pop("guest_name", None)
+    request.session.flush()
     return redirect("guest_entry")
+
+
+def _serialize_sat_global_event(event):
+    return {
+        "source": "sat",
+        "source_label": "SAT",
+        "title": event.title,
+        "slug": event.slug,
+        "description": event.description,
+        "status": event.status,
+        "always_live": event.always_live,
+        "start_at": event.start_at,
+        "end_at": event.end_at,
+        "english_duration_minutes": event.english_duration_minutes,
+        "math_duration_minutes": event.math_duration_minutes,
+        "detail_url": reverse("global_event_detail", kwargs={"slug": event.slug}),
+    }
+
+
+def _serialize_ap_global_event(request, event):
+    exam = event.exam
+
+    if getattr(event, "requires_secret_code", False):
+        detail_url = reverse("apclasses:event_detail", kwargs={"slug": event.slug})
+    else:
+        detail_url = reverse("apclasses:start_event", kwargs={"slug": event.slug})
+
+    return {
+        "source": "ap",
+        "source_label": "AP",
+        "title": event.title,
+        "slug": event.slug,
+        "description": event.description or getattr(exam, "description", ""),
+        "status": event.status,
+        "always_live": event.always_live,
+        "start_at": event.start_at,
+        "end_at": event.end_at,
+        "english_duration_minutes": getattr(exam, "part_a_duration_minutes", None),
+        "math_duration_minutes": getattr(exam, "part_b_duration_minutes", None),
+        "frq_duration_minutes": getattr(exam, "frq_duration_minutes", None),
+        "detail_url": detail_url,
+    }
 
 
 @guest_required
 def global_event_list_view(request):
     now = timezone.now()
 
-    events = GlobalEvent.objects.filter(
-        is_public=True
-    ).filter(
-        Q(status="live") | Q(status="scheduled")
-    ).order_by("start_at")
+    sat_events = [
+        _serialize_sat_global_event(event)
+        for event in GlobalEvent.objects.filter(is_public=True).filter(
+            Q(status="live") | Q(status="scheduled")
+        )
+    ]
+
+    ap_events = []
+    if APExamEvent is not None:
+        ap_queryset = (
+            APExamEvent.objects.select_related("exam", "exam__ap_class")
+            .filter(is_public=True, is_global=True)
+            .filter(Q(status="live") | Q(status="scheduled"))
+        )
+        ap_events = [_serialize_ap_global_event(request, event) for event in ap_queryset]
+
+    events = sorted(
+        chain(sat_events, ap_events),
+        key=lambda event: (
+            0 if event.get("always_live") else 1,
+            event.get("start_at") or now,
+            event.get("title") or "",
+        ),
+    )
 
     return render(request, "sat/guest/event_list.html", {
         "events": events,
@@ -430,6 +496,8 @@ def global_event_attempt_view(request, guest_token):
             test=test,
             module=module_db
         ).order_by("number")
+
+        questions = format_english_questions_for_display(questions)
 
         return render(request, "sat/guest/attempt_eng.html", {
             "attempt": attempt,

@@ -7,13 +7,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('base', '0001_initial'),
+        ("base", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='emailverification',
-            name='expires_at',
-            field=models.DateTimeField(default=datetime.datetime(2025, 7, 30, 16, 15, 16, 714513, tzinfo=datetime.timezone.utc)),
+            model_name="emailverification",
+            name="expires_at",
+            field=models.DateTimeField(
+                default=datetime.datetime(
+                    2025, 7, 30, 16, 15, 16, 714513, tzinfo=datetime.timezone.utc
+                )
+            ),
         ),
     ]

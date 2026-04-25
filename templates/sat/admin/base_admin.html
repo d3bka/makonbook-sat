@@ -246,6 +246,9 @@
       <a href="{% url 'admin_mocks' %}" class="{% if active_page == 'mocks' %}active{% endif %}">
         <i class="fa fa-magic"></i> Mocks
       </a>
+      <a href="{% url 'ap_admin_exam_list' %}" class="{% if active_page == 'apclasses' %}active{% endif %}">
+        <i class="fa fa-graduation-cap"></i> AP Classes
+      </a>
     </nav>
     <div class="admin-main">
       {% if messages %}
