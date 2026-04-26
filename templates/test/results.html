@@ -222,9 +222,12 @@
       </div>
       {% if not is_teacher_review %}
       <div class="restart-btn-container">
-        <a href="{% url 'restart' pk=stats.test %}" class="btn btn-danger btn-sm">
-          <i class="fa fa-refresh"></i> Retake Full Test
-        </a>
+        <form method="post" action="{% url 'restart' pk=stats.test %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger btn-sm">
+            <i class="fa fa-refresh"></i> Retake Full Test
+          </button>
+        </form>
       </div>
       {% endif %}
       {% else %}
@@ -255,9 +258,12 @@
         </div>
         {% if not is_teacher_review %}
         <div class="restart-btn-container">
-          <a href="{% url 'restart_section' pk=stats.test section='english' %}" class="btn btn-warning btn-sm">
-            <i class="fa fa-refresh"></i> Retake English Section
-          </a>
+          <form method="post" action="{% url 'restart_section' pk=stats.test section='english' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning btn-sm">
+              <i class="fa fa-refresh"></i> Retake English Section
+            </button>
+          </form>
         </div>
         {% endif %}
       </div>
@@ -284,9 +290,12 @@
         </div>
         {% if not is_teacher_review %}
         <div class="restart-btn-container">
-          <a href="{% url 'restart_section' pk=stats.test section='math' %}" class="btn btn-warning btn-sm">
-            <i class="fa fa-refresh"></i> Retake Math Section
-          </a>
+          <form method="post" action="{% url 'restart_section' pk=stats.test section='math' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning btn-sm">
+              <i class="fa fa-refresh"></i> Retake Math Section
+            </button>
+          </form>
         </div>
         {% endif %}
       </div>

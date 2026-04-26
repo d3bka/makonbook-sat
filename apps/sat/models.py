@@ -471,20 +471,10 @@ class TestStage(BaseModel):
             test=self.test,
             user=self.user,
             score__isnull=False,
+            attempt_id__isnull=False,
         ).order_by('-created_at').first()
 
-        if latest_review and latest_review.attempt_id:
-            return latest_review.attempt_id
-
-        latest_module = TestModule.objects.filter(
-            test=self.test,
-            user=self.user,
-        ).order_by('-created').first()
-
-        if latest_module and latest_module.attempt_id:
-            return latest_module.attempt_id
-
-        return self.attempt_id
+        return latest_review.attempt_id if latest_review else None
 
     def _copy_modules_to_attempt(self, *, from_attempt_id, to_attempt_id, exclude_section=None):
         if not from_attempt_id:
@@ -577,6 +567,9 @@ class TestStage(BaseModel):
             return False
 
         previous_attempt_id = self._latest_completed_attempt_id()
+        if not previous_attempt_id:
+            return False
+
         new_attempt_id = uuid.uuid4()
         self._copy_modules_to_attempt(
             from_attempt_id=previous_attempt_id,
@@ -859,6 +852,8 @@ class ClassroomMembership(models.Model):
         ('pending', 'Pending'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
+        ('left', 'Left'),
+        ('removed', 'Removed'),
     )
 
     classroom = models.ForeignKey(
@@ -875,6 +870,8 @@ class ClassroomMembership(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     requested_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(blank=True, null=True)
+    left_at = models.DateTimeField(blank=True, null=True)
+    removed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         unique_together = ('classroom', 'user')

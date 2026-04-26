@@ -292,19 +292,21 @@
 
           <div class="student-actions">
             {% if membership.status == 'pending' %}
-              <a href="{% url 'approve_join_request' classroom.id membership.id %}" class="btn-main">
-                Approve
-              </a>
-              <a href="{% url 'reject_join_request' classroom.id membership.id %}" class="btn-main btn-danger">
-                Reject
-              </a>
+              <form method="post" action="{% url 'approve_join_request' classroom.id membership.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-main">Approve</button>
+              </form>
+              <form method="post" action="{% url 'reject_join_request' classroom.id membership.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-main btn-danger">Reject</button>
+              </form>
             {% endif %}
 
             {% if membership.status == 'approved' %}
-            
-            <a href="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}" class="btn-main btn-danger">
-              Remove
-            </a>
+              <form method="post" action="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-main btn-danger">Remove</button>
+              </form>
             {% endif %}
           </div>
         </div>

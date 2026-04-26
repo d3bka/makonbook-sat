@@ -46,6 +46,7 @@ urlpatterns = [
     path('join/', views.submit_classroom_join_request, name='submit_classroom_join_request'),
     path('join/status/', views.classroom_join_status, name='classroom_join_status'),
     path('classroom/<int:classroom_id>/', views.student_classroom_home, name='student_classroom_home'),
+    path('classroom/<int:classroom_id>/leave/', views.leave_classroom, name='leave_classroom'),
 
     path('teacher/classrooms/<int:classroom_id>/requests/', views.classroom_join_requests, name='classroom_join_requests'),
     path('teacher/classrooms/<int:classroom_id>/requests/<int:membership_id>/approve/', views.approve_join_request, name='approve_join_request'),

@@ -174,12 +174,13 @@ class APExamEventAdmin(admin.ModelAdmin):
         "end_at",
     )
     search_fields = ("title", "slug", "exam__title")
-    list_filter = ("status", "is_public", "is_global", "always_live", "show_score_immediately", "show_leaderboard")
+    list_filter = ("status", "is_public", "is_global", "always_live", "show_score_immediately", "show_leaderboard", "classrooms")
     autocomplete_fields = ("exam",)
+    filter_horizontal = ("classrooms",)
     list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public", "is_global", "always_live")
     fieldsets = (
         ("Event", {"fields": ("title", "slug", "exam", "description", "rules")}),
-        ("Access", {"fields": ("access_code", "is_public", "is_global")}),
+        ("Access", {"fields": ("access_code", "is_public", "is_global", "classrooms")}),
         ("Availability", {"fields": ("status", "always_live", "start_at", "end_at")}),
         ("Options", {"fields": ("allow_resume", "show_score_immediately", "show_leaderboard")}),
     )

@@ -192,7 +192,14 @@ class APExamEvent(models.Model):
     is_public = models.BooleanField(default=True, help_text="Show this event in the AP Classes page.")
     is_global = models.BooleanField(
         default=False,
-        help_text="Make this AP mock available to all students. If off, access can be limited by the exam groups.",
+        help_text="Make this AP mock available to all students. If off, access can be limited by classrooms or exam groups.",
+    )
+    classrooms = models.ManyToManyField(
+        'sat.Classroom',
+        blank=True,
+        related_name='ap_exam_events',
+        db_constraint=False,
+        help_text="Classrooms that can access this AP mock when it is not global.",
     )
     status = models.CharField(max_length=20, choices=EVENT_STATUS_CHOICES, default="draft")
 
@@ -245,11 +252,24 @@ class APExamEvent(models.Model):
             return False
         if user.is_staff or user.is_superuser:
             return True
-        exam_group_ids = set(self.exam.groups.values_list("id", flat=True))
-        if not exam_group_ids:
+        has_classroom_restrictions = self.classrooms.exists()
+        if self.classrooms.filter(teacher=user).exists():
             return True
-        user_group_ids = set(user.groups.values_list("id", flat=True))
-        return bool(exam_group_ids.intersection(user_group_ids))
+        if self.classrooms.filter(
+            memberships__user=user,
+            memberships__role='student',
+            memberships__status='approved',
+            is_active=True,
+        ).exists():
+            return True
+
+        exam_group_ids = set(self.exam.groups.values_list("id", flat=True))
+        if exam_group_ids:
+            user_group_ids = set(user.groups.values_list("id", flat=True))
+            return bool(exam_group_ids.intersection(user_group_ids))
+
+        return not has_classroom_restrictions
+
     def __str__(self):
         return self.title
 

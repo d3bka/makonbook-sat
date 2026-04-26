@@ -1024,23 +1024,34 @@ def start_Practise(request, pk):
             status=403
         )
 
-    # Check if test is already completed
+    current_stage = TestStage.objects.filter(
+        user=user,
+        test=test
+    ).order_by('-created_at').first()
+
+    if current_stage:
+        current_review = TestReview.objects.filter(
+            user=user,
+            test=test,
+            attempt_id=current_stage.attempt_id,
+            score__isnull=False
+        ).order_by('-created_at').first()
+
+        if current_review:
+            results_url = reverse('results', kwargs={'test': test.name})
+            return redirect(f"{results_url}?review_key={current_review.key}")
+
+        return redirect('test', pk=test.name)
+
     completed_review = TestReview.objects.filter(
         user=user,
         test=test,
         score__isnull=False
     ).order_by('-created_at').first()
-    
+
     if completed_review:
-        return redirect('results', test=test.name)
-
-    test_stage = TestStage.objects.filter(
-        user=user,
-        test=test
-    )
-
-    if test_stage.exists():
-        return redirect('test', pk=test.name)
+        results_url = reverse('results', kwargs={'test': test.name})
+        return redirect(f"{results_url}?review_key={completed_review.key}")
 
     # Check if there's an in-progress attempt by checking for incomplete modules
     has_active_attempt = TestModule.objects.filter(
@@ -2299,7 +2310,7 @@ def teacher_classroom_dashboard(request, classroom_id):
     students = ClassroomMembership.objects.filter(
         classroom=classroom,
         role='student'
-    ).select_related('user').order_by('-requested_at')
+    ).exclude(status__in=['left', 'removed']).select_related('user').order_by('-requested_at')
 
     join_code = getattr(classroom, 'join_code', None)
 
@@ -2339,20 +2350,32 @@ def generate_classroom_join_code(request, classroom_id):
     messages.success(request, f"New join code generated for {classroom.name}.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-def get_user_approved_student_membership(user):
+def get_user_approved_student_memberships(user):
     return ClassroomMembership.objects.filter(
         user=user,
         role='student',
-        status='approved'
-    ).select_related('classroom').first()
+        status='approved',
+        classroom__is_active=True,
+    ).select_related('classroom').prefetch_related('section_access')
 
 
-def get_user_pending_student_membership(user):
+def get_user_approved_student_membership(user):
+    # Backward-compatible helper for older call sites. New classroom UX should
+    # use get_user_approved_student_memberships() and show all classrooms.
+    return get_user_approved_student_memberships(user).first()
+
+
+def get_user_pending_student_memberships(user):
     return ClassroomMembership.objects.filter(
         user=user,
         role='student',
         status='pending'
-    ).select_related('classroom').first()
+    ).select_related('classroom')
+
+
+def get_user_pending_student_membership(user):
+    # Backward-compatible helper for older call sites.
+    return get_user_pending_student_memberships(user).first()
 
 
 def is_student(user):
@@ -2384,31 +2407,32 @@ def classroom_entry(request):
     if is_teacher(request.user):
         return redirect('teacher_classroom_list')
 
-    approved_membership = ClassroomMembership.objects.filter(
+    approved_memberships = ClassroomMembership.objects.filter(
         user=request.user,
         role='student',
-        status='approved'
-    ).select_related('classroom').first()
+        status='approved',
+        classroom__is_active=True,
+    ).select_related('classroom').prefetch_related('section_access').order_by('-approved_at', '-requested_at')
 
-    if approved_membership:
-        if approved_membership.classroom and approved_membership.classroom.is_active:
-            return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
-
-    pending_membership = ClassroomMembership.objects.filter(
+    pending_memberships = ClassroomMembership.objects.filter(
         user=request.user,
         role='student',
         status='pending'
-    ).select_related('classroom').first()
+    ).select_related('classroom').order_by('-requested_at')
 
-    rejected_membership = ClassroomMembership.objects.filter(
+    rejected_memberships = ClassroomMembership.objects.filter(
         user=request.user,
         role='student',
         status='rejected'
-    ).select_related('classroom').order_by('-requested_at').first()
+    ).select_related('classroom').order_by('-requested_at')
 
     return render(request, 'sat/classroom_join.html', {
-        'pending_membership': pending_membership,
-        'rejected_membership': rejected_membership,
+        'approved_memberships': approved_memberships,
+        'pending_memberships': pending_memberships,
+        'rejected_memberships': rejected_memberships,
+        # Backward compatibility for any old template includes.
+        'pending_membership': pending_memberships.first(),
+        'rejected_membership': rejected_memberships.first(),
     })
 
 @login_required(login_url='/login/')
@@ -2418,16 +2442,6 @@ def submit_classroom_join_request(request):
 
     if is_teacher(request.user):
         return HttpResponseForbidden("Teachers cannot submit classroom join requests.")
-
-    approved_membership = get_user_approved_student_membership(request.user)
-    if approved_membership:
-        messages.error(request, "You are already enrolled in a classroom.")
-        return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
-
-    existing_pending = get_user_pending_student_membership(request.user)
-    if existing_pending:
-        messages.info(request, "You already have a pending classroom request.")
-        return redirect('sat_menu')
 
     if is_join_code_rate_limited(request):
         messages.error(request, "Too many code attempts. Please wait and try again later.")
@@ -2463,12 +2477,20 @@ def submit_classroom_join_request(request):
         if membership.status == 'approved':
             messages.error(request, "You are already enrolled in this classroom.")
         elif membership.status == 'pending':
-            messages.info(request, "Your request is already pending.")
-        elif membership.status == 'rejected':
+            messages.info(request, "Your request is already pending for this classroom.")
+        elif membership.status in ['rejected', 'left', 'removed']:
             membership.status = 'pending'
             membership.requested_at = timezone.now()
             membership.approved_at = None
-            membership.save()
+            membership.left_at = None
+            membership.removed_at = None
+            membership.save(update_fields=[
+                'status',
+                'requested_at',
+                'approved_at',
+                'left_at',
+                'removed_at',
+            ])
             messages.success(request, "Your join request has been submitted again.")
         return redirect('sat_menu')
 
@@ -2477,21 +2499,28 @@ def submit_classroom_join_request(request):
 
 @login_required(login_url='/login/')
 def classroom_join_status(request):
-    approved_membership = get_user_approved_student_membership(request.user)
-    if approved_membership:
-        return redirect('student_classroom_home', classroom_id=approved_membership.classroom.id)
+    approved_memberships = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+        status='approved',
+        classroom__is_active=True,
+    ).select_related('classroom').prefetch_related('section_access').order_by('-approved_at', '-requested_at')
 
-    pending_membership = get_user_pending_student_membership(request.user)
+    pending_memberships = get_user_pending_student_memberships(request.user).order_by('-requested_at')
 
-    rejected_membership = ClassroomMembership.objects.filter(
+    rejected_memberships = ClassroomMembership.objects.filter(
         user=request.user,
         role='student',
         status='rejected'
-    ).select_related('classroom').order_by('-requested_at').first()
+    ).select_related('classroom').order_by('-requested_at')
 
     return render(request, 'sat/classroom_join_status.html', {
-        'pending_membership': pending_membership,
-        'rejected_membership': rejected_membership,
+        'approved_memberships': approved_memberships,
+        'pending_memberships': pending_memberships,
+        'rejected_memberships': rejected_memberships,
+        # Backward compatibility for old template variables.
+        'pending_membership': pending_memberships.first(),
+        'rejected_membership': rejected_memberships.first(),
     })
 
 @login_required(login_url='/login/')
@@ -2512,7 +2541,7 @@ def classroom_join_requests(request, classroom_id):
         'students': ClassroomMembership.objects.filter(
             classroom=classroom,
             role='student'
-        ).select_related('user').order_by('-requested_at'),
+        ).exclude(status__in=['left', 'removed']).select_related('user').order_by('-requested_at'),
         'join_code': getattr(classroom, 'join_code', None),
         'pending_requests': requests_qs,
     })
@@ -2535,19 +2564,11 @@ def approve_join_request(request, classroom_id, membership_id):
         role='student'
     )
 
-    existing_approved = ClassroomMembership.objects.filter(
-        user=membership.user,
-        role='student',
-        status='approved'
-    ).exclude(id=membership.id).first()
-
-    if existing_approved:
-        messages.error(request, "This student already belongs to another approved classroom.")
-        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
-
     membership.status = 'approved'
     membership.approved_at = timezone.now()
-    membership.save()
+    membership.left_at = None
+    membership.removed_at = None
+    membership.save(update_fields=['status', 'approved_at', 'left_at', 'removed_at'])
 
     for section in ['practice_tests', 'vocabulary', 'admissions']:
         StudentSectionAccess.objects.get_or_create(
@@ -2579,7 +2600,9 @@ def reject_join_request(request, classroom_id, membership_id):
 
     membership.status = 'rejected'
     membership.approved_at = None
-    membership.save()
+    membership.left_at = None
+    membership.removed_at = None
+    membership.save(update_fields=['status', 'approved_at', 'left_at', 'removed_at'])
 
     messages.info(request, f"{membership.user.username}'s request was rejected.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
@@ -2962,9 +2985,36 @@ def remove_student_from_classroom(request, classroom_id, user_id):
         role='student'
     )
 
-    membership.delete()
+    membership.status = 'removed'
+    membership.approved_at = None
+    membership.removed_at = timezone.now()
+    membership.left_at = None
+    membership.save(update_fields=['status', 'approved_at', 'removed_at', 'left_at'])
+
     messages.success(request, "Student removed from classroom.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+
+@login_required(login_url='/login/')
+@require_POST
+def leave_classroom(request, classroom_id):
+    membership = get_object_or_404(
+        ClassroomMembership,
+        classroom_id=classroom_id,
+        user=request.user,
+        role='student',
+        status='approved'
+    )
+
+    membership.status = 'left'
+    membership.approved_at = None
+    membership.left_at = timezone.now()
+    membership.removed_at = None
+    membership.save(update_fields=['status', 'approved_at', 'left_at', 'removed_at'])
+
+    messages.success(request, "You left the classroom.")
+    return redirect('sat_menu')
+
 
 @login_required(login_url='/login/')
 def classroom_practice_tests(request, classroom_id):
@@ -4495,15 +4545,34 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
-    # Check if test is already completed
+    current_stage = TestStage.objects.filter(
+        user=request.user,
+        test=test
+    ).order_by('-created_at').first()
+
+    if current_stage:
+        current_review = TestReview.objects.filter(
+            user=request.user,
+            test=test,
+            attempt_id=current_stage.attempt_id,
+            score__isnull=False
+        ).order_by('-created_at').first()
+
+        if current_review:
+            results_url = reverse('results', kwargs={'test': test.name})
+            return redirect(f"{results_url}?review_key={current_review.key}")
+
+        return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+
     completed_review = TestReview.objects.filter(
         user=request.user,
         test=test,
         score__isnull=False
     ).order_by('-created_at').first()
-    
+
     if completed_review:
-        return redirect('results', test=test.name)
+        results_url = reverse('results', kwargs={'test': test.name})
+        return redirect(f"{results_url}?review_key={completed_review.key}")
 
     # Check if there's an in-progress attempt
     has_active_attempt = TestModule.objects.filter(

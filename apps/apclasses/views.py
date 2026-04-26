@@ -105,18 +105,41 @@ def _get_existing_attempt_for_request(request, event):
 
 
 def _visible_events_queryset(request):
-    qs = APExamEvent.objects.select_related("exam", "exam__ap_class").prefetch_related("exam__groups").filter(is_public=True)
+    qs = APExamEvent.objects.select_related(
+        "exam",
+        "exam__ap_class",
+    ).prefetch_related(
+        "exam__groups",
+        "classrooms",
+    ).filter(is_public=True)
+
     user = request.user
     if user.is_authenticated and (user.is_staff or user.is_superuser):
         return qs.order_by("-created_at")
+
     if user.is_authenticated:
         user_group_ids = list(user.groups.values_list("id", flat=True))
-        return qs.filter(Q(is_global=True) | Q(exam__groups__isnull=True) | Q(exam__groups__id__in=user_group_ids)).distinct().order_by("-created_at")
+        return qs.filter(
+            Q(is_global=True) |
+            Q(classrooms__teacher=user) |
+            Q(
+                classrooms__memberships__user=user,
+                classrooms__memberships__role='student',
+                classrooms__memberships__status='approved',
+                classrooms__is_active=True,
+            ) |
+            Q(classrooms__isnull=True, exam__groups__isnull=True) |
+            Q(exam__groups__id__in=user_group_ids)
+        ).distinct().order_by("-created_at")
+
     return qs.filter(is_global=True).order_by("-created_at")
 
 
 def _get_visible_event_or_404(request, slug):
-    event = get_object_or_404(APExamEvent.objects.select_related("exam", "exam__ap_class").prefetch_related("exam__groups"), slug=slug)
+    event = get_object_or_404(
+        APExamEvent.objects.select_related("exam", "exam__ap_class").prefetch_related("exam__groups", "classrooms"),
+        slug=slug
+    )
     if not event.user_can_see(request.user):
         raise Http404("AP mock exam event not found")
     return event
