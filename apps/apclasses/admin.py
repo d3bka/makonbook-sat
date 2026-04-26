@@ -168,21 +168,23 @@ class APExamEventAdmin(admin.ModelAdmin):
         "is_public",
         "is_global",
         "always_live",
+        "max_attempts",
+        "allow_guest_attempts",
         "show_score_immediately",
         "show_leaderboard",
         "start_at",
         "end_at",
     )
     search_fields = ("title", "slug", "exam__title")
-    list_filter = ("status", "is_public", "is_global", "always_live", "show_score_immediately", "show_leaderboard", "classrooms")
+    list_filter = ("status", "is_public", "is_global", "always_live", "allow_guest_attempts", "show_score_immediately", "show_leaderboard", "classrooms")
     autocomplete_fields = ("exam",)
     filter_horizontal = ("classrooms",)
-    list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public", "is_global", "always_live")
+    list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public", "is_global", "always_live", "max_attempts", "allow_guest_attempts")
     fieldsets = (
         ("Event", {"fields": ("title", "slug", "exam", "description", "rules")}),
-        ("Access", {"fields": ("access_code", "is_public", "is_global", "classrooms")}),
-        ("Availability", {"fields": ("status", "always_live", "start_at", "end_at")}),
-        ("Options", {"fields": ("allow_resume", "show_score_immediately", "show_leaderboard")}),
+        ("Access", {"fields": ("access_code", "is_public", "is_global", "classrooms", "allow_guest_attempts")}),
+        ("Availability", {"fields": ("status", "always_live", "start_at", "end_at", "part_a_duration_minutes", "part_b_duration_minutes", "frq_duration_minutes")}),
+        ("Options", {"fields": ("allow_resume", "max_attempts", "show_score_immediately", "show_leaderboard")}),
     )
 
 
@@ -202,10 +204,10 @@ class APFRQSubmissionInline(admin.TabularInline):
 
 @admin.register(APExamAttempt)
 class APExamAttemptAdmin(admin.ModelAdmin):
-    list_display = ("event", "student", "status", "score", "raw_score", "answered_questions", "total_questions", "started_at", "submitted_at")
+    list_display = ("event", "student", "attempt_number", "status", "score", "raw_score", "answered_questions", "total_questions", "started_at", "submitted_at")
     list_filter = ("status", "event")
     search_fields = ("student__username", "student__first_name", "student__last_name", "event__title")
-    readonly_fields = ("token", "started_at")
+    readonly_fields = ("token", "started_at", "last_activity_at", "part_a_started_at", "part_b_started_at", "frq_started_at")
     inlines = [APExamAnswerInline, APFRQSubmissionInline]
 
 

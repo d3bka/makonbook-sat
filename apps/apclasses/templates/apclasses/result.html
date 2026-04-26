@@ -235,7 +235,7 @@
         <div class="ml-3">
           <ul>
             <li><b>Name: </b><span>{{ display_name }}</span></li>
-            <li><b>Total Score: </b><b style="color: var(--themeColor);">{{ total_score_value }}</b></li>
+            <li><b>Total Score: </b>{% if can_view_score %}<b style="color: var(--themeColor);">{{ total_score_value }}</b>{% else %}<span>Pending teacher release</span>{% endif %}</li>
             <li><b>Test Name: </b><span>{{ event.title }}</span></li>
           </ul>
         </div>
@@ -249,6 +249,7 @@
       </div>
     </div>
 
+    {% if can_view_score %}
     <div class="row mx-auto total" style="margin-top: 18px;">
       <div class="col-md-6 col-sm-12 total_score print_div">
         <h4 class="title">Your Total Score</h4>
@@ -258,7 +259,7 @@
         </div>
         <div class="restart-btn-container">
           <a href="{% url 'apclasses:event_detail' event.slug %}" class="btn btn-danger btn-sm">
-            <i class="fa fa-refresh"></i> Retake Event
+            <i class="fa fa-refresh"></i> Back to Event
           </a>
         </div>
         <p class="result-note">Raw Score: {{ attempt.raw_score }} · Answered: {{ attempt.answered_questions }}/{{ attempt.total_questions }}</p>
@@ -317,6 +318,9 @@
         </div>
       </div>
     </div>
+    {% else %}
+    <div class="module-note"><b>Submitted.</b> Your score and answer review are hidden until the teacher releases results.</div>
+    {% endif %}
 
     <div class="module-note">
       <b>FRQ:</b> Coming soon. Teacher will review handwritten FRQ answers manually.

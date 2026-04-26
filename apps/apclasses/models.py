@@ -206,8 +206,25 @@ class APExamEvent(models.Model):
     start_at = models.DateTimeField(null=True, blank=True)
     end_at = models.DateTimeField(null=True, blank=True)
     always_live = models.BooleanField(default=False, help_text="If checked, event is available 24/7 while status is Live")
+    part_a_duration_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional event-specific override for Part A. Leave blank to use the mock exam default.",
+    )
+    part_b_duration_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional event-specific override for Part B. Leave blank to use the mock exam default.",
+    )
+    frq_duration_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Optional event-specific override for FRQ. Leave blank to use the mock exam default.",
+    )
 
     allow_resume = models.BooleanField(default=True)
+    max_attempts = models.PositiveIntegerField(default=1, help_text="Maximum attempts allowed per student/guest for this event.")
+    allow_guest_attempts = models.BooleanField(default=True, help_text="Allow unauthenticated guest users to start this event.")
     show_score_immediately = models.BooleanField(default=True)
     show_leaderboard = models.BooleanField(default=False)
 
@@ -243,17 +260,27 @@ class APExamEvent(models.Model):
     def requires_secret_code(self):
         return bool(self.access_code)
 
+    def is_exam_available_for_students(self):
+        if self.exam.status != "published":
+            return False
+        ap_class = getattr(self.exam, "ap_class", None)
+        if ap_class is not None and not ap_class.is_active:
+            return False
+        return True
+
     def user_can_see(self, user):
         if not self.is_public:
+            return False
+        if user.is_authenticated and (user.is_staff or user.is_superuser):
+            return True
+        if not self.is_exam_available_for_students():
             return False
         if self.is_global:
             return True
         if not user.is_authenticated:
             return False
-        if user.is_staff or user.is_superuser:
-            return True
-        has_classroom_restrictions = self.classrooms.exists()
-        if self.classrooms.filter(teacher=user).exists():
+
+        if self.classrooms.filter(teacher=user, is_active=True).exists():
             return True
         if self.classrooms.filter(
             memberships__user=user,
@@ -268,7 +295,7 @@ class APExamEvent(models.Model):
             user_group_ids = set(user.groups.values_list("id", flat=True))
             return bool(exam_group_ids.intersection(user_group_ids))
 
-        return not has_classroom_restrictions
+        return False
 
     def __str__(self):
         return self.title
@@ -286,8 +313,13 @@ class APExamAttempt(models.Model):
     guest_name = models.CharField(max_length=255, blank=True)
     guest_session_key = models.CharField(max_length=64, blank=True, db_index=True)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    attempt_number = models.PositiveIntegerField(default=1)
     started_at = models.DateTimeField(auto_now_add=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
+    part_a_started_at = models.DateTimeField(null=True, blank=True)
+    part_b_started_at = models.DateTimeField(null=True, blank=True)
+    frq_started_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="in_progress")
     score = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     raw_score = models.IntegerField(default=0)
@@ -298,12 +330,16 @@ class APExamAttempt(models.Model):
         verbose_name = "AP Exam Attempt"
         verbose_name_plural = "AP Exam Attempts"
         constraints = [
-            models.UniqueConstraint(fields=["event", "student"], name="unique_ap_attempt_per_student_event"),
+            models.UniqueConstraint(
+                fields=["event", "student", "attempt_number"],
+                condition=models.Q(student__isnull=False),
+                name="unique_ap_attempt_number_per_student_event",
+            ),
         ]
 
     def __str__(self):
         owner = self.student if self.student_id else (self.guest_name or self.guest_session_key or "Guest")
-        return f"{owner} - {self.event}"
+        return f"{owner} - {self.event} - Attempt {self.attempt_number}"
 
 
 class APExamAnswer(models.Model):

@@ -2187,7 +2187,7 @@ def generate_6_digit_code():
 def generate_unique_classroom_code():
     while True:
         code = generate_6_digit_code()
-        if not ClassroomJoinCode.objects.filter(code=code, is_active=True).exists():
+        if not ClassroomJoinCode.objects.filter(code=code).exists():
             return code
 
 @login_required(login_url='/login/')
@@ -2334,7 +2334,7 @@ def generate_classroom_join_code(request, classroom_id):
     old_code = ClassroomJoinCode.objects.filter(classroom=classroom).first()
     if old_code:
         old_code.is_active = False
-        old_code.save()
+        old_code.save(update_fields=['is_active'])
 
     new_code = generate_unique_classroom_code()
 

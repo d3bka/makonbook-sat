@@ -1,35 +1,43 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db import IntegrityError, transaction
+from django.db.models import Max, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .models import APExamAnswer, APExamAttempt, APExamEvent, APFRQSubmission, APMultipleChoiceQuestion
 from apps.sat.models import GuestParticipant
+
+
+AP_PART_FIELDS = {
+    APMultipleChoiceQuestion.PART_A: "part_a_started_at",
+    APMultipleChoiceQuestion.PART_B: "part_b_started_at",
+    "frq": "frq_started_at",
+}
 
 
 def _event_access_session_key(event):
     return f"ap_event_{event.pk}_secret_ok"
 
 
+def _is_staff_user(user):
+    return bool(user.is_authenticated and (user.is_staff or user.is_superuser))
+
+
 def _is_secret_unlocked(request, event):
     if not event.requires_secret_code:
         return True
-    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+    if _is_staff_user(request.user):
         return True
     return bool(request.session.get(_event_access_session_key(event)))
 
 
 def _ensure_guest_session(request):
-    """Return a stable AP guest key tied to the MakonBook guest participant.
-
-    Do not use raw Django session_key for AP attempts: a browser can reuse the
-    same session across guest exits/entries, which makes a new guest inherit an
-    old submitted AP attempt.
-    """
+    """Return a stable AP guest key tied to the MakonBook guest participant."""
     if not request.session.session_key:
         request.session.create()
     if not request.session.get("guest_name"):
@@ -43,19 +51,7 @@ def _ensure_guest_session(request):
 
 
 def _current_display_name(request, attempt=None):
-    """Return the name that should be shown in AP headers/results.
-
-    Priority is deliberately strict:
-    1. real authenticated Django user, if present;
-    2. current GuestParticipant.full_name from session guest_id;
-    3. GuestParticipant.full_name encoded in attempt.guest_session_key;
-    4. attempt.student;
-    5. stored attempt.guest_name as last fallback only.
-
-    Do not prefer GuestParticipant.display_name here. That field is an optional
-    nickname and was the reason the result header showed the wrong text.
-    """
-    if request.user.is_authenticated:
+    if request.user.is_authenticated and not request.session.get("guest_mode"):
         return request.user.get_full_name().strip() or request.user.username
 
     guest_id = request.session.get("guest_id")
@@ -94,14 +90,56 @@ def _attempt_belongs_to_request(request, attempt):
     return bool(attempt.student_id is None and attempt.guest_session_key == guest_key)
 
 
-def _get_existing_attempt_for_request(request, event):
+def _attempts_for_request(request, event):
+    base = APExamAttempt.objects.filter(event=event).order_by("-attempt_number", "-started_at")
     if request.session.get("guest_mode"):
         guest_key = _ensure_guest_session(request)
-        return APExamAttempt.objects.filter(event=event, student__isnull=True, guest_session_key=guest_key).first()
+        return base.filter(student__isnull=True, guest_session_key=guest_key)
     if request.user.is_authenticated:
-        return APExamAttempt.objects.filter(event=event, student=request.user).first()
+        return base.filter(student=request.user)
     guest_key = _ensure_guest_session(request)
-    return APExamAttempt.objects.filter(event=event, student__isnull=True, guest_session_key=guest_key).first()
+    return base.filter(student__isnull=True, guest_session_key=guest_key)
+
+
+def _get_existing_attempt_for_request(request, event):
+    return _attempts_for_request(request, event).first()
+
+
+def _can_start_new_attempt(request, event, attempts=None):
+    is_guest_attempt = request.session.get("guest_mode") or not request.user.is_authenticated
+    if not _is_staff_user(request.user) and not event.allow_guest_attempts and is_guest_attempt:
+        return False
+    attempts = attempts if attempts is not None else _attempts_for_request(request, event)
+    max_attempts = max(1, int(event.max_attempts or 1))
+    return attempts.count() < max_attempts
+
+
+def _next_attempt_number(attempts):
+    current_max = attempts.aggregate(value=Max("attempt_number")).get("value") or 0
+    return int(current_max) + 1
+
+
+def _create_attempt_for_request(request, event):
+    attempts = _attempts_for_request(request, event)
+    attempt_number = _next_attempt_number(attempts)
+    total_questions = event.exam.questions.count()
+    defaults = {
+        "attempt_number": attempt_number,
+        "total_questions": total_questions,
+        "last_activity_at": timezone.now(),
+    }
+
+    if request.user.is_authenticated and not request.session.get("guest_mode"):
+        return APExamAttempt.objects.create(event=event, student=request.user, **defaults)
+
+    guest_session_key = _ensure_guest_session(request)
+    return APExamAttempt.objects.create(
+        event=event,
+        student=None,
+        guest_name=_current_display_name(request),
+        guest_session_key=guest_session_key,
+        **defaults,
+    )
 
 
 def _visible_events_queryset(request):
@@ -114,21 +152,22 @@ def _visible_events_queryset(request):
     ).filter(is_public=True)
 
     user = request.user
-    if user.is_authenticated and (user.is_staff or user.is_superuser):
+    if _is_staff_user(user):
         return qs.order_by("-created_at")
+
+    qs = qs.filter(exam__status="published").filter(Q(exam__ap_class__isnull=True) | Q(exam__ap_class__is_active=True))
 
     if user.is_authenticated:
         user_group_ids = list(user.groups.values_list("id", flat=True))
         return qs.filter(
             Q(is_global=True) |
-            Q(classrooms__teacher=user) |
+            Q(classrooms__teacher=user, classrooms__is_active=True) |
             Q(
                 classrooms__memberships__user=user,
-                classrooms__memberships__role='student',
-                classrooms__memberships__status='approved',
+                classrooms__memberships__role="student",
+                classrooms__memberships__status="approved",
                 classrooms__is_active=True,
             ) |
-            Q(classrooms__isnull=True, exam__groups__isnull=True) |
             Q(exam__groups__id__in=user_group_ids)
         ).distinct().order_by("-created_at")
 
@@ -138,7 +177,7 @@ def _visible_events_queryset(request):
 def _get_visible_event_or_404(request, slug):
     event = get_object_or_404(
         APExamEvent.objects.select_related("exam", "exam__ap_class").prefetch_related("exam__groups", "classrooms"),
-        slug=slug
+        slug=slug,
     )
     if not event.user_can_see(request.user):
         raise Http404("AP mock exam event not found")
@@ -152,7 +191,8 @@ def ap_event_list_view(request):
 
 def ap_event_detail_view(request, slug):
     event = _get_visible_event_or_404(request, slug)
-    existing_attempt = _get_existing_attempt_for_request(request, event)
+    attempts = _attempts_for_request(request, event)
+    existing_attempt = attempts.first()
 
     if request.method == "POST" and event.requires_secret_code:
         submitted_code = (request.POST.get("access_code") or "").strip()
@@ -166,10 +206,19 @@ def ap_event_detail_view(request, slug):
     return render(
         request,
         "apclasses/event_detail.html",
-        {"event": event, "existing_attempt": existing_attempt, "secret_unlocked": _is_secret_unlocked(request, event)},
+        {
+            "event": event,
+            "existing_attempt": existing_attempt,
+            "attempts": attempts,
+            "attempts_used": attempts.count(),
+            "attempts_remaining": max(0, int(event.max_attempts or 1) - attempts.count()),
+            "can_start_new_attempt": _can_start_new_attempt(request, event, attempts),
+            "secret_unlocked": _is_secret_unlocked(request, event),
+        },
     )
 
 
+@require_POST
 def start_ap_event_view(request, slug):
     event = _get_visible_event_or_404(request, slug)
     if not event.is_live_now:
@@ -178,60 +227,55 @@ def start_ap_event_view(request, slug):
     if not _is_secret_unlocked(request, event):
         messages.error(request, "Enter the secret code before starting this AP mock exam.")
         return redirect("apclasses:event_detail", slug=slug)
+    is_guest_attempt = request.session.get("guest_mode") or not request.user.is_authenticated
+    if not event.allow_guest_attempts and is_guest_attempt:
+        messages.error(request, "Guest attempts are not allowed for this AP mock exam.")
+        return redirect("apclasses:event_detail", slug=slug)
 
-    total_questions = event.exam.questions.count()
-    if request.user.is_authenticated and not request.session.get("guest_mode"):
-        attempt, created = APExamAttempt.objects.get_or_create(
-            event=event,
-            student=request.user,
-            defaults={"total_questions": total_questions},
-        )
-    else:
-        guest_session_key = _ensure_guest_session(request)
-        attempt = APExamAttempt.objects.filter(
-            event=event,
-            student__isnull=True,
-            guest_session_key=guest_session_key,
-        ).first()
-        created = False
-        if not attempt:
-            attempt = APExamAttempt.objects.create(
-                event=event,
-                student=None,
-                guest_name=_current_display_name(request),
-                guest_session_key=guest_session_key,
-                total_questions=total_questions,
-            )
-            created = True
+    attempts = _attempts_for_request(request, event)
+    active_attempt = attempts.filter(status="in_progress").first()
+    if active_attempt:
+        return redirect("apclasses:attempt", token=active_attempt.token)
 
-    if not created and attempt.status == "submitted" and not event.allow_resume:
-        messages.error(request, "You already submitted this AP mock exam.")
+    if not _can_start_new_attempt(request, event, attempts):
+        latest_attempt = attempts.first()
+        messages.error(request, "You have reached the attempt limit for this AP mock exam.")
+        if latest_attempt and latest_attempt.status == "submitted":
+            return redirect("apclasses:event_result", token=latest_attempt.token)
+        return redirect("apclasses:event_detail", slug=slug)
+
+    try:
+        with transaction.atomic():
+            attempt = _create_attempt_for_request(request, event)
+    except IntegrityError:
+        # Another tab may have created the same attempt a millisecond earlier.
+        attempt = _attempts_for_request(request, event).filter(status="in_progress").first() or _attempts_for_request(request, event).first()
+
+    if not attempt:
+        messages.error(request, "Could not start this AP mock exam. Try again.")
         return redirect("apclasses:event_detail", slug=slug)
     if attempt.status == "submitted":
         return redirect("apclasses:event_result", token=attempt.token)
     return redirect("apclasses:attempt", token=attempt.token)
 
 
-
 def _ap_part_url(attempt, part, q=1):
     return f"{reverse('apclasses:attempt', args=[attempt.token])}?part={part}&q={q}"
 
 
-def _ap_part_session_key(attempt, part):
-    return f"ap_attempt_{attempt.token}_part_{part}_started_at"
-
-
 def _get_or_start_ap_part_timer(request, attempt, part):
-    key = _ap_part_session_key(attempt, part)
-    started_iso = request.session.get(key)
-    if started_iso:
-        try:
-            return timezone.datetime.fromisoformat(started_iso)
-        except (TypeError, ValueError):
-            pass
+    field_name = AP_PART_FIELDS.get(part)
+    if not field_name:
+        return timezone.now()
+
+    started_at = getattr(attempt, field_name, None)
+    if started_at:
+        return started_at
+
     started_at = timezone.now()
-    request.session[key] = started_at.isoformat()
-    request.session.modified = True
+    setattr(attempt, field_name, started_at)
+    attempt.last_activity_at = started_at
+    attempt.save(update_fields=[field_name, "last_activity_at"])
     return started_at
 
 
@@ -267,6 +311,15 @@ def _next_ap_part_after(exam, part):
     return None
 
 
+def _submit_ap_attempt(attempt):
+    _recalculate_attempt(attempt)
+    attempt.status = "submitted"
+    attempt.submitted_at = timezone.now()
+    attempt.last_activity_at = attempt.submitted_at
+    attempt.save(update_fields=["status", "submitted_at", "last_activity_at", "score", "raw_score", "answered_questions", "total_questions"])
+    return attempt
+
+
 def ap_attempt_view(request, token):
     attempt = get_object_or_404(APExamAttempt.objects.select_related("event", "event__exam", "student"), token=token)
     if not _attempt_belongs_to_request(request, attempt):
@@ -288,7 +341,8 @@ def ap_attempt_view(request, token):
     if requested_part == "frq" and not exam.frq_pages.exists():
         fallback = _first_available_ap_part(exam)
         if fallback == "frq":
-            return redirect("apclasses:submit_attempt", token=attempt.token)
+            _submit_ap_attempt(attempt)
+            return redirect("apclasses:event_result", token=attempt.token)
         requested_part = fallback
 
     ordered_questions = []
@@ -335,7 +389,8 @@ def ap_attempt_view(request, token):
             if action == "next":
                 if current_index < total_questions:
                     return redirect(_ap_part_url(attempt, "frq", current_index + 1))
-                return redirect("apclasses:submit_attempt", token=attempt.token)
+                _submit_ap_attempt(attempt)
+                return redirect("apclasses:event_result", token=attempt.token)
             if action == "goto":
                 try:
                     target_index = int(request.POST.get("target_q") or current_index)
@@ -344,16 +399,21 @@ def ap_attempt_view(request, token):
                 target_index = max(1, min(total_questions, target_index)) if total_questions else 1
                 return redirect(_ap_part_url(attempt, "frq", target_index))
             if action == "finish":
-                return redirect("apclasses:submit_attempt", token=attempt.token)
+                _submit_ap_attempt(attempt)
+                return redirect("apclasses:event_result", token=attempt.token)
             return redirect(_ap_part_url(attempt, "frq", current_index))
 
         if current_question:
-            selected_answer = (request.POST.get(f"question_{current_question.id}") or "").strip()
+            selected_answer = (request.POST.get(f"question_{current_question.id}") or "").strip().upper()
+            if selected_answer not in {"A", "B", "C", "D", "E"}:
+                selected_answer = ""
             APExamAnswer.objects.update_or_create(
                 attempt=attempt,
                 question=current_question,
                 defaults={"selected_answer": selected_answer},
             )
+            attempt.last_activity_at = timezone.now()
+            attempt.save(update_fields=["last_activity_at"])
             _recalculate_attempt(attempt)
 
         action = request.POST.get("action")
@@ -371,7 +431,8 @@ def ap_attempt_view(request, token):
             next_part = _next_ap_part_after(exam, requested_part)
             if next_part:
                 return redirect(_ap_part_url(attempt, next_part, 1))
-            return redirect("apclasses:submit_attempt", token=attempt.token)
+            _submit_ap_attempt(attempt)
+            return redirect("apclasses:event_result", token=attempt.token)
         if action == "goto":
             try:
                 target_index = int(request.POST.get("target_q") or current_index)
@@ -383,7 +444,8 @@ def ap_attempt_view(request, token):
             next_part = _next_ap_part_after(exam, requested_part)
             if next_part:
                 return redirect(_ap_part_url(attempt, next_part, 1))
-            return redirect("apclasses:submit_attempt", token=attempt.token)
+            _submit_ap_attempt(attempt)
+            return redirect("apclasses:event_result", token=attempt.token)
 
         return redirect(_ap_part_url(attempt, requested_part, current_index))
 
@@ -404,7 +466,8 @@ def ap_attempt_view(request, token):
         next_part = _next_ap_part_after(exam, requested_part)
         if next_part:
             return redirect(_ap_part_url(attempt, next_part, 1))
-        return redirect("apclasses:submit_attempt", token=attempt.token)
+        _submit_ap_attempt(attempt)
+        return redirect("apclasses:event_result", token=attempt.token)
 
     answered_ids = set()
     if requested_part != "frq":
@@ -447,12 +510,15 @@ def ap_attempt_view(request, token):
         "submissions": submissions,
     })
 
+
+@require_POST
 def upload_frq_submission_view(request, token):
     attempt = get_object_or_404(APExamAttempt, token=token)
     if not _attempt_belongs_to_request(request, attempt):
         raise Http404("Attempt not found")
-    if request.method != "POST":
-        return redirect("apclasses:attempt", token=attempt.token)
+    if attempt.status != "in_progress":
+        messages.error(request, "This attempt has already been submitted.")
+        return redirect("apclasses:event_result", token=attempt.token)
 
     page_number = request.POST.get("page_number") or 1
     try:
@@ -466,19 +532,24 @@ def upload_frq_submission_view(request, token):
         messages.error(request, "Upload an image or file for the FRQ answer.")
         return redirect("apclasses:attempt", token=attempt.token)
 
-    APFRQSubmission.objects.create(attempt=attempt, page_number=page_number, image=image, file=file)
+    submission, _created = APFRQSubmission.objects.update_or_create(
+        attempt=attempt,
+        page_number=page_number,
+        defaults={"image": image, "file": file},
+    )
+    attempt.last_activity_at = timezone.now()
+    attempt.save(update_fields=["last_activity_at"])
     messages.success(request, "FRQ handwritten answer uploaded.")
     return redirect("apclasses:attempt", token=attempt.token)
 
 
+
+@require_POST
 def submit_ap_attempt_view(request, token):
     attempt = get_object_or_404(APExamAttempt, token=token)
     if not _attempt_belongs_to_request(request, attempt):
         raise Http404("Attempt not found")
-    _recalculate_attempt(attempt)
-    attempt.status = "submitted"
-    attempt.submitted_at = timezone.now()
-    attempt.save(update_fields=["status", "submitted_at", "score", "raw_score", "answered_questions", "total_questions"])
+    _submit_ap_attempt(attempt)
     messages.success(request, "AP mock exam submitted.")
     return redirect("apclasses:event_result", token=attempt.token)
 
@@ -539,6 +610,11 @@ def ap_event_result_view(request, token):
         }
 
     display_name = _current_display_name(request, attempt)
+    can_view_score = (
+        attempt.event.show_score_immediately
+        or _is_staff_user(request.user)
+        or (request.user.is_authenticated and attempt.event.classrooms.filter(teacher=request.user, is_active=True).exists())
+    )
 
     return render(request, "apclasses/result.html", {
         "attempt": attempt,
@@ -546,6 +622,7 @@ def ap_event_result_view(request, token):
         "exam": exam,
         "display_name": display_name,
         "total_score_value": int(round(float(attempt.score or 0))),
+        "can_view_score": can_view_score,
         "part_a": serialize_module(part_a_questions),
         "part_b": serialize_module(part_b_questions),
     })
@@ -557,6 +634,9 @@ def ap_question_review_view(request, token, question_id):
         raise Http404("Attempt not found")
     if attempt.status != "submitted":
         return redirect("apclasses:attempt", token=attempt.token)
+    if not (attempt.event.show_score_immediately or _is_staff_user(request.user) or (request.user.is_authenticated and attempt.event.classrooms.filter(teacher=request.user, is_active=True).exists())):
+        messages.error(request, "Review is not available for this AP mock exam yet.")
+        return redirect("apclasses:event_result", token=attempt.token)
 
     exam = attempt.event.exam
     ordered_questions = list(exam.questions.all().order_by("part", "number", "id"))

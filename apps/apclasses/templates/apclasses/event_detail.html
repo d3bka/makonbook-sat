@@ -84,9 +84,9 @@
         <div class="meta-row"><strong>Start:</strong> {{ event.start_at }}</div>
         <div class="meta-row"><strong>End:</strong> {{ event.end_at }}</div>
       {% endif %}
-      <div class="meta-row"><strong>Part A duration:</strong> {{ event.exam.part_a_duration_minutes }} minutes</div>
-      <div class="meta-row"><strong>Part B duration:</strong> {{ event.exam.part_b_duration_minutes }} minutes</div>
-      <div class="meta-row"><strong>FRQ duration:</strong> {{ event.exam.frq_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>Part A duration:</strong> {{ event.part_a_duration_minutes|default:event.exam.part_a_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>Part B duration:</strong> {{ event.part_b_duration_minutes|default:event.exam.part_b_duration_minutes }} minutes</div>
+      <div class="meta-row"><strong>FRQ duration:</strong> {{ event.frq_duration_minutes|default:event.exam.frq_duration_minutes }} minutes</div>
       <div class="meta-row"><strong>Status:</strong> {{ event.status|title }}</div>
 
       {% if event.rules %}
@@ -96,27 +96,53 @@
         </div>
       {% endif %}
 
-      {% if existing_attempt and existing_attempt.status == "submitted" %}
-        <div class="actions">
-          <a class="primary-btn full-width-btn" href="{% url 'apclasses:event_result' existing_attempt.token %}">View Result</a>
-        </div>
-      {% elif existing_attempt %}
-        <div class="actions">
-          <a class="primary-btn full-width-btn" href="{% url 'apclasses:attempt' existing_attempt.token %}">Resume Attempt</a>
-        </div>
-      {% else %}
+      <div class="meta-row"><strong>Attempts:</strong> {{ attempts_used }} used{% if event.max_attempts %} / {{ event.max_attempts }} allowed{% endif %}</div>
+
+      {% if event.requires_secret_code and not secret_unlocked %}
         <form method="post" class="signin-form">
           {% csrf_token %}
           <div class="form-group">
-            {% if event.requires_secret_code and not secret_unlocked %}<input type="text" name="access_code" placeholder="Access code" autocomplete="off" required>{% endif %}
+            <input type="text" name="access_code" placeholder="Access code" autocomplete="off" required>
           </div>
-
           <div class="actions">
-            {% if not event.is_live_now %}<button type="button" class="primary-btn full-width-btn" disabled>This event is not live now</button>{% elif event.requires_secret_code and not secret_unlocked %}<button type="submit" class="primary-btn full-width-btn">Start Event</button>{% else %}<a class="primary-btn full-width-btn" href="{% url 'apclasses:start_event' event.slug %}">Start Event</a>{% endif %}
+            <button type="submit" class="primary-btn full-width-btn">Unlock Event</button>
           </div>
-
-          
         </form>
+      {% else %}
+        {% if existing_attempt and existing_attempt.status == "in_progress" %}
+          <div class="actions">
+            <a class="primary-btn full-width-btn" href="{% url 'apclasses:attempt' existing_attempt.token %}">Resume Attempt #{{ existing_attempt.attempt_number }}</a>
+          </div>
+        {% elif existing_attempt and existing_attempt.status == "submitted" %}
+          <div class="actions">
+            <a class="primary-btn full-width-btn" href="{% url 'apclasses:event_result' existing_attempt.token %}">View Latest Result</a>
+          </div>
+        {% endif %}
+
+        {% if not event.is_live_now %}
+          <div class="actions"><button type="button" class="primary-btn full-width-btn" disabled>This event is not live now</button></div>
+        {% elif can_start_new_attempt %}
+          <form method="post" action="{% url 'apclasses:start_event' event.slug %}" class="signin-form">
+            {% csrf_token %}
+            <div class="actions">
+              <button type="submit" class="primary-btn full-width-btn">{% if existing_attempt %}Start New Attempt{% else %}Start Event{% endif %}</button>
+            </div>
+          </form>
+        {% elif existing_attempt and existing_attempt.status == "submitted" %}
+          <p class="description" style="margin-top:16px;">Attempt limit reached for this event.</p>
+        {% endif %}
+      {% endif %}
+
+      {% if attempts %}
+        <div class="rules-box">
+          <h3>Attempt history</h3>
+          {% for item in attempts %}
+            <div class="meta-row">
+              Attempt #{{ item.attempt_number }} — {{ item.get_status_display }}{% if item.submitted_at %} · submitted {{ item.submitted_at }}{% endif %}
+              {% if item.status == "submitted" %}<a href="{% url 'apclasses:event_result' item.token %}">Result</a>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
       {% endif %}
     </div>
   </div>

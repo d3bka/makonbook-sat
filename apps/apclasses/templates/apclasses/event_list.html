@@ -3,19 +3,21 @@
 {% block content %}
 <div class="card">
   <h2>AP Mock Exam Events</h2>
-  <p class="muted">Global events are visible to all students. Non-global events are shown only to allowed groups. Secret-code events require the code before starting.</p>
+  <p class="muted">AP mock tests are now classroom-aware. Global events are open to everyone; classroom events are visible only to assigned classrooms, assigned groups, or the classroom teacher.</p>
 </div>
 {% for event in events %}
 <div class="card">
   <h3>{{ event.title }}</h3>
   <p class="muted">{{ event.exam.title }}{% if event.exam.ap_class %} · {{ event.exam.ap_class.name }}{% endif %}</p>
   {% if event.is_live_now %}<span class="badge live">LIVE NOW</span>{% else %}<span class="badge closed">NOT LIVE</span>{% endif %}
-  {% if event.is_global %}<span class="badge">GLOBAL</span>{% else %}<span class="badge">GROUP LIMITED</span>{% endif %}
+  {% if event.is_global %}<span class="badge">GLOBAL</span>{% else %}<span class="badge">CLASSROOM LIMITED</span>{% endif %}
+  {% if event.max_attempts %}<span class="badge">{{ event.max_attempts }} attempt{% if event.max_attempts != 1 %}s{% endif %}</span>{% endif %}
+  {% if not event.allow_guest_attempts %}<span class="badge">LOGIN REQUIRED</span>{% endif %}
   {% if event.requires_secret_code %}<span class="badge">SECRET CODE</span>{% endif %}
   {% if event.always_live %}<span class="badge">24/7</span>{% else %}<span class="badge">{{ event.start_at }} → {{ event.end_at }}</span>{% endif %}
   <p><a class="btn" href="{% url 'apclasses:event_detail' event.slug %}">Open</a></p>
 </div>
 {% empty %}
-<div class="card">No AP events yet.</div>
+<div class="card">No AP events available for your classrooms yet.</div>
 {% endfor %}
 {% endblock %}
