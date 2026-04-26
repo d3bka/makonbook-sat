@@ -443,19 +443,12 @@ class TestReviewAdmin(admin.ModelAdmin):
     certificate_status.short_description = 'Certificate'
     
     def is_active_status(self, obj):
-        if obj.is_active():
-            return format_html('<span style="color: #2e7d32;">✅ Active</span>')
-        else:
-            return format_html('<span style="color: #f44336;">❌ Expired</span>')
-    is_active_status.short_description = 'Active'
+        return format_html('<span style="color: #2e7d32;">✅ Unlimited</span>')
+    is_active_status.short_description = 'Review Access'
     
     def duration_display(self, obj):
-        if obj.duration:
-            total_seconds = obj.duration.total_seconds()
-            hours = int(total_seconds // 3600)
-            return f'{hours}h' if hours > 0 else 'Active'
-        return '-'
-    duration_display.short_description = 'Duration'
+        return 'Unlimited'
+    duration_display.short_description = 'Review Duration'
     
     def certificate_preview(self, obj):
         if obj.certificate:
@@ -478,7 +471,7 @@ class TestReviewAdmin(admin.ModelAdmin):
         return 'No groups'
     user_groups_display.short_description = 'User Groups'
 
-    actions = ['regenerate_certificates', 'mark_domains_complete', 'extend_review_time']
+    actions = ['regenerate_certificates', 'mark_domains_complete']
     
     def regenerate_certificates(self, request, queryset):
         count = 0
@@ -494,16 +487,6 @@ class TestReviewAdmin(admin.ModelAdmin):
         self.message_user(request, f'Marked domains complete for {count} reviews.')
     mark_domains_complete.short_description = 'Mark domains as complete'
     
-    def extend_review_time(self, request, queryset):
-        from datetime import timedelta
-        count = 0
-        for review in queryset:
-            review.duration = timedelta(hours=48)  # Extend to 48 hours
-            review.save()
-            count += 1
-        self.message_user(request, f'Extended review time for {count} reviews to 48 hours.')
-    extend_review_time.short_description = 'Extend review time to 48 hours'
-
 # Enhanced TestModule Admin
 @admin.register(TestModule)
 class TestModuleAdmin(admin.ModelAdmin):

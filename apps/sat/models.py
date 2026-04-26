@@ -422,16 +422,12 @@ class TestReview(BaseModel):
         return True
 
     def is_active(self):
-        # Admin users get unlimited review time
-        if self.user.groups.filter(name='Admin').exists():
-            return True
-    
-        # OFFLINE group users get infinite review time
-        if self.user.groups.filter(name='OFFLINE').exists():
-            return True
-    
-        # Regular users follow the duration limit
-        return self.created_at + self.duration > timezone.now()
+        """Review answers do not expire.
+
+        Keep the method for backwards compatibility with existing views/admin
+        that call review.is_active(), but do not enforce a time window anymore.
+        """
+        return True
 
     def update_key(self):
         self.key = ''.join(random.choices(string.ascii_letters, k=100))
