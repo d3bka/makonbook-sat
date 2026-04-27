@@ -161,12 +161,13 @@ def _visible_events_queryset(request):
         user_group_ids = list(user.groups.values_list("id", flat=True))
         return qs.filter(
             Q(is_global=True) |
-            Q(classrooms__teacher=user, classrooms__is_active=True) |
+            Q(classrooms__teacher=user, classrooms__is_active=True, classrooms__classroom_type='ap') |
             Q(
                 classrooms__memberships__user=user,
                 classrooms__memberships__role="student",
                 classrooms__memberships__status="approved",
                 classrooms__is_active=True,
+                classrooms__classroom_type='ap',
             ) |
             Q(exam__groups__id__in=user_group_ids)
         ).distinct().order_by("-created_at")
@@ -634,10 +635,6 @@ def ap_question_review_view(request, token, question_id):
         raise Http404("Attempt not found")
     if attempt.status != "submitted":
         return redirect("apclasses:attempt", token=attempt.token)
-    if not (attempt.event.show_score_immediately or _is_staff_user(request.user) or (request.user.is_authenticated and attempt.event.classrooms.filter(teacher=request.user, is_active=True).exists())):
-        messages.error(request, "Review is not available for this AP mock exam yet.")
-        return redirect("apclasses:event_result", token=attempt.token)
-
     exam = attempt.event.exam
     ordered_questions = list(exam.questions.all().order_by("part", "number", "id"))
     question = next((q for q in ordered_questions if q.id == question_id), None)

@@ -280,13 +280,14 @@ class APExamEvent(models.Model):
         if not user.is_authenticated:
             return False
 
-        if self.classrooms.filter(teacher=user, is_active=True).exists():
+        if self.classrooms.filter(teacher=user, is_active=True, classroom_type='ap').exists():
             return True
         if self.classrooms.filter(
             memberships__user=user,
             memberships__role='student',
             memberships__status='approved',
             is_active=True,
+            classroom_type='ap',
         ).exists():
             return True
 

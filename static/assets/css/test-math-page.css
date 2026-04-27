@@ -289,3 +289,56 @@
             }
         }
     
+/* ===== Mobile calculator/reference fixes ===== */
+@media (max-width: 900px) {
+  #calculator-popup {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    right: 8px !important;
+    left: 8px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    resize: none !important;
+    border-radius: 12px !important;
+  }
+
+  #calculator-header {
+    height: 50px !important;
+    min-height: 50px !important;
+    font-size: 16px !important;
+    padding: 8px 12px !important;
+  }
+
+  #calculator-body {
+    height: calc(100% - 50px) !important;
+  }
+
+  .desmos-close-btn {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 20px !important;
+  }
+
+  .reference-overlay {
+    justify-content: stretch !important;
+  }
+
+  .reference-sheet {
+    width: 100vw !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  .reference-body {
+    height: calc(100dvh - 61px) !important;
+    padding: 14px !important;
+  }
+
+  .reference-card {
+    padding: 12px !important;
+  }
+}

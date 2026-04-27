@@ -122,6 +122,7 @@
         {% for membership in approved_memberships %}
           <div class="classroom-card">
             <h3>{{ membership.classroom.name }}</h3>
+            <p><strong>Type:</strong> {{ membership.classroom.get_classroom_type_display }}</p>
             {% if membership.classroom.description %}
               <p>{{ membership.classroom.description }}</p>
             {% endif %}

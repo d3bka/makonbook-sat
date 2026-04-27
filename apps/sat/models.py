@@ -796,6 +796,13 @@ class VocabularyQuestion(models.Model):
         ]
 
 class Classroom(models.Model):
+    CLASSROOM_TYPE_SAT = 'sat'
+    CLASSROOM_TYPE_AP = 'ap'
+    CLASSROOM_TYPE_CHOICES = (
+        (CLASSROOM_TYPE_SAT, 'SAT Classroom'),
+        (CLASSROOM_TYPE_AP, 'AP Classroom'),
+    )
+
     teacher = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -803,14 +810,28 @@ class Classroom(models.Model):
     )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    classroom_type = models.CharField(
+        max_length=10,
+        choices=CLASSROOM_TYPE_CHOICES,
+        default=CLASSROOM_TYPE_SAT,
+        db_index=True,
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
+    @property
+    def is_sat_classroom(self):
+        return self.classroom_type == self.CLASSROOM_TYPE_SAT
+
+    @property
+    def is_ap_classroom(self):
+        return self.classroom_type == self.CLASSROOM_TYPE_AP
+
     def __str__(self):
-        return f"{self.name} ({self.teacher.username})"
+        return f"{self.name} ({self.get_classroom_type_display()} - {self.teacher.username})"
 
 
 class ClassroomJoinCode(models.Model):

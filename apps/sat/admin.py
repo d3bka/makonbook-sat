@@ -819,9 +819,9 @@ class ClassroomMembershipInline(admin.TabularInline):
 
 @admin.register(Classroom)
 class ClassroomAdmin(admin.ModelAdmin):
-    list_display = ('name', 'teacher', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'teacherusername', 'teacherfirst_name', 'teacher__last_name')
+    list_display = ('name', 'teacher', 'classroom_type', 'is_active', 'created_at')
+    list_filter = ('classroom_type', 'is_active', 'created_at')
+    search_fields = ('name', 'teacher__username', 'teacher__first_name', 'teacher__last_name')
     inlines = [ClassroomJoinCodeInline, ClassroomMembershipInline]
 
 
@@ -836,14 +836,14 @@ class ClassroomJoinCodeAdmin(admin.ModelAdmin):
 class ClassroomMembershipAdmin(admin.ModelAdmin):
     list_display = ('user', 'classroom', 'role', 'status', 'requested_at', 'approved_at')
     list_filter = ('role', 'status', 'requested_at')
-    search_fields = ('userusername', 'classroomname')
+    search_fields = ('user__username', 'classroom__name')
 
 
 @admin.register(StudentSectionAccess)
 class StudentSectionAccessAdmin(admin.ModelAdmin):
     list_display = ('membership', 'section', 'has_access', 'updated_at')
     list_filter = ('section', 'has_access')
-    search_fields = ('membershipuserusername', 'membershipclassroomname')
+    search_fields = ('membership__user__username', 'membership__classroom__name')
 
 
 @admin.register(StudentProgress)

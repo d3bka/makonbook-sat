@@ -1,0 +1,36 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}AP Tests{% endblock title-main %}
+{% block title %}AP Tests{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:22px;">
+    <div>
+      <h2>AP Tests</h2>
+      <p><strong>Classroom:</strong> {{ classroom.name }}</p>
+    </div>
+    <a href="{% url 'student_classroom_home' classroom.id %}" class="btn btn-secondary">Back to Classroom</a>
+  </div>
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px;">
+    {% for event in events %}
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:18px; box-shadow:0 8px 20px rgba(0,0,0,.06);">
+        <h3 style="margin-top:0; color:#5b21b6;">{{ event.title }}</h3>
+        <p style="color:#64748b;">{{ event.exam.title }}{% if event.exam.ap_class %} · {{ event.exam.ap_class.name }}{% endif %}</p>
+        {% if event.description %}<p>{{ event.description|truncatewords:24 }}</p>{% endif %}
+        <p>
+          <strong>Status:</strong> {{ event.status|title }}<br>
+          <strong>Availability:</strong> {% if event.always_live %}24/7{% else %}{{ event.start_at }} → {{ event.end_at }}{% endif %}
+        </p>
+        <a href="{% url 'apclasses:event_detail' event.slug %}" class="btn btn-primary">Open AP Test</a>
+      </div>
+    {% empty %}
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:22px;">
+        No AP tests are assigned to this classroom yet.
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

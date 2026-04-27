@@ -133,11 +133,19 @@
   </div>
 
   <div class="classroom-grid">
-    {% if access_map.practice_tests %}
+    {% if classroom.is_ap_classroom %}
+      <a href="{% url 'classroom_ap_tests' classroom.id %}" class="classroom-card practice">
+        <div class="classroom-card-content">
+          <span class="classroom-badge">AP Section</span>
+          <h3>AP Tests</h3>
+          <p>Open AP mock tests assigned by your teacher and review your submitted answers.</p>
+        </div>
+      </a>
+    {% elif access_map.practice_tests %}
       <a href="{% url 'classroom_practice_tests' classroom.id %}" class="classroom-card practice">
         <div class="classroom-card-content">
           <span class="classroom-badge">Core Section</span>
-          <h3>Practice Tests</h3>
+          <h3>SAT Tests</h3>
           <p>Open your classroom-assigned SAT practice tests and track your preparation.</p>
         </div>
       </a>
@@ -148,7 +156,7 @@
         <div class="classroom-card-content">
           <span class="classroom-badge">Language Skills</span>
           <h3>Vocabulary</h3>
-          <p>Study units, review flashcards, and improve your SAT word knowledge.</p>
+          <p>Study units, review flashcards, and build stronger academic vocabulary.</p>
         </div>
       </a>
     {% endif %}
@@ -162,6 +170,7 @@
         </div>
       </a>
     {% endif %}
+
     <a href="{% url 'classroom_chat' classroom.id %}" class="classroom-card practice">
       <div class="classroom-card-content">
         <span class="classroom-badge">Communication</span>

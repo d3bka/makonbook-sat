@@ -188,6 +188,7 @@
       <h3>Classroom Info</h3>
       <p><strong>Name:</strong> {{ classroom.name }}</p>
       <p><strong>Description:</strong> {{ classroom.description|default:"No description." }}</p>
+      <p><strong>Type:</strong> {{ classroom.get_classroom_type_display }}</p>
       <p><strong>Created:</strong> {{ classroom.created_at }}</p>
 
       <div style="margin-top: 16px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -199,29 +200,43 @@
           <a class="btn-edit">Edit Classroom</a>
         </button>
 
-        <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
-          View Progress Dashboard
-        </a>
-
         <a href="{% url 'classroom_chat' classroom.id %}" class="btn-main">
           Open Chat
         </a>
 
-        <a href="{% url 'teacher_vocabulary_units' %}" class="btn-main">
-          Manage Vocabulary
-        </a>
+        {% if classroom.is_ap_classroom %}
+          <a href="{% url 'classroom_ap_tests' classroom.id %}" class="btn-main">
+            Open AP Tests
+          </a>
 
-        <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn-main">
-          Open Practice Tests
-        </a>
+          <a href="{% url 'update_classroom_ap_test_access' classroom.id %}" class="btn-main">
+            Manage AP Tests
+          </a>
 
-        <a href="{% url 'update_classroom_practice_test_access' classroom.id %}" class="btn-main">
-          Manage Practice Tests
-        </a>
+          <a href="{% url 'update_classroom_section_access' classroom.id %}" class="btn-main">
+            Manage Vocabulary / Admissions
+          </a>
+        {% else %}
+          <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="btn-main">
+            View Progress Dashboard
+          </a>
 
-        <a href="{% url 'update_classroom_section_access' classroom.id %}" class="btn-main">
-          Manage All Sections
-        </a>
+          <a href="{% url 'teacher_vocabulary_units' %}" class="btn-main">
+            Manage Vocabulary
+          </a>
+
+          <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn-main">
+            Open SAT Tests
+          </a>
+
+          <a href="{% url 'update_classroom_practice_test_access' classroom.id %}" class="btn-main">
+            Manage SAT Tests
+          </a>
+
+          <a href="{% url 'update_classroom_section_access' classroom.id %}" class="btn-main">
+            Manage SAT Sections
+          </a>
+        {% endif %}
       </div>
 
       <div id="editClassroomPanel" class="slide-panel">
@@ -232,6 +247,14 @@
             <div class="form-group">
               <label for="name">Classroom Name</label>
               <input type="text" id="name" name="name" value="{{ classroom.name }}" required>
+            </div>
+
+            <div class="form-group">
+              <label for="classroom_type">Classroom Type</label>
+              <select id="classroom_type" name="classroom_type" style="width:100%; border:1px solid #d1d5db; border-radius:12px; padding:12px 14px;">
+                <option value="sat" {% if classroom.classroom_type == 'sat' %}selected{% endif %}>SAT Classroom</option>
+                <option value="ap" {% if classroom.classroom_type == 'ap' %}selected{% endif %}>AP Classroom</option>
+              </select>
             </div>
 
             <div class="form-group">

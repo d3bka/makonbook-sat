@@ -159,7 +159,7 @@
 <body>
   <header class="simple-header">
     <div class="simple-header-inner">
-      <a href="{% url 'home' %}" class="brand">MakonBook</a>
+      <a href="{% url 'global_event_list' %}" class="brand">MakonBook</a>
       <div class="guest-nav">
         <span>{{ request.session.guest_name|default:"Guest" }}</span>
         <a href="{% url 'guest_logout' %}">Logout</a>

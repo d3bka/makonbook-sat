@@ -1,8 +1,8 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Manage All Sections{% endblock title-main %}
-{% block title %}Classroom Section Access{% endblock title %}
+{% block title-main %}Manage Classroom Access{% endblock title-main %}
+{% block title %}Classroom Access{% endblock title %}
 
 {% block style %}
 <style>
@@ -151,9 +151,12 @@
 <div class="access-wrap">
   <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
 
-  <h2>Manage Section Access</h2>
+  <h2>{% if classroom.is_ap_classroom %}Manage Student Resources{% else %}Manage Section Access{% endif %}</h2>
   <p class="access-subtitle">
     These settings apply to <strong>all {{ student_count }} approved student{{ student_count|pluralize }}</strong> in <strong>{{ classroom.name }}</strong> at once.
+    {% if classroom.is_ap_classroom %}
+      AP tests are managed separately; this page controls Vocabulary and Admissions access.
+    {% endif %}
   </p>
 
   {% if student_count == 0 %}
@@ -165,41 +168,19 @@
   <form method="post">
     {% csrf_token %}
 
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Practice Tests</span>
-        <span class="section-count">{{ section_counts.practice_tests }} of {{ student_count }} students currently have access</span>
+    {% for section in section_rows %}
+      <div class="section-row">
+        <div class="section-label">
+          <span class="section-name">{{ section.label }}</span>
+          <span class="section-count">{{ section.count }} of {{ student_count }} students currently have access</span>
+        </div>
+        <label class="toggle-wrap">
+          <input type="checkbox" name="sections" value="{{ section.key }}" {% if section.checked %}checked{% endif %}>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
       </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="practice_tests" {% if majority_access.practice_tests %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
-
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Vocabulary</span>
-        <span class="section-count">{{ section_counts.vocabulary }} of {{ student_count }} students currently have access</span>
-      </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="vocabulary" {% if majority_access.vocabulary %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
-
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Admissions</span>
-        <span class="section-count">{{ section_counts.admissions }} of {{ student_count }} students currently have access</span>
-      </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="admissions" {% if majority_access.admissions %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
+    {% endfor %}
 
     <button type="submit" class="btn-save" {% if student_count == 0 %}disabled{% endif %}>
       Apply to All Students

@@ -296,10 +296,7 @@ def _serialize_sat_global_event(event):
 def _serialize_ap_global_event(request, event):
     exam = event.exam
 
-    if getattr(event, "requires_secret_code", False):
-        detail_url = reverse("apclasses:event_detail", kwargs={"slug": event.slug})
-    else:
-        detail_url = reverse("apclasses:start_event", kwargs={"slug": event.slug})
+    detail_url = reverse("apclasses:event_detail", kwargs={"slug": event.slug})
 
     return {
         "source": "ap",

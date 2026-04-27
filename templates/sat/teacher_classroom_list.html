@@ -76,6 +76,7 @@
     <div class="classroom-card">
       <h3>{{ classroom.name }}</h3>
       <p>{{ classroom.description|default:"No description." }}</p>
+      {% if classroom.is_ap_classroom %}<p><strong>Type:</strong> AP Classroom</p>{% else %}<p><strong>Type:</strong> SAT Classroom</p>{% endif %}
       <p><strong>Status:</strong> {% if classroom.is_active %}Active{% else %}Inactive{% endif %}</p>
       <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
         Open Classroom

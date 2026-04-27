@@ -2272,6 +2272,11 @@ def create_classroom(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         description = request.POST.get('description', '').strip()
+        classroom_type = request.POST.get('classroom_type', Classroom.CLASSROOM_TYPE_SAT).strip().lower()
+
+        if classroom_type not in {Classroom.CLASSROOM_TYPE_SAT, Classroom.CLASSROOM_TYPE_AP}:
+            messages.error(request, "Choose a valid classroom type.")
+            return redirect('create_classroom')
 
         if not name:
             messages.error(request, "Classroom name is required.")
@@ -2281,6 +2286,7 @@ def create_classroom(request):
             teacher=request.user,
             name=name,
             description=description,
+            classroom_type=classroom_type,
             is_active=True,
         )
 
@@ -2298,7 +2304,9 @@ def create_classroom(request):
         messages.success(request, f'Classroom "{classroom.name}" created successfully.')
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-    return render(request, 'sat/create_classroom.html')
+    return render(request, 'sat/create_classroom.html', {
+        'classroom_type_choices': Classroom.CLASSROOM_TYPE_CHOICES,
+    })
 
 @login_required(login_url='/login/')
 def teacher_classroom_dashboard(request, classroom_id):
@@ -2654,6 +2662,27 @@ def get_membership_section_access_map(membership):
 
     return result
 
+
+def get_classroom_manageable_sections(classroom):
+    """Return the student resource toggles that make sense for this classroom type.
+
+    SAT classrooms can control SAT practice tests plus shared student resources.
+    AP classrooms use AP test assignment separately, but they still need Vocabulary
+    and Admissions access toggles. Do not expose SAT practice-tests as an AP toggle.
+    """
+    shared_sections = [
+        {'key': 'vocabulary', 'label': 'Vocabulary'},
+        {'key': 'admissions', 'label': 'Admissions'},
+    ]
+
+    if classroom.is_ap_classroom:
+        return shared_sections
+
+    return [
+        {'key': 'practice_tests', 'label': 'SAT Practice Tests'},
+        *shared_sections,
+    ]
+
 @login_required(login_url='/login/')
 def update_student_section_access(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
@@ -2669,29 +2698,39 @@ def update_student_section_access(request, classroom_id, user_id):
         status='approved'
     )
 
+    section_options = get_classroom_manageable_sections(classroom)
+    section_keys = [section['key'] for section in section_options]
+
     if request.method == 'POST':
-        selected_sections = request.POST.getlist('sections')
+        selected_sections = set(request.POST.getlist('sections'))
 
-        all_sections = ['practice_tests', 'vocabulary', 'admissions']
-
-        for section in all_sections:
+        for section in section_keys:
             access_obj, _ = StudentSectionAccess.objects.get_or_create(
                 membership=membership,
                 section=section,
                 defaults={'has_access': False}
             )
             access_obj.has_access = section in selected_sections
-            access_obj.save()
+            access_obj.save(update_fields=['has_access'])
 
         messages.success(request, f"Access updated for {membership.user.username}.")
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     access_map = get_membership_section_access_map(membership)
+    section_rows = [
+        {
+            'key': section['key'],
+            'label': section['label'],
+            'checked': access_map.get(section['key'], False),
+        }
+        for section in section_options
+    ]
 
     return render(request, 'sat/update_student_section_access.html', {
         'classroom': classroom,
         'membership': membership,
         'access_map': access_map,
+        'section_rows': section_rows,
     })
 
 @login_required(login_url='/login/')
@@ -2710,39 +2749,51 @@ def update_classroom_section_access(request, classroom_id):
         ).select_related('user').prefetch_related('section_access')
     )
 
-    all_sections = ['practice_tests', 'vocabulary', 'admissions']
+    section_options = get_classroom_manageable_sections(classroom)
+    section_keys = [section['key'] for section in section_options]
 
     if request.method == 'POST':
-        selected_sections = request.POST.getlist('sections')
+        selected_sections = set(request.POST.getlist('sections'))
         for membership in memberships:
-            for section in all_sections:
+            for section in section_keys:
                 access_obj, _ = StudentSectionAccess.objects.get_or_create(
                     membership=membership,
                     section=section,
                     defaults={'has_access': False}
                 )
                 access_obj.has_access = section in selected_sections
-                access_obj.save()
-        messages.success(request, f"Section access updated for all {len(memberships)} students.")
+                access_obj.save(update_fields=['has_access'])
+        messages.success(request, f"Resource access updated for all {len(memberships)} students.")
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-    # Pre-populate: a section shows as checked if more than half of students have it
-    section_counts = {s: 0 for s in all_sections}
+    # Pre-populate: a section shows as checked if more than half of students have it.
+    section_counts = {s: 0 for s in section_keys}
     for membership in memberships:
         amap = get_membership_section_access_map(membership)
-        for section in all_sections:
+        for section in section_keys:
             if amap.get(section):
                 section_counts[section] += 1
     total = len(memberships)
     majority_access = {
-        s: (section_counts[s] > total / 2) for s in all_sections
-    } if total else {s: False for s in all_sections}
+        s: (section_counts[s] > total / 2) for s in section_keys
+    } if total else {s: False for s in section_keys}
+
+    section_rows = [
+        {
+            'key': section['key'],
+            'label': section['label'],
+            'count': section_counts[section['key']],
+            'checked': majority_access[section['key']],
+        }
+        for section in section_options
+    ]
 
     return render(request, 'sat/update_classroom_section_access.html', {
         'classroom': classroom,
         'student_count': total,
         'majority_access': majority_access,
         'section_counts': section_counts,
+        'section_rows': section_rows,
     })
 
 
@@ -3029,6 +3080,9 @@ def classroom_practice_tests(request, classroom_id):
             classroom=classroom,
             message="You do not have access to this classroom."
         )
+
+    if not classroom.is_sat_classroom:
+        return redirect('classroom_ap_tests', classroom_id=classroom.id)
 
     if role in ['teacher', 'admin']:
         tests = Test.objects.all().distinct().order_by('name')
@@ -3980,6 +4034,11 @@ def edit_classroom(request, classroom_id):
 
     name = request.POST.get('name', '').strip()
     description = request.POST.get('description', '').strip()
+    classroom_type = request.POST.get('classroom_type', classroom.classroom_type).strip().lower()
+
+    if classroom_type not in {Classroom.CLASSROOM_TYPE_SAT, Classroom.CLASSROOM_TYPE_AP}:
+        messages.error(request, "Choose a valid classroom type.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     if not name:
         messages.error(request, "Classroom name is required.")
@@ -3987,7 +4046,8 @@ def edit_classroom(request, classroom_id):
 
     classroom.name = name
     classroom.description = description
-    classroom.save()
+    classroom.classroom_type = classroom_type
+    classroom.save(update_fields=['name', 'description', 'classroom_type'])
 
     messages.success(request, "Classroom updated successfully.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
@@ -4742,11 +4802,98 @@ def lesson_detail(request, lesson_id):
     })
 
 @login_required(login_url='/login/')
+def classroom_ap_tests(request, classroom_id):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+
+    if redirect_response:
+        return redirect_response
+
+    if role is None:
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message="You do not have access to this classroom."
+        )
+
+    if not classroom.is_ap_classroom:
+        messages.error(request, "This is a SAT classroom. Open SAT tests instead.")
+        if role == 'student':
+            return redirect('student_classroom_home', classroom_id=classroom.id)
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    if APExamEvent is None:
+        messages.error(request, "AP tests are not available in this installation.")
+        if role == 'student':
+            return redirect('student_classroom_home', classroom_id=classroom.id)
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    events = APExamEvent.objects.select_related(
+        'exam',
+        'exam__ap_class',
+    ).filter(
+        classrooms=classroom,
+        is_public=True,
+    ).distinct().order_by('-created_at')
+
+    if role == 'student':
+        events = events.filter(exam__status='published')
+        events = [event for event in events if event.user_can_see(request.user)]
+
+    return render(request, 'sat/classroom_ap_tests.html', {
+        'classroom': classroom,
+        'events': events,
+        'role': role,
+        'membership': membership,
+    })
+
+
+@login_required(login_url='/login/')
+def update_classroom_ap_test_access(request, classroom_id):
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+
+    if classroom.teacher != request.user and not request.user.is_superuser:
+        return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    if not classroom.is_ap_classroom:
+        messages.error(request, "AP tests can be managed only for AP classrooms.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    if APExamEvent is None:
+        messages.error(request, "AP tests are not available in this installation.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    events = list(
+        APExamEvent.objects.select_related('exam', 'exam__ap_class')
+        .filter(is_public=True)
+        .order_by('-created_at')
+    )
+
+    if request.method == 'POST':
+        selected_event_ids = set(request.POST.getlist('events'))
+        selected_events = [event for event in events if str(event.pk) in selected_event_ids]
+        classroom.ap_exam_events.set(selected_events)
+        messages.success(request, f"AP tests updated for {classroom.name}.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+
+    selected_event_ids = set(str(pk) for pk in classroom.ap_exam_events.values_list('pk', flat=True))
+
+    return render(request, 'sat/update_classroom_ap_test_access.html', {
+        'classroom': classroom,
+        'events': events,
+        'selected_event_ids': selected_event_ids,
+    })
+
+
+@login_required(login_url='/login/')
 def update_classroom_practice_test_access(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
     if classroom.teacher != request.user and not request.user.is_superuser:
         return HttpResponseForbidden("You can manage only your own classrooms.")
+
+    if not classroom.is_sat_classroom:
+        messages.error(request, "SAT tests can be managed only for SAT classrooms.")
+        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     memberships = list(
         ClassroomMembership.objects.filter(

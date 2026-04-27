@@ -47,6 +47,18 @@
             .question-container { border-right: none; border-bottom: 1px dashed #c9c9c9; padding-right: 0; padding-bottom: 18px; }
             .answers-container { padding-left: 0; }
         }
+        @media (max-width: 560px) {
+            .container { padding: 14px 12px; max-width: 100%; overflow-x: hidden; }
+            header { gap: 8px; border-bottom-width: 2px; }
+            header h1 { width: 100%; font-size: 22px; overflow-wrap: anywhere; }
+            main { gap: 14px; margin-top: 14px; min-height: 0; }
+            .question-container, .answers-container { width: 100%; padding: 0; }
+            .question-text, .question-passage, .review-meta, .review-meta p, .review-meta h3, .choice-body { font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+            .choice-card { padding: 12px; gap: 10px; border-radius: 12px; }
+            .choice-letter { width: 32px; min-width: 32px; height: 32px; font-size: 18px; }
+            footer { flex-wrap: wrap; gap: 10px; border-top-width: 2px; }
+            .nav-button { flex: 1 1 120px; min-width: 0; height: 42px; font-size: 15px; }
+        }
     </style>
 </head>
 <body>
