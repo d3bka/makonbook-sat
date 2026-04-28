@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from django.urls import reverse
 from .forms import UserRegistrationForm, EditProfileForm
-from datetime import timezone
+from datetime import timedelta, timezone
 from .models import EmailVerification
 from .decorators import *
 
@@ -64,11 +64,23 @@ def register(request):
             user.set_password(form.cleaned_data["password"])
             user.save()
 
-            # Create and save the email verification with a token
-            verification = EmailVerification.objects.create(user=user)
+            # # Create and save the email verification with a token
+            # verification = EmailVerification.objects.create(user=user)
 
-            # Generate activation URL
-            activation_url = request.build_absolute_uri(reverse('activate', kwargs={'token': str(verification.token)}))
+            # # Generate activation URL
+            # activation_url = request.build_absolute_uri(reverse('activate', kwargs={'token': str(verification.token)}))
+
+            # Email verification temporarily disabled.
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+            
+            EmailVerification.objects.update_or_create(
+                user=user,
+                defaults={
+                    "is_verified": True,
+                    "expires_at": timezone.now() + timedelta(days=3650),
+                }
+            )
 
             # # Send the activation email
             # subject = 'Activate Your MakonBook Account'
