@@ -2584,7 +2584,9 @@ def approve_join_request(request, classroom_id, membership_id):
             section=section,
             defaults={'has_access': False}
         )
-
+    
+    recalculate_student_progress_for_classroom(classroom, membership.user)
+    
     messages.success(request, f"{membership.user.username} has been approved.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
