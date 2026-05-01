@@ -157,7 +157,7 @@
 {% block content %}
 <div class="mx-auto" style="width:90%;">
   <div data-v-27935a7a="" class="row mx-auto sat">
-    <a data-v-27935a7a="" href="/practices" class="col-md-4 sat_left print_div">
+    <a data-v-27935a7a="" href="{% url 'sat_menu' %}" class="col-md-4 sat_left print_div">
       <p data-v-27935a7a="">SAT</p><span data-v-27935a7a="">®</span>
     </a>
     <div data-v-27935a7a="" class="col-md-4 sat_right row">
@@ -189,18 +189,21 @@
     {% endif %}
   </div>
 
-  {% if attempts and attempts|length > 1 %}
+  {% if attempts %}
   <div class="row" style="margin: 20px 0;">
-    <div class="col-md-6">
-      <form method="get">
-        <label for="review_key" style="font-weight: 700; margin-right: 10px;">Select attempt for review:</label>
-        <select id="review_key" name="review_key" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc;">
-          {% for attempt in attempts %}
-            <option value="{{ attempt.key }}" {% if attempt.key == selected_review_key %}selected{% endif %}>
-              {{ attempt.created_at|date:'Y-m-d H:i' }} · Score: {{ attempt.score }}
-            </option>
+    <div class="col-md-8">
+      <form method="get" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px; border-radius:14px; background:#f3f4ff; border:1px solid #dfe3ff;">
+        <strong style="color:#17205a;">Attempt review:</strong>
+        <select id="review_key" name="review_key" onchange="this.form.submit()" {% if attempts|length == 1 %}disabled{% endif %} style="min-width:260px; padding:9px 12px; border-radius:8px; border:1px solid #bfc6ff; background:white; font-weight:600;">
+          {% for option in attempt_options %}
+            <option value="{{ option.key }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>
+        {% if attempts|length > 1 %}
+          <button type="submit" style="padding:9px 14px; border:0; border-radius:8px; background:#324dc7; color:white; font-weight:700; cursor:pointer;">Open attempt</button>
+        {% else %}
+          <span style="color:#5b647a; font-size:14px;">Only one completed attempt</span>
+        {% endif %}
       </form>
     </div>
   </div>
@@ -224,6 +227,7 @@
       <div class="restart-btn-container">
         <form method="post" action="{% url 'restart' pk=stats.test %}" style="display:inline;">
           {% csrf_token %}
+          {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
           <button type="submit" class="btn btn-danger btn-sm">
             <i class="fa fa-refresh"></i> Retake Full Test
           </button>
@@ -260,6 +264,7 @@
         <div class="restart-btn-container">
           <form method="post" action="{% url 'restart_section' pk=stats.test section='english' %}" style="display:inline;">
             {% csrf_token %}
+            {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
             <button type="submit" class="btn btn-warning btn-sm">
               <i class="fa fa-refresh"></i> Retake English Section
             </button>
@@ -292,6 +297,7 @@
         <div class="restart-btn-container">
           <form method="post" action="{% url 'restart_section' pk=stats.test section='math' %}" style="display:inline;">
             {% csrf_token %}
+            {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
             <button type="submit" class="btn btn-warning btn-sm">
               <i class="fa fa-refresh"></i> Retake Math Section
             </button>

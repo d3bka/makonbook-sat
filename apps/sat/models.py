@@ -328,6 +328,7 @@ class TestModule(BaseModel):
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name="modules")
     makeup_test = models.ForeignKey(MakeupTest, on_delete=models.SET_NULL, null=True, blank=True, related_name="test_modules")
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='test_modules')
 
     section = models.CharField(max_length=8)
     module = models.CharField(
@@ -393,6 +394,7 @@ class TestReview(BaseModel):
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name="test_reviews")
     makeup_test = models.ForeignKey(MakeupTest, on_delete=models.SET_NULL, null=True, blank=True, related_name="makeup_test_reviews")
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+    classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='test_reviews')
     key = models.CharField(max_length=100, blank=True, unique=True)
     attempt_id = models.UUIDField(default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -447,6 +449,7 @@ class TestStage(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name="test_stages")
     makeup_test = models.ForeignKey(MakeupTest, on_delete=models.SET_NULL, null=True, blank=True, related_name="makeup_test_stages")
+    classroom = models.ForeignKey('Classroom', on_delete=models.SET_NULL, null=True, blank=True, related_name='test_stages')
     stage = models.IntegerField()
     again = models.BooleanField(default=True)
     retake_count = models.IntegerField(default=0, help_text="Number of retakes used by this user")
@@ -466,6 +469,7 @@ class TestStage(BaseModel):
         latest_review = TestReview.objects.filter(
             test=self.test,
             user=self.user,
+            classroom_id=self.classroom_id,
             score__isnull=False,
             attempt_id__isnull=False,
         ).order_by('-created_at').first()
@@ -479,6 +483,7 @@ class TestStage(BaseModel):
         modules = TestModule.objects.filter(
             test=self.test,
             user=self.user,
+            classroom_id=self.classroom_id,
             attempt_id=from_attempt_id,
             test_type=self.test_type,
         )
@@ -491,6 +496,7 @@ class TestStage(BaseModel):
                 test=module.test,
                 makeup_test=module.makeup_test,
                 user=module.user,
+                classroom=module.classroom,
                 section=module.section,
                 module=module.module,
                 answers=module.answers,
@@ -524,7 +530,7 @@ class TestStage(BaseModel):
         self.stage = 1
         self.retake_count += 1
         self.attempt_id = uuid.uuid4()
-        self.save(update_fields=['stage', 'retake_count', 'attempt_id'])
+        self.save(update_fields=['stage', 'retake_count', 'attempt_id', 'updated_at'])
         return True
 
     def resolve_section(self, section):
@@ -576,7 +582,7 @@ class TestStage(BaseModel):
         self.stage = start_stage
         self.retake_count += 1
         self.attempt_id = new_attempt_id
-        self.save(update_fields=['stage', 'retake_count', 'attempt_id'])
+        self.save(update_fields=['stage', 'retake_count', 'attempt_id', 'updated_at'])
         return True
 
     def get_retakes_remaining(self):
