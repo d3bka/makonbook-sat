@@ -100,10 +100,12 @@
         "testName": "{{ test.name|default_if_none:''|escapejs }}",
         "moduleName": "{{ module|escapejs }}",
         "sectionName": "{{ section|escapejs }}",
+        "classroomId": "{% if classroom %}{{ classroom.id }}{% endif %}",
         "timeRemaining": {% if attempt %}{{ time_left_seconds|default:1920 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}1920{% endif %},
         "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
         "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",
-        "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
+        "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}-{{ attempt_id|default:'noattempt' }}{% endif %}",
+        "legacyStorageScope": "{% if attempt %}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
         "submitTimeoutMs": 30000
     }
     </script>
