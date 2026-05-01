@@ -83,6 +83,20 @@
             return `${pageConfig.storageScope}_${moduleName}_${sectionName}`;
         }
 
+        function legacyStorageKey() {
+            if (!pageConfig.legacyStorageScope) return null;
+            return `${pageConfig.legacyStorageScope}_${moduleName}_${sectionName}`;
+        }
+
+        function getStoredValue(suffix) {
+            const currentKey = storageKey();
+            const currentValue = localStorage.getItem(`${currentKey}_${suffix}`);
+            if (currentValue !== null) return currentValue;
+
+            const legacyKey = legacyStorageKey();
+            return legacyKey ? localStorage.getItem(`${legacyKey}_${suffix}`) : null;
+        }
+
         function saveProgress() {
             const key = storageKey();
             localStorage.setItem(`${key}_timeSpent`, JSON.stringify(timeSpent));
@@ -94,13 +108,12 @@
         }
 
         function loadProgress() {
-            const key = storageKey();
-            const savedAnswers = localStorage.getItem(`${key}_answers`);
-            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
-            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
-            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
-            const savedReview = localStorage.getItem(`${key}_markedForReview`);
-            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+            const savedAnswers = getStoredValue('answers');
+            const savedEliminatedChoices = getStoredValue('eliminatedChoices');
+            const savedIndex = getStoredValue('currentQuestionIndex');
+            const savedTime = getStoredValue('timeRemaining');
+            const savedReview = getStoredValue('markedForReview');
+            const savedTimeSpent = getStoredValue('timeSpent');
 
             if (savedTimeSpent) {
                 timeSpent = JSON.parse(savedTimeSpent);
@@ -133,6 +146,16 @@
             localStorage.removeItem(`${key}_currentQuestionIndex`);
             localStorage.removeItem(`${key}_timeRemaining`);
             localStorage.removeItem(`${key}_markedForReview`);
+
+            const legacyKey = legacyStorageKey();
+            if (legacyKey) {
+                localStorage.removeItem(`${legacyKey}_timeSpent`);
+                localStorage.removeItem(`${legacyKey}_answers`);
+                localStorage.removeItem(`${legacyKey}_eliminatedChoices`);
+                localStorage.removeItem(`${legacyKey}_currentQuestionIndex`);
+                localStorage.removeItem(`${legacyKey}_timeRemaining`);
+                localStorage.removeItem(`${legacyKey}_markedForReview`);
+            }
         }
 
         function normalizeChoice(value) {
@@ -465,7 +488,8 @@
                                 answers: answerData,
                                 section: sectionName,
                                 test: testName,
-                                module: moduleName
+                                module: moduleName,
+                                classroom_id: pageConfig.classroomId || null
                             }),
                             signal: createTimeoutSignal(submitTimeoutMs)
                         });

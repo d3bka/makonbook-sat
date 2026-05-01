@@ -100,27 +100,23 @@ def restart(request, pk):
     if not test:
         return HttpResponse(f"Test '{pk}' not found")
 
-    if not user_has_test_access(user, test):
+    classroom = _get_classroom_context_from_id(user, request.POST.get('classroom_id'), test_obj=test)
+
+    if classroom is None and not user_has_test_access(user, test):
         return HttpResponse(
             f"Test '{pk}' is not assigned to your account.",
             status=403
         )
 
-    stage, _ = TestStage.objects.get_or_create(
-        user=user,
-        test=test,
-        defaults={"stage": 1}
-    )
+    stage, _ = _get_or_create_regular_test_stage(user, test, stage=1, classroom=classroom)
 
     # Try to restart the full test
     response = stage.resolve()
 
     if response:
-        # Restart successful
-        return render(request, 'sat/restart_success.html', {
-            'test_name': pk,
-            'section': None
-        })
+        if classroom:
+            return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+        return redirect('test', pk=test.name)
     else:
         # Retake limit exceeded
         user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
@@ -130,7 +126,8 @@ def restart(request, pk):
             'section': None,
             'retakes_used': stage.retake_count,
             'max_retakes': stage.get_max_retakes(),
-            'user_group': user_group
+            'user_group': user_group,
+            'classroom': classroom,
         })
 
 
@@ -418,6 +415,78 @@ def user_has_test_access(user, test):
     return False
 
 
+
+
+def _classroom_id_value(classroom):
+    if not classroom:
+        return None
+    if hasattr(classroom, 'id'):
+        return classroom.id
+    try:
+        return int(classroom)
+    except (TypeError, ValueError):
+        return None
+
+
+def _classroom_scope_filter(classroom):
+    """Always scope SAT attempts.
+
+    classroom=None means regular/non-classroom attempts only. A concrete
+    classroom means attempts for that classroom only. This prevents a test solved
+    in one teacher's classroom from blocking the same test in another classroom.
+    """
+    return {'classroom_id': _classroom_id_value(classroom)}
+
+
+def _get_classroom_context_from_id(user, classroom_id, test_obj=None):
+    if not classroom_id:
+        return None
+
+    try:
+        classroom_id = int(classroom_id)
+    except (TypeError, ValueError):
+        raise Http404("Invalid classroom id.")
+
+    classroom = get_object_or_404(Classroom, id=classroom_id, is_active=True)
+
+    if user.is_superuser or user.is_staff or is_member(user, ['Admin', 'Tester']) or classroom.teacher_id == user.id:
+        return classroom
+
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=user,
+        role='student',
+        status='approved',
+    ).first()
+
+    if not membership:
+        raise Http404("Classroom access was not found.")
+
+    if not get_membership_section_access_map(membership).get('practice_tests'):
+        raise Http404("Practice Tests access was not granted for this classroom.")
+
+    if test_obj is not None:
+        allowed = StudentPracticeTestAccess.objects.filter(
+            membership=membership,
+            test=test_obj,
+            has_access=True,
+        ).exists()
+        if not allowed:
+            raise Http404("This test is not assigned in this classroom.")
+
+    return classroom
+
+
+def _results_url_for_test(test_obj, classroom=None, review_key=None):
+    base_url = reverse('results', kwargs={'test': test_obj.name})
+    params = []
+    if review_key:
+        params.append(f"review_key={review_key}")
+    classroom_id = _classroom_id_value(classroom)
+    if classroom_id:
+        params.append(f"classroom_id={classroom_id}")
+    return f"{base_url}?{'&'.join(params)}" if params else base_url
+
 def _safe_answers_list(raw_answers):
     try:
         payload = json.loads(raw_answers or '{}')
@@ -428,32 +497,112 @@ def _safe_answers_list(raw_answers):
     return answers if isinstance(answers, list) else []
 
 
-def _resolve_attempt_id(user, test_obj, selected_review=None):
+
+def _review_results_url(review, classroom=None, student=None):
+    if not review or not review.test:
+        return ''
+
+    if classroom is not None and student is not None:
+        base_url = reverse(
+            'classroom_student_review_results',
+            args=[classroom.id, student.id, review.test.name]
+        )
+        return f"{base_url}?review_key={review.key}"
+
+    return _results_url_for_test(review.test, classroom=classroom or review.classroom, review_key=review.key)
+
+
+def _module_contains_question(module_obj, question_id):
+    target_id = str(question_id)
+    for item in _safe_answers_list(module_obj.answers):
+        if str(item.get('questionID', '')) == target_id:
+            return True
+    return False
+
+
+def _review_question_url(review, section, module, question_id, classroom=None, student=None):
+    if not review:
+        return ''
+
+    module_obj = TestModule.objects.filter(
+        test=review.test,
+        user=review.user,
+        section=section,
+        module=module,
+        attempt_id=review.attempt_id,
+        classroom_id=review.classroom_id,
+    ).first()
+
+    if not module_obj or not _module_contains_question(module_obj, question_id):
+        return _review_results_url(review, classroom=classroom, student=student)
+
+    if classroom is not None and student is not None:
+        return reverse(
+            'classroom_student_review_question',
+            args=[classroom.id, student.id, review.key, section, module, question_id]
+        )
+
+    return reverse('question', args=[review.key, section, module, question_id])
+
+
+def _build_review_attempt_options(attempts, selected_review=None, *, section=None, module=None, question_id=None, classroom=None, student=None):
+    total = len(attempts)
+    options = []
+
+    for index, attempt in enumerate(attempts):
+        attempt_number = total - index
+        created_at = timezone.localtime(attempt.created_at).strftime('%Y-%m-%d %H:%M') if attempt.created_at else ''
+        score = attempt.score if attempt.score is not None else '—'
+        label = f"Attempt {attempt_number} · {created_at} · Score: {score}"
+
+        if section and module and question_id:
+            url = _review_question_url(
+                attempt,
+                section,
+                module,
+                question_id,
+                classroom=classroom,
+                student=student,
+            )
+        else:
+            url = _review_results_url(attempt, classroom=classroom, student=student)
+
+        options.append({
+            'key': attempt.key,
+            'label': label,
+            'url': url,
+            'selected': bool(selected_review and attempt.key == selected_review.key),
+        })
+
+    return options
+
+def _resolve_attempt_id(user, test_obj, selected_review=None, classroom=None):
     if selected_review and selected_review.attempt_id:
         return selected_review.attempt_id
 
-    latest_stage = TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
+    latest_stage = _latest_regular_test_stage(user, test_obj, classroom=classroom)
     if latest_stage and latest_stage.attempt_id:
         return latest_stage.attempt_id
 
     latest_scored_review = TestReview.objects.filter(
         user=user,
         test=test_obj,
-        score__isnull=False
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
     ).order_by('-created_at').first()
     if latest_scored_review and latest_scored_review.attempt_id:
         return latest_scored_review.attempt_id
 
-    latest_module = TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
+    latest_module = TestModule.objects.filter(user=user, test=test_obj, **_classroom_scope_filter(classroom)).order_by('-created_at').first()
     if latest_module and latest_module.attempt_id:
         return latest_module.attempt_id
 
     return None
 
 
-def _load_latest_modules(user, test_obj, attempt_id=None):
+def _load_latest_modules(user, test_obj, attempt_id=None, classroom=None):
     latest_modules = {}
-    queryset = TestModule.objects.filter(user=user, test=test_obj)
+    queryset = TestModule.objects.filter(user=user, test=test_obj, **_classroom_scope_filter(classroom))
 
     if attempt_id:
         queryset = queryset.filter(attempt_id=attempt_id)
@@ -466,7 +615,7 @@ def _load_latest_modules(user, test_obj, attempt_id=None):
     if latest_modules or attempt_id:
         return latest_modules
 
-    for module in TestModule.objects.filter(user=user, test=test_obj).order_by('-created_at'):
+    for module in TestModule.objects.filter(user=user, test=test_obj, **_classroom_scope_filter(classroom)).order_by('-created_at'):
         key = f"{module.section}_{module.module}"
         if key not in latest_modules:
             latest_modules[key] = module
@@ -498,6 +647,180 @@ def _build_question_maps(modules_to_process):
     return english_map, math_map
 
 
+def _calculate_attempt_score(user, test_obj, attempt_id, classroom=None):
+    if not attempt_id:
+        return None
+
+    required_modules = _required_modules_for_test(test_obj)
+    if not required_modules:
+        return None
+
+    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id, classroom=classroom)
+    modules_to_process = []
+    for section, module in required_modules:
+        module_obj = latest_modules.get(f"{section}_{module}")
+        if not module_obj:
+            return None
+        modules_to_process.append(module_obj)
+
+    correct_counts = {
+        'english': {'m1': 0, 'm2': 0},
+        'math': {'m1': 0, 'm2': 0},
+    }
+    english_question_map, math_question_map = _build_question_maps(modules_to_process)
+
+    for module_obj in modules_to_process:
+        sec = _normalize_test_section(module_obj.section)
+        mod = _normalize_test_module(module_obj.module)
+        if sec not in ['english', 'math'] or mod not in ['m1', 'm2']:
+            continue
+
+        for answer in _safe_answers_list(module_obj.answers):
+            try:
+                question_id = int(answer['questionID'])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if sec == 'english':
+                question = english_question_map.get(question_id)
+                is_correct = bool(question and answer.get('answer') == question.answer)
+            else:
+                question = math_question_map.get(question_id)
+                raw_answer = answer.get('answer')
+                is_correct = bool(question and raw_answer is not None and check_written(raw_answer, question.answer))
+
+            if is_correct:
+                correct_counts[sec][mod] += 1
+
+    return _score_from_counts(get_test_mode(test_obj), correct_counts)
+
+
+def _completed_attempt_ids_from_modules(user, test_obj, classroom=None):
+    required_modules = _required_modules_for_test(test_obj)
+    if not required_modules:
+        return []
+
+    required_slots = {
+        (_normalize_test_section(section), _normalize_test_module(module))
+        for section, module in required_modules
+    }
+    slots_by_attempt = defaultdict(set)
+    latest_time_by_attempt = {}
+
+    modules = TestModule.objects.filter(
+        user=user,
+        test=test_obj,
+        test_type='regular',
+        attempt_id__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).only('attempt_id', 'section', 'module', 'created_at', 'created')
+
+    for module_obj in modules:
+        attempt_id = module_obj.attempt_id
+        if not attempt_id:
+            continue
+
+        slot = (
+            _normalize_test_section(module_obj.section),
+            _normalize_test_module(module_obj.module),
+        )
+        slots_by_attempt[attempt_id].add(slot)
+
+        module_time = module_obj.created_at or module_obj.created
+        if module_time and (
+            attempt_id not in latest_time_by_attempt or
+            module_time > latest_time_by_attempt[attempt_id]
+        ):
+            latest_time_by_attempt[attempt_id] = module_time
+
+    fallback_time = timezone.now() - timedelta(days=36500)
+    completed_attempt_ids = [
+        attempt_id
+        for attempt_id, slots in slots_by_attempt.items()
+        if required_slots.issubset(slots)
+    ]
+    completed_attempt_ids.sort(
+        key=lambda attempt_id: latest_time_by_attempt.get(attempt_id) or fallback_time,
+        reverse=True,
+    )
+    return completed_attempt_ids
+
+
+def _ensure_scored_review_for_attempt(user, test_obj, attempt_id, classroom=None):
+    if not attempt_id:
+        return None
+
+    existing_scored = TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        attempt_id=attempt_id,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at').first()
+    if existing_scored:
+        if not existing_scored.key:
+            existing_scored.update_key()
+        return existing_scored
+
+    score = _calculate_attempt_score(user, test_obj, attempt_id, classroom=classroom)
+    if not score:
+        return None
+
+    review = TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        attempt_id=attempt_id,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at').first()
+
+    if not review:
+        review = TestReview.objects.create(
+            user=user,
+            test=test_obj,
+            classroom=classroom,
+            attempt_id=attempt_id,
+        )
+        review.update_key()
+    elif not review.key:
+        review.update_key()
+
+    latest_module = TestModule.objects.filter(
+        user=user,
+        test=test_obj,
+        test_type='regular',
+        attempt_id=attempt_id,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at', '-created').first()
+    latest_module_time = None
+    if latest_module:
+        latest_module_time = latest_module.created_at or latest_module.created
+
+    review.score = score.get('total', 0) if isinstance(score, dict) else 0
+    update_fields = ['score']
+
+    if latest_module_time:
+        review.created_at = latest_module_time
+        update_fields.append('created_at')
+
+    if user.groups.filter(name='OFFLINE').exists():
+        review.duration = timedelta(days=3)
+        update_fields.append('duration')
+
+    review.save(update_fields=update_fields)
+    return review
+
+
+def _backfill_completed_attempt_reviews(user, test_obj, classroom=None):
+    """Create missing TestReview rows for completed attempts saved as modules.
+
+    This repairs attempts completed while the old results view kept selecting the
+    previous review. Without this, a student could retake a test, finish all
+    modules, and still see only Attempt 1 in the dropdown.
+    """
+    for attempt_id in _completed_attempt_ids_from_modules(user, test_obj, classroom=classroom):
+        _ensure_scored_review_for_attempt(user, test_obj, attempt_id, classroom=classroom)
+
+
 def _latest_by_test_id(queryset, require_scored=False):
     latest = {}
     for obj in queryset:
@@ -510,15 +833,107 @@ def _latest_by_test_id(queryset, require_scored=False):
     return latest
 
 
+def _latest_regular_test_stage(user, test_obj, classroom=None):
+    return TestStage.objects.filter(
+        user=user,
+        test=test_obj,
+        test_type='regular',
+        **_classroom_scope_filter(classroom),
+    ).order_by('-updated_at', '-created_at', '-id').first()
 
-def _split_tests_by_user_progress(user, tests):
+
+def _get_or_create_regular_test_stage(user, test_obj, *, stage=1, classroom=None):
+    existing_stage = _latest_regular_test_stage(user, test_obj, classroom=classroom)
+    if existing_stage:
+        return existing_stage, False
+
+    return TestStage.objects.create(
+        user=user,
+        test=test_obj,
+        classroom=classroom,
+        test_type='regular',
+        stage=stage,
+    ), True
+
+
+def _attempt_module_slots(user, test_obj, attempt_id, classroom=None):
+    if not attempt_id:
+        return set()
+
+    slots = set()
+    for section, module in TestModule.objects.filter(
+        user=user,
+        test=test_obj,
+        test_type='regular',
+        attempt_id=attempt_id,
+        **_classroom_scope_filter(classroom),
+    ).values_list('section', 'module'):
+        slots.add((
+            _normalize_test_section(section),
+            _normalize_test_module(module),
+        ))
+    return slots
+
+
+def _attempt_has_scored_review(user, test_obj, attempt_id, classroom=None):
+    if not attempt_id:
+        return False
+
+    return TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        attempt_id=attempt_id,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).exists()
+
+
+def _stage_attempt_is_complete(stage):
+    if not stage or not stage.test_id:
+        return False
+
+    sequence = get_test_sequence(stage.test)
+    if not sequence:
+        return False
+
+    if stage.stage > len(sequence):
+        return True
+
+    required_slots = {
+        (_normalize_test_section(section), _normalize_test_module(module))
+        for section, module in sequence
+    }
+    submitted_slots = _attempt_module_slots(stage.user, stage.test, stage.attempt_id, classroom=stage.classroom)
+
+    return bool(required_slots and required_slots.issubset(submitted_slots))
+
+
+def _get_resumable_stage(user, test_obj, classroom=None):
+    stage = _latest_regular_test_stage(user, test_obj, classroom=classroom)
+
+    if not stage:
+        return None
+
+    if _attempt_has_scored_review(user, test_obj, stage.attempt_id, classroom=classroom):
+        return None
+
+    if _stage_attempt_is_complete(stage):
+        return None
+
+    return stage
+
+
+def _has_resumable_test_attempt(user, test_obj, classroom=None):
+    return _get_resumable_stage(user, test_obj, classroom=classroom) is not None
+
+
+def _split_tests_by_user_progress(user, tests, classroom=None):
     """Return (active_tests, past_tests) for a user's practice-test list.
 
-    Test.name is the primary key in this project, so all lookups must use
-    test.pk/test.name instead of test.id. A test is considered past when the
-    user has a scored TestReview. It remains active only when there is no
-    scored review yet, or when a newer in-progress attempt exists after the
-    latest scored review (retake case).
+    Completed attempts belong in Past only. A test remains Active only when it
+    has no scored review yet or when the latest TestStage is a real unfinished
+    attempt. A completed TestStage must not make a solved test show a fake
+    Continue button.
     """
     tests = list(tests)
     if not tests:
@@ -530,58 +945,28 @@ def _split_tests_by_user_progress(user, tests):
         user=user,
         test_id__in=test_ids,
         score__isnull=False,
+        **_classroom_scope_filter(classroom),
     ).order_by('test_id', '-created_at')
     latest_reviews = _latest_by_test_id(reviews)
-
-    modules = TestModule.objects.filter(
-        user=user,
-        test_id__in=test_ids,
-    ).order_by('test_id', '-created')
-    stages = TestStage.objects.filter(
-        user=user,
-        test_id__in=test_ids,
-    ).order_by('test_id', '-updated_at', '-created_at')
-
-    latest_module_by_test = {}
-    for module in modules:
-        if module.test_id and module.test_id not in latest_module_by_test:
-            latest_module_by_test[module.test_id] = module
-
-    latest_stage_by_test = _latest_by_test_id(stages)
 
     active_tests = []
     past_tests = []
 
     for test in tests:
-        test_key = test.pk
-        review = latest_reviews.get(test_key)
-        latest_module = latest_module_by_test.get(test_key)
-        latest_stage = latest_stage_by_test.get(test_key)
+        review = latest_reviews.get(test.pk)
+        has_resumable_attempt = _has_resumable_test_attempt(user, test, classroom=classroom)
 
         # Dynamic attributes are intentionally used by templates.
         test.latest_review = review
         test.latest_review_key = review.key if review and review.key else ''
         test.latest_score = review.score if review else None
         test.has_completed_attempt = bool(review)
-        test.has_active_attempt = False
-
-        has_newer_module = bool(
-            latest_module and (
-                not review or not review.created_at or latest_module.created > review.created_at
-            )
-        )
-        latest_stage_at = getattr(latest_stage, 'updated_at', None) or getattr(latest_stage, 'created_at', None)
-        has_newer_stage = bool(
-            latest_stage and (
-                not review or not review.created_at or not latest_stage_at or latest_stage_at > review.created_at
-            )
-        )
+        test.has_active_attempt = has_resumable_attempt
 
         if review:
             past_tests.append(test)
 
-        if not review or has_newer_module or has_newer_stage:
-            test.has_active_attempt = bool(latest_module or latest_stage)
+        if not review or has_resumable_attempt:
             active_tests.append(test)
 
     return active_tests, past_tests
@@ -735,17 +1120,19 @@ def check_the_answers(request):
         except Test.DoesNotExist:
             return JsonResponse({'ok': False, 'error': 'Test not found.'}, status=404)
 
-        if not user_has_test_access(request.user, test_obj):
+        classroom = _get_classroom_context_from_id(
+            request.user,
+            payload.get('classroom_id') or payload.get('classroomId'),
+            test_obj=test_obj,
+        )
+
+        if classroom is None and not user_has_test_access(request.user, test_obj):
             return JsonResponse({'ok': False, 'error': 'You do not have access to this test.'}, status=403)
 
         section = _normalize_test_section(section)
         module = _normalize_test_module(module)
 
-        test_stage, _ = TestStage.objects.get_or_create(
-            user=request.user,
-            test=test_obj,
-            defaults={'stage': 1}
-        )
+        test_stage, _ = _get_or_create_regular_test_stage(request.user, test_obj, stage=1, classroom=classroom)
         current_step = get_current_test_step(test_stage)
         if current_step != (section, module):
             expected = f"{current_step[0]} / {current_step[1]}" if current_step else 'finished'
@@ -761,6 +1148,7 @@ def check_the_answers(request):
         module_obj, created = TestModule.objects.get_or_create(
             user=request.user,
             test=test_obj,
+            classroom=classroom,
             test_type='regular',
             section=section,
             module=module,
@@ -781,6 +1169,7 @@ def check_the_answers(request):
             'module': module,
             'test': test_name,
             'test_type': 'regular',
+            'classroom_id': classroom.id if classroom else None,
         })
 
     # ---------- CASE 2: single answer check ----------
@@ -838,16 +1227,30 @@ def punishment(request, pk):
 def results(request, test):
     user = request.user
     test_obj = Test.objects.get(name=test)
+    classroom = _get_classroom_context_from_id(
+        user,
+        request.GET.get('classroom_id') or request.GET.get('classroom'),
+        test_obj=test_obj,
+    )
+
+    _backfill_completed_attempt_reviews(user, test_obj, classroom=classroom)
 
     review_key = request.GET.get('review_key')
-    attempts = list(TestReview.objects.filter(user=user, test=test_obj, score__isnull=False).order_by('-created_at'))
+    attempts = list(TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at'))
     selected_review = None
 
+    # Do not automatically select the latest review when review_key is absent.
+    # A fresh retake finishes by opening /results/<test> without review_key;
+    # in that case we must score the current scoped TestStage.attempt_id.
     if review_key:
         selected_review = next((rev for rev in attempts if rev.key == review_key), None)
-
-    if not selected_review:
-        selected_review = attempts[0] if attempts else None
+        if not selected_review:
+            return HttpResponse("Selected attempt was not found.", status=404)
 
     test_mode = get_test_mode(test_obj)
     has_english = test_mode in ['full', 'ebrw_only']
@@ -857,8 +1260,8 @@ def results(request, test):
     if not required_modules:
         return HttpResponse("Questions are not found", status=404)
 
-    attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review)
-    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
+    attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review, classroom=classroom)
+    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id, classroom=classroom)
 
     missing_modules = []
     for section, module in required_modules:
@@ -933,8 +1336,8 @@ def results(request, test):
 
     score = _score_from_counts(test_mode, correct_counts)
 
-    current_stage = TestStage.objects.filter(user=user, test=test_obj).order_by('-created_at').first()
-    current_attempt_id = current_stage.attempt_id if current_stage else attempt_id
+    current_stage = _latest_regular_test_stage(user, test_obj, classroom=classroom)
+    current_attempt_id = attempt_id or (current_stage.attempt_id if current_stage else None)
 
     if selected_review and selected_review.attempt_id:
         testreview = selected_review
@@ -944,13 +1347,15 @@ def results(request, test):
             testreview = TestReview.objects.filter(
                 user=user,
                 test=test_obj,
-                attempt_id=current_attempt_id
+                attempt_id=current_attempt_id,
+                **_classroom_scope_filter(classroom),
             ).order_by('-created_at').first()
 
         if not testreview:
             testreview = TestReview.objects.create(
                 user=user,
                 test=test_obj,
+                classroom=classroom,
                 attempt_id=current_attempt_id or uuid.uuid4()
             )
             testreview.update_key()
@@ -963,7 +1368,16 @@ def results(request, test):
         testreview.save(update_fields=['score'])
 
     key = testreview.key
-    selected_review = testreview if not review_key else selected_review
+    selected_review = testreview
+
+    attempts = list(TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at'))
+    if selected_review:
+        selected_review = next((attempt for attempt in attempts if attempt.key == selected_review.key), selected_review)
 
     english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
     math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
@@ -999,11 +1413,12 @@ def results(request, test):
         'has_english': has_english,
         'has_math': has_math,
         'attempts': attempts,
+        'attempt_options': _build_review_attempt_options(attempts, selected_review, classroom=classroom),
         'selected_review_key': selected_review.key if selected_review else '',
         'selected_review': selected_review,
         'review_key': review_key,
+        'classroom': classroom,
     })
-
 
 @login_required(login_url='/login/')
 def start_Practise(request, pk):
@@ -1024,40 +1439,21 @@ def start_Practise(request, pk):
             status=403
         )
 
-    current_stage = TestStage.objects.filter(
-        user=user,
-        test=test
-    ).order_by('-created_at').first()
-
-    if current_stage:
-        current_review = TestReview.objects.filter(
-            user=user,
-            test=test,
-            attempt_id=current_stage.attempt_id,
-            score__isnull=False
-        ).order_by('-created_at').first()
-
-        if current_review:
-            results_url = reverse('results', kwargs={'test': test.name})
-            return redirect(f"{results_url}?review_key={current_review.key}")
-
+    resumable_stage = _get_resumable_stage(user, test)
+    if resumable_stage:
         return redirect('test', pk=test.name)
 
     completed_review = TestReview.objects.filter(
         user=user,
         test=test,
-        score__isnull=False
+        score__isnull=False,
+        **_classroom_scope_filter(None),
     ).order_by('-created_at').first()
 
     if completed_review:
-        results_url = reverse('results', kwargs={'test': test.name})
-        return redirect(f"{results_url}?review_key={completed_review.key}")
+        return redirect(_results_url_for_test(test, review_key=completed_review.key))
 
-    # Check if there's an in-progress attempt by checking for incomplete modules
-    has_active_attempt = TestModule.objects.filter(
-        user=user,
-        test=test
-    ).exists()
+    has_active_attempt = False
 
     return render(
         request,
@@ -1105,7 +1501,8 @@ def question(request, key, section, module, id):
         user=review.user,
         section=section,
         module=module,
-        attempt_id=review.attempt_id
+        attempt_id=review.attempt_id,
+        classroom_id=review.classroom_id,
     ).first()
 
     if not module_obj:
@@ -1117,6 +1514,22 @@ def question(request, key, section, module, id):
     prev = f'/sat/question/{key}/{section}/{module}/{prev}' if prev else ''
     new = f'/sat/question/{key}/{section}/{module}/{new}' if new else ''
 
+    attempts = list(TestReview.objects.filter(
+        user=review.user,
+        test=review.test,
+        score__isnull=False,
+        classroom_id=review.classroom_id,
+    ).order_by('-created_at'))
+    results_url = _review_results_url(review, classroom=review.classroom)
+    attempt_options = _build_review_attempt_options(
+        attempts,
+        review,
+        section=section,
+        module=module,
+        question_id=id,
+        classroom=review.classroom,
+    )
+
     if section == 'english':
         question = English_Question.objects.filter(id=id).first()
         if not question:
@@ -1126,7 +1539,12 @@ def question(request, key, section, module, id):
             'answered': answer,
             'prev': prev,
             'next': new,
-            'test': review.test
+            'test': review.test,
+            'review': review,
+            'results_url': results_url,
+            'attempts': attempts,
+            'attempt_options': attempt_options,
+            'selected_review_key': review.key,
         })
 
     if section == 'math':
@@ -1138,7 +1556,12 @@ def question(request, key, section, module, id):
             'answered': answer,
             'prev': prev,
             'next': new,
-            'test': review.test
+            'test': review.test,
+            'review': review,
+            'results_url': results_url,
+            'attempts': attempts,
+            'attempt_options': attempt_options,
+            'selected_review_key': review.key,
         })
 
     return HttpResponse('Invalid section')
@@ -1203,7 +1626,7 @@ def makeup_test_module(request, pk):
 
     if test_stage.stage < 1:
         test_stage.stage = 1
-        test_stage.save(update_fields=['stage'])
+        test_stage.save(update_fields=['stage', 'updated_at'])
 
     if test_stage.stage > len(sequence):
         return redirect('dashboard')
@@ -1223,7 +1646,7 @@ def makeup_test_module(request, pk):
         if test_stage.stage >= len(sequence):
             return redirect('dashboard')
         test_stage.stage += 1
-        test_stage.save(update_fields=['stage'])
+        test_stage.save(update_fields=['stage', 'updated_at'])
         return redirect('makeup_test_module', pk=makeup_test.name)
 
     module_name = f'module_{module[1]}'
@@ -1289,11 +1712,7 @@ def module_test(request, pk):
         return HttpResponse("Questions are not found")
 
     # получаем stage
-    test_stage, created = TestStage.objects.get_or_create(
-        user=user,
-        test=test,
-        defaults={'stage': 1}
-    )
+    test_stage, created = _get_or_create_regular_test_stage(user, test, stage=1)
 
     # определяем текущий шаг
     current_step = get_current_test_step(test_stage)
@@ -1309,7 +1728,8 @@ def module_test(request, pk):
         section=section,
         module=module,
         user=user,
-        attempt_id=test_stage.attempt_id
+        attempt_id=test_stage.attempt_id,
+        **_classroom_scope_filter(None),
     )
 
     if existing_module.exists():
@@ -1356,7 +1776,8 @@ def module_test(request, pk):
             'module': module,
             'test': test,
             'section': section,
-            'custom_time_seconds': custom_time_seconds
+            'custom_time_seconds': custom_time_seconds,
+            'attempt_id': test_stage.attempt_id
         })
 
     # MATH
@@ -1406,7 +1827,8 @@ def module_test(request, pk):
             'test': test,
             'section': section,
 
-            'custom_time_seconds': custom_time_seconds
+            'custom_time_seconds': custom_time_seconds,
+            'attempt_id': test_stage.attempt_id
         })
 
     return HttpResponse("You dont have permission")
@@ -1420,9 +1842,15 @@ def rankings(request, pk):
 def results_by_user(request, test, username):
     test_obj = Test.objects.get(name=test)
     user = User.objects.get(username=username)
+    classroom = None
 
     review_key = request.GET.get('review_key')
-    attempts = list(TestReview.objects.filter(user=user, test=test_obj, score__isnull=False).order_by('-created_at'))
+    attempts = list(TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at'))
     selected_review = None
 
     if review_key:
@@ -1460,8 +1888,8 @@ def results_by_user(request, test, username):
     if not required_modules:
         return HttpResponse("Questions are not found", status=404)
 
-    attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review)
-    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
+    attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review, classroom=classroom)
+    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id, classroom=classroom)
 
     missing_modules = []
     for section, module in required_modules:
@@ -1558,6 +1986,7 @@ def results_by_user(request, test, username):
         'has_english': has_english,
         'has_math': has_math,
         'attempts': attempts,
+        'attempt_options': _build_review_attempt_options(attempts, selected_review, classroom=classroom),
         'selected_review_key': selected_review.key if selected_review else '',
         'selected_review': selected_review,
         'review_key': review_key,
@@ -1801,27 +2230,23 @@ def restart_section(request, pk, section):
     if not test:
         return HttpResponse(f"Test '{pk}' not found")
 
-    if not user_has_test_access(user, test):
+    classroom = _get_classroom_context_from_id(user, request.POST.get('classroom_id'), test_obj=test)
+
+    if classroom is None and not user_has_test_access(user, test):
         return HttpResponse(
             f"Test '{pk}' is not assigned to your account.",
             status=403
         )
 
-    stage, _ = TestStage.objects.get_or_create(
-        user=user,
-        test=test,
-        defaults={"stage": 1}
-    )
+    stage, _ = _get_or_create_regular_test_stage(user, test, stage=1, classroom=classroom)
 
     # Try to restart the section
     response = stage.resolve_section(section)
 
     if response:
-        # Restart successful
-        return render(request, 'sat/restart_success.html', {
-            'test_name': pk,
-            'section': section
-        })
+        if classroom:
+            return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+        return redirect('test', pk=test.name)
     else:
         # Retake limit exceeded
         user_group = 'OFFLINE' if user.groups.filter(name='OFFLINE').exists() else 'Standard'
@@ -1831,7 +2256,8 @@ def restart_section(request, pk, section):
             'section': section,
             'retakes_used': stage.retake_count,
             'max_retakes': stage.get_max_retakes(),
-            'user_group': user_group
+            'user_group': user_group,
+            'classroom': classroom,
         })
 
 
@@ -3114,7 +3540,7 @@ def classroom_practice_tests(request, classroom_id):
 
     tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
 
-    active_tests, past_tests = _split_tests_by_user_progress(request.user, tests)
+    active_tests, past_tests = _split_tests_by_user_progress(request.user, tests, classroom=classroom)
 
     context = {
         'active_tests': active_tests,
@@ -3270,7 +3696,7 @@ def _get_membership_allowed_tests(membership):
     return _sort_tests_for_progress(tests)
 
 
-def _build_test_progress_rows(student, tests):
+def _build_test_progress_rows(student, tests, classroom=None):
     rows = []
     tests = list(tests)
 
@@ -3279,9 +3705,9 @@ def _build_test_progress_rows(student, tests):
 
     test_ids = [test.pk for test in tests]
 
-    modules = TestModule.objects.filter(user=student, test_id__in=test_ids).select_related('test').order_by('test_id', '-created_at')
-    reviews = TestReview.objects.filter(user=student, test_id__in=test_ids).select_related('test').order_by('test_id', '-created_at')
-    stages = TestStage.objects.filter(user=student, test_id__in=test_ids).select_related('test').order_by('test_id', '-created_at')
+    modules = TestModule.objects.filter(user=student, test_id__in=test_ids, **_classroom_scope_filter(classroom)).select_related('test').order_by('test_id', '-created_at')
+    reviews = TestReview.objects.filter(user=student, test_id__in=test_ids, **_classroom_scope_filter(classroom)).select_related('test').order_by('test_id', '-created_at')
+    stages = TestStage.objects.filter(user=student, test_id__in=test_ids, **_classroom_scope_filter(classroom)).select_related('test').order_by('test_id', '-created_at')
 
     latest_review_by_test = _latest_by_test_id(reviews)
     latest_stage_by_test = _latest_by_test_id(stages)
@@ -3330,7 +3756,7 @@ def _build_test_progress_rows(student, tests):
     return rows
 
 
-def _build_test_results_context_for_user(test_obj, user):
+def _build_test_results_context_for_user(test_obj, user, review_key=None, classroom=None):
     test_mode = get_test_mode(test_obj)
     has_english = test_mode in ['full', 'ebrw_only']
     has_math = test_mode in ['full', 'math_only']
@@ -3358,8 +3784,23 @@ def _build_test_results_context_for_user(test_obj, user):
 
     required_modules = _required_modules_for_test(test_obj)
 
-    attempt_id = _resolve_attempt_id(user, test_obj)
-    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id)
+    _backfill_completed_attempt_reviews(user, test_obj, classroom=classroom)
+
+    attempts = list(TestReview.objects.filter(
+        user=user,
+        test=test_obj,
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
+    ).order_by('-created_at'))
+
+    selected_review = None
+    if review_key:
+        selected_review = next((attempt for attempt in attempts if attempt.key == review_key), None)
+    if not selected_review:
+        selected_review = attempts[0] if attempts else None
+
+    attempt_id = _resolve_attempt_id(user, test_obj, selected_review=selected_review, classroom=classroom)
+    latest_modules = _load_latest_modules(user, test_obj, attempt_id=attempt_id, classroom=classroom)
 
     missing_modules = []
     for section, module in required_modules:
@@ -3383,6 +3824,11 @@ def _build_test_results_context_for_user(test_obj, user):
             'has_english': has_english,
             'has_math': has_math,
             'questions': questions,
+            'attempts': attempts,
+            'attempt_options': _build_review_attempt_options(attempts, selected_review, classroom=classroom),
+            'selected_review': selected_review,
+            'selected_review_key': selected_review.key if selected_review else '',
+            'review_key': review_key,
         }
 
     modules_to_process = []
@@ -3437,11 +3883,14 @@ def _build_test_results_context_for_user(test_obj, user):
 
     score = _score_from_counts(test_mode, correct_counts)
 
-    testreview = TestReview.objects.filter(
-        user=user,
-        test=test_obj,
-        score__isnull=False
-    ).order_by('-created_at').first()
+    testreview = selected_review
+    if not testreview:
+        testreview = TestReview.objects.filter(
+            user=user,
+            test=test_obj,
+            score__isnull=False,
+            **_classroom_scope_filter(classroom),
+        ).order_by('-created_at').first()
 
     english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
     math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
@@ -3470,6 +3919,11 @@ def _build_test_results_context_for_user(test_obj, user):
         'test_mode': test_mode,
         'has_english': has_english,
         'has_math': has_math,
+        'attempts': attempts,
+        'attempt_options': _build_review_attempt_options(attempts, selected_review, classroom=classroom),
+        'selected_review': selected_review,
+        'selected_review_key': selected_review.key if selected_review else '',
+        'review_key': review_key,
     }
 
 
@@ -3485,9 +3939,9 @@ def recalculate_practice_tests_progress(classroom, student):
         return
 
     total_items = Test.objects.count()
-    completed_items = TestReview.objects.filter(user=student).exclude(score__isnull=True).count()
-    activity_count = TestModule.objects.filter(user=student).count()
-    last_module = TestModule.objects.filter(user=student).order_by('-created_at').first()
+    completed_items = TestReview.objects.filter(user=student, classroom=classroom).exclude(score__isnull=True).count()
+    activity_count = TestModule.objects.filter(user=student, classroom=classroom).count()
+    last_module = TestModule.objects.filter(user=student, classroom=classroom).order_by('-created_at').first()
     last_activity_at = last_module.created_at if last_module else None
 
     completion_percent = 0
@@ -3634,7 +4088,7 @@ def classroom_student_practice_progress(request, classroom_id, student_id):
 
     access_map = get_membership_section_access_map(membership)
     tests = _get_membership_allowed_tests(membership) if access_map.get('practice_tests') else []
-    test_rows = _build_test_progress_rows(student, tests)
+    test_rows = _build_test_progress_rows(student, tests, classroom=classroom)
     practice_progress = StudentProgress.objects.filter(
         classroom=classroom,
         student=student,
@@ -3720,7 +4174,8 @@ def classroom_student_review_results(request, classroom_id, student_id, test_nam
     student = membership.user
     test_obj = get_object_or_404(Test, name=test_name)
 
-    result_context = _build_test_results_context_for_user(test_obj, student)
+    review_key = request.GET.get('review_key')
+    result_context = _build_test_results_context_for_user(test_obj, student, review_key=review_key, classroom=classroom)
     if not result_context.get('is_complete'):
         return HttpResponse("Student has not finished all required modules for this test.")
 
@@ -3752,8 +4207,8 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
     membership = _get_classroom_student_membership_or_404(classroom, student_id)
     student = membership.user
 
-    review = TestReview.objects.filter(key=key).select_related('user', 'test', 'makeup_test').first()
-    if not review or review.user_id != student.id:
+    review = TestReview.objects.filter(key=key).select_related('user', 'test', 'makeup_test', 'classroom').first()
+    if not review or review.user_id != student.id or review.classroom_id != classroom.id:
         return HttpResponse('This review is no longer available. A new retake may already be in progress.')
 
     if review.score is None:
@@ -3764,7 +4219,8 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
         user=review.user,
         section=section,
         module=module,
-        attempt_id=review.attempt_id
+        attempt_id=review.attempt_id,
+        classroom=classroom,
     ).first()
 
     if not module_obj:
@@ -3773,6 +4229,23 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
     prev, answer, new = module_obj.find_answer(question_id=id)
     prev = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, prev]) if prev else ''
     new = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, new]) if new else ''
+
+    attempts = list(TestReview.objects.filter(
+        user=review.user,
+        test=review.test,
+        score__isnull=False,
+        classroom=classroom,
+    ).order_by('-created_at'))
+    results_url = _review_results_url(review, classroom=classroom, student=student)
+    attempt_options = _build_review_attempt_options(
+        attempts,
+        review,
+        section=section,
+        module=module,
+        question_id=id,
+        classroom=classroom,
+        student=student,
+    )
 
     if section == 'english':
         question = English_Question.objects.filter(id=id).first()
@@ -3787,6 +4260,11 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             'is_teacher_review': True,
             'classroom': classroom,
             'review_student': student,
+            'review': review,
+            'results_url': results_url,
+            'attempts': attempts,
+            'attempt_options': attempt_options,
+            'selected_review_key': review.key,
         })
 
     if section == 'math':
@@ -3802,6 +4280,11 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             'is_teacher_review': True,
             'classroom': classroom,
             'review_student': student,
+            'review': review,
+            'results_url': results_url,
+            'attempts': attempts,
+            'attempt_options': attempt_options,
+            'selected_review_key': review.key,
         })
 
     return HttpResponse('Invalid section')
@@ -4561,10 +5044,13 @@ def advance_test_stage(test_stage):
         return True
 
     if test_stage.stage >= len(sequence):
+        if test_stage.stage == len(sequence):
+            test_stage.stage = len(sequence) + 1
+            test_stage.save(update_fields=['stage', 'updated_at'])
         return True
 
     test_stage.stage += 1
-    test_stage.save()
+    test_stage.save(update_fields=['stage', 'updated_at'])
     return False
 
 
@@ -4607,40 +5093,21 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
-    current_stage = TestStage.objects.filter(
-        user=request.user,
-        test=test
-    ).order_by('-created_at').first()
-
-    if current_stage:
-        current_review = TestReview.objects.filter(
-            user=request.user,
-            test=test,
-            attempt_id=current_stage.attempt_id,
-            score__isnull=False
-        ).order_by('-created_at').first()
-
-        if current_review:
-            results_url = reverse('results', kwargs={'test': test.name})
-            return redirect(f"{results_url}?review_key={current_review.key}")
-
+    resumable_stage = _get_resumable_stage(request.user, test, classroom=classroom)
+    if resumable_stage:
         return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
 
     completed_review = TestReview.objects.filter(
         user=request.user,
         test=test,
-        score__isnull=False
+        score__isnull=False,
+        **_classroom_scope_filter(classroom),
     ).order_by('-created_at').first()
 
     if completed_review:
-        results_url = reverse('results', kwargs={'test': test.name})
-        return redirect(f"{results_url}?review_key={completed_review.key}")
+        return redirect(_results_url_for_test(test, classroom=classroom, review_key=completed_review.key))
 
-    # Check if there's an in-progress attempt
-    has_active_attempt = TestModule.objects.filter(
-        user=request.user,
-        test=test
-    ).exists()
+    has_active_attempt = False
 
     return render(request, 'test/test_modules.html', {
         'test': test,
@@ -4688,15 +5155,11 @@ def classroom_module_test(request, classroom_id, pk):
     if not sequence:
         return HttpResponse('Questions are not found')
 
-    test_stage, created = TestStage.objects.get_or_create(
-        user=user,
-        test=test,
-        defaults={'stage': 1}
-    )
+    test_stage, created = _get_or_create_regular_test_stage(user, test, stage=1, classroom=classroom)
 
     current_step = get_current_test_step(test_stage)
     if current_step is None:
-        return redirect('results', test=test.name)
+        return redirect(_results_url_for_test(test, classroom=classroom))
 
     section, module = current_step
 
@@ -4705,13 +5168,14 @@ def classroom_module_test(request, classroom_id, pk):
         section=section,
         module=module,
         user=user,
-        attempt_id=test_stage.attempt_id
+        attempt_id=test_stage.attempt_id,
+        classroom=classroom,
     )
 
     if existing_module.exists():
         finished = advance_test_stage(test_stage)
         if finished:
-            return redirect('results', test=test.name)
+            return redirect(_results_url_for_test(test, classroom=classroom))
         return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
 
     custom_time_seconds = None
@@ -4731,7 +5195,7 @@ def classroom_module_test(request, classroom_id, pk):
         if not questions.exists():
             finished = advance_test_stage(test_stage)
             if finished:
-                return redirect('results', test=test.name)
+                return redirect(_results_url_for_test(test, classroom=classroom))
             return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
 
         return render(request, 'test/test_eng.html', {
@@ -4741,6 +5205,7 @@ def classroom_module_test(request, classroom_id, pk):
             'section': section,
             'custom_time_seconds': custom_time_seconds,
             'classroom': classroom,
+            'attempt_id': test_stage.attempt_id,
         })
 
     if section == 'math':
@@ -4752,7 +5217,7 @@ def classroom_module_test(request, classroom_id, pk):
         if not questions.exists():
             finished = advance_test_stage(test_stage)
             if finished:
-                return redirect('results', test=test.name)
+                return redirect(_results_url_for_test(test, classroom=classroom))
             return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
 
         questions_data = []
@@ -4777,6 +5242,7 @@ def classroom_module_test(request, classroom_id, pk):
             'section': section,
             'custom_time_seconds': custom_time_seconds,
             'classroom': classroom,
+            'attempt_id': test_stage.attempt_id,
         })
 
     return HttpResponse("You dont have permission")

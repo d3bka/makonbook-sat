@@ -567,6 +567,8 @@
         const testName = "{{ test }}";
         const moduleName = "{{ module }}";
         const sectionName = "{{ section }}";
+        const attemptId = "{{ attempt_id|default:'noattempt' }}";
+        const classroomId = "{% if classroom %}{{ classroom.id }}{% endif %}";
 
         const questions = JSON.parse(document.getElementById('questions-data').textContent);
         const customTimeData = JSON.parse(document.getElementById('custom-time').textContent);
@@ -934,7 +936,17 @@
         }
 
         function storageKey() {
+            return `${testName}_${attemptId}_${moduleName}_${sectionName}`;
+        }
+
+        function legacyStorageKey() {
             return `${testName}_${moduleName}_${sectionName}`;
+        }
+
+        function getStoredValue(suffix) {
+            const currentValue = localStorage.getItem(`${storageKey()}_${suffix}`);
+            if (currentValue !== null) return currentValue;
+            return localStorage.getItem(`${legacyStorageKey()}_${suffix}`);
         }
 
         function saveProgress() {
@@ -948,15 +960,13 @@
         }
 
         function loadProgress() {
-            const key = storageKey();
-
-            const savedAnswers = localStorage.getItem(`${key}_answers`);
-            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
-            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
-            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
-            const savedReview = localStorage.getItem(`${key}_markedForReview`);
-            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
-            const savedDesmosStates = localStorage.getItem(`${key}_desmosStates_v2`);
+            const savedAnswers = getStoredValue('answers');
+            const savedEliminatedChoices = getStoredValue('eliminatedChoices');
+            const savedIndex = getStoredValue('currentQuestionIndex');
+            const savedTime = getStoredValue('timeRemaining');
+            const savedReview = getStoredValue('markedForReview');
+            const savedTimeSpent = getStoredValue('timeSpent');
+            const savedDesmosStates = getStoredValue('desmosStates_v2');
 
             if (savedAnswers) answers = JSON.parse(savedAnswers);
             if (savedEliminatedChoices) eliminatedChoices = JSON.parse(savedEliminatedChoices);
@@ -988,6 +998,16 @@
             localStorage.removeItem(`${key}_markedForReview`);
             localStorage.removeItem(`${key}_desmosStates_v2`);
             localStorage.removeItem(`${key}_desmosStates`);
+
+            const legacyKey = legacyStorageKey();
+            localStorage.removeItem(`${legacyKey}_timeSpent`);
+            localStorage.removeItem(`${legacyKey}_answers`);
+            localStorage.removeItem(`${legacyKey}_eliminatedChoices`);
+            localStorage.removeItem(`${legacyKey}_currentQuestionIndex`);
+            localStorage.removeItem(`${legacyKey}_timeRemaining`);
+            localStorage.removeItem(`${legacyKey}_markedForReview`);
+            localStorage.removeItem(`${legacyKey}_desmosStates_v2`);
+            localStorage.removeItem(`${legacyKey}_desmosStates`);
         }
 
         function buildMultipleChoice(question, index) {
@@ -1309,7 +1329,8 @@
                                 answers: answerData,
                                 section: sectionName,
                                 test: testName,
-                                module: moduleName
+                                module: moduleName,
+                                classroom_id: classroomId || null
                             }),
                             // Add timeout
                             signal: AbortSignal.timeout(30000) // 30 second timeout

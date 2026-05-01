@@ -177,7 +177,7 @@
             <hr>
             <h3>{{ test.name }}</h3>
             <div class="button-container">
-              <a href="{% url 'results' test.name %}" style="text-decoration:none; color:inherit;">View Results</a>
+              <a href="{% url 'results' test.name %}{% if test.latest_review_key or classroom %}?{% if test.latest_review_key %}review_key={{ test.latest_review_key }}{% if classroom %}&{% endif %}{% endif %}{% if classroom %}classroom_id={{ classroom.id }}{% endif %}{% endif %}" style="text-decoration:none; color:inherit;">View Results</a>
             </div>
           </div>
         {% endfor %}
