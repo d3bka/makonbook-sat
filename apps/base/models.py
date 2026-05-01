@@ -6,12 +6,28 @@ from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
+
+def email_verification_expiry():
+    return timezone.now() + timezone.timedelta(hours=24)
+
+
 class EmailVerification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
-    expires_at = models.DateTimeField(default=timezone.now() + timezone.timedelta(hours=24))  # Expires in 24 hours
+    expires_at = models.DateTimeField(default=email_verification_expiry)  # Expires in 24 hours
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token}"
+    
+    
+    class EmailVerification(models.Model):
+        user = models.ForeignKey(User, on_delete=models.CASCADE)
+        token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+        created_at = models.DateTimeField(auto_now_add=True)
+        is_verified = models.BooleanField(default=False)
+        expires_at = models.DateTimeField(default=email_verification_expiry)  # Expires in 24 hours
 
     def __str__(self):
         return f"{self.user.username} - {self.token}"
