@@ -2279,6 +2279,45 @@ def vocabulary(request):
     })
 
 
+def _get_vocabulary_flashcards_context(request, classroom=None):
+    """Build context for Quizlet-style vocabulary flashcards."""
+    units = list(
+        VocabularyUnit.objects.filter(is_active=True)
+        .prefetch_related('words')
+        .order_by('order', 'id')
+    )
+
+    for unit in units:
+        unit.active_flashcards_count = sum(1 for word in unit.words.all() if word.is_active)
+
+    selected_unit = None
+    selected_unit_id = request.GET.get('unit')
+
+    if selected_unit_id and selected_unit_id.isdigit():
+        selected_unit_id = int(selected_unit_id)
+        selected_unit = next((unit for unit in units if unit.id == selected_unit_id), None)
+
+    flashcard_words = []
+    if selected_unit:
+        flashcard_words = [
+            {
+                'id': word.id,
+                'word': word.word,
+                'meaning': word.meaning,
+                'example': word.example or '',
+            }
+            for word in selected_unit.words.all()
+            if word.is_active
+        ]
+
+    return {
+        'units': units,
+        'selected_unit': selected_unit,
+        'flashcard_words': flashcard_words,
+        'classroom': classroom,
+    }
+
+
 ADMISSIONS_SECTIONS = {
     "university_guide": {
         "title": "University Guide",
@@ -2384,9 +2423,7 @@ def vocabulary_section(request, slug):
         })
 
     if slug == 'flashcards':
-        return render(request, 'sat/vocabulary_flashcards.html', {
-            'units': units
-        })
+        return render(request, 'sat/vocabulary_flashcards.html', _get_vocabulary_flashcards_context(request))
 
     raise Http404("Vocabulary section not found")
 
@@ -2591,12 +2628,7 @@ def vocabulary_practice_quiz_result(request):
 
 @login_required(login_url='/login/')
 def vocabulary_flashcards(request):
-
-    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
-
-    return render(request, 'sat/vocabulary_flashcards.html', {
-        'units': units
-    })
+    return render(request, 'sat/vocabulary_flashcards.html', _get_vocabulary_flashcards_context(request))
 
 def is_teacher(user):
     return (
@@ -3258,10 +3290,7 @@ def classroom_vocabulary_section(request, classroom_id, slug):
         })
 
     if slug == 'flashcards':
-        return render(request, 'sat/vocabulary_flashcards.html', {
-            'units': units,
-            'classroom': classroom,
-        })
+        return render(request, 'sat/vocabulary_flashcards.html', _get_vocabulary_flashcards_context(request, classroom=classroom))
 
     if slug == 'practice-quiz':
         return render(request, 'sat/vocabulary_practice_quiz.html', {

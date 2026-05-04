@@ -46,8 +46,12 @@
         Total Score: {{ total_score }}
       </div>
       
-      <p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>
-      <p><strong>Math Score:</strong> {{ math_score }}</p>
+      <p><strong>Scoring:</strong> {{ scoring_label }}</p>
+      <p><strong>EBRW Score:</strong> {{ ebrw_score|default:"-" }}</p>
+      <p><strong>Math Score:</strong> {{ math_score|default:"-" }}</p>
+      {% if range_total %}
+      <p><strong>Estimated Range:</strong> {{ range_total.lower }}–{{ range_total.upper }}</p>
+      {% endif %}
       {% else %}
       <div class="score-box">
         Your result will be available later.

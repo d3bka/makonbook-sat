@@ -40,6 +40,9 @@
     <div class="board-card">
       <h1>{{ event.title }} - Leaderboard</h1>
       <p><a href="{% url 'global_event_detail' event.slug %}">← Back to Event</a></p>
+      {% if scoring_label %}
+        <p><strong>Scoring:</strong> {{ scoring_label }}</p>
+      {% endif %}
 
       {% if attempts %}
         <table>

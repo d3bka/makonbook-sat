@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
+from django.db import models
 from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse
@@ -20,6 +21,7 @@ from .models import (
 
 # Используем существующую проверку written math из обычного SAT flow
 from .views import *
+from .libs import calculator
 from .text_formatting import format_english_questions_for_display
 
 try:
@@ -110,10 +112,12 @@ def has_all_required_modules(attempt):
     return required.issubset(modules)
 
 # =========================
-# Custom raw -> SAT equivalent converter
-# (per section)
+# Scoring
 # =========================
 
+# Level Check / short global-event scale.
+# This is intentionally kept for 1-module Level Check events; forcing the
+# full SAT calculator onto a single-module test gives misleading scores.
 RAW_TO_EQUIV = [
     ((0, 1), 200),
     ((2, 2), 220),
@@ -156,22 +160,218 @@ def convert_raw_to_equiv(raw_score):
         if low <= raw_score <= high:
             return sat_equiv
 
-    # если выше диапазона
     return 600
 
 
-# =========================
-# Scoring
-# =========================
+def empty_correct_counts():
+    return {
+        "english": {"m1": 0, "m2": 0},
+        "math": {"m1": 0, "m2": 0},
+    }
 
-def calculate_attempt_breakdown(attempt):
+
+def module_key(module):
+    module = normalize_module_name(module)
+    if module in ["m1", "m2"]:
+        return module
+    return "m1"
+
+
+def empty_module_totals():
+    return {
+        "english": {"m1": 0, "m2": 0},
+        "math": {"m1": 0, "m2": 0},
+    }
+
+
+def get_event_question_totals(test):
+    totals = empty_module_totals()
+
+    for module, count in (
+        English_Question.objects.filter(test=test)
+        .values_list("module")
+        .annotate(count=models.Count("id"))
+    ):
+        key = module_key(module)
+        if key in totals["english"]:
+            totals["english"][key] += count
+
+    for module, count in (
+        Math_Question.objects.filter(test=test)
+        .values_list("module")
+        .annotate(count=models.Count("id"))
+    ):
+        key = module_key(module)
+        if key in totals["math"]:
+            totals["math"][key] += count
+
+    return totals
+
+
+def section_has_two_modules(totals, section):
+    return totals[section]["m1"] > 0 and totals[section]["m2"] > 0
+
+
+def get_event_scoring_type(test):
+    """
+    SAT-style scoring is safe only for sections that have two modules.
+    If a Global Event has one-module/short sections, use the Level Check scale.
+
+    Important: question counts do not have to be exactly 27/27 or 22/22 for
+    two-module events. In that case we normalize by module percentage before
+    calling the same calculator used by regular SAT practice tests.
+    """
+    totals = get_event_question_totals(test)
+    test_mode = get_test_mode(test)
+
+    if test_mode == "full":
+        return "sat_standard" if (
+            section_has_two_modules(totals, "english")
+            and section_has_two_modules(totals, "math")
+        ) else "level_check"
+
+    if test_mode == "ebrw_only":
+        return "sat_standard" if section_has_two_modules(totals, "english") else "level_check"
+
+    if test_mode == "math_only":
+        return "sat_standard" if section_has_two_modules(totals, "math") else "level_check"
+
+    return "level_check"
+
+
+def is_standard_sat_question_count(test):
+    totals = get_event_question_totals(test)
+    test_mode = get_test_mode(test)
+
+    english_standard = totals["english"] == {"m1": 27, "m2": 27}
+    math_standard = totals["math"] == {"m1": 22, "m2": 22}
+
+    if test_mode == "full":
+        return english_standard and math_standard
+    if test_mode == "ebrw_only":
+        return english_standard
+    if test_mode == "math_only":
+        return math_standard
+    return False
+
+
+def get_event_scoring_label(test):
+    scoring_type = get_event_scoring_type(test)
+    test_mode = get_test_mode(test)
+
+    if scoring_type == "sat_standard":
+        normalized = "" if is_standard_sat_question_count(test) else " normalized"
+        if test_mode == "full":
+            return f"SAT-style{normalized} 400–1600"
+        return f"SAT-style{normalized} 200–800"
+
+    if test_mode == "full":
+        return "Level Check scaled 400–1200"
+    return "Level Check scaled 200–600"
+
+
+def scale_correct_to_calculator_total(correct, actual_total, expected_total):
+    if not actual_total:
+        return 0
+    return (correct / actual_total) * expected_total
+
+
+def normalize_counts_for_regular_calculator(correct_counts, totals):
+    return {
+        "english": {
+            "m1": scale_correct_to_calculator_total(
+                correct_counts["english"]["m1"],
+                totals["english"]["m1"],
+                calculator.SECTION_CONFIG["english"]["m1_total"],
+            ),
+            "m2": scale_correct_to_calculator_total(
+                correct_counts["english"]["m2"],
+                totals["english"]["m2"],
+                calculator.SECTION_CONFIG["english"]["m2_total"],
+            ),
+        },
+        "math": {
+            "m1": scale_correct_to_calculator_total(
+                correct_counts["math"]["m1"],
+                totals["math"]["m1"],
+                calculator.SECTION_CONFIG["math"]["m1_total"],
+            ),
+            "m2": scale_correct_to_calculator_total(
+                correct_counts["math"]["m2"],
+                totals["math"]["m2"],
+                calculator.SECTION_CONFIG["math"]["m2_total"],
+            ),
+        },
+    }
+
+
+def regular_score_from_counts(test_mode, correct_counts, totals):
+    calculator_counts = normalize_counts_for_regular_calculator(correct_counts, totals)
+
+    if test_mode == "full":
+        return calculator.get_total(
+            calculator_counts["english"]["m1"],
+            calculator_counts["english"]["m2"],
+            calculator_counts["math"]["m1"],
+            calculator_counts["math"]["m2"],
+        )
+
+    if test_mode == "ebrw_only":
+        english_score, english_range = calculator.get_english(
+            calculator_counts["english"]["m1"],
+            calculator_counts["english"]["m2"],
+        )
+        return {
+            "total": english_score,
+            "range_total": english_range,
+            "sections": {
+                "english": {"score": english_score, "range": english_range},
+                "math": None,
+            },
+        }
+
+    if test_mode == "math_only":
+        math_score, math_range = calculator.get_math(
+            calculator_counts["math"]["m1"],
+            calculator_counts["math"]["m2"],
+        )
+        return {
+            "total": math_score,
+            "range_total": math_range,
+            "sections": {
+                "english": None,
+                "math": {"score": math_score, "range": math_range},
+            },
+        }
+
+    return {
+        "total": 0,
+        "range_total": {"lower": 0, "upper": 0},
+        "sections": {"english": None, "math": None},
+    }
+
+
+def raw_to_25_equivalent(raw_score, total_questions):
+    if not total_questions:
+        return 0
+    ratio = max(0, min(raw_score / total_questions, 1))
+    return int((ratio * 25) + 0.5)
+
+
+def level_check_score(raw_score, total_questions):
+    return convert_raw_to_equiv(raw_to_25_equivalent(raw_score, total_questions))
+
+
+def mark_answers_and_count_correct(attempt):
     ebrw_raw = 0
     math_raw = 0
+    correct_counts = empty_correct_counts()
 
     answers = attempt.answers.all()
 
     for ans in answers:
         is_correct = False
+        module = module_key(ans.module)
 
         if ans.section == "english":
             question = English_Question.objects.filter(id=ans.question_id).first()
@@ -179,12 +379,13 @@ def calculate_attempt_breakdown(attempt):
                 is_correct = normalize_answer(ans.selected_answer) == normalize_answer(question.answer)
                 if is_correct:
                     ebrw_raw += 1
+                    correct_counts["english"][module] += 1
 
         elif ans.section == "math":
             question = Math_Question.objects.filter(id=ans.question_id).first()
-            selected_answer = ans.selected_answer
-            correct_answer = question.answer
             if question:
+                selected_answer = ans.selected_answer
+                correct_answer = question.answer
                 is_correct = (
                     selected_answer is not None
                     and correct_answer is not None
@@ -192,44 +393,81 @@ def calculate_attempt_breakdown(attempt):
                 )
                 if is_correct:
                     math_raw += 1
+                    correct_counts["math"][module] += 1
 
         if ans.is_correct != is_correct:
             ans.is_correct = is_correct
             ans.save(update_fields=["is_correct"])
 
-    ebrw_score = convert_raw_to_equiv(ebrw_raw)
-    math_score = convert_raw_to_equiv(math_raw)
-    total_score = ebrw_score + math_score
+    return ebrw_raw, math_raw, correct_counts
+
+
+def calculate_attempt_breakdown(attempt):
+    ebrw_raw, math_raw, correct_counts = mark_answers_and_count_correct(attempt)
+
+    test = attempt.event.test
+    test_mode = get_test_mode(test)
+    scoring_type = get_event_scoring_type(test)
+    totals = get_event_question_totals(test)
+
+    if scoring_type == "sat_standard":
+        score_result = regular_score_from_counts(test_mode, correct_counts, totals)
+        english_section = score_result["sections"].get("english")
+        math_section = score_result["sections"].get("math")
+
+        ebrw_score = english_section["score"] if english_section else None
+        math_score = math_section["score"] if math_section else None
+        total_score = score_result["total"]
+        range_total = score_result.get("range_total")
+    else:
+        english_total = totals["english"]["m1"] + totals["english"]["m2"]
+        math_total = totals["math"]["m1"] + totals["math"]["m2"]
+        ebrw_score = level_check_score(ebrw_raw, english_total) if test_mode in ["full", "ebrw_only"] else None
+        math_score = level_check_score(math_raw, math_total) if test_mode in ["full", "math_only"] else None
+        total_score = (ebrw_score or 0) + (math_score or 0)
+        range_total = None
 
     return {
         "ebrw_raw": ebrw_raw,
         "math_raw": math_raw,
+        "correct_counts": correct_counts,
         "ebrw_score": ebrw_score,
         "math_score": math_score,
         "total_score": total_score,
+        "range_total": range_total,
+        "scoring_type": scoring_type,
+        "scoring_label": get_event_scoring_label(test),
     }
 
 
-def finalize_attempt(attempt):
-    if attempt.status == "submitted":
-        return attempt
-
+def apply_attempt_score(attempt, *, submit=False):
     breakdown = calculate_attempt_breakdown(attempt)
 
     attempt.raw_score = breakdown["ebrw_raw"] + breakdown["math_raw"]
-    attempt.score = breakdown["total_score"]   # leaderboard uses this total score
-    attempt.status = "submitted"
-    attempt.submitted_at = timezone.now()
+    attempt.score = breakdown["total_score"]
     attempt.answered_questions = (
         attempt.answers.exclude(selected_answer__isnull=True)
         .exclude(selected_answer="")
         .count()
     )
-    attempt.save(
-        update_fields=["raw_score", "score", "status", "submitted_at", "answered_questions"]
-    )
 
+    update_fields = ["raw_score", "score", "answered_questions"]
+
+    if submit:
+        attempt.status = "submitted"
+        attempt.submitted_at = timezone.now()
+        update_fields.extend(["status", "submitted_at"])
+
+    attempt.save(update_fields=update_fields)
     return attempt
+
+
+def finalize_attempt(attempt):
+    if attempt.status == "submitted":
+        apply_attempt_score(attempt, submit=False)
+        return attempt
+
+    return apply_attempt_score(attempt, submit=True)
 
 
 def auto_submit_attempt(attempt):
@@ -701,8 +939,9 @@ def global_event_result_view(request, guest_token):
     if not guest or attempt.guest_id != guest.id:
         return redirect("global_event_list")
 
-    if attempt.status != "submitted":
-        finalize_attempt(attempt)
+    # Always refresh the score. This updates old submitted Global Event attempts
+    # that were scored with the previous Level Check-only converter.
+    finalize_attempt(attempt)
 
     breakdown = calculate_attempt_breakdown(attempt)
 
@@ -714,6 +953,9 @@ def global_event_result_view(request, guest_token):
         "total_score": breakdown["total_score"],
         "ebrw_score": breakdown["ebrw_score"],
         "math_score": breakdown["math_score"],
+        "range_total": breakdown["range_total"],
+        "scoring_label": breakdown["scoring_label"],
+        "scoring_type": breakdown["scoring_type"],
 
         # если захочешь где-то показать raw
         "ebrw_raw": breakdown["ebrw_raw"],
@@ -728,6 +970,11 @@ def global_event_leaderboard_view(request, slug):
     if not event.show_leaderboard:
         return redirect("global_event_detail", slug=slug)
 
+    # Re-score before ordering so old submitted Full SAT attempts do not stay
+    # stuck with the previous max-1200 Global Event score.
+    for submitted_attempt in event.attempts.filter(status="submitted").select_related("event", "event__test"):
+        apply_attempt_score(submitted_attempt, submit=False)
+
     attempts = (
         event.attempts
         .filter(status="submitted")
@@ -738,6 +985,7 @@ def global_event_leaderboard_view(request, slug):
     return render(request, "sat/guest/leaderboard.html", {
         "event": event,
         "attempts": attempts,
+        "scoring_label": get_event_scoring_label(event.test),
     })
 
 def get_guest_current_step(attempt):
