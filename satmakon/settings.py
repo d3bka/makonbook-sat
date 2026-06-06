@@ -35,12 +35,7 @@ ALLOWED_HOSTS = env_list(
     "127.0.0.1,localhost,makonbook.satmakon.com,makonbook.uz,www.makonbook.uz"
 )
 
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS",
-    "https://makonbook.uz",
-    "https://www.makonbook.uz",
-    "https://makonbook.satmakon.com",
-)
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
 
 INSTALLED_APPS = [
