@@ -37,7 +37,9 @@ ALLOWED_HOSTS = env_list(
 
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS",
-    "https://makonbook.satmakon.com"
+    "https://makonbook.uz",
+    "https://www.makonbook.uz",
+    "https://makonbook.satmakon.com",
 )
 
 
