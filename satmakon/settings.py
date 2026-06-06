@@ -30,10 +30,7 @@ if not SECRET_KEY:
 
 DEBUG = env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = env_list(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost,makonbook.satmakon.com,makonbook.uz,www.makonbook.uz"
-)
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
 
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
