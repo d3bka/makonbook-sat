@@ -30,7 +30,7 @@ if not SECRET_KEY:
 
 DEBUG = env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
+ALLOWED_HOSTS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
