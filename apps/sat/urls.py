@@ -99,6 +99,7 @@ urlpatterns = [
     path("global-events/attempt/<uuid:guest_token>/save/", guest_views.save_global_event_answer_view, name="save_global_event_answer"),
     path("global-events/attempt/<uuid:guest_token>/submit/", guest_views.submit_global_event_view, name="submit_global_event"),
     path("global-events/attempt/<uuid:guest_token>/result/", guest_views.global_event_result_view, name="global_event_result"),
+    path("global-events/attempt/<uuid:guest_token>/review/<str:section>/<str:module>/<int:question_id>/", guest_views.global_event_review_question_view, name="global_event_review_question"),
 
     path("global-events/<slug:slug>/leaderboard/", guest_views.global_event_leaderboard_view, name="global_event_leaderboard"),
 
