@@ -10,84 +10,84 @@
 {% block title %}Teacher Dashboard{% endblock title %}
 
 {% block style %}
-<style>
-  .classroom-list-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .top-actions {
-    margin-bottom: 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .create-btn {
-    display: inline-block;
-    padding: 12px 20px;
-    border-radius: 999px;
-    background: #7c3aed;
-    color: #fff;
-    text-decoration: none;
-    font-weight: 700;
-  }
-
-  .classroom-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-  }
-
-  .classroom-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 22px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-  }
-
-  .classroom-card h3 {
-    margin-bottom: 10px;
-    color: #7c3aed;
-  }
-
-  .classroom-card p {
-    color: #555;
-    margin-bottom: 14px;
-  }
-
-  .classroom-link {
-    font-weight: 700;
-    text-decoration: none;
-  }
-</style>
+<link href="{% static 'assets/css/makon-classroom.css' %}" rel="stylesheet">
 {% endblock style %}
 
 {% block content %}
-<div class="classroom-list-wrap">
-  <div class="top-actions">
-    <h2>Your Classrooms</h2>
-    <a href="{% url 'create_classroom' %}" class="create-btn">Create Classroom</a>
-  </div>
+<div class="mk-classroom">
+  <section class="mk-classroom-hero" data-classroom-reveal>
+    <div class="mk-classroom-hero-inner">
+      <div>
+        <div class="mk-eyebrow">Teacher workspace</div>
+        <h2 class="mk-classroom-title">Manage every classroom without the admin clutter.</h2>
+        <p class="mk-classroom-subtitle">
+          Create SAT classrooms, invite students with codes, open progress dashboards, and keep practice work organized from one place.
+        </p>
+      </div>
+      <div class="mk-hero-actions">
+      </div>
+    </div>
 
-  <div class="classroom-grid">
-    {% for classroom in classrooms %}
-    <div class="classroom-card">
-      <h3>{{ classroom.name }}</h3>
-      <p>{{ classroom.description|default:"No description." }}</p>
-      {% if classroom.is_ap_classroom %}<p><strong>Type:</strong> AP Classroom</p>{% else %}<p><strong>Type:</strong> SAT Classroom</p>{% endif %}
-      <p><strong>Status:</strong> {% if classroom.is_active %}Active{% else %}Inactive{% endif %}</p>
-      <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="classroom-link">
-        Open Classroom
+    <div class="mk-stats-strip">
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">{{ classrooms|length }}</span>
+        <span class="mk-stat-label">Classrooms</span>
+      </div>
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">Codes</span>
+        <span class="mk-stat-label">Fast student entry</span>
+      </div>
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">Live</span>
+        <span class="mk-stat-label">Progress tracking</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="mk-panel" data-classroom-reveal>
+    <div class="mk-panel-head">
+      <div>
+        <h3 class="mk-panel-title">Your classrooms</h3>
+        <p class="mk-card-subtitle">Open a classroom to manage students, access, practice tests, vocabulary, chat, and progress.</p>
+      </div>
+      <a href="{% url 'create_classroom' %}" class="mk-btn mk-btn-secondary">
+        <i class="bi bi-building-add"></i>
+        New classroom
       </a>
     </div>
-    {% empty %}
-    <div class="classroom-card empty-state">
-      <h3>No classrooms yet</h3>
-      <p>You have not created any classrooms yet.</p>
+
+    <div class="mk-grid mk-grid-3" style="margin-top: 22px;">
+      {% for classroom in classrooms %}
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="mk-list-card" data-classroom-reveal>
+          <div>
+            <div class="mk-list-top">
+              <span class="mk-eyebrow" style="margin-bottom: 14px;">Classroom</span>
+              {% if classroom.is_active %}
+                <span class="mk-status mk-status-approved">Active</span>
+              {% else %}
+                <span class="mk-status mk-status-rejected">Inactive</span>
+              {% endif %}
+            </div>
+            <h3>{{ classroom.name }}</h3>
+            <p>{{ classroom.description|default:"No description yet. Add context so students know what this room is for." }}</p>
+          </div>
+          <div class="mk-card-footer">
+            <span>Open dashboard</span>
+            <i class="bi bi-arrow-right"></i>
+          </div>
+        </a>
+      {% empty %}
+        <div class="mk-empty-state" style="grid-column: 1 / -1;" data-classroom-reveal>
+          <h3 class="mk-card-title">No classrooms yet</h3>
+          <p class="mk-card-subtitle">Create your first classroom, generate a join code, and start assigning SAT practice work.</p>
+          <div style="margin-top: 18px;">
+            <a href="{% url 'create_classroom' %}" class="mk-btn">Create first classroom</a>
+          </div>
+        </div>
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
+  </section>
 </div>
+
+<script src="{% static 'assets/js/makon-classroom.js' %}"></script>
 {% endblock content %}

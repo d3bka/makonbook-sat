@@ -1,0 +1,38 @@
+
+/*
+  MakonBook Auth Show Button Light Mode Fix
+  Fixes low contrast of the password "Show" button in light theme.
+  Dark mode is untouched.
+*/
+
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > button.password-toggle,
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > .field-icon {
+  color: #3b245f !important;
+  background: rgba(124, 58, 237, 0.10) !important;
+  border-color: rgba(124, 58, 237, 0.24) !important;
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.08) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > button.password-toggle:hover,
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > .field-icon:hover,
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > button.password-toggle.is-visible,
+html[data-theme="light"] body.auth-page .auth-card .form-group.password-wrap > .field-icon.is-visible {
+  color: #24113e !important;
+  background: rgba(124, 58, 237, 0.16) !important;
+  border-color: rgba(124, 58, 237, 0.38) !important;
+}
+
+/* When system theme resolves to light but html does not explicitly carry data-theme="light" */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme="dark"]) body.auth-page .auth-card .form-group.password-wrap > button.password-toggle,
+  html:not([data-theme="dark"]) body.auth-page .auth-card .form-group.password-wrap > .field-icon {
+    color: #3b245f !important;
+    background: rgba(124, 58, 237, 0.10) !important;
+    border-color: rgba(124, 58, 237, 0.24) !important;
+    box-shadow: 0 8px 18px rgba(124, 58, 237, 0.08) !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+  }
+}

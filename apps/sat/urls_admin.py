@@ -20,6 +20,15 @@ urlpatterns = [
     path('tests/', views_admin.admin_tests, name='admin_tests'),
     path('tests/<str:test_name>/', views_admin.admin_test_detail, name='admin_test_detail'),
 
+
+    # Support Teachers
+    path('support-teachers/', views_admin.admin_support_teachers, name='admin_support_teachers'),
+    path('support-teachers/create/', views_admin.admin_support_teacher_create, name='admin_support_teacher_create'),
+    path('support-teachers/<int:teacher_id>/edit/', views_admin.admin_support_teacher_edit, name='admin_support_teacher_edit'),
+    path('support-teachers/<int:teacher_id>/toggle/', views_admin.admin_support_teacher_toggle, name='admin_support_teacher_toggle'),
+    path('support-teachers/<int:teacher_id>/availability/add/', views_admin.admin_support_teacher_availability_add, name='admin_support_teacher_availability_add'),
+    path('support-teachers/<int:teacher_id>/availability/<int:availability_id>/delete/', views_admin.admin_support_teacher_availability_delete, name='admin_support_teacher_availability_delete'),
+
     # Mocks
     path('mocks/', views_admin.admin_mocks, name='admin_mocks'),
     path('mocks/create/', views_admin.admin_mock_create, name='admin_mock_create'),

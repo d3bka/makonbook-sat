@@ -67,7 +67,7 @@
 {% endblock style %}
 
 {% block content %}
-<main class="main-content">
+<main class="main-content mk-learning mk-admissions-section-page" data-learning-page="admissions-section">
   <div class="section-page">
     {% if classroom %}<a href="{% url 'classroom_admissions' classroom.id %}" class="back-btn">Back to Admissions</a>{% else %}<a href="{% url 'admissions' %}" class="back-btn">Back to Admissions</a>{% endif %}
 

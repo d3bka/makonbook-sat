@@ -1,66 +1,78 @@
 {% extends 'template.html' %}
 {% load static %}
 
+{% block title-main %}Practice Test Access{% endblock title-main %}
 {% block title %}Manage Practice Tests{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <h2>Manage Practice Tests</h2>
-    <p><strong>Classroom:</strong> {{ classroom.name }}</p>
+<div class="mk-learning mk-access-page" data-learning-page="classroom-practice-access">
+  <div class="access-wrap">
+    <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
 
-    <div style="margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 10px;">
-        <p style="margin: 0;">
-            Approved students: <strong>{{ total_students_count }}</strong><br>
-            Eligible for bulk update: <strong>{{ eligible_count }}</strong>
-        </p>
+    <div class="access-hero">
+      <h2>Manage Practice Tests</h2>
+      <p>
+        Classroom: <strong>{{ classroom.name }}</strong>. Control which practice tests approved students can open.
+      </p>
+    </div>
+
+    <div class="access-stat">
+      <p style="margin: 0;">
+        Approved students: <strong>{{ total_students_count }}</strong><br>
+        Eligible for bulk update: <strong>{{ eligible_count }}</strong>
+      </p>
     </div>
 
     <form method="post">
-        {% csrf_token %}
+      {% csrf_token %}
 
-        <div style="margin-bottom: 20px;">
-            <label style="display:block; margin-bottom:10px;">
-                <input type="radio" name="access_mode" value="all"
-                       {% if access_mode == 'all' %}checked{% endif %}>
-                Allow all practice tests
+      <div class="section-block">
+        <h3>Access Mode</h3>
+
+        <label class="radio-row">
+          <input type="radio" name="access_mode" value="all" {% if access_mode == 'all' %}checked{% endif %}>
+          <span>Allow all practice tests</span>
+        </label>
+
+        <label class="radio-row">
+          <input type="radio" name="access_mode" value="selected" {% if access_mode == 'selected' %}checked{% endif %}>
+          <span>Allow only selected practice tests</span>
+        </label>
+      </div>
+
+      <div id="tests-box" class="section-block" style="display:none;">
+        <h3>Select Tests</h3>
+
+        <div class="tests-grid">
+          {% for test in tests %}
+            <label class="test-card check-row">
+              <input type="checkbox" name="tests" value="{{ test.pk }}" {% if test.pk|stringformat:"s" in selected_test_ids %}checked{% endif %}>
+              <span>{{ test.name }}</span>
             </label>
-
-            <label style="display:block;">
-                <input type="radio" name="access_mode" value="selected"
-                       {% if access_mode == 'selected' %}checked{% endif %}>
-                Allow only selected practice tests
-            </label>
+          {% empty %}
+            <div class="test-card">No tests found.</div>
+          {% endfor %}
         </div>
+      </div>
 
-        <div id="tests-box" style="display:none; margin-bottom:20px;">
-            <h4>Select tests</h4>
-
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:10px;">
-                {% for test in tests %}
-                    <label style="border:1px solid #ddd; border-radius:8px; padding:10px; display:block;">
-                        <input type="checkbox" name="tests" value="{{ test.pk }}"
-                               {% if test.pk|stringformat:"s" in selected_test_ids %}checked{% endif %}>
-                        {{ test.name }}
-                    </label>
-                {% endfor %}
-            </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Save</button>
-        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="btn btn-secondary">Back</a>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:20px;">
+        <button type="submit" class="btn-main">Save Access</button>
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="btn-main btn-secondary">Cancel</a>
+      </div>
     </form>
+  </div>
 </div>
 
 <script>
-    const radios = document.querySelectorAll('input[name="access_mode"]');
-    const testsBox = document.getElementById('tests-box');
+  const radios = document.querySelectorAll('input[name="access_mode"]');
+  const testsBox = document.getElementById('tests-box');
 
-    function toggleTestsBox() {
-        const selected = document.querySelector('input[name="access_mode"]:checked');
-        testsBox.style.display = selected && selected.value === 'selected' ? 'block' : 'none';
-    }
+  function toggleTestsBox() {
+    const selected = document.querySelector('input[name="access_mode"]:checked');
+    testsBox.style.display = selected && selected.value === 'selected' ? 'block' : 'none';
+  }
 
-    radios.forEach(r => r.addEventListener('change', toggleTestsBox));
-    toggleTestsBox();
+  radios.forEach(r => r.addEventListener('change', toggleTestsBox));
+  toggleTestsBox();
 </script>
 {% endblock %}

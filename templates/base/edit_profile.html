@@ -9,157 +9,379 @@
 {% block style %}
 <link rel="stylesheet" href="{% static 'assets/css/makon-dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
-
 <style>
-  .edit-profile-container {
-    max-width: 700px;
-    margin: 40px auto;
-    background-color: #ffffff;
-    padding: 30px;
-    border: 1px solid #c7b0ff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  .profile-page-shell {
+    width: min(1080px, calc(100% - 32px));
+    margin: 0 auto;
   }
 
-  .edit-profile-container h2 {
-    color: #3d008e;
-    margin-bottom: 20px;
+  .profile-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, .82fr) minmax(0, 1.18fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .profile-summary,
+  .edit-profile-container {
+    border: 1px solid rgba(124, 58, 237, .16);
+    border-radius: 30px;
+    background:
+      radial-gradient(circle at top right, rgba(124, 58, 237, .12), transparent 17rem),
+      rgba(255,255,255,.9);
+    box-shadow: 0 24px 64px rgba(76, 29, 149, .12);
+    backdrop-filter: blur(14px);
+  }
+
+  .profile-summary {
+    position: sticky;
+    top: 96px;
+    overflow: hidden;
+    padding: 28px;
+  }
+
+  .profile-summary::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(135deg, rgba(109, 40, 217, .08), transparent 40%),
+      radial-gradient(circle at 20% 100%, rgba(6, 182, 212, .12), transparent 14rem);
+  }
+
+  .profile-summary > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .profile-avatar {
+    width: 86px;
+    height: 86px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 28px;
+    color: #fff;
+    font-size: 34px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #6d28d9, #c026d3);
+    box-shadow: 0 18px 34px rgba(109, 40, 217, .28);
+  }
+
+  .profile-summary h2 {
+    margin: 18px 0 8px;
+    color: #1f1338;
+    font-size: 32px;
+    letter-spacing: -.05em;
+  }
+
+  .profile-summary p {
+    margin: 0;
+    color: #625679;
+    line-height: 1.65;
+  }
+
+  .profile-stat-grid {
+    display: grid;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .profile-stat {
+    padding: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(124, 58, 237, .12);
+    background: rgba(255,255,255,.64);
+  }
+
+  .profile-stat strong {
+    display: block;
+    color: #4c1d95;
+    font-size: 20px;
+  }
+
+  .profile-stat span {
+    color: #706582;
+    font-size: 14px;
+  }
+
+  .edit-profile-container {
+    padding: clamp(24px, 4vw, 38px);
+  }
+
+  .edit-profile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 26px;
+  }
+
+  .edit-profile-header h2 {
+    margin: 0;
+    color: #1f1338;
+    font-size: clamp(30px, 4vw, 46px);
+    letter-spacing: -.06em;
+  }
+
+  .edit-profile-header p {
+    margin: 8px 0 0;
+    color: #625679;
+  }
+
+  .profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(53, 231, 138, .3);
+    background: rgba(53, 231, 138, .12);
+    color: #047857;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .profile-badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #10b981;
+    box-shadow: 0 0 14px rgba(16,185,129,.6);
   }
 
   .section-header {
-    color: #3d008e;
-    font-size: 18px;
-    font-weight: bold;
-    margin: 25px 0 15px 0;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #c7b0ff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #4c1d95;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin: 26px 0 16px;
   }
 
-  .offline-notice {
-    background-color: #e8f4fd;
-    border: 1px solid #4caf50;
-    border-radius: 4px;
-    padding: 12px;
-    margin-bottom: 20px;
-    color: #2e7d32;
+  .section-header::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #6d28d9, #c026d3);
+    box-shadow: 0 8px 18px rgba(109,40,217,.25);
+  }
+
+  .profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .profile-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .profile-field label,
+  .time-setting-row label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2f2350;
+    font-weight: 800;
   }
 
   .edit-profile-container form input,
   .edit-profile-container form textarea,
   .edit-profile-container form select {
     width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #c7b0ff;
-    border-radius: 4px;
+    min-height: 52px;
+    padding: 0 15px;
+    margin-bottom: 0;
+    border: 1px solid rgba(124, 58, 237, .2);
+    border-radius: 16px;
+    background: rgba(255,255,255,.76);
+    color: #1f1338;
   }
 
   .helptext {
-    font-size: 12px;
-    color: #666;
-    margin-top: -10px;
-    margin-bottom: 15px;
+    font-size: 13px;
+    color: #746986;
+    margin-top: 8px;
+    line-height: 1.4;
   }
 
-  .edit-profile-container form button {
-    background-color: #3d008e;
-    color: #ffffff;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-    margin-top: 20px;
+  .offline-notice {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(6,182,212,.08));
+    border: 1px solid rgba(16,185,129,.24);
+    border-radius: 22px;
+    padding: 16px;
+    margin-bottom: 22px;
+    color: #065f46;
   }
 
-  .edit-profile-container form button:hover {
-    background-color: #2a0068;
+  .time-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
   }
 
   .time-setting-row {
+    padding: 16px;
+    border: 1px solid rgba(124,58,237,.14);
+    border-radius: 22px;
+    background: rgba(255,255,255,.58);
+  }
+
+  .time-setting-row span {
+    display: inline-block;
+    margin-top: 8px;
+    color: #706582;
+    font-weight: 700;
+  }
+
+  .profile-actions {
     display: flex;
-    gap: 20px;
-    align-items: center;
-    margin-bottom: 15px;
+    justify-content: flex-end;
+    margin-top: 28px;
   }
 
-  .time-setting-row label {
-    min-width: 150px;
-    font-weight: bold;
-    color: #3d008e;
+  .edit-profile-container form button {
+    min-height: 54px;
+    border: none;
+    padding: 0 26px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    background: linear-gradient(135deg, #6d28d9, #c026d3);
+    box-shadow: 0 16px 32px rgba(109,40,217,.25);
   }
 
-  .time-setting-row input {
-    flex: 1;
-    max-width: 200px;
-    margin-bottom: 0 !important;
+  @media (max-width: 900px) {
+    .profile-layout,
+    .profile-form-grid,
+    .time-settings-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-summary {
+      position: relative;
+      top: auto;
+    }
+
+    .edit-profile-header {
+      flex-direction: column;
+    }
+
+    .profile-actions {
+      justify-content: stretch;
+    }
+
+    .edit-profile-container form button {
+      width: 100%;
+    }
   }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="edit-profile-container">
-  <h2>Edit Profile</h2>
+<div class="profile-page-shell">
+  <div class="profile-layout">
+    <aside class="profile-summary" data-page-reveal>
+      <div class="profile-avatar">{{ request.user.username|first|upper }}</div>
+      <h2>{{ request.user.username }}</h2>
+      <p>Keep profile details clean. Bad data here makes classroom tracking and reports messy later.</p>
 
-  {% if request.user|is_in_group:"OFFLINE" %}
-  <div class="offline-notice">
-    <i class="fa fa-info-circle"></i>
-    <strong>Offline User:</strong> You can customize your test time limits below to better suit your learning needs.
+      <div class="profile-stat-grid">
+        <div class="profile-stat">
+          <strong>Account</strong>
+          <span>{{ request.user.email|default:"No email saved" }}</span>
+        </div>
+        <div class="profile-stat">
+          <strong>Workspace</strong>
+          <span>SAT Makon dashboard</span>
+        </div>
+        {% if request.user|is_in_group:"OFFLINE" %}
+        <div class="profile-stat">
+          <strong>Offline mode</strong>
+          <span>Custom section timers enabled</span>
+        </div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="edit-profile-container" data-page-reveal>
+      <div class="edit-profile-header">
+        <div>
+          <h2>Edit profile</h2>
+          <p>Update identity and test timing settings.</p>
+        </div>
+        <span class="profile-badge">Active</span>
+      </div>
+
+      {% if request.user|is_in_group:"OFFLINE" %}
+      <div class="offline-notice">
+        <i class="fa fa-info-circle"></i>
+        <div><strong>Offline User:</strong> You can customize your test time limits below to better suit your learning needs.</div>
+      </div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="section-header">Basic information</div>
+
+        <div class="profile-form-grid">
+          <div class="profile-field">
+            <label for="{{ form.first_name.id_for_label }}">First name</label>
+            {{ form.first_name }}
+            {% if form.first_name.help_text %}<div class="helptext">{{ form.first_name.help_text }}</div>{% endif %}
+          </div>
+
+          <div class="profile-field">
+            <label for="{{ form.last_name.id_for_label }}">Last name</label>
+            {{ form.last_name }}
+            {% if form.last_name.help_text %}<div class="helptext">{{ form.last_name.help_text }}</div>{% endif %}
+          </div>
+
+          <div class="profile-field full">
+            <label for="{{ form.email.id_for_label }}">Email</label>
+            {{ form.email }}
+            {% if form.email.help_text %}<div class="helptext">{{ form.email.help_text }}</div>{% endif %}
+          </div>
+        </div>
+
+        {% if form.english_time_minutes and form.math_time_minutes %}
+        <div class="section-header">Test time settings</div>
+
+        <div class="time-settings-grid">
+          <div class="time-setting-row">
+            <label for="{{ form.english_time_minutes.id_for_label }}">English section</label>
+            {{ form.english_time_minutes }}
+            <span>minutes</span>
+            {% if form.english_time_minutes.help_text %}<div class="helptext">{{ form.english_time_minutes.help_text }}</div>{% endif %}
+          </div>
+
+          <div class="time-setting-row">
+            <label for="{{ form.math_time_minutes.id_for_label }}">Math section</label>
+            {{ form.math_time_minutes }}
+            <span>minutes</span>
+            {% if form.math_time_minutes.help_text %}<div class="helptext">{{ form.math_time_minutes.help_text }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="profile-actions">
+          <button type="submit">Save changes</button>
+        </div>
+      </form>
+    </div>
   </div>
-  {% endif %}
-
-  <form method="post">
-    {% csrf_token %}
-
-    <div class="section-header">Basic Information</div>
-
-    <div>
-      <label for="{{ form.first_name.id_for_label }}">First Name:</label>
-      {{ form.first_name }}
-      {% if form.first_name.help_text %}
-        <div class="helptext">{{ form.first_name.help_text }}</div>
-      {% endif %}
-    </div>
-
-    <div>
-      <label for="{{ form.last_name.id_for_label }}">Last Name:</label>
-      {{ form.last_name }}
-      {% if form.last_name.help_text %}
-        <div class="helptext">{{ form.last_name.help_text }}</div>
-      {% endif %}
-    </div>
-
-    <div>
-      <label for="{{ form.email.id_for_label }}">Email:</label>
-      {{ form.email }}
-      {% if form.email.help_text %}
-        <div class="helptext">{{ form.email.help_text }}</div>
-      {% endif %}
-    </div>
-
-    {% if form.english_time_minutes and form.math_time_minutes %}
-    <div class="section-header">Test Time Settings</div>
-
-    <div class="time-setting-row">
-      <label for="{{ form.english_time_minutes.id_for_label }}">English Section:</label>
-      {{ form.english_time_minutes }}
-      <span>minutes</span>
-    </div>
-    {% if form.english_time_minutes.help_text %}
-      <div class="helptext">{{ form.english_time_minutes.help_text }}</div>
-    {% endif %}
-
-    <div class="time-setting-row">
-      <label for="{{ form.math_time_minutes.id_for_label }}">Math Section:</label>
-      {{ form.math_time_minutes }}
-      <span>minutes</span>
-    </div>
-    {% if form.math_time_minutes.help_text %}
-      <div class="helptext">{{ form.math_time_minutes.help_text }}</div>
-    {% endif %}
-    {% endif %}
-
-    <button type="submit">Save Changes</button>
-  </form>
 </div>
 {% endblock content %}

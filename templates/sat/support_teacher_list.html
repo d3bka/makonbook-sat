@@ -1,0 +1,102 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Support Teachers{% endblock title-main %}
+{% block title %}Support Teachers{% endblock title %}
+
+{% block style %}
+<style>
+  .support-page { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
+  .support-card, .support-panel { background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:22px; box-shadow:0 10px 24px rgba(0,0,0,.07); }
+  .support-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
+  .support-card h3 { margin:0 0 8px; color:#1f2937; }
+  .muted { color:#64748b; }
+  .rating { color:#92400e; font-weight:800; }
+  .badge-soft { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; font-weight:700; font-size:.82rem; margin:2px 4px 2px 0; }
+  .slot-list { display:grid; gap:8px; margin:14px 0; }
+  .slot { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; font-size:.92rem; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+  .btn-support { display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:999px; padding:10px 16px; font-weight:800; text-decoration:none; cursor:pointer; }
+  .btn-primary-support { background:#7c3aed; color:#fff; }
+  .btn-secondary-support { background:#f1f5f9; color:#334155; }
+  .booking-row { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #e5e7eb; padding:10px 0; }
+  .booking-row:last-child { border-bottom:0; }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="support-page">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="support-panel"><strong>{{ message }}</strong></div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="support-panel">
+    <h2>Book a support lesson</h2>
+    <p class="muted">Choose a support teacher, check their Telegram username, rating, and next available planner slots.</p>
+    <div class="actions">
+      <a class="btn-support btn-secondary-support" href="{% url 'my_support_lessons' %}">My support lessons</a>
+    </div>
+  </div>
+
+  {% if my_upcoming_bookings %}
+  <div class="support-panel">
+    <h3>My upcoming support lessons</h3>
+    {% for booking in my_upcoming_bookings %}
+      <div class="booking-row">
+        <div>
+          <strong>{{ booking.teacher.name }}</strong><br>
+          <span class="muted">{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</span>
+        </div>
+        <a href="{% url 'my_support_lessons' %}" class="btn-support btn-secondary-support">Open</a>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="support-grid">
+    {% for item in teacher_cards %}
+      {% with teacher=item.teacher %}
+      <div class="support-card">
+        <h3>{{ teacher.name }}</h3>
+        {% if teacher.subjects %}<div class="badge-soft">{{ teacher.subjects }}</div>{% endif %}
+        <p class="muted">
+          Telegram:
+          {% if teacher.clean_telegram_username %}
+            <a href="{{ teacher.telegram_url }}" target="_blank" rel="noopener">@{{ teacher.clean_telegram_username }}</a>
+          {% else %}
+            —
+          {% endif %}
+        </p>
+        <p>
+          <span class="rating">★ {{ teacher.average_rating|default:'No rating yet' }}</span>
+          <span class="muted">({{ teacher.reviews_count }} review{{ teacher.reviews_count|pluralize }})</span>
+        </p>
+        {% if teacher.bio %}<p class="muted">{{ teacher.bio|truncatewords:24 }}</p>{% endif %}
+
+        <div class="slot-list">
+          {% for slot in item.next_slots %}
+            <div class="slot"><strong>{{ slot.date_label }}</strong> · {{ slot.time_label }}</div>
+          {% empty %}
+            <div class="slot muted">No free slots in the next 7 days.</div>
+          {% endfor %}
+        </div>
+
+        <div class="actions">
+          <a class="btn-support btn-primary-support" href="{% url 'support_teacher_detail' teacher.id %}">Open planner</a>
+          {% if teacher.clean_telegram_username %}
+            <a class="btn-support btn-secondary-support" href="{{ teacher.telegram_url }}" target="_blank" rel="noopener">Telegram</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endwith %}
+    {% empty %}
+      <div class="support-panel">
+        <h3>No active support teachers yet.</h3>
+        <p class="muted">Admin must add and activate support teachers first.</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

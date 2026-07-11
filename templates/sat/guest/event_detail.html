@@ -4,87 +4,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>{{ event.title }} - MakonBook</title>
+  {% include 'base/theme_init.html' %}
+  <title>{{ event.title }} - SAT Makon</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    body { min-height: 100vh; margin: 0; display: flex; flex-direction: column; }
-    .simple-header { padding: 18px 0; background: #4c1d95; border-bottom: 1px solid rgba(255,255,255,0.12); }
-    .simple-header-inner, .simple-footer-inner, .page-wrap { max-width: 1100px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
-    .simple-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .brand { color: #fff; text-decoration: none; font-size: 24px; font-weight: 700; line-height: 1; transition: opacity .2s ease; }
-    .brand:hover, .brand:focus { color: #fff; text-decoration: none; opacity: .86; }
-    .guest-nav { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-    .guest-nav span, .guest-nav a { color: #fff; text-decoration: none; font-weight: 600; }
-    .guest-nav a:hover, .guest-nav a:focus { color: #fff; text-decoration: underline; }
-    .page-wrap { flex: 1 0 auto; width: 100%; padding-top: 36px; padding-bottom: 48px; }
-    .back-link { display: inline-flex; align-items: center; margin-bottom: 18px; color: #6d28d9; text-decoration: none; font-weight: 600; transition: color .2s ease, opacity .2s ease; }
-    .back-link:hover, .back-link:focus { color: #4c1d95; text-decoration: none; opacity: .95; }
-    .detail-card { background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); max-width: 940px; margin: 0 auto; }
-    .detail-card h1 { margin: 0 0 4px; font-size: 2.2rem; line-height: 1.15; }
-    .description { margin: 0 0 10px; color: #1f2937; font-size: 1.05rem; }
-    .meta-row { margin-bottom: 10px; color: #555; font-size: 1.05rem; }
-    .meta-row strong { color: #374151; }
-    .rules-box { margin: 20px 0; padding: 16px; background: #f8fafc; border-radius: 12px; }
-    .messages { list-style: none; padding-left: 0; margin: 0 0 18px; }
-    .messages li { margin-bottom: 10px; padding: 12px 14px; border-radius: 10px; background: #f8fafc; color: #1f2937; }
-    .messages li.success { background: #dcfce7; color: #166534; }
-    .messages li.error, .messages li.warning { background: #fee2e2; color: #991b1b; }
-    .form-group { margin-top: 20px; margin-bottom: 0; }
-    .form-group input { width: 100%; min-height: 58px; border-radius: 8px; border: 1px solid #d8d4fe; background: #f6f5ff; padding: 0 16px; font-size: 1rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease; box-sizing: border-box; }
-    .form-group input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.10); }
-    .actions { margin-top: 26px; display: block; }
-    .actions .primary-btn, .actions button.primary-btn, .full-width-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 60px; border: none; border-radius: 8px; text-decoration: none; font-size: 1rem; font-weight: 700; cursor: pointer; }
-    .secondary-link-inline { display: inline-flex; align-items: center; justify-content: center; margin-top: 14px; color: #6d28d9; font-weight: 600; text-decoration: none; width: 100%; }
-    .secondary-link-inline:hover, .secondary-link-inline:focus { color: #5b21b6; text-decoration: underline; }
-    .simple-footer { margin-top: auto; padding: 16px 0; background: #4c1d95; border-top: 1px solid rgba(255,255,255,0.12); }
-    .simple-footer-inner { display: flex; justify-content: center; align-items: center; color: #fff; font-size: 14px; font-weight: 600; text-align: center; }
-    @media (max-width: 768px) { .detail-card { padding: 24px 18px; } .detail-card h1 { font-size: 1.8rem; } }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
-  <header class="simple-header">
-    <div class="simple-header-inner">
-      <a href="{% url 'home' %}" class="brand">MakonBook</a>
-      <div class="guest-nav">
-        {% if request.session.guest_name %}
-          <span>{{ request.session.guest_name }}</span>
-          <a href="{% url 'guest_logout' %}">Logout</a>
-        {% else %}
-          <span>Guest</span>
-        {% endif %}
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'global_event_list' %}" class="public-link-pill">Back to events</a>
       </div>
-    </div>
-  </header>
+    </nav>
 
-  <div class="page-wrap">
-    <a href="{% url 'global_event_list' %}" class="back-link">← Back to Global Events</a>
-
-    <div class="detail-card">
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Event detail</span>
       <h1>{{ event.title }}</h1>
-
-      {% if messages %}
-        <ul class="messages">
-          {% for message in messages %}
-            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-
       {% if event.description %}
-        <p class="description">{{ event.description }}</p>
+        <p>{{ event.description }}</p>
+      {% else %}
+        <p>Review event timing, section duration, and access settings before starting.</p>
       {% endif %}
+    </section>
+
+    <div class="detail-card" data-page-reveal>
+      {% if messages %}
+        <div class="alert-box">
+          <ul class="messages">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <span class="status-badge">{{ event.status|title }}</span>
 
       {% if event.always_live %}
-        <div class="meta-row"><strong>Availability:</strong> Always Live (24/7)</div>
+        <div class="event-meta"><strong>Availability:</strong> Always live, 24/7</div>
       {% else %}
-        <div class="meta-row"><strong>Start:</strong> {{ event.start_at }}</div>
-        <div class="meta-row"><strong>End:</strong> {{ event.end_at }}</div>
+        <div class="event-meta"><strong>Start:</strong> {{ event.start_at }}</div>
+        <div class="event-meta"><strong>End:</strong> {{ event.end_at }}</div>
       {% endif %}
-      <div class="meta-row"><strong>English duration:</strong> {{ event.english_duration_minutes }} minutes</div>
-      <div class="meta-row"><strong>Math duration:</strong> {{ event.math_duration_minutes }} minutes</div>
-      <div class="meta-row"><strong>Status:</strong> {{ event.status|title }}</div>
+      <div class="event-meta"><strong>English duration:</strong> {{ event.english_duration_minutes }} minutes</div>
+      <div class="event-meta"><strong>Math duration:</strong> {{ event.math_duration_minutes }} minutes</div>
 
       {% if event.rules %}
         <div class="rules-box">
@@ -95,33 +67,35 @@
 
       {% if existing_attempt and existing_attempt.status == "in_progress" %}
         <div class="actions">
-          <a href="{% url 'global_event_attempt' existing_attempt.guest_token %}" class="primary-btn full-width-btn">Resume Attempt</a>
+          <a href="{% url 'global_event_attempt' existing_attempt.guest_token %}" class="primary-btn">Resume attempt</a>
         </div>
       {% elif existing_attempt and existing_attempt.status == "submitted" %}
         <div class="actions">
-          <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn full-width-btn">View Result</a>
+          <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn">View result</a>
         </div>
       {% else %}
-        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form">
+        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form auth-form">
           {% csrf_token %}
+
           <div class="form-group">
-            <input type="text" name="access_code" placeholder="Access code" {% if event.access_code %}required{% endif %}>
+            <label class="form-label" for="access-code-field">Access code{% if not event.access_code %} optional{% endif %}</label>
+            <input id="access-code-field" type="text" name="access_code" placeholder="Enter access code" {% if event.access_code %}required{% endif %}>
           </div>
 
           <div class="actions">
-            <button type="submit" class="primary-btn full-width-btn">Start Event</button>
+            <button type="submit" class="primary-btn">Start event</button>
+            {% if event.show_leaderboard %}
+              <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">View leaderboard</a>
+            {% endif %}
           </div>
-
-          {% if event.show_leaderboard %}
-            <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link-inline">View Leaderboard</a>
-          {% endif %}
         </form>
       {% endif %}
     </div>
+
+    <div class="public-footer">&copy; {% now "Y" %} SAT Makon. Stay focused.</div>
   </div>
 
-  <footer class="simple-footer">
-    <div class="simple-footer-inner">© MakonBook</div>
-  </footer>
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

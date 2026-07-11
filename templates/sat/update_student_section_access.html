@@ -16,22 +16,9 @@
     box-shadow: 0 10px 24px rgba(0,0,0,0.08);
   }
 
-  .access-note {
-    color: #6b7280;
-    margin: 6px 0 22px;
-    line-height: 1.5;
-  }
-
   .checkbox-row {
     margin-bottom: 14px;
     font-size: 18px;
-  }
-
-  .checkbox-row label {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    cursor: pointer;
   }
 
   .submit-btn {
@@ -41,45 +28,45 @@
     padding: 12px 20px;
     border-radius: 999px;
     font-weight: 700;
-    cursor: pointer;
-  }
-
-  .back-link {
-    display: inline-block;
-    margin-bottom: 18px;
-    color: #7c3aed;
-    text-decoration: none;
-    font-weight: 700;
   }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="access-wrap">
-  <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
-
-  <h2>Update Access for {{ membership.user.get_full_name|default:membership.user.username }}</h2>
-  <p class="access-note">
-    {% if classroom.is_ap_classroom %}
-      AP tests are managed separately. Use this page to give this AP student access to Vocabulary and Admissions.
-    {% else %}
-      Use this page to control this student's SAT practice tests, Vocabulary, and Admissions access.
-    {% endif %}
-  </p>
+<div class="mk-learning mk-access-page" data-learning-page="student-section-access">
+  <div class="access-wrap">
+    <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
+    <div class="access-hero">
+      <h2>Update Student Access</h2>
+      <p>{{ membership.user.get_full_name|default:membership.user.username }} · {{ classroom.name }}</p>
+    </div>
 
   <form method="post">
     {% csrf_token %}
 
-    {% for section in section_rows %}
-      <div class="checkbox-row">
-        <label>
-          <input type="checkbox" name="sections" value="{{ section.key }}" {% if section.checked %}checked{% endif %}>
-          {{ section.label }}
-        </label>
-      </div>
-    {% endfor %}
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="practice_tests" {% if access_map.practice_tests %}checked{% endif %}>
+        Practice Tests
+      </label>
+    </div>
+
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="vocabulary" {% if access_map.vocabulary %}checked{% endif %}>
+        Vocabulary
+      </label>
+    </div>
+
+    <div class="checkbox-row">
+      <label>
+        <input type="checkbox" name="sections" value="admissions" {% if access_map.admissions %}checked{% endif %}>
+        Admissions
+      </label>
+    </div>
 
     <button type="submit" class="submit-btn">Save Access</button>
   </form>
+</div>
 </div>
 {% endblock content %}

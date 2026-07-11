@@ -454,254 +454,883 @@ body.pen-mode {
     background-color: #ffff99; /* Light yellow when active */
 }
 
-/* ===== Mobile SAT/AP attempt layout fixes ===== */
-@media (max-width: 900px) {
-  html,
-  body {
-    height: auto !important;
-    min-height: 100dvh !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-  }
-
-  body.scroll-hide {
-    overflow-y: auto !important;
-  }
-
-  body > .container,
-  .container {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-height: 100dvh !important;
-    height: auto !important;
-    padding: 0 !important;
-  }
-
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    display: grid !important;
-    grid-template-columns: 1fr auto;
-    gap: 8px 12px;
-    padding: 12px 14px !important;
-    min-height: auto !important;
-  }
-
-  header h1 {
-    font-size: clamp(17px, 4.8vw, 22px) !important;
-    line-height: 1.15 !important;
-    min-width: 0;
-  }
-
-  .timer {
-    position: static !important;
-    transform: none !important;
-    justify-self: end;
-    font-size: 17px !important;
-    font-weight: 800 !important;
-    white-space: nowrap;
-  }
-
-  header a,
-  header div[style*="display:flex"] {
-    grid-column: 1 / -1;
-    justify-self: start;
-    flex-wrap: wrap;
-  }
-
-  .fm {
-    display: block !important;
-    width: 100% !important;
-  }
-
-  main {
-    display: flex !important;
-    flex-direction: column !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin-top: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-  }
-
-  .question-container,
-  .answers-container {
-    width: 100% !important;
-    max-width: 100% !important;
-    flex: 0 0 auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding: 16px !important;
-    border-right: 0 !important;
-    box-sizing: border-box !important;
-  }
-
-  .question-container {
-    border-bottom: 1px dashed #c7b0ff !important;
-  }
-
-  .question-title {
-    height: auto !important;
-    min-height: 42px !important;
-    align-items: center !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
-  }
-
-  .question-number {
-    width: 38px !important;
-    height: 38px !important;
-    font-size: 18px !important;
-  }
-
-  .bookmark,
-  .question-title .bookmark {
-    min-height: 38px !important;
-    height: auto !important;
-    margin-left: 4px !important;
-    padding-left: 30px !important;
-    font-size: 14px !important;
-    line-height: 1.15 !important;
-  }
-
-  .crossing-options,
-  .question-title .crossing-options {
-    min-height: 38px !important;
-    height: 38px !important;
-    margin-left: auto !important;
-    margin-right: 4px !important;
-  }
-
-  #passage,
-  #question-text,
-  .question-text,
-  .choice-content,
-  .choice-container {
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-  }
-
-  #passage,
-  .question-text {
-    font-size: 17px !important;
-    line-height: 1.55 !important;
-  }
-
-  .choice-container {
-    min-height: 56px !important;
-    padding: 12px 44px 12px 12px !important;
-    gap: 10px !important;
-    font-size: 16px !important;
-  }
-
-  .mark {
-    flex-basis: 32px !important;
-    width: 32px !important;
-    height: 32px !important;
-    font-size: 13px !important;
-  }
-
-  .choice-image,
-  .question-text img,
-  #passage img,
-  .graph,
-  #graph-container img,
-  #graph-container svg,
-  .just-div img,
-  .just-div svg {
-    max-width: 100% !important;
-    height: auto !important;
-  }
-
-  footer {
-    position: sticky !important;
-    bottom: 0;
-    z-index: 1000;
-    height: auto !important;
-    min-height: 0 !important;
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 8px !important;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) !important;
-  }
-
-  .footer-left,
-  .footer-center,
-  .footer-right {
-    position: static !important;
-    transform: none !important;
-    margin: 0 !important;
-    width: 100% !important;
-    justify-content: center !important;
-  }
-
-  .footer-left {
-    display: none !important;
-  }
-
-  .footer-right {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 8px !important;
-  }
-
-  .nav-button,
-  .question-progress {
-    height: 42px !important;
-    min-width: 0 !important;
-    padding: 0 14px !important;
-    border-radius: 20px !important;
-    font-size: 14px !important;
-    flex: 1 1 auto;
-  }
-
-  .question-progress {
-    width: 100% !important;
-  }
-
-  .modal-content,
-  #questionModal .modal-content {
-    width: calc(100vw - 24px) !important;
-    max-width: calc(100vw - 24px) !important;
-    margin: 64px auto 16px !important;
-    max-height: calc(100dvh - 96px) !important;
-    overflow-y: auto !important;
-  }
-
-  .question-grid,
-  #questionModal .question-grid {
-    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)) !important;
-  }
-
-  .rect-question,
-  #questionModal .rect-question {
-    width: 42px !important;
-    height: 42px !important;
-    line-height: 42px !important;
-    margin: 0 !important;
-  }
+/* Makon test window stability + interaction fix */
+body.scroll-hide.mk-test-window {
+    background: radial-gradient(circle at top left, rgba(124, 58, 237, .20), transparent 34%), #0b0618;
+    color: #f8fafc;
+    overflow: hidden;
 }
 
-@media (max-width: 520px) {
-  .question-container,
-  .answers-container {
-    padding: 13px !important;
-  }
+body.scroll-hide.mk-test-window .container {
+    width: min(94vw, 1760px);
+    margin: 16px auto 110px;
+    gap: 16px;
+}
 
-  .choice-container {
-    padding-right: 40px !important;
-  }
+body.scroll-hide.mk-test-window header,
+body.scroll-hide.mk-test-window footer,
+body.scroll-hide.mk-test-window .question-container,
+body.scroll-hide.mk-test-window .answers-container {
+    background: rgba(18, 16, 38, .88) !important;
+    border: 1px solid rgba(196, 181, 253, .18) !important;
+    border-image: none !important;
+    border-radius: 22px;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, .22);
+    color: #f8fafc;
+}
 
-  .crossing-zone {
-    right: 6px !important;
-  }
+body.scroll-hide.mk-test-window header {
+    position: relative;
+    min-height: 74px;
+    padding: 18px 22px;
+}
 
-  .nav-button,
-  .question-progress {
-    font-size: 13px !important;
-    padding-left: 11px !important;
-    padding-right: 11px !important;
-  }
+body.scroll-hide.mk-test-window main {
+    height: calc(100vh - 230px);
+    gap: 16px;
+    margin-top: 0;
+}
+
+body.scroll-hide.mk-test-window .question-container,
+body.scroll-hide.mk-test-window .answers-container {
+    padding: 28px;
+    border-right: 0 !important;
+}
+
+body.scroll-hide.mk-test-window .question-title {
+    min-height: 56px;
+    height: auto;
+    padding: 0 12px;
+    gap: 12px;
+    background: rgba(124, 58, 237, .11) !important;
+    border-bottom: 1px solid rgba(196, 181, 253, .18);
+    border-radius: 18px;
+}
+
+body.scroll-hide.mk-test-window .question-number {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #a855f7, #ec4899) !important;
+}
+
+body.scroll-hide.mk-test-window .bookmark,
+body.scroll-hide.mk-test-window .crossing-options {
+    min-height: 42px;
+    border-radius: 14px;
+    padding: 0 18px 0 44px !important;
+    background-color: rgba(255, 255, 255, .07);
+    border: 1px solid rgba(255,255,255,.10);
+    color: #d8b4fe !important;
+    font-weight: 800;
+}
+
+body.scroll-hide.mk-test-window .bookmark.filledbook {
+    color: #fff !important;
+    background-color: rgba(168, 85, 247, .28);
+    border-color: rgba(216, 180, 254, .40);
+}
+
+body.scroll-hide.mk-test-window .crossing-options {
+    width: 54px;
+    padding: 0 !important;
+    background-position: center;
+}
+
+body.scroll-hide.mk-test-window .choice-container {
+    min-height: 72px;
+    padding: 18px 64px 18px 18px;
+    background: rgba(255,255,255,.075) !important;
+    border: 1px solid rgba(196,181,253,.20) !important;
+    border-radius: 18px;
+    color: #f8fafc;
+    font-size: 17px;
+}
+
+body.scroll-hide.mk-test-window .choice-container:hover {
+    background: rgba(255,255,255,.10) !important;
+    border-color: rgba(216,180,254,.45) !important;
+}
+
+body.scroll-hide.mk-test-window .choice-input:checked + .choice-container,
+body.scroll-hide.mk-test-window .big-container.selected .choice-container {
+    background: rgba(124,58,237,.24) !important;
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 0 4px rgba(168,85,247,.13);
+}
+
+body.scroll-hide.mk-test-window .mark {
+    background: rgba(0,0,0,.24);
+    color: #fff;
+    border-color: rgba(196,181,253,.35);
+}
+
+body.scroll-hide.mk-test-window .choice-input:checked + .choice-container .mark,
+body.scroll-hide.mk-test-window .big-container.selected .mark {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    border-color: transparent;
+}
+
+body.scroll-hide.mk-test-window .big-container.is-eliminated .choice-content {
+    opacity: .54;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: rgba(236,72,153,.85);
+}
+
+body.scroll-hide.mk-test-window .cross-line {
+    display: none !important;
+}
+
+body.scroll-hide.mk-test-window .crossing-zone {
+    width: 38px;
+    height: 38px;
+    right: 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, .62);
+    border: 1px solid rgba(216,180,254,.22);
+    color: #f8fafc;
+    transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+body.scroll-hide.mk-test-window .crossing-zone.active {
+    display: grid;
+    place-items: center;
+    opacity: .72;
+    pointer-events: auto;
+}
+
+body.scroll-hide.mk-test-window .crossing-zone:hover,
+body.scroll-hide.mk-test-window .big-container.is-eliminated .crossing-zone {
+    opacity: 1;
+    background: rgba(236,72,153,.20);
+    border-color: rgba(236,72,153,.55);
+}
+
+body.scroll-hide.mk-test-window .cross-label {
+    position: static;
+    transform: none;
+    width: 24px;
+    height: 24px;
+    border-color: rgba(255,255,255,.35);
+}
+
+body.scroll-hide.mk-test-window .cross-btn-line {
+    width: 24px;
+    border-color: #f0abfc;
+    transform: translate(-50%, -50%) rotate(-28deg);
+}
+
+body.scroll-hide.mk-test-window footer {
+    width: min(94vw, 1760px);
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 14px;
+    height: 82px;
+    padding: 14px 20px;
+    z-index: 1200;
+}
+
+body.scroll-hide.mk-test-window .footer-right {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+body.scroll-hide.mk-test-window .footer-center {
+    left: 50%;
+}
+
+body.scroll-hide.mk-test-window .nav-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 112px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #fff;
+    box-shadow: none;
+}
+
+body.scroll-hide.mk-test-window #nextButton,
+body.scroll-hide.mk-test-window #finishButton,
+body.scroll-hide.mk-test-window .question-progress {
+    background: linear-gradient(135deg, #a855f7, #ec4899) !important;
+    border-color: transparent !important;
+}
+
+body.scroll-hide.mk-test-window #clear-button,
+body.scroll-hide.mk-test-window #pen-button {
+    min-width: 48px;
+    width: 48px;
+    padding: 0;
+}
+
+body.scroll-hide.mk-test-window #pen-button.active {
+    background: linear-gradient(135deg, #facc15, #fb923c) !important;
+    color: #170f2f !important;
+}
+
+body.scroll-hide.mk-test-window .modal {
+    position: fixed !important;
+    inset: 0 !important;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 5000 !important;
+    padding: 24px;
+    background: rgba(8, 3, 21, .62) !important;
+    backdrop-filter: blur(12px);
+}
+
+body.scroll-hide.mk-test-window .modal.is-open {
+    display: flex !important;
+}
+
+body.scroll-hide.mk-test-window .modal-content {
+    width: min(620px, calc(100vw - 32px));
+    max-height: min(680px, calc(100vh - 48px));
+    margin: 0 !important;
+    padding: 28px !important;
+    overflow: auto;
+    background: rgba(20, 15, 39, .96) !important;
+    border: 1px solid rgba(216,180,254,.24) !important;
+    border-radius: 24px;
+    color: #fff;
+}
+
+body.scroll-hide.mk-test-window .close-button {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 24px;
+}
+
+body.scroll-hide.mk-test-window .question-grid {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 12px;
+    margin-top: 48px;
+}
+
+body.scroll-hide.mk-test-window .rect-question {
+    min-height: 48px;
+    border: 1px solid rgba(216,180,254,.22);
+    background: rgba(124,58,237,.14);
+    color: #fff;
+}
+
+body.scroll-hide.mk-test-window .rect-question.here,
+body.scroll-hide.mk-test-window .rect-question:hover {
+    background: linear-gradient(135deg, #a855f7, #ec4899) !important;
+}
+
+body.scroll-hide.mk-test-window #drawing-canvas {
+    z-index: 1000;
+    pointer-events: none;
+}
+
+body.scroll-hide.mk-test-window.pen-mode #drawing-canvas {
+    pointer-events: auto;
+}
+
+@media (max-width: 900px) {
+    body.scroll-hide.mk-test-window {
+        overflow: auto;
+    }
+    body.scroll-hide.mk-test-window main {
+        height: auto;
+        flex-direction: column;
+        padding-bottom: 120px;
+    }
+    body.scroll-hide.mk-test-window footer {
+        width: 100%;
+        left: 0;
+        transform: none;
+        bottom: 0;
+        border-radius: 22px 22px 0 0;
+        overflow-x: auto;
+    }
+    body.scroll-hide.mk-test-window .footer-center {
+        position: static;
+        transform: none;
+    }
+}
+
+/* Makon SAT test motion layer */
+@keyframes mkFadeLift {
+    from { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(8px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes mkHeaderDrop {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mkPanelSweep {
+    from { opacity: 0; transform: translateY(20px); box-shadow: 0 0 0 rgba(168,85,247,0); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mkQuestionSwapNext {
+    0% { opacity: 0; transform: translateX(28px) scale(.992); filter: blur(7px); }
+    100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+}
+
+@keyframes mkQuestionSwapPrev {
+    0% { opacity: 0; transform: translateX(-28px) scale(.992); filter: blur(7px); }
+    100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+}
+
+@keyframes mkChoiceRise {
+    from { opacity: 0; transform: translateY(14px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes mkChoicePicked {
+    0% { transform: translateY(0) scale(1); }
+    45% { transform: translateY(-2px) scale(1.012); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes mkChoicePickedGlow {
+    0% { opacity: 0; transform: scaleX(.04); }
+    45% { opacity: .55; transform: scaleX(1); }
+    100% { opacity: 0; transform: scaleX(1); }
+}
+
+@keyframes mkEliminatePulse {
+    0% { transform: scale(1); }
+    42% { transform: scale(.988); filter: saturate(1.25); }
+    100% { transform: scale(1); }
+}
+
+@keyframes mkButtonPulse {
+    0% { transform: translateY(0) scale(1); }
+    45% { transform: translateY(-2px) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes mkModalIn {
+    from { opacity: 0; transform: translateY(20px) scale(.96); filter: blur(6px); }
+    to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes mkGridPop {
+    from { opacity: 0; transform: translateY(8px) scale(.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes mkTimerLive {
+    0%, 100% { box-shadow: 0 16px 34px rgba(168,85,247,.24); }
+    50% { box-shadow: 0 16px 48px rgba(236,72,153,.36); }
+}
+
+body.scroll-hide .container {
+    animation: mkFadeLift .55s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide header {
+    animation: mkHeaderDrop .5s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .question-container,
+body.scroll-hide .answers-container,
+body.scroll-hide footer {
+    animation: mkPanelSweep .58s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .question-container { animation-delay: .05s; }
+body.scroll-hide .answers-container { animation-delay: .12s; }
+body.scroll-hide footer { animation-delay: .18s; }
+
+body.scroll-hide .timer {
+    animation: mkTimerLive 2.8s ease-in-out infinite;
+}
+
+body.scroll-hide.question-enter-next #passage,
+body.scroll-hide.question-enter-next #question-text,
+body.scroll-hide.question-enter-next .question-title,
+body.scroll-hide.question-enter-next #graph-container,
+body.scroll-hide.question-enter-next .just-div {
+    animation: mkQuestionSwapNext .34s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide.question-enter-prev #passage,
+body.scroll-hide.question-enter-prev #question-text,
+body.scroll-hide.question-enter-prev .question-title,
+body.scroll-hide.question-enter-prev #graph-container,
+body.scroll-hide.question-enter-prev .just-div {
+    animation: mkQuestionSwapPrev .34s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide.question-enter-next #answers .big-container,
+body.scroll-hide.question-enter-prev #answers .big-container {
+    animation: mkChoiceRise .38s cubic-bezier(.2,.9,.24,1) both;
+    animation-delay: calc(var(--choice-index, 0) * 55ms);
+}
+
+body.scroll-hide .big-container.choice-picked .choice-container {
+    animation: mkChoicePicked .32s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .big-container.choice-picked .choice-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(236,72,153,.18), transparent);
+    transform-origin: left center;
+    animation: mkChoicePickedGlow .38s ease both;
+}
+
+body.scroll-hide .big-container.choice-eliminated,
+body.scroll-hide .big-container.choice-uneliminated {
+    animation: mkEliminatePulse .34s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .bookmark.is-pulsing,
+body.scroll-hide .crossing-options.is-pulsing,
+body.scroll-hide .nav-button.is-pulsing,
+body.scroll-hide .rect-question.is-pulsing,
+body.scroll-hide .written-answer-input.is-pulsing {
+    animation: mkButtonPulse .28s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .modal.is-open .modal-content,
+body.scroll-hide .modal[style*="flex"] .modal-content,
+body.scroll-hide .modal[style*="block"] .modal-content {
+    animation: mkModalIn .28s cubic-bezier(.2,.9,.24,1) both;
+}
+
+body.scroll-hide .modal.is-open .rect-question,
+body.scroll-hide .modal[style*="flex"] .rect-question,
+body.scroll-hide .modal[style*="block"] .rect-question {
+    animation: mkGridPop .25s cubic-bezier(.2,.9,.24,1) both;
+    animation-delay: calc((var(--q-index, 0) % 12) * 22ms);
+}
+
+body.scroll-hide .choice-container,
+body.scroll-hide .nav-button,
+body.scroll-hide .bookmark,
+body.scroll-hide .crossing-options,
+body.scroll-hide .rect-question,
+body.scroll-hide .desmos-close-btn,
+body.scroll-hide .reference-close-btn {
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease, color .18s ease, opacity .18s ease;
+}
+
+body.scroll-hide .choice-container:hover,
+body.scroll-hide .nav-button:hover,
+body.scroll-hide .bookmark:hover,
+body.scroll-hide .crossing-options:hover,
+body.scroll-hide .rect-question:hover {
+    transform: translateY(-2px);
+}
+
+body.scroll-hide .nav-button:active,
+body.scroll-hide .bookmark:active,
+body.scroll-hide .crossing-options:active,
+body.scroll-hide .rect-question:active,
+body.scroll-hide .choice-container:active {
+    transform: translateY(0) scale(.985);
+}
+
+body.scroll-hide .choice-container {
+    position: relative;
+    overflow: hidden;
+}
+
+body.scroll-hide .big-container.is-eliminated .cross-btn-line {
+    animation: mkButtonPulse .22s ease both;
+}
+
+body.scroll-hide.mk-test-window .question-container,
+body.scroll-hide.mk-test-window .answers-container {
+    backdrop-filter: blur(18px);
+}
+
+body.scroll-hide.mk-test-window .question-container:hover,
+body.scroll-hide.mk-test-window .answers-container:hover {
+    border-color: rgba(216,180,254,.28) !important;
+    box-shadow: 0 28px 70px rgba(0,0,0,.28), 0 0 0 1px rgba(168,85,247,.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.scroll-hide *,
+    body.scroll-hide *::before,
+    body.scroll-hide *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Footer docking fix: preserve centered fixed footer while motion is enabled. */
+@keyframes mkFooterDockFixed {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(18px) scale(.985);
+        filter: blur(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes mkMobileFooterDockFixed {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(.985);
+        filter: blur(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+body.scroll-hide.mk-test-window footer {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: 14px !important;
+    width: min(94vw, 1760px) !important;
+    max-width: calc(100vw - 32px) !important;
+    transform: translateX(-50%) !important;
+    display: grid !important;
+    grid-template-columns: minmax(140px, 1fr) auto minmax(360px, 1fr);
+    align-items: center !important;
+    gap: 16px !important;
+    overflow: visible !important;
+    animation: mkFooterDockFixed .58s cubic-bezier(.2,.9,.24,1) .18s both !important;
+}
+
+body.scroll-hide.mk-test-window .footer-left {
+    grid-column: 1;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body.scroll-hide.mk-test-window .footer-center {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    grid-column: 2;
+    justify-self: center;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0;
+}
+
+body.scroll-hide.mk-test-window .footer-right {
+    grid-column: 3;
+    justify-self: end;
+    margin-left: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+    min-width: 0;
+}
+
+body.scroll-hide.mk-test-window .question-progress {
+    white-space: nowrap;
+    min-width: 190px;
+}
+
+body.scroll-hide.mk-test-window #backButton,
+body.scroll-hide.mk-test-window #nextButton,
+body.scroll-hide.mk-test-window #finishButton {
+    min-width: 112px;
+}
+
+@media (max-width: 980px) {
+    body.scroll-hide.mk-test-window footer {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        justify-items: stretch;
+        gap: 10px !important;
+        height: auto !important;
+        min-height: 96px;
+        padding: 14px !important;
+    }
+
+    body.scroll-hide.mk-test-window .footer-left,
+    body.scroll-hide.mk-test-window .footer-center,
+    body.scroll-hide.mk-test-window .footer-right {
+        grid-column: 1;
+        justify-self: stretch;
+        justify-content: center !important;
+    }
+
+    body.scroll-hide.mk-test-window .footer-right {
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+}
+
+@media (max-width: 900px) {
+    body.scroll-hide.mk-test-window footer {
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+        transform: none !important;
+        border-radius: 22px 22px 0 0 !important;
+        animation: mkMobileFooterDockFixed .5s cubic-bezier(.2,.9,.24,1) .18s both !important;
+    }
+}
+
+/* Footer clearance fix: keep controls below the answer area instead of covering the last option. */
+body.scroll-hide.mk-test-window main {
+    height: calc(100vh - 280px) !important;
+}
+
+body.scroll-hide.mk-test-window footer {
+    bottom: 6px !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 8px 18px !important;
+    border-radius: 18px !important;
+}
+
+body.scroll-hide.mk-test-window .footer-right {
+    gap: 10px !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress,
+body.scroll-hide.mk-test-window .nav-button {
+    height: 48px !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress {
+    min-width: 180px !important;
+    padding-inline: 20px !important;
+}
+
+body.scroll-hide.mk-test-window #clear-button,
+body.scroll-hide.mk-test-window #pen-button {
+    width: 48px !important;
+    min-width: 48px !important;
+    height: 48px !important;
+}
+
+body.scroll-hide.mk-test-window .answers-container {
+    padding-bottom: 96px !important;
+}
+
+@media (max-width: 980px) {
+    body.scroll-hide.mk-test-window main {
+        height: auto !important;
+    }
+
+    body.scroll-hide.mk-test-window footer {
+        height: auto !important;
+        min-height: 96px !important;
+        bottom: 0 !important;
+    }
+}
+
+
+/* EBRW question-progress text spacing fix: flex text nodes can collapse into Question2of27. */
+body.scroll-hide.mk-test-window .question-progress {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress .progress-label,
+body.scroll-hide.mk-test-window .question-progress .progress-number {
+    display: inline-block !important;
+    line-height: 1 !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress .progress-number {
+    min-width: 1ch;
+    text-align: center;
+}
+
+
+/* EBRW footer hard fix: keep the controls as the bottom row of the test window, not floating over answers. */
+body.scroll-hide.mk-test-window {
+    overflow: hidden !important;
+}
+
+body.scroll-hide.mk-test-window .container {
+    height: calc(100vh - 32px) !important;
+    min-height: 0 !important;
+    margin: 16px auto !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    gap: 16px !important;
+    overflow: hidden !important;
+}
+
+body.scroll-hide.mk-test-window .fm,
+body.scroll-hide.mk-test-window #quiz-form {
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body.scroll-hide.mk-test-window main,
+body.scroll-hide.mk-test-window #quiz-form > main {
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(320px, 1fr) minmax(360px, 1fr) !important;
+    gap: 16px !important;
+    overflow: hidden !important;
+}
+
+body.scroll-hide.mk-test-window .question-container,
+body.scroll-hide.mk-test-window .answers-container {
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    padding-bottom: 28px !important;
+}
+
+body.scroll-hide.mk-test-window footer {
+    position: static !important;
+    inset: auto !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 72px !important;
+    min-height: 72px !important;
+    margin: 0 !important;
+    padding: 10px 18px !important;
+    border-radius: 18px !important;
+    display: grid !important;
+    grid-template-columns: minmax(160px, 1fr) auto minmax(360px, 1fr) !important;
+    align-items: center !important;
+    gap: 16px !important;
+    overflow: visible !important;
+    animation: mkPanelSweep .45s cubic-bezier(.2,.9,.24,1) .12s both !important;
+}
+
+body.scroll-hide.mk-test-window .footer-left {
+    grid-column: 1 !important;
+    justify-self: start !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+body.scroll-hide.mk-test-window .footer-center {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    grid-column: 2 !important;
+    justify-self: center !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+body.scroll-hide.mk-test-window .footer-right {
+    grid-column: 3 !important;
+    justify-self: end !important;
+    margin-left: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress,
+body.scroll-hide.mk-test-window .nav-button {
+    height: 52px !important;
+}
+
+body.scroll-hide.mk-test-window #clear-button,
+body.scroll-hide.mk-test-window #pen-button {
+    width: 52px !important;
+    min-width: 52px !important;
+    padding: 0 !important;
+}
+
+body.scroll-hide.mk-test-window #backButton,
+body.scroll-hide.mk-test-window #nextButton,
+body.scroll-hide.mk-test-window #finishButton {
+    min-width: 128px !important;
+}
+
+body.scroll-hide.mk-test-window .question-progress {
+    min-width: 210px !important;
+}
+
+@media (max-width: 980px) {
+    body.scroll-hide.mk-test-window .container {
+        height: auto !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        width: 100% !important;
+    }
+
+    body.scroll-hide.mk-test-window main,
+    body.scroll-hide.mk-test-window #quiz-form > main {
+        grid-template-columns: 1fr !important;
+        overflow: visible !important;
+    }
+
+    body.scroll-hide.mk-test-window footer {
+        position: sticky !important;
+        bottom: 0 !important;
+        height: auto !important;
+        min-height: 96px !important;
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto auto auto !important;
+        border-radius: 22px 22px 0 0 !important;
+    }
+
+    body.scroll-hide.mk-test-window .footer-left,
+    body.scroll-hide.mk-test-window .footer-center,
+    body.scroll-hide.mk-test-window .footer-right {
+        grid-column: 1 !important;
+        justify-self: stretch !important;
+        justify-content: center !important;
+    }
+
+    body.scroll-hide.mk-test-window .footer-right {
+        overflow-x: auto !important;
+        padding-bottom: 2px !important;
+    }
 }

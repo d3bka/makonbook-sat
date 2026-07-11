@@ -1,33 +1,24 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Classrooms{% endblock title-main %}
+{% block title-main %}Join Classroom{% endblock title-main %}
 
 {% block breadcrumb_parent %}
 <li><a href="{% url 'sat_menu' %}">Menu</a></li>
 {% endblock breadcrumb_parent %}
 
-{% block title %}Classrooms{% endblock title %}
+{% block title %}Join Classroom{% endblock title %}
 
 {% block style %}
 <style>
-  .classroom-page {
-    max-width: 980px;
+  .join-wrap {
+    max-width: 650px;
     margin: 0 auto;
-    display: grid;
-    gap: 22px;
-  }
-
-  .join-wrap,
-  .classrooms-wrap {
     background: #fff;
-    padding: 28px;
+    padding: 30px;
     border-radius: 18px;
     border: 1px solid #e5e7eb;
     box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-  }
-
-  .join-wrap {
     text-align: center;
   }
 
@@ -42,146 +33,54 @@
     margin: 20px 0;
   }
 
-  .join-btn,
-  .open-btn,
-  .leave-btn {
+  .join-btn {
     border: none;
+    background: #7c3aed;
     color: white;
-    padding: 12px 20px;
+    padding: 14px 24px;
     border-radius: 999px;
     font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    cursor: pointer;
   }
 
-  .join-btn,
-  .open-btn {
-    background: #7c3aed;
-  }
-
-  .leave-btn {
-    background: #dc2626;
-  }
-
-  .classroom-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  .classroom-card,
   .status-box {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 18px;
-    background: #fafafa;
-  }
-
-  .classroom-card h3 {
-    margin-bottom: 8px;
-  }
-
-  .classroom-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-  }
-
-  .status-list {
-    display: grid;
-    gap: 10px;
-    margin-top: 14px;
-  }
-
-  .status-box.pending {
+    margin-top: 20px;
+    padding: 14px;
+    border-radius: 14px;
     background: #fff7ed;
     color: #9a3412;
-    font-weight: 600;
-  }
-
-  .status-box.rejected {
-    background: #fef2f2;
-    color: #b91c1c;
     font-weight: 600;
   }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="classroom-page">
-  <div class="classrooms-wrap">
-    <h2>My Classrooms</h2>
+<div class="join-wrap">
+  <h2>Enter Classroom Code</h2>
+  <p>If you are not in a classroom yet, enter the 6-digit code shared by your teacher.</p>
 
-    {% if approved_memberships %}
-      <div class="classroom-grid">
-        {% for membership in approved_memberships %}
-          <div class="classroom-card">
-            <h3>{{ membership.classroom.name }}</h3>
-            <p><strong>Type:</strong> {{ membership.classroom.get_classroom_type_display }}</p>
-            {% if membership.classroom.description %}
-              <p>{{ membership.classroom.description }}</p>
-            {% endif %}
+  <form method="post" action="{% url 'submit_classroom_join_request' %}">
+    {% csrf_token %}
+    <input
+      type="text"
+      name="join_code"
+      maxlength="6"
+      class="join-input"
+      placeholder="000000"
+      required
+    >
+    <button type="submit" class="join-btn">Send Request</button>
+  </form>
 
-            <div class="classroom-actions">
-              <a href="{% url 'student_classroom_home' membership.classroom.id %}" class="open-btn">
-                Open classroom
-              </a>
-
-              <form method="post" action="{% url 'leave_classroom' membership.classroom.id %}">
-                {% csrf_token %}
-                <button type="submit" class="leave-btn">Leave</button>
-              </form>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p>You are not enrolled in any classrooms yet.</p>
-    {% endif %}
-  </div>
-
-  <div class="join-wrap">
-    <h2>Enter Classroom Code</h2>
-    <p>Enter the 6-digit code shared by your teacher.</p>
-
-    <form method="post" action="{% url 'submit_classroom_join_request' %}">
-      {% csrf_token %}
-      <input
-        type="text"
-        name="join_code"
-        maxlength="6"
-        class="join-input"
-        placeholder="000000"
-        required
-      >
-      <button type="submit" class="join-btn">Send Request</button>
-    </form>
-
-    {% if pending_memberships %}
-      <div class="status-list">
-        {% for membership in pending_memberships %}
-          <div class="status-box pending">
-            Your request to join <strong>{{ membership.classroom.name }}</strong> is pending teacher approval.
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-
-    {% if rejected_memberships %}
-      <div class="status-list">
-        {% for membership in rejected_memberships %}
-          <div class="status-box rejected">
-            Your request to join <strong>{{ membership.classroom.name }}</strong> was rejected.
-            You can enter another classroom code.
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </div>
+  {% if pending_membership %}
+    <div class="status-box">
+      Your request to join <strong>{{ pending_membership.classroom.name }}</strong> is pending teacher approval.
+    </div>
+  {% endif %}
+  {% if rejected_membership %}
+    <div class="status-box" style="background:#fef2f2; color:#b91c1c;">
+      Your request to join <strong>{{ rejected_membership.classroom.name }}</strong> was rejected.
+      You can enter another classroom code.
+    </div>
+  {% endif %}
 </div>
 {% endblock content %}

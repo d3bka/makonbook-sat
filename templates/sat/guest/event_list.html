@@ -4,179 +4,36 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>MakonBook - Global Events</title>
+  {% include 'base/theme_init.html' %}
+  <title>SAT Makon - Global Events</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    body {
-      min-height: 100vh;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .simple-header {
-      padding: 18px 0;
-      background: #4c1d95;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-    .simple-header-inner,
-    .simple-footer-inner,
-    .page-wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding-left: 20px;
-      padding-right: 20px;
-    }
-    .simple-header-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .brand {
-      color: #fff;
-      text-decoration: none;
-      font-size: 24px;
-      font-weight: 700;
-      line-height: 1;
-      transition: opacity .2s ease;
-    }
-    .brand:hover,
-    .brand:focus {
-      color: #fff;
-      text-decoration: none;
-      opacity: .86;
-    }
-    .guest-nav {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .guest-nav span,
-    .guest-nav a {
-      color: #fff;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .guest-nav a:hover,
-    .guest-nav a:focus {
-      color: #fff;
-      text-decoration: underline;
-    }
-    .page-wrap {
-      flex: 1 0 auto;
-      width: 100%;
-      padding-top: 36px;
-      padding-bottom: 48px;
-    }
-    .page-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 16px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-    }
-    .page-title {
-      margin: 0;
-      color: #fff;
-      font-size: 44px;
-      line-height: 1.1;
-    }
-    .page-subtitle {
-      margin: 8px 0 0;
-      color: rgba(255,255,255,0.88);
-    }
-    .event-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 20px;
-    }
-    .event-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-    .event-card h3 {
-      margin: 0 0 10px;
-    }
-    .status-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      background: #eef2ff;
-      color: #312e81;
-    }
-    .event-meta {
-      font-size: 14px;
-      margin-bottom: 8px;
-      color: #555;
-    }
-    .event-actions {
-      margin-top: 16px;
-    }
-    .empty-box {
-      background: #fff;
-      border-radius: 16px;
-      padding: 24px;
-      text-align: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-    .simple-footer {
-      margin-top: auto;
-      padding: 16px 0;
-      background: #4c1d95;
-      border-top: 1px solid rgba(255,255,255,0.12);
-    }
-    .simple-footer-inner {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 600;
-      text-align: center;
-    }
-    @media (max-width: 768px) {
-      .page-title {
-        font-size: 34px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
-  <header class="simple-header">
-    <div class="simple-header-inner">
-      <a href="{% url 'global_event_list' %}" class="brand">MakonBook</a>
-      <div class="guest-nav">
-        <span>{{ request.session.guest_name|default:"Guest" }}</span>
-        <a href="{% url 'guest_logout' %}">Logout</a>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'guest_logout' %}" class="public-link-pill">Logout guest</a>
       </div>
-    </div>
-  </header>
+    </nav>
 
-  <div class="page-wrap">
-    <div class="page-top">
-      <div>
-        <h1 class="page-title">Global Events</h1>
-        <p class="page-subtitle">Open SAT and AP events in one place</p>
-      </div>
-    </div>
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Global events</span>
+      <h1>Choose your live SAT event.</h1>
+      <p>Welcome, {{ request.session.guest_name }}. Open an available event, enter the access code if required, and start when ready.</p>
+    </section>
 
     {% if messages %}
-      <div class="alert-box">
+      <div class="alert-box" data-page-reveal>
         <ul class="messages">
           {% for message in messages %}
             <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
@@ -188,59 +45,43 @@
     {% if events %}
       <div class="event-grid">
         {% for event in events %}
-          <div class="event-card">
-            <div class="status-row">
+          <article class="event-card" data-page-reveal>
+            <div>
               <span class="status-badge">{{ event.status|title }}</span>
-              {% if event.source_label %}
-                <span class="status-badge">{{ event.source_label }}</span>
+              <h3>{{ event.title }}</h3>
+
+              {% if event.description %}
+                <p>{{ event.description|truncatewords:22 }}</p>
               {% endif %}
+
+              {% if event.always_live %}
+                <div class="event-meta"><strong>Availability:</strong> Always live, 24/7</div>
+              {% else %}
+                <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
+                <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
+              {% endif %}
+              <div class="event-meta"><strong>English:</strong> {{ event.english_duration_minutes }} min</div>
+              <div class="event-meta"><strong>Math:</strong> {{ event.math_duration_minutes }} min</div>
             </div>
-
-            <h3>{{ event.title }}</h3>
-
-            {% if event.description %}
-              <p>{{ event.description|truncatewords:20 }}</p>
-            {% endif %}
-
-            {% if event.always_live %}
-              <div class="event-meta"><strong>Availability:</strong> Always Live (24/7)</div>
-            {% else %}
-              <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
-              <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
-            {% endif %}
-
-            {% if event.english_duration_minutes %}
-              <div class="event-meta"><strong>English / Part A duration:</strong> {{ event.english_duration_minutes }} min</div>
-            {% endif %}
-            {% if event.math_duration_minutes %}
-              <div class="event-meta"><strong>Math / Part B duration:</strong> {{ event.math_duration_minutes }} min</div>
-            {% endif %}
-            {% if event.frq_duration_minutes %}
-              <div class="event-meta"><strong>FRQ duration:</strong> {{ event.frq_duration_minutes }} min</div>
-            {% endif %}
 
             <div class="event-actions">
-              {% if event.detail_url %}
-                <a href="{{ event.detail_url }}" class="primary-btn">Open Event</a>
-              {% else %}
-                <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open Event</a>
-              {% endif %}
+              <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open event</a>
             </div>
-          </div>
+          </article>
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-box">
+      <div class="empty-box" data-page-reveal>
+        <span class="eyebrow">No events</span>
         <h3>No public events available</h3>
         <p>There are no live or scheduled global events right now.</p>
       </div>
     {% endif %}
+
+    <div class="public-footer">&copy; {% now "Y" %} SAT Makon. Guest event mode.</div>
   </div>
 
-  <footer class="simple-footer">
-    <div class="simple-footer-inner">
-      © MakonBook
-    </div>
-  </footer>
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

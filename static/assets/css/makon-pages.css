@@ -1,0 +1,293 @@
+:root {
+  --page-bg: #f8f5ff;
+  --page-surface: rgba(255,255,255,.88);
+  --page-border: rgba(124,58,237,.14);
+  --page-border-strong: rgba(124,58,237,.26);
+  --page-text: #160c2d;
+  --page-muted: #645a7a;
+  --page-primary: #6d28d9;
+  --page-primary-2: #c026d3;
+  --page-cyan: #06b6d4;
+  --page-shadow: 0 22px 58px rgba(76,29,149,.12);
+}
+
+body:not(.auth-page):not(.public-page):not(.software-page) {
+  background:
+    radial-gradient(circle at 8% 6%, rgba(124,58,237,.10), transparent 24rem),
+    radial-gradient(circle at 92% 14%, rgba(192,38,211,.08), transparent 22rem),
+    linear-gradient(180deg, #fff 0%, var(--page-bg) 100%);
+}
+
+.breadcrumbs .page-header {
+  min-height: 220px;
+  background:
+    radial-gradient(circle at 80% 10%, rgba(6,182,212,.16), transparent 18rem),
+    linear-gradient(135deg, #f7f0ff 0%, #efe7ff 55%, #fdf7ff 100%) !important;
+}
+
+.page-title-wrap {
+  letter-spacing: -.05em;
+}
+
+.breadcrumbs nav {
+  backdrop-filter: blur(14px);
+}
+
+.blog {
+  padding-top: 46px;
+}
+
+.main-content,
+.blog .container,
+.practice-cards,
+.lesson-cards {
+  position: relative;
+}
+
+.card,
+.practice-card,
+.no-cards,
+.placeholder-box,
+.edit-profile-container,
+.dashboard-panel,
+.content-card,
+.form-card {
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.card:hover,
+.practice-card:hover,
+.dashboard-panel:hover,
+.content-card:hover,
+.form-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 28px 68px rgba(76,29,149,.18);
+  border-color: var(--page-border-strong);
+}
+
+.button-container,
+.primary-btn,
+.nav-button,
+button[type="submit"],
+a.btn-primary {
+  border-radius: 999px !important;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.button-container:hover,
+.primary-btn:hover,
+.nav-button:hover,
+button[type="submit"]:hover,
+a.btn-primary:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+}
+
+input,
+select,
+textarea,
+.form-control {
+  border-radius: 14px !important;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+  border-color: rgba(109,40,217,.58) !important;
+  box-shadow: 0 0 0 4px rgba(109,40,217,.12) !important;
+}
+
+.table,
+table {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+[data-page-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+.js-pages [data-page-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity .65s cubic-bezier(.2,.8,.2,1), transform .65s cubic-bezier(.2,.8,.2,1);
+}
+
+.js-pages [data-page-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .breadcrumbs .page-header {
+    min-height: 170px;
+  }
+
+  .blog {
+    padding-top: 28px;
+  }
+}
+
+/* Theme mode support for regular app pages */
+html[data-theme="dark"] {
+  --page-bg: #080315;
+  --page-surface: rgba(18, 13, 34, .88);
+  --page-border: rgba(255,255,255,.12);
+  --page-border-strong: rgba(188,123,255,.34);
+  --page-text: #ffffff;
+  --page-muted: rgba(255,255,255,.68);
+  --page-primary: #9b5cff;
+  --page-primary-2: #e14ac8;
+  --page-cyan: #35d6ff;
+  --page-shadow: 0 26px 70px rgba(0,0,0,.38);
+}
+
+html[data-theme="dark"] body:not(.auth-page):not(.public-page):not(.software-page) {
+  color: var(--page-text);
+  background:
+    radial-gradient(circle at 8% 6%, rgba(155,92,255,.28), transparent 24rem),
+    radial-gradient(circle at 92% 14%, rgba(225,74,200,.18), transparent 22rem),
+    radial-gradient(circle at 50% 100%, rgba(53,214,255,.12), transparent 28rem),
+    linear-gradient(180deg, #070214 0%, var(--page-bg) 100%);
+}
+
+html[data-theme="dark"] .breadcrumbs .page-header {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(53,214,255,.16), transparent 18rem),
+    linear-gradient(135deg, #110626 0%, #1b0d35 55%, #0c061b 100%) !important;
+  border-bottom-color: rgba(255,255,255,.1);
+}
+
+html[data-theme="dark"] .breadcrumbs nav {
+  background: rgba(9,4,21,.72);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+html[data-theme="dark"] .breadcrumbs nav a,
+html[data-theme="dark"] .breadcrumbs nav li,
+html[data-theme="dark"] .breadcrumbs ol,
+html[data-theme="dark"] .page-title-wrap,
+html[data-theme="dark"] .page-title-wrap > :first-child,
+html[data-theme="dark"] .page-title-wrap > div,
+html[data-theme="dark"] .page-title-wrap > small,
+html[data-theme="dark"] .page-title-wrap > span {
+  color: var(--page-text) !important;
+}
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .practice-card,
+html[data-theme="dark"] .no-cards,
+html[data-theme="dark"] .placeholder-box,
+html[data-theme="dark"] .edit-profile-container,
+html[data-theme="dark"] .dashboard-panel,
+html[data-theme="dark"] .content-card,
+html[data-theme="dark"] .form-card,
+html[data-theme="dark"] .blog .container > .row > [class*="col"],
+html[data-theme="dark"] .table,
+html[data-theme="dark"] table {
+  color: var(--page-text);
+  background: var(--page-surface);
+  border-color: var(--page-border);
+  box-shadow: var(--page-shadow);
+}
+
+html[data-theme="dark"] p,
+html[data-theme="dark"] .text-muted,
+html[data-theme="dark"] label,
+html[data-theme="dark"] .form-label,
+html[data-theme="dark"] td,
+html[data-theme="dark"] th {
+  color: var(--page-muted);
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6,
+html[data-theme="dark"] .card-title {
+  color: var(--page-text);
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] .form-control {
+  color: var(--page-text);
+  background: rgba(255,255,255,.07) !important;
+  border-color: rgba(255,255,255,.14) !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: rgba(255,255,255,.42);
+}
+
+html[data-theme="dark"] .table,
+html[data-theme="dark"] table,
+html[data-theme="dark"] .table > :not(caption) > * > * {
+  color: var(--page-text);
+  background-color: rgba(12,7,27,.76);
+  border-color: rgba(255,255,255,.1);
+}
+
+html[data-theme="dark"] .alert,
+html[data-theme="dark"] .messages,
+html[data-theme="dark"] .list-group-item {
+  color: var(--page-text);
+  background: rgba(255,255,255,.07);
+  border-color: rgba(255,255,255,.12);
+}
+
+html[data-theme="dark"] {
+  --mk-bg: #080315;
+  --mk-surface: #120d22;
+  --mk-surface-soft: #19112f;
+  --mk-surface-muted: #21183a;
+  --mk-border: rgba(255,255,255,.12);
+  --mk-border-strong: rgba(188,123,255,.34);
+  --mk-text: #ffffff;
+  --mk-text-muted: rgba(255,255,255,.68);
+  --mk-primary: #c4a3ff;
+  --mk-primary-strong: #ffffff;
+  --mk-primary-soft: #a78bfa;
+  --mk-primary-tint: rgba(139,92,246,.18);
+  --mk-accent: #35d6ff;
+  --mk-accent-soft: rgba(53,214,255,.12);
+  --mk-shadow: 0 22px 60px rgba(0,0,0,.36);
+  --mk-shadow-soft: 0 14px 36px rgba(0,0,0,.28);
+  --mk-gradient-soft: linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.035));
+}
+
+html[data-theme="dark"] .navbar .dropdown ul {
+  background: rgba(12,7,27,.96);
+  border-color: rgba(255,255,255,.14);
+  box-shadow: 0 18px 48px rgba(0,0,0,.34);
+}
+
+html[data-theme="dark"] .navbar .dropdown ul a {
+  color: rgba(255,255,255,.86);
+}
+
+html[data-theme="dark"] .navbar .dropdown ul a:hover,
+html[data-theme="dark"] .navbar .dropdown ul .active:hover,
+html[data-theme="dark"] .navbar .dropdown ul li:hover > a {
+  color: #ffffff;
+  background: rgba(255,255,255,.08);
+}
+
+html[data-theme="dark"] .no-cards,
+html[data-theme="dark"] .placeholder-box,
+html[data-theme="dark"] .signin-box,
+html[data-theme="dark"] .attempt-card,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .reference-sheet,
+html[data-theme="dark"] .reference-card {
+  background: rgba(18,13,34,.88);
+  color: var(--mk-text);
+  border-color: rgba(255,255,255,.12);
+}

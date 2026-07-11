@@ -12,7 +12,7 @@
 {% block style %}
 <style>
   .form-wrap {
-    max-width: 760px;
+    max-width: 700px;
     margin: 0 auto;
     background: #fff;
     border-radius: 18px;
@@ -21,8 +21,15 @@
     border: 1px solid #e5e7eb;
   }
 
-  .form-group { margin-bottom: 18px; }
-  .form-group label { display: block; font-weight: 700; margin-bottom: 8px; }
+  .form-group {
+    margin-bottom: 18px;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
 
   .form-group input,
   .form-group textarea {
@@ -31,27 +38,6 @@
     border-radius: 12px;
     padding: 12px 14px;
   }
-
-  .type-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
-    margin-top: 8px;
-  }
-
-  .type-card {
-    border: 1px solid #d1d5db;
-    border-radius: 16px;
-    padding: 16px;
-    cursor: pointer;
-    background: #fafafa;
-    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
-  }
-
-  .type-card input { width: auto; margin-right: 8px; }
-  .type-card strong { color: #4c1d95; }
-  .type-card small { display: block; color: #64748b; margin-top: 8px; line-height: 1.45; }
-  .type-card:has(input:checked) { border-color: #7c3aed; background: #f3edff; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
 
   .submit-btn {
     border: none;
@@ -70,23 +56,6 @@
 
   <form method="post">
     {% csrf_token %}
-
-    <div class="form-group">
-      <label>Classroom Type</label>
-      <div class="type-grid">
-        <label class="type-card">
-          <input type="radio" name="classroom_type" value="sat" checked>
-          <strong>SAT Classroom</strong>
-          <small>Use this for SAT practice tests, vocabulary, admissions sections, and SAT progress.</small>
-        </label>
-
-        <label class="type-card">
-          <input type="radio" name="classroom_type" value="ap">
-          <strong>AP Classroom</strong>
-          <small>Use this for AP mock tests/events and AP answer review.</small>
-        </label>
-      </div>
-    </div>
 
     <div class="form-group">
       <label>Classroom Name</label>

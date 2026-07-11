@@ -1,0 +1,38 @@
+
+/*
+  MakonBook Auth Show Button Balance Fix
+  This adjusts the previous hard fix:
+  - moves Show slightly right
+  - makes it a bit wider
+  - keeps it safely inside the input
+  - desktop/tablet only, mobile unchanged
+*/
+
+@media (min-width: 769px) {
+  html body.auth-page .auth-card form.auth-form .form-group.password-wrap > button.password-toggle,
+  html body.auth-page .auth-card form.signin-form .form-group.password-wrap > button.password-toggle,
+  html body.auth-page .auth-card form.auth-form .form-group.password-wrap > .field-icon,
+  html body.auth-page .auth-card form.signin-form .form-group.password-wrap > .field-icon {
+    right: 18px !important;
+    top: 53px !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+
+    width: 54px !important;
+    min-width: 54px !important;
+    max-width: 54px !important;
+
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+
+    padding: 0 10px !important;
+    border-radius: 11px !important;
+    font-size: 0.72rem !important;
+  }
+
+  html body.auth-page .auth-card form.auth-form .form-group.password-wrap > input,
+  html body.auth-page .auth-card form.signin-form .form-group.password-wrap > input {
+    padding-right: 92px !important;
+  }
+}

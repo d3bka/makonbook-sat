@@ -33,7 +33,6 @@
     margin-top: 14px;
   }
 
-  .approved-links a,
   .approved-links span {
     display: inline-block;
     padding: 10px 14px;
@@ -41,52 +40,37 @@
     background: #eef2ff;
     color: #7c3aed;
     font-weight: 700;
-    text-decoration: none;
   }
 </style>
 {% endblock style %}
 
 {% block content %}
 <div class="status-wrap">
-  {% if approved_memberships %}
-    {% for membership in approved_memberships %}
-      <div class="status-card">
-        <h2>{{ membership.classroom.name }}</h2>
-        <p>You are approved and part of this classroom.</p>
-
-        <div class="approved-links">
-          <a href="{% url 'student_classroom_home' membership.classroom.id %}">Open classroom</a>
-          {% for access in membership.section_access.all %}
-            {% if access.has_access %}<span>{{ access.get_section_display }}</span>{% endif %}
-          {% endfor %}
-        </div>
-      </div>
-    {% endfor %}
-  {% endif %}
-
-  {% if pending_memberships %}
-    {% for membership in pending_memberships %}
-      <div class="status-card">
-        <h2>Pending Request</h2>
-        <p>Your request to join <strong>{{ membership.classroom.name }}</strong> is waiting for teacher approval.</p>
-      </div>
-    {% endfor %}
-  {% endif %}
-
-  {% if rejected_memberships %}
-    {% for membership in rejected_memberships %}
-      <div class="status-card">
-        <h2>Request Rejected</h2>
-        <p>Your request to join <strong>{{ membership.classroom.name }}</strong> was rejected.</p>
-        <p>You can try another valid classroom code.</p>
-      </div>
-    {% endfor %}
-  {% endif %}
-
-  {% if not approved_memberships and not pending_memberships and not rejected_memberships %}
+  {% if approved_classroom %}
     <div class="status-card">
-      <h2>No classroom requests yet</h2>
-      <p>Enter a classroom code to send your first join request.</p>
+      <h2>{{ approved_classroom.name }}</h2>
+      <p>You are approved and now part of this classroom.</p>
+
+      <div class="approved-links">
+        {% if access_map.practice_tests %}<span>Practice Tests</span>{% endif %}
+        {% if access_map.vocabulary %}<span>Vocabulary</span>{% endif %}
+        {% if access_map.admissions %}<span>Admissions</span>{% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if pending_membership %}
+    <div class="status-card">
+      <h2>Pending Request</h2>
+      <p>Your request to join <strong>{{ pending_membership.classroom.name }}</strong> is waiting for teacher approval.</p>
+    </div>
+  {% endif %}
+
+  {% if rejected_membership %}
+    <div class="status-card">
+      <h2>Request Rejected</h2>
+      <p>Your request to join <strong>{{ rejected_membership.classroom.name }}</strong> was rejected.</p>
+      <p>You can try another valid classroom code.</p>
     </div>
   {% endif %}
 </div>

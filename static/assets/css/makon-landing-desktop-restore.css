@@ -1,0 +1,172 @@
+
+/*
+  MakonBook Landing Desktop Restore Fix
+  Keeps the improved mobile menu, but removes mobile-only buttons from desktop/tablet header.
+  Load after makon-landing-mobile-nav-fix.css.
+*/
+
+/* Default: mobile-only actions must never appear on desktop. */
+.site-nav-mobile-actions {
+  display: none !important;
+}
+
+/* Desktop / laptop landing header */
+@media (min-width: 881px) {
+  .landing-shell .site-header {
+    position: relative;
+    z-index: 100;
+  }
+
+  .landing-shell .site-header .container.nav-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: clamp(16px, 2vw, 28px) !important;
+  }
+
+  .landing-shell .brand {
+    flex: 0 0 auto;
+    min-width: max-content;
+  }
+
+  .landing-shell .site-nav {
+    position: static !important;
+    inset: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+
+    padding: 8px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    background: rgba(255,255,255,.055) !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .landing-shell .site-nav::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .landing-shell .site-nav > a {
+    width: auto !important;
+    min-height: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    padding: 0 16px !important;
+    border-radius: 999px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+
+    color: rgba(255,255,255,.72) !important;
+    font-size: .94rem !important;
+    font-weight: 850 !important;
+    white-space: nowrap !important;
+  }
+
+  .landing-shell .site-nav > a::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .landing-shell .site-nav > a:hover,
+  .landing-shell .site-nav > a.is-active,
+  .landing-shell .site-nav > a[aria-current="page"] {
+    color: #fff !important;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 12px 26px rgba(139,92,246,.22) !important;
+  }
+
+  .landing-shell .site-nav-mobile-actions {
+    display: none !important;
+  }
+
+  .landing-shell .nav-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    flex: 0 0 auto;
+  }
+
+  .landing-shell .nav-toggle {
+    display: none !important;
+  }
+
+  .landing-shell .nav-actions .theme-switcher {
+    flex: 0 0 auto;
+  }
+
+  .landing-shell .nav-actions .theme-toggle {
+    min-width: 112px;
+  }
+
+  .landing-shell .nav-actions .btn {
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}
+
+/* Large tablets / small laptops: keep desktop header but reduce spacing */
+@media (min-width: 881px) and (max-width: 1180px) {
+  .landing-shell .site-header .container.nav-row {
+    gap: 12px !important;
+  }
+
+  .landing-shell .brand span {
+    font-size: 1.35rem !important;
+  }
+
+  .landing-shell .site-nav {
+    gap: 4px !important;
+    padding: 6px !important;
+  }
+
+  .landing-shell .site-nav > a {
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    font-size: .88rem !important;
+  }
+
+  .landing-shell .nav-actions {
+    gap: 8px !important;
+  }
+
+  .landing-shell .nav-actions .btn {
+    padding-inline: 14px !important;
+  }
+
+  .landing-shell .nav-actions .theme-toggle {
+    min-width: 48px;
+    width: 48px;
+    padding: 0;
+  }
+
+  .landing-shell .nav-actions .theme-toggle-label {
+    display: none;
+  }
+}
+
+/* Mobile: keep the new clean mobile menu */
+@media (max-width: 880px) {
+  .landing-shell .site-nav-mobile-actions {
+    display: grid !important;
+  }
+}

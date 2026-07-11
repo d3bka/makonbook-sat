@@ -19,28 +19,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Quiz</title>
-    <script src="https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6" onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
-    <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/css/makon-math.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/css/test-math-page.css' %}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/test-math-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body class="scroll-hide">
+<body class="scroll-hide mk-test-window">
     <div class="container">
         <header>
             <h1>Section 2: Mathematics</h1>
             <div class="timer" id="timer">0:00</div>
-            <div style="display:flex; align-items:center; gap:12px; color:#3d008e;">
-                <div id="open-reference" style="align-content:center; cursor:pointer;" title="Reference Sheet">
-                    <i class="fa fa-book" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
-                </div>
-                <div id="open-calculator" style="align-content:center; cursor:pointer;" title="Calculator">
-                    <i class="fa fa-calculator" style="font-size:22px; margin-right:5px;" aria-hidden="true"></i>
-                </div>
-                <a href="{{ home_url|default:'/' }}" style="text-decoration:none;" title="Home">
-                    <i class="fa fa-home" style="font-size:30px;" aria-hidden="true"></i>
+            <div class="header-tools" aria-label="Math section tools">
+                <button id="open-reference" type="button" class="header-tool" title="Reference Sheet" aria-label="Reference Sheet">
+                    <i class="fa fa-book" aria-hidden="true"></i>
+                </button>
+                <button id="open-calculator" type="button" class="header-tool" title="Desmos Calculator" aria-label="Desmos Calculator">
+                    <i class="fa fa-calculator" aria-hidden="true"></i>
+                </button>
+                <a href="{{ home_url|default:'/' }}" class="header-tool home-link" title="Home" aria-label="Home">
+                    <i class="fa fa-home" aria-hidden="true"></i>
                 </a>
             </div>
         </header>
@@ -104,12 +107,12 @@
         </div>
     </div>
 
-    <div id="questionModal" class="modal">
+    <div id="questionModal" class="modal" aria-hidden="true">
         <div class="modal-content">
-            <span class="close-button" onclick="toggleQuestionModal()">×</span>
+            <button type="button" class="close-button" onclick="closeQuestionModal()" aria-label="Close question navigator">×</button>
             <div class="question-grid">
                 {% for q in questions %}
-                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); toggleQuestionModal();">
+                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); closeQuestionModal();">
                     {{ q.number }}
                 </div>
                 {% endfor %}
@@ -246,6 +249,8 @@
         "testName": "{{ test.name|default_if_none:''|escapejs }}",
         "moduleName": "{{ module|escapejs }}",
         "sectionName": "{{ section|escapejs }}",
+        "classroomId": "{% if classroom %}{{ classroom.id }}{% endif %}",
+        "testType": "{% if is_makeup %}makeup{% else %}regular{% endif %}",
         "timeRemaining": {% if attempt %}{{ time_left_seconds|default:2100 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}2100{% endif %},
         "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
         "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",

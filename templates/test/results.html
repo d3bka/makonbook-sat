@@ -6,158 +6,364 @@
 
 {% block style %}
 <style>
+  :root {
+    --themeColor: #6d28d9;
+    --results-accent: #6d28d9;
+    --results-accent-2: #ec4899;
+    --results-bg: #f6f1ff;
+    --results-surface: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 241, 255, 0.98));
+    --results-surface-2: rgba(244, 239, 255, 0.94);
+    --results-border: rgba(109, 40, 217, 0.16);
+    --results-text: #1d1635;
+    --results-text-soft: rgba(29, 22, 53, 0.82);
+    --results-muted: rgba(29, 22, 53, 0.62);
+    --results-divider: rgba(109, 40, 217, 0.14);
+    --results-correct: #15803d;
+    --results-correct-bg: rgba(34, 197, 94, 0.18);
+    --results-incorrect: #dc2626;
+    --results-incorrect-bg: rgba(239, 68, 68, 0.18);
+    --results-pending: #475569;
+    --results-pending-bg: rgba(148, 163, 184, 0.18);
+    --results-chart-grid: rgba(109, 40, 217, 0.12);
+    --results-chart-tick: #312e81;
+  }
+
+  html[data-theme="dark"],
+  body[data-theme="dark"],
+  html.theme-dark,
+  body.theme-dark {
+    --themeColor: #a78bfa;
+    --results-accent: #a78bfa;
+    --results-accent-2: #ff74d4;
+    --results-bg: #070317;
+    --results-surface: linear-gradient(135deg, rgba(18, 11, 44, 0.96), rgba(6, 16, 42, 0.94));
+    --results-surface-2: rgba(17, 16, 42, 0.92);
+    --results-border: rgba(196, 181, 253, 0.16);
+    --results-text: #f8f7ff;
+    --results-text-soft: rgba(248, 247, 255, 0.88);
+    --results-muted: rgba(230, 225, 255, 0.72);
+    --results-divider: rgba(196, 181, 253, 0.14);
+    --results-correct: #4ade80;
+    --results-correct-bg: rgba(22, 163, 74, 0.24);
+    --results-incorrect: #ff8a8a;
+    --results-incorrect-bg: rgba(239, 68, 68, 0.28);
+    --results-pending: #d8d8f8;
+    --results-pending-bg: rgba(148, 163, 184, 0.18);
+    --results-chart-grid: rgba(196, 181, 253, 0.16);
+    --results-chart-tick: #e8e3ff;
+  }
+
+  .results-shell {
+    color: var(--results-text);
+    padding-top: 8px;
+    padding-bottom: 40px;
+  }
+  .results-shell::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(168, 85, 247, 0.10), transparent 26%), radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 24%), var(--results-bg);
+    z-index: -1;
+  }
+  .results-shell a,
+  .results-shell div,
+  .results-shell p,
+  .results-shell span,
+  .results-shell textarea {
+    word-break: normal !important;
+  }
+  .results-shell ul { list-style: none; padding-left: 0; }
+  .results-shell li { text-align: left; }
+  .results-shell hr {
+    border: 0;
+    border-top: 1px solid var(--results-divider);
+    margin-top: 18px;
+    margin-bottom: 30px;
+  }
+
+  .sat[data-v-27935a7a] {
+    align-items: flex-start;
+    gap: 16px;
+    padding: 12px 14px 18px;
+    border-radius: 24px;
+    background: var(--results-surface);
+    border: 1px solid var(--results-border);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+  }
   .sat_left[data-v-27935a7a] {
     display: flex;
-    color: var(--themeColor);
+    color: var(--results-text);
     text-decoration: none;
+    align-items: flex-start;
   }
   .sat_left>p[data-v-27935a7a]:first-child {
-    font-size: 140px;
-    font-weight: 700;
-    line-height: 140px;
+    font-size: clamp(110px, 12vw, 150px);
+    font-weight: 900;
+    line-height: 0.9;
     margin-bottom: 0;
+    color: #5b21b6 !important;
+    background: linear-gradient(135deg, #5b21b6 0%, #7c3aed 48%, #ec4899 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 14px 34px rgba(91, 33, 182, 0.14);
+    letter-spacing: -0.04em;
   }
-  .total .score+p[data-v-049b5cac] {
-    width: auto;
-    margin-top: 25px;
-    height: 40px;
-    line-height: 40px;
-    padding-left: 20px;
-    border-left: 4px solid #ccc;
+  .sat_left>span[data-v-27935a7a] {
+    font-size: clamp(42px, 4vw, 56px);
+    color: #5b21b6 !important;
+    font-weight: 800;
   }
-  li {
-    text-align: -webkit-match-parent;
+  html[data-theme="dark"] .sat_left>p[data-v-27935a7a]:first-child,
+  body[data-theme="dark"] .sat_left>p[data-v-27935a7a]:first-child,
+  html.theme-dark .sat_left>p[data-v-27935a7a]:first-child,
+  body.theme-dark .sat_left>p[data-v-27935a7a]:first-child {
+    color: #f8f7ff !important;
+    background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 45%, #f0abfc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 16px 36px rgba(196, 181, 253, 0.20);
   }
-  .sat_right ul li[data-v-27935a7a] {
-    font-size: 20px;
-    line-height: 30px;
-  }
-  ul {
-    list-style: none;
+  html[data-theme="dark"] .sat_left>span[data-v-27935a7a],
+  body[data-theme="dark"] .sat_left>span[data-v-27935a7a],
+  html.theme-dark .sat_left>span[data-v-27935a7a],
+  body.theme-dark .sat_left>span[data-v-27935a7a] {
+    color: #f8f7ff !important;
   }
   .sat_right[data-v-27935a7a] {
     padding-left: 0;
-    padding-top: 30px;
+    padding-top: 18px;
   }
-  b, strong {
-    font-weight: bolder;
-  }
-  .sat_left>span[data-v-27935a7a] {
-    font-size: 52px;
-  }
-  a, div, p, span, textarea {
-    word-break: normal !important;
-  }
-  *, :after, :before {
-    box-sizing: border-box;
-  }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, Liberation Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
-    font-size: 1rem;
-    font-weight: 400;
+  .sat_right ul li[data-v-27935a7a] {
+    font-size: 20px;
     line-height: 1.5;
-    color: #212529;
-    text-align: left;
-    background-color: #fff;
+    color: var(--results-text-soft);
+    margin-bottom: 6px;
   }
-  :root {
-    --themeColor: #4c0379;
-    --layout-padding: 60px;
+  .sat_right b[data-v-27935a7a] { color: var(--results-text); }
+
+  .teacher-mode-badge {
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: var(--results-surface-2) !important;
+    color: var(--results-accent) !important;
+    border: 1px solid var(--results-border);
+    font-weight: 800;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
   }
-  .total_above .score[data-v-049b5cac] {
-    width: auto;
-    font-size: 60px;
-    color: #222;
-    font-weight: 700;
-    line-height: 70px;
-    height: 70px;
-    margin-right: 1rem;
+
+  .total[data-v-049b5cac],
+  .chart-container,
+  .total_score.print_div {
+    padding: 24px 28px;
+    border-radius: 24px;
+    background: var(--results-surface);
+    border: 1px solid var(--results-border);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
   }
   .total .title[data-v-049b5cac] {
-    font-weight: 500;
+    font-weight: 700;
     line-height: 1.2;
     margin-top: 0;
     margin-bottom: .5rem;
     font-size: 30px;
-    color: var(--themeColor);
+    color: var(--results-text);
   }
   .total_above[data-v-049b5cac] {
     padding: 0 15px;
     margin-bottom: .5rem;
+    align-items: flex-end;
   }
-  .row {
+  .total_above .score[data-v-049b5cac] {
+    width: auto;
+    font-size: clamp(58px, 7vw, 72px);
+    color: var(--results-text);
+    font-weight: 800;
+    line-height: 1;
+    height: auto;
+    margin-right: 1rem;
+    margin-bottom: 0;
+  }
+  .total .score+p[data-v-049b5cac] {
+    width: auto;
+    margin-top: 18px;
+    min-height: 40px;
+    line-height: 40px;
+    padding-left: 20px;
+    border-left: 4px solid var(--results-divider);
+    color: var(--results-text-soft);
+  }
+
+  .row.module-row > div { margin-bottom: 16px; }
+  .module-card {
+    padding: 10px 6px;
+  }
+  .module-card h5,
+  .chart-container h4,
+  .chart-container h5 {
+    color: var(--results-accent);
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+
+  .navigation {
     display: flex;
     flex-wrap: wrap;
-    margin-right: -15px;
-    margin-left: -15px;
-  }
-  .incorrect {
-    background-color: red;
-    color: white;
-  }
-  .correct {
-    background-color: green;
-    color: white;
+    gap: 8px;
   }
   .rect-question {
-    font-size: smaller;
-    margin: 10px 10px 0 0;
+    font-size: 12px;
     text-align: center;
-    border: 1px solid #000;
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
+    border: 1px solid var(--results-border);
+    width: 34px;
+    height: 34px;
+    line-height: 34px;
+    border-radius: 10px;
+    margin: 0;
+    background: var(--results-pending-bg);
+    color: var(--results-pending);
+    overflow: hidden;
+    font-weight: 700;
   }
-  .chart-container {
+  .rect-question a {
+    display: block;
     width: 100%;
-    margin: 20px auto;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
   }
-  .chart-container canvas {
-    width: 100% !important;
-    height: auto !important;
+  .rect-question.correct {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--results-correct) 86%, white) 0%, var(--results-correct) 100%);
+    color: #ffffff;
+    border-color: color-mix(in srgb, var(--results-correct) 72%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--results-correct) 32%, transparent), 0 8px 18px color-mix(in srgb, var(--results-correct) 28%, transparent);
   }
-  .restart-btn-container {
-    margin-top: 10px;
+  .rect-question.correct a { color: #ffffff; }
+  .rect-question.incorrect {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--results-incorrect) 86%, white) 0%, var(--results-incorrect) 100%);
+    color: #ffffff;
+    border-color: color-mix(in srgb, var(--results-incorrect) 72%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--results-incorrect) 32%, transparent), 0 8px 18px color-mix(in srgb, var(--results-incorrect) 24%, transparent);
   }
+  .rect-question.incorrect a { color: #ffffff; }
+
   .btn {
-    display: inline-block;
-    font-weight: 400;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
     text-align: center;
     white-space: nowrap;
     vertical-align: middle;
     user-select: none;
     border: 1px solid transparent;
-    padding: .375rem .75rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    border-radius: .25rem;
-    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    padding: .5rem .9rem;
+    font-size: .95rem;
+    line-height: 1.4;
+    border-radius: 999px;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
     text-decoration: none;
   }
-  .btn-sm {
-    padding: .25rem .5rem;
-    font-size: .875rem;
-    line-height: 1.5;
-    border-radius: .2rem;
-  }
+  .btn-sm { padding: .45rem .85rem; font-size: .9rem; }
   .btn-warning {
-    color: #212529;
-    background-color: #ffc107;
-    border-color: #ffc107;
+    color: #fff;
+    background: linear-gradient(90deg, var(--results-accent) 0%, var(--results-accent-2) 100%);
+    border-color: transparent;
+    box-shadow: 0 10px 24px rgba(124, 108, 255, 0.22);
   }
   .btn-danger {
     color: #fff;
-    background-color: #dc3545;
-    border-color: #dc3545;
+    background: linear-gradient(90deg, #ef4444 0%, #f97316 100%);
+    border-color: transparent;
+    box-shadow: 0 10px 24px rgba(239, 68, 68, 0.22);
   }
+
+  .results-shell label,
+  .results-shell select {
+    color: var(--results-text);
+  }
+  .results-shell select {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--results-border);
+    background: var(--results-surface-2);
+  }
+
+
+  .button-container a {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 0 22px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--results-accent) 0%, #8b5cf6 100%);
+    color: #fff !important;
+    font-weight: 800;
+    box-shadow: 0 14px 30px rgba(109, 40, 217, 0.22);
+  }
+
+  .button-container a:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+
+  .button-container i {
+    font-size: 28px !important;
+  }
+
+  .total_score.print_div {
+    min-height: 250px;
+  }
+
+  .restart-btn-container {
+    margin-top: 14px;
+  }
+
+  .results-shell .score,
+  .results-shell .t_score,
+  .results-shell .title,
+  .results-shell h4,
+  .results-shell h5,
+  .results-shell p,
+  .results-shell span,
+  .results-shell li,
+  .results-shell a {
+    transition: color .2s ease, background-color .2s ease, border-color .2s ease;
+  }
+
+  .results-shell .total_score.print_div .title,
+  .results-shell .total_score.print_div .score,
+  .results-shell .total_score.print_div .t_score {
+    color: var(--results-text) !important;
+  }
+
+  .results-shell .total_score.print_div .score {
+    text-shadow: none;
+  }
+
+  @media (max-width: 992px) {
+    .sat_left>p[data-v-27935a7a]:first-child { font-size: 96px; }
+    .sat_right ul li[data-v-27935a7a] { font-size: 18px; }
+    .total[data-v-049b5cac], .chart-container { padding: 20px; }
+  }
+  @media (max-width: 768px) {
+    .results-shell { width: 94% !important; }
+    .sat[data-v-27935a7a] { padding: 16px; }
+    .total_above .score[data-v-049b5cac] { font-size: 54px; }
+    .rect-question { width: 32px; height: 32px; line-height: 32px; }
+  }
+
+  .retake-form { display: inline-flex; margin: 0; }
+  .retake-form button { border: 0; }
 </style>
 {% endblock style %}
 
 {% block content %}
-<div class="mx-auto" style="width:90%;">
+<div class="mx-auto results-shell" style="width:90%;">
   <div data-v-27935a7a="" class="row mx-auto sat">
-    <a data-v-27935a7a="" href="{% url 'sat_menu' %}" class="col-md-4 sat_left print_div">
+    <a data-v-27935a7a="" href="/practices" class="col-md-4 sat_left print_div">
       <p data-v-27935a7a="">SAT</p><span data-v-27935a7a="">®</span>
     </a>
     <div data-v-27935a7a="" class="col-md-4 sat_right row">
@@ -182,28 +388,25 @@
     </div>
     {% else %}
     <div class="col-md-4" style="padding-top: 30px;">
-      <div style="padding:12px 16px; border-radius:14px; background:#eef2ff; color:#324dc7; font-weight:700;">
+      <div class="teacher-mode-badge">
         Teacher review mode · {{ display_user|default:user }}
       </div>
     </div>
     {% endif %}
   </div>
 
-  {% if attempts %}
+  {% if attempts and attempts|length > 1 %}
   <div class="row" style="margin: 20px 0;">
-    <div class="col-md-8">
-      <form method="get" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px; border-radius:14px; background:#f3f4ff; border:1px solid #dfe3ff;">
-        <strong style="color:#17205a;">Attempt review:</strong>
-        <select id="review_key" name="review_key" onchange="this.form.submit()" {% if attempts|length == 1 %}disabled{% endif %} style="min-width:260px; padding:9px 12px; border-radius:8px; border:1px solid #bfc6ff; background:white; font-weight:600;">
-          {% for option in attempt_options %}
-            <option value="{{ option.key }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+    <div class="col-md-6">
+      <form method="get">
+        <label for="review_key" style="font-weight: 700; margin-right: 10px;">Select attempt for review:</label>
+        <select id="review_key" name="review_key" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc;">
+          {% for attempt in attempts %}
+            <option value="{{ attempt.key }}" {% if attempt.key == selected_review_key %}selected{% endif %}>
+              {{ attempt.created_at|date:'Y-m-d H:i' }} · Score: {{ attempt.score }}
+            </option>
           {% endfor %}
         </select>
-        {% if attempts|length > 1 %}
-          <button type="submit" style="padding:9px 14px; border:0; border-radius:8px; background:#4c0379; color:white; font-weight:700; cursor:pointer;">Open attempt</button>
-        {% else %}
-          <span style="color:#5b647a; font-size:14px;">Only one completed attempt</span>
-        {% endif %}
       </form>
     </div>
   </div>
@@ -225,7 +428,7 @@
       </div>
       {% if not is_teacher_review %}
       <div class="restart-btn-container">
-        <form method="post" action="{% url 'restart' pk=stats.test %}" style="display:inline;">
+        <form method="post" action="{% url 'restart' pk=stats.test %}" class="retake-form">
           {% csrf_token %}
           {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
           <button type="submit" class="btn btn-danger btn-sm">
@@ -241,7 +444,7 @@
   </div>
 
   <hr style="margin-top: 10px; margin-bottom: 30px;">
-  <div class="row">
+  <div class="row module-row">
     {% if has_english %}
     <div class="col-md-6">
       <div data-v-049b5cac="" class="col-md-10 col-sm-12 total_score print_div">
@@ -262,7 +465,7 @@
         </div>
         {% if not is_teacher_review %}
         <div class="restart-btn-container">
-          <form method="post" action="{% url 'restart_section' pk=stats.test section='english' %}" style="display:inline;">
+          <form method="post" action="{% url 'restart_section' pk=stats.test section='english' %}" class="retake-form">
             {% csrf_token %}
             {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
             <button type="submit" class="btn btn-warning btn-sm">
@@ -295,7 +498,7 @@
         </div>
         {% if not is_teacher_review %}
         <div class="restart-btn-container">
-          <form method="post" action="{% url 'restart_section' pk=stats.test section='math' %}" style="display:inline;">
+          <form method="post" action="{% url 'restart_section' pk=stats.test section='math' %}" class="retake-form">
             {% csrf_token %}
             {% if classroom %}<input type="hidden" name="classroom_id" value="{{ classroom.id }}">{% endif %}
             <button type="submit" class="btn btn-warning btn-sm">
@@ -310,9 +513,9 @@
   </div>
 
   <hr style="margin-top: 10px; margin-bottom: 30px;">
-  <div class="row">
+  <div class="row module-row">
     {% if has_english %}
-    <div class="col-md-3">
+    <div class="col-md-3 module-card">
       <h5>English Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.english.m1 %}
@@ -323,7 +526,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3 module-card">
       <h5>English Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.english.m2 %}
@@ -336,7 +539,7 @@
     {% endif %}
 
     {% if has_math %}
-    <div class="col-md-3">
+    <div class="col-md-3 module-card">
       <h5>Math Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.math.m1 %}
@@ -347,7 +550,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3 module-card">
       <h5>Math Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
         {% for q in questions.math.m2 %}
@@ -392,6 +595,20 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    const __resultsDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const __chartText = __resultsDark ? '#e8e3ff' : '#312e81';
+    const __chartGrid = __resultsDark ? 'rgba(196,181,253,0.16)' : 'rgba(99,102,241,0.14)';
+    const __chartTitle = __resultsDark ? '#f8f7ff' : '#17142b';
+    const __baseChartOptions = {
+      scales: {
+        y: { beginAtZero: true, ticks: { color: __chartText }, grid: { color: __chartGrid } },
+        x: { ticks: { color: __chartText }, grid: { color: __chartGrid } }
+      },
+      plugins: {
+        legend: { labels: { color: __chartText } },
+        title: { color: __chartTitle }
+      }
+    };
     {% if has_english %}
     var englishM1Labels = [
       {% for q in questions.english.m1 %}
@@ -416,10 +633,7 @@
           borderWidth: 1
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } },
-        plugins: { title: { display: true, text: 'English Module 1' } }
-      }
+      options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'English Module 1', color: __chartTitle } } }
     });
 
     var englishM2Labels = [
@@ -445,10 +659,7 @@
           borderWidth: 1
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } },
-        plugins: { title: { display: true, text: 'English Module 2' } }
-      }
+      options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'English Module 2', color: __chartTitle } } }
     });
     {% endif %}
 
@@ -476,10 +687,7 @@
           borderWidth: 1
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } },
-        plugins: { title: { display: true, text: 'Math Module 1' } }
-      }
+      options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'Math Module 1', color: __chartTitle } } }
     });
 
     var mathM2Labels = [
@@ -505,10 +713,7 @@
           borderWidth: 1
         }]
       },
-      options: {
-        scales: { y: { beginAtZero: true } },
-        plugins: { title: { display: true, text: 'Math Module 2' } }
-      }
+      options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'Math Module 2', color: __chartTitle } } }
     });
     {% endif %}
   </script>

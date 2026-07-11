@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Result - {{ event.title }}</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+</head>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        <a href="{% url 'global_event_list' %}" class="public-link-pill">Back to events</a>
+      </div>
+    </nav>
+
+    <div class="result-card" data-page-reveal>
+      <span class="eyebrow">Attempt complete</span>
+      <h1>Thank you</h1>
+      <p>You have completed <strong>{{ event.title }}</strong>.</p>
+
+      {% if show_score %}
+        <div class="score-box">Total Score: {{ total_score }}</div>
+        <p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>
+        <p><strong>Math Score:</strong> {{ math_score }}</p>
+      {% else %}
+        <div class="score-box">Result available later</div>
+      {% endif %}
+
+      <p><strong>Answered:</strong> {{ attempt.answered_questions }} / {{ attempt.total_questions }}</p>
+      <p><strong>Status:</strong> {{ attempt.status|title }}</p>
+
+      <div class="actions">
+        <a href="{% url 'global_event_list' %}" class="primary-btn">Back to events</a>
+        {% if event.show_leaderboard %}
+          <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">Leaderboard</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

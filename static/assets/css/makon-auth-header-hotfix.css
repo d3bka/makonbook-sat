@@ -1,0 +1,282 @@
+
+/* MakonBook auth/public header + theme switcher hotfix */
+/* Load AFTER makon-responsive.css */
+
+.auth-shell,
+.public-shell,
+.software-shell {
+  overflow: visible;
+}
+
+.auth-nav,
+.public-nav {
+  position: relative;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 12px;
+  margin-bottom: clamp(18px, 2.4vw, 28px);
+}
+
+.auth-brand,
+.public-brand {
+  min-width: 0;
+}
+
+.auth-brand span,
+.public-brand span {
+  display: block;
+  min-width: 0;
+  font-size: clamp(1.55rem, 2vw, 2.25rem);
+  line-height: 1;
+}
+
+.auth-nav-actions,
+.public-nav-actions {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.auth-link-pill,
+.public-link-pill {
+  min-width: fit-content;
+  padding-inline: 20px;
+  white-space: nowrap;
+}
+
+.auth-nav .theme-switcher,
+.public-nav .theme-switcher {
+  flex: 0 0 auto;
+  position: relative;
+  overflow: visible;
+}
+
+.auth-nav .theme-toggle,
+.public-nav .theme-toggle {
+  min-width: 108px;
+}
+
+.auth-nav .theme-menu,
+.public-nav .theme-menu {
+  right: 0;
+  left: auto;
+  top: calc(100% + 10px);
+  width: 176px;
+  max-width: min(176px, calc(100vw - 24px));
+}
+
+.auth-grid {
+  align-items: start;
+}
+
+.auth-login .auth-card,
+.auth-register .auth-card,
+.auth-guest .auth-card {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* tablet / small laptop */
+@media (max-width: 980px) {
+  .auth-nav,
+  .public-nav {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .auth-nav-actions,
+  .public-nav-actions {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .auth-login .auth-grid,
+  .auth-register .auth-grid,
+  .auth-guest .auth-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-login .auth-card,
+  .auth-register .auth-card,
+  .auth-guest .auth-card {
+    max-width: 640px;
+    margin-inline: auto;
+  }
+
+  .auth-login .auth-visual,
+  .auth-register .auth-visual,
+  .auth-guest .auth-visual {
+    max-width: 900px;
+    margin-inline: auto;
+  }
+}
+
+/* phones */
+@media (max-width: 768px) {
+  .auth-shell,
+  .public-shell,
+  .software-shell {
+    width: min(100% - 16px, 1180px);
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+
+  .auth-nav,
+  .public-nav {
+    margin-bottom: 14px;
+  }
+
+  .auth-brand,
+  .public-brand {
+    gap: 10px;
+  }
+
+  .auth-brand img,
+  .public-brand img {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .auth-brand span,
+  .public-brand span {
+    font-size: 1.65rem;
+  }
+
+  .auth-nav-actions,
+  .public-nav-actions {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .auth-nav .theme-toggle,
+  .public-nav .theme-toggle {
+    min-width: 48px;
+    width: 48px;
+    padding: 0;
+  }
+
+  .auth-nav .theme-toggle-label,
+  .public-nav .theme-toggle-label {
+    display: none;
+  }
+
+  .auth-link-pill,
+  .public-link-pill {
+    min-height: 44px;
+    padding-inline: 14px;
+    font-size: .88rem;
+  }
+
+  .auth-login .auth-card,
+  .auth-register .auth-card,
+  .auth-guest .auth-card {
+    max-width: none;
+  }
+
+  .auth-card,
+  .auth-login-card,
+  .auth-register-card,
+  .auth-guest-card {
+    position: relative;
+    top: auto;
+    padding: 18px;
+  }
+
+  .auth-card-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .auth-card h2 {
+    font-size: 2rem;
+  }
+
+  .auth-form,
+  .signin-form {
+    gap: 14px;
+  }
+
+  .compact-footer {
+    margin-top: 10px !important;
+    margin-bottom: 8px !important;
+    padding-top: 10px;
+  }
+
+  .auth-card-footer.compact-footer {
+    justify-content: flex-start !important;
+  }
+
+  .guest-cta-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  /* Hide heavy visual panel on phone; keep focus on the form */
+  .auth-login .auth-visual,
+  .auth-register .auth-visual,
+  .auth-guest .auth-visual {
+    display: none !important;
+  }
+}
+
+/* very small phones */
+@media (max-width: 520px) {
+  .auth-nav,
+  .public-nav {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .auth-nav-actions,
+  .public-nav-actions {
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .auth-brand span,
+  .public-brand span {
+    font-size: 1.5rem;
+  }
+
+  .auth-link-pill,
+  .public-link-pill {
+    padding-inline: 12px;
+    font-size: .84rem;
+  }
+
+  .auth-nav .theme-switcher,
+  .public-nav .theme-switcher {
+    z-index: 6000;
+  }
+
+  /* Use fixed dropdown on small screens to prevent clipping and awkward jumps */
+  .auth-nav .theme-menu,
+  .public-nav .theme-menu {
+    position: fixed;
+    top: 74px;
+    right: 10px;
+    left: auto;
+    width: min(176px, calc(100vw - 20px));
+    max-height: calc(100svh - 84px);
+    overflow-y: auto;
+    transform-origin: top right;
+  }
+}
+
+/* if any container clips the dropdown, disable clipping */
+.auth-nav,
+.public-nav,
+.auth-nav-actions,
+.public-nav-actions,
+.theme-switcher {
+  overflow: visible !important;
+}

@@ -9,6 +9,7 @@
   <title>Practices</title>
   <meta content="" name="description">
   <meta content="" name="keywords">
+  {% include 'base/theme_init.html' %}
 
   <!-- Favicons -->
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
@@ -31,6 +32,11 @@
   <link href="{% static 'assets/css/main.css' %}" rel="stylesheet">
   {% block style %}  {% endblock style %}
   <link href="{% static 'assets/css/makon-theme.css' %}" rel="stylesheet">
+
+  <link href="{% static 'assets/css/makon-pages.css' %}" rel="stylesheet">
+  <link href="{% static 'assets/css/makon-theme-switcher.css' %}" rel="stylesheet">
+  <link href="{% static 'assets/css/makon-learning.css' %}" rel="stylesheet">
+  <link href="{% static 'assets/css/makon-final-pages.css' %}" rel="stylesheet">
 
   <style>
     .breadcrumbs .page-header {
@@ -65,6 +71,23 @@
       margin-top: 0 !important;
     }
 
+
+    html[data-theme="dark"] .breadcrumbs .page-header {
+      background: linear-gradient(180deg, #110626 0%, #1b0d35 100%) !important;
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+
+    html[data-theme="dark"] .page-title-wrap,
+    html[data-theme="dark"] .page-title-wrap > :first-child {
+      color: #ffffff;
+    }
+
+    html[data-theme="dark"] .page-title-wrap > div,
+    html[data-theme="dark"] .page-title-wrap > small,
+    html[data-theme="dark"] .page-title-wrap > span {
+      color: rgba(255, 255, 255, 0.78);
+    }
+
     @media (max-width: 768px) {
       .page-title-wrap,
       .page-title-wrap > :first-child {
@@ -79,6 +102,8 @@
     }
   </style>
 
+  <link href="{% static 'assets/css/makon-responsive.css' %}" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
 
 <body>
@@ -129,6 +154,7 @@
 
   </main><!-- End #main -->
 
+  {% include 'base/footer.html' %}
 
   <a href="#" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 
@@ -145,6 +171,11 @@
 
   <!-- Template Main JS File -->
   <script src="{% static 'assets/js/main.js' %}"></script>
+
+  <script src="{% static 'assets/js/makon-pages.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  <script src="{% static 'assets/js/makon-learning.js' %}"></script>
+  <script src="{% static 'assets/js/makon-final-pages.js' %}"></script>
 
 </body>
 

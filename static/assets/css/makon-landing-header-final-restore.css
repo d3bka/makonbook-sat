@@ -1,0 +1,325 @@
+
+/*
+  MakonBook Landing Header Final Restore
+  Purpose:
+  - Restore old desktop landing header layout.
+  - Keep mobile hamburger menu only on small screens.
+  - Prevent mobile menu patches from affecting large screens.
+  Load this CSS as the LAST landing header override.
+*/
+
+/* Mobile-only buttons hidden by default */
+.site-nav-mobile-actions {
+  display: none !important;
+}
+
+/* ===== DESKTOP / LARGE TABLET HEADER RESTORE ===== */
+@media (min-width: 1025px) {
+  body .landing-shell .site-header {
+    position: relative !important;
+    top: auto !important;
+    z-index: 100 !important;
+    width: 100% !important;
+    padding: 28px 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body .landing-shell .site-header .container.nav-row,
+  body .site-header .container.nav-row {
+    width: min(1180px, calc(100% - 48px)) !important;
+    max-width: 1180px !important;
+    margin: 0 auto !important;
+
+    display: grid !important;
+    grid-template-columns: auto minmax(420px, 1fr) auto !important;
+    align-items: center !important;
+    justify-content: initial !important;
+    gap: 22px !important;
+  }
+
+  body .landing-shell .brand,
+  body .site-header .brand {
+    grid-column: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-width: max-content !important;
+    color: #fff !important;
+    text-decoration: none !important;
+  }
+
+  body .landing-shell .brand img,
+  body .site-header .brand img {
+    display: block !important;
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    border-radius: 18px !important;
+    object-fit: contain !important;
+  }
+
+  body .landing-shell .brand span,
+  body .site-header .brand span {
+    display: inline-block !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    color: #fff !important;
+    font-size: clamp(1.45rem, 1.8vw, 2rem) !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.055em !important;
+  }
+
+  body .landing-shell .site-nav,
+  body .site-header .site-nav {
+    grid-column: 2 !important;
+    justify-self: center !important;
+
+    position: static !important;
+    inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+
+    display: inline-flex !important;
+    flex-direction: row !important;
+    grid-template-columns: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+
+    padding: 8px !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: rgba(255, 255, 255, 0.055) !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+    transform-origin: center !important;
+    transition: none !important;
+  }
+
+  body .landing-shell .site-nav::before,
+  body .site-header .site-nav::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  body .landing-shell .site-nav > a,
+  body .site-header .site-nav > a {
+    position: relative !important;
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
+    min-height: 42px !important;
+    height: 42px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    padding: 0 16px !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+
+    color: rgba(255, 255, 255, 0.72) !important;
+    text-decoration: none !important;
+    font-size: 0.94rem !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  body .landing-shell .site-nav > a::before,
+  body .landing-shell .site-nav > a::after,
+  body .site-header .site-nav > a::before,
+  body .site-header .site-nav > a::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  body .landing-shell .site-nav > a:hover,
+  body .landing-shell .site-nav > a.is-active,
+  body .landing-shell .site-nav > a[aria-current="page"],
+  body .site-header .site-nav > a:hover,
+  body .site-header .site-nav > a.is-active,
+  body .site-header .site-nav > a[aria-current="page"] {
+    color: #fff !important;
+    background: linear-gradient(135deg, #8b5cf6, #ec4899) !important;
+    box-shadow: 0 12px 26px rgba(139, 92, 246, 0.22) !important;
+    transform: translateY(-1px) !important;
+  }
+
+  body .landing-shell .site-nav-mobile-actions,
+  body .site-header .site-nav-mobile-actions {
+    display: none !important;
+  }
+
+  body .landing-shell .nav-actions,
+  body .site-header .nav-actions {
+    grid-column: 3 !important;
+    justify-self: end !important;
+
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  body .landing-shell .nav-actions .theme-switcher,
+  body .site-header .nav-actions .theme-switcher {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    position: relative !important;
+  }
+
+  body .landing-shell .nav-actions .theme-toggle,
+  body .site-header .nav-actions .theme-toggle {
+    width: auto !important;
+    min-width: 112px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 16px !important;
+  }
+
+  body .landing-shell .nav-actions .theme-toggle-label,
+  body .site-header .nav-actions .theme-toggle-label {
+    display: inline !important;
+  }
+
+  body .landing-shell .nav-actions .btn,
+  body .site-header .nav-actions .btn {
+    width: auto !important;
+    min-width: auto !important;
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 0 20px !important;
+    white-space: nowrap !important;
+  }
+
+  body .landing-shell .nav-actions .btn-primary,
+  body .site-header .nav-actions .btn-primary {
+    display: inline-flex !important;
+  }
+
+  body .landing-shell .nav-toggle,
+  body .site-header .nav-toggle {
+    display: none !important;
+  }
+}
+
+/* ===== MEDIUM LAPTOP WIDTHS ===== */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  body .landing-shell .site-header .container.nav-row,
+  body .site-header .container.nav-row {
+    width: min(1180px, calc(100% - 32px)) !important;
+    grid-template-columns: auto minmax(360px, 1fr) auto !important;
+    gap: 14px !important;
+  }
+
+  body .landing-shell .brand img,
+  body .site-header .brand img {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+  }
+
+  body .landing-shell .brand span,
+  body .site-header .brand span {
+    font-size: 1.45rem !important;
+  }
+
+  body .landing-shell .site-nav,
+  body .site-header .site-nav {
+    gap: 3px !important;
+    padding: 6px !important;
+  }
+
+  body .landing-shell .site-nav > a,
+  body .site-header .site-nav > a {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0 12px !important;
+    font-size: 0.88rem !important;
+  }
+
+  body .landing-shell .nav-actions,
+  body .site-header .nav-actions {
+    gap: 8px !important;
+  }
+
+  body .landing-shell .nav-actions .btn,
+  body .site-header .nav-actions .btn {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 16px !important;
+  }
+
+  body .landing-shell .nav-actions .theme-toggle,
+  body .site-header .nav-actions .theme-toggle {
+    min-width: 48px !important;
+    width: 48px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+  }
+
+  body .landing-shell .nav-actions .theme-toggle-label,
+  body .site-header .nav-actions .theme-toggle-label {
+    display: none !important;
+  }
+}
+
+/* ===== TABLET / MOBILE: keep hamburger behavior ===== */
+@media (max-width: 1024px) {
+  body .landing-shell .nav-toggle,
+  body .site-header .nav-toggle {
+    display: inline-flex !important;
+  }
+
+  body .landing-shell .nav-actions,
+  body .site-header .nav-actions {
+    display: none !important;
+  }
+
+  body .landing-shell .site-nav-mobile-actions,
+  body .site-header .site-nav-mobile-actions {
+    display: grid !important;
+  }
+}

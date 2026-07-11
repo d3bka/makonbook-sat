@@ -1,210 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'base/theme_init.html' %}
+    {% load static %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Review</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+
     <style>
-        .answered-incorrect > label {
-            color: red;
-            font-weight: bold;
+        :root {
+            --review-bg: #f6f3ff;
+            --review-surface: rgba(255,255,255,0.96);
+            --review-surface-alt: rgba(245, 243, 255, 0.96);
+            --review-border: rgba(99, 102, 241, 0.16);
+            --review-text: #17142b;
+            --review-text-soft: rgba(23, 20, 43, 0.78);
+            --review-accent: #5b3df5;
+            --review-accent-2: #e669d7;
+            --review-correct: #0f9f63;
+            --review-wrong: #dc2626;
+            --review-pill-bg: rgba(91, 61, 245, 0.10);
+            --review-shadow: 0 20px 50px rgba(31, 41, 55, 0.12);
         }
-        .answer-correct > label {
-            color: green !important;
-            font-weight: bold;
+        html[data-theme="dark"] {
+            --review-bg: #070317;
+            --review-surface: linear-gradient(135deg, rgba(22, 12, 49, 0.96), rgba(8, 18, 47, 0.96));
+            --review-surface-alt: rgba(28, 24, 58, 0.94);
+            --review-border: rgba(196,181,253,0.14);
+            --review-text: #f8f7ff;
+            --review-text-soft: rgba(233, 229, 255, 0.84);
+            --review-accent: #a78bfa;
+            --review-accent-2: #f472d0;
+            --review-correct: #4ade80;
+            --review-wrong: #ff8f8f;
+            --review-pill-bg: rgba(167, 139, 250, 0.16);
+            --review-shadow: 0 24px 60px rgba(2, 6, 23, 0.35);
         }
         body {
-            font-family: 'Times New Roman', Times, serif;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             margin: 0;
             padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+            color: var(--review-text);
+            background: var(--review-bg);
         }
+        p, .review-meta, .question-text, .choice-text, #explanation { font-family: Georgia, 'Times New Roman', serif; }
         .scroll-hide::-webkit-scrollbar { display: none !important; }
-        .container {
-            max-width: 1300px;
-            margin: 10px auto;
-            padding: 20px;
-            background-color: #ffffff;
+        .review-shell { max-width: 1560px; margin: 10px auto 8px; padding: 0 14px 8px; }
+        .review-header { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: stretch; margin-bottom: 12px; }
+        .review-title-card, .review-status-card, .question-container, .answers-container, .review-footer {
+            background: var(--review-surface); border: 1px solid var(--review-border); border-radius: 18px; box-shadow: var(--review-shadow);
         }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px dashed black;
-            padding-bottom: 10px;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        header h1 { margin: 0; font-size: 24px; }
-        main { min-height: 400px; display: flex; margin-top: 20px; }
-        .question-container {
-            overflow-y: auto;
-            flex: 1;
-            padding-right: 20px;
-            border-right: 1px dashed #cccccc;
-        }
-        .answers-container {
-            overflow-y: auto;
-            flex: 1;
-            padding-left: 20px;
-        }
-        .question-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px dashed #cccccc;
-            padding-bottom: 10px;
-        }
-        .question-number { font-size: 20px; font-weight: bold; }
-        #passage {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        #question-text {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        .question-text { margin-top: 10px; margin-bottom: 20px; font-size: 16px; }
-        footer {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 20px;
-            border-top: 3px dashed black;
-            padding-top: 10px;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        .nav-button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: #ffffff;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 5px;
-        }
-        .nav-button:hover { background-color: #0056b3; }
-        .choice-container {
-            cursor: default;
-            padding: 10px;
-            border: 1px #505050 solid;
-            color: #505050;
-            display: block;
-            margin-bottom: 10px;
-            font-size: 16px;
-            border-radius: 10px;
-            min-height: 50px;
-        }
-        .choice-container input[type="radio"] { display: none; }
-        .choice-container label {
-            cursor: default;
-            display: flex;
-            align-items: flex-start;
-            position: relative;
-            padding-left: 35px;
-            width: 100%;
-            color: #505050;
-            line-height: 1.5;
-        }
-        .choice-container .mark::before {
-            content: attr(data-letter);
-            position: absolute;
-            left: 0;
-            top: 12px;
-            transform: translateY(-50%);
-            width: 25px;
-            height: 25px;
-            border: 1px solid #000;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 23px;
-            background-color: #fff;
-        }
-        .graph { width: 100%; margin-top: 20px; }
-        .review-meta { margin-top: 16px; }
-        .review-meta h3, .review-meta p { margin: 10px 0; }
-        @media (max-width: 900px) {
-            main { flex-direction: column; }
-            .question-container {
-                border-right: none;
-                padding-right: 0;
-                border-bottom: 1px dashed #cccccc;
-                padding-bottom: 20px;
-                margin-bottom: 20px;
-            }
-            .answers-container { padding-left: 0; }
-        }
+        .review-title-card { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 84px; }
+        .review-title-link { text-decoration: none; color: var(--review-text); }
+        .review-title-link h1 { margin: 0; font-size: clamp(24px, 1.8vw, 34px); font-weight: 800; letter-spacing: -0.03em; }
+        .review-subtitle { margin-top: 6px; color: var(--review-text-soft); font-size: 14px; line-height: 1.35; }
+        .question-chip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; background: var(--review-pill-bg); color: var(--review-accent); font-weight: 800; white-space: nowrap; }
+        .review-status-card { padding: 14px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 84px; }
+        .answer-stat { border-radius: 18px; padding: 12px 14px; background: var(--review-surface-alt); border: 1px solid var(--review-border); display: flex; flex-direction: column; justify-content: center; min-height: 68px; }
+        .answer-stat .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--review-text-soft); margin-bottom: 8px; font-weight: 800; }
+        .answer-stat strong { font-size: 28px; line-height: 1; color: var(--review-text); }
+        .correct-stat { border-color: color-mix(in srgb, var(--review-correct) 32%, var(--review-border)); }
+        .correct-stat strong { color: var(--review-correct); }
+        .your-stat.is-match { border-color: color-mix(in srgb, var(--review-correct) 32%, var(--review-border)); }
+        .your-stat.is-match strong { color: var(--review-correct); }
+        .your-stat.is-wrong { border-color: color-mix(in srgb, var(--review-wrong) 36%, var(--review-border)); }
+        .your-stat.is-wrong strong { color: var(--review-wrong); }
+        .review-main { min-height: 400px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 18px; }
+        .question-container, .answers-container { overflow-y: auto; min-height: 520px; padding: 18px; }
+        .panel-tag { display: inline-flex; align-items: center; padding: 7px 12px; margin-bottom: 12px; border-radius: 999px; background: var(--review-pill-bg); color: var(--review-accent); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 800; }
+        .passage-card, .meta-card, .question-card { border-radius: 18px; background: var(--review-surface-alt); border: 1px solid var(--review-border); padding: 14px; }
+        .passage-card { min-height: 180px; }
+        .question-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--review-border); }
+        .question-number-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 18px; background: linear-gradient(135deg, var(--review-accent), var(--review-accent-2)); color: white; font-weight: 800; box-shadow: 0 14px 30px rgba(124, 108, 255, 0.24); }
+        .question-number-pill .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: 0.95; }
+        .question-number-pill .value { font-size: 17px; line-height: 1; }
+        #passage, #question-text { white-space: pre-wrap; word-wrap: break-word; }
+        #passage { margin: 0; font-size: 17px; line-height: 1.55; color: var(--review-text); }
+        .question-text { margin: 0 0 14px; font-size: 18px; line-height: 1.45; color: var(--review-text); font-weight: 700; }
+        .answers { display: grid; gap: 10px; }
+        .choice-container { display: flex; align-items: stretch; gap: 12px; padding: 12px; border-radius: 16px; border: 1px solid var(--review-border); background: var(--review-surface); color: var(--review-text); }
+        .choice-container.answer-correct { border-color: color-mix(in srgb, var(--review-correct) 42%, var(--review-border)); background: color-mix(in srgb, var(--review-correct) 10%, var(--review-surface)); }
+        .choice-container.answered-incorrect { border-color: color-mix(in srgb, var(--review-wrong) 45%, var(--review-border)); background: color-mix(in srgb, var(--review-wrong) 9%, var(--review-surface)); }
+        .mark { width: 36px; min-width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; background: var(--review-pill-bg); color: var(--review-accent); }
+        .choice-body { flex: 1; min-width: 0; }
+        .choice-text { color: var(--review-text); font-size: 16px; line-height: 1.45; }
+        .choice-note { margin-top: 8px; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+        .correct-note { color: var(--review-correct); }
+        .user-note { color: var(--review-wrong); }
+        .choice-image { max-width: 100%; max-height: 180px; object-fit: contain; display: block; margin: 6px 0; }
+        .review-answer-box { border: 1px solid var(--review-border); border-radius: 16px; background: var(--review-surface); padding: 16px; font-weight: 800; color: var(--review-text); }
+        .graph img { width: 100%; display: block; border-radius: 14px; }
+        .review-meta { margin-top: 12px; color: var(--review-text); }
+        .review-meta h3, .review-meta p { margin: 10px 0; color: var(--review-text); }
+        .review-meta .meta-label { color: var(--review-accent); font-weight: 800; margin-right: 6px; font-family: Inter, system-ui, sans-serif; }
+        #explanation { color: var(--review-text-soft); line-height: 1.55; font-size: 15px; }
+        .katex { font-size: 1.15em; }
+        mjx-container { margin: 5px 0; }
+        .review-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 14px 16px; gap: 12px; flex-wrap: wrap; }
+        .footer-nav-group { display: flex; gap: 10px; align-items: center; }
+        .nav-button { display: inline-flex; align-items: center; justify-content: center; min-width: 104px; padding: 10px 18px; background: linear-gradient(135deg, var(--review-accent), var(--review-accent-2)); color: #fff; border: none; cursor: pointer; font-size: 15px; font-weight: 800; border-radius: 999px; box-shadow: 0 14px 30px rgba(124, 108, 255, 0.24); }
+        .nav-button.secondary { background: rgba(255,255,255,0.05); color: var(--review-text); border: 1px solid var(--review-border); box-shadow: none; }
+        .nav-button.disabled, .nav-button:disabled { opacity: 0.48; cursor: not-allowed; pointer-events: none; box-shadow: none; }
+        .review-footer a { text-decoration: none; }
+        @media (max-width: 1080px) { .review-header, .review-main { grid-template-columns: 1fr; } .question-container, .answers-container { min-height: auto; } }
+        @media (max-width: 768px) { .review-shell { padding: 0 10px 10px; } .review-title-card, .review-status-card, .question-container, .answers-container, .review-footer { border-radius: 20px; } .review-title-card, .review-status-card, .question-container, .answers-container { padding: 14px; } .review-title-card { flex-direction: column; align-items: flex-start; } .review-status-card { grid-template-columns: 1fr; } .question-text { font-size: 17px; } #passage { font-size: 16px; } .choice-container { font-size: 16px; padding: 12px; } .review-footer { justify-content: center; } .footer-nav-group { width: 100%; justify-content: center; } }
     </style>
+
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body class="scroll-hide">
-    <div class="container">
-        <header>
-            {% if is_teacher_review %}<a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>{% else %}<a href="/sat/results/{{ test }}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>{% endif %}
-            <h1 style="color: green;">Answer: {{ question.answer }}</h1>
-            <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
+<body class="scroll-hide review-page">
+    <div class="review-shell">
+        <header class="review-header">
+            <div class="review-title-card">
+                <div>
+                    <a class="review-title-link" href="{{ results_url|default:'/' }}"><h1>Question Review</h1></a>
+                    <div class="review-subtitle">Review the correct answer, the student answer, and the explanation.</div>
+                </div>
+                <div class="question-chip">Question <span id="question-number-header">{{ question_payload.number|default:question.number }}</span></div>
+            </div>
+            <div class="review-status-card">
+                <div class="answer-stat correct-stat">
+                    <span class="stat-label">Correct Answer</span>
+                    <strong>{{ question.answer|default_if_none:"—"|default:"—" }}</strong>
+                </div>
+                <div class="answer-stat your-stat{% if answered_choice and answered_choice == correct_choice %} is-match{% elif answered %} is-wrong{% endif %}">
+                    <span class="stat-label">Your Answer</span>
+                    <strong>{{ answered|default_if_none:"—"|default:"—" }}</strong>
+                </div>
+            </div>
         </header>
-        <main>
-            <div class="question-container scroll-hide">
-                <div class="just-div" id="graph-container"></div>
-                <p id="passage"></p>
-                <div class="review-meta">
-                    <h3>Domain: {{ question.domain }}</h3>
-                    <h3>Type: {{ question.type }}</h3>
-                    <p>Explanation:</p>
-                    <div id="explanation">{{ question.explained|safe }}</div>
+
+        <main class="review-main">
+            <section class="question-container scroll-hide">
+                <div class="panel-tag">Passage</div>
+                {% if question_payload.graph %}
+                    <div class="just-div graph" id="graph-container"><img src="{{ question_payload.graph }}" alt="Graph"></div>
+                {% else %}
+                    <div class="just-div" id="graph-container"></div>
+                {% endif %}
+                <div class="passage-card"><p id="passage">{{ question_payload.passage|default_if_none:""|linebreaksbr }}</p></div>
+
+                <div class="review-meta meta-card">
+                    <h3><span class="meta-label">Domain:</span> {{ question.domain|default:"—" }}</h3>
+                    <h3><span class="meta-label">Type:</span> {{ question.type|default:"—" }}</h3>
+                    <p><span class="meta-label">Explanation:</span></p>
+                    <div id="explanation">{{ question.explained|default_if_none:""|safe }}</div>
                 </div>
-            </div>
-            <div class="answers-container scroll-hide">
-                <div class="question-header">
-                    <div class="question-number">Question Number: <span id="question-number"></span></div>
+            </section>
+
+            <section class="answers-container scroll-hide">
+                <div class="question-panel-top">
+                    <div class="question-number-pill">
+                        <span class="label">Question</span>
+                        <span class="value" id="question-number">{{ question_payload.number|default:question.number }}</span>
+                    </div>
                 </div>
-                <div class="question-text" id="question-text"></div>
-                <div class="answers" id="answers"></div>
-            </div>
+
+                <div class="question-card">
+                    <div class="question-text" id="question-text">{{ question_payload.question|default_if_none:""|linebreaksbr }}</div>
+                    <div class="answers" id="answers">
+                        
+                        {% if question_payload.written %}
+                            <div class="review-answer-box">{{ answered|default_if_none:"No answer"|default:"No answer" }}</div>
+                        {% else %}
+                            {% for choice in review_choices %}
+                                <div class="choice-container{% if choice.letter == correct_choice %} answer-correct{% elif answered_choice and choice.letter == answered_choice and answered_choice != correct_choice %} answered-incorrect{% endif %}" data-choice="{{ choice.letter }}">
+                                    <div class="mark" data-letter="{{ choice.letter }}">{{ choice.letter }}</div>
+                                    <div class="choice-body">
+                                        <div class="choice-text">
+                                            {% if choice.is_image %}
+                                                <img class="choice-image" src="{{ choice.image_url }}" alt="Choice {{ choice.letter }}">
+                                            {% else %}
+                                                {{ choice.content|default_if_none:""|linebreaksbr }}
+                                            {% endif %}
+                                        </div>
+                                        {% if choice.letter == correct_choice %}<div class="choice-note correct-note">Correct answer</div>{% endif %}
+                                        {% if answered_choice and choice.letter == answered_choice and answered_choice != correct_choice %}<div class="choice-note user-note">Your answer</div>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                    </div>
+                </div>
+            </section>
         </main>
-        <footer>
-            {% if prev %}
-            <a href="{{ prev }}"><button type="button" class="nav-button">Back</button></a>
-            {% else %}
-            {% if is_teacher_review %}
-            <a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}"><button type="button" class="nav-button">Back</button></a>
-            {% else %}
-            <a href="/sat/results/{{ test }}"><button type="button" class="nav-button">Back</button></a>
-            {% endif %}
-            {% endif %}
-            {% if next %}
-            <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
-            {% endif %}
+
+        <footer class="review-footer">
+            <div class="footer-nav-group">
+                {% if prev %}
+                    <a href="{{ prev }}"><button type="button" class="nav-button secondary">Back</button></a>
+                {% else %}
+                    <a href="{{ results_url|default:'/' }}"><button type="button" class="nav-button secondary">Back</button></a>
+                {% endif %}
+            </div>
+            <div class="footer-nav-group">
+                {% if next %}
+                    <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
+                {% else %}
+                    <button type="button" class="nav-button disabled" disabled>Next</button>
+                {% endif %}
+            </div>
         </footer>
     </div>
 
+    {{ question_payload|json_script:"review-question-data" }}
     <script>
-        function fixLatex(text) {
-            if (!text) return '';
-            let cleaned = String(text);
-            cleaned = cleaned.replace(/\\\$/g, '$');
-            cleaned = cleaned.replace(/\\\\/g, '\\');
-            cleaned = cleaned.replace(/\\\(\s*/g, '\\(');
-            cleaned = cleaned.replace(/\s*\\\)/g, '\\)');
-            cleaned = cleaned.replace(/\\\[\s*/g, '\\[');
-            cleaned = cleaned.replace(/\s*\\\]/g, '\\]');
-            // Convert escaped newlines and tabs to actual characters
-            cleaned = cleaned.replace(/\\n/g, '\n');
-            cleaned = cleaned.replace(/\\t/g, '\t');
-            return cleaned;
-        }
-
-        function renderMath(root = document.body) {
+        function renderReviewMath() {
             if (typeof renderMathInElement !== 'function') return;
             try {
-                renderMathInElement(root, {
+                renderMathInElement(document.body, {
                     delimiters: [
                         { left: "\\(", right: "\\)", display: false },
                         { left: "\\[", right: "\\]", display: true }
@@ -215,85 +224,12 @@
                 console.error('KaTeX render failed:', error);
             }
         }
-
-        const question = {
-            passage: `{{ question.passage|default_if_none:""|escapejs }}`,
-            number: Number("{{ question.number }}"),
-            question: `{{ question.question|default_if_none:""|escapejs }}`,
-            a: `{{ question.a|default_if_none:""|escapejs }}`,
-            b: `{{ question.b|default_if_none:""|escapejs }}`,
-            c: `{{ question.c|default_if_none:""|escapejs }}`,
-            d: `{{ question.d|default_if_none:""|escapejs }}`,
-            graph: `{{ question.graph_url|default_if_none:""|escapejs }}`
-        };
-
-        const userAnswer = `{{ answered|default_if_none:""|escapejs }}`;
-        const correctAnswer = `{{ question.answer|default_if_none:""|escapejs }}`;
-
-        function loadQuestion() {
-            document.getElementById('passage').innerHTML = fixLatex(question.passage);
-            document.getElementById('question-number').innerText = question.number;
-            document.getElementById('question-text').innerHTML = fixLatex(question.question);
-
-            const graphContainer = document.getElementById('graph-container');
-            graphContainer.innerHTML = question.graph
-                ? `<div class="graph"><img src="${question.graph}" alt="Graph" style="width:100%;"></div>`
-                : '';
-
-            const answersContainer = document.getElementById('answers');
-            answersContainer.innerHTML = `
-                <label class="choice-container A">
-                    <input type="radio" disabled ${userAnswer === 'A' ? 'checked' : ''}>
-                    <label class="mark" data-letter="A"></label>
-                    <label>${fixLatex(question.a)}</label>
-                </label>
-                <label class="choice-container B">
-                    <input type="radio" disabled ${userAnswer === 'B' ? 'checked' : ''}>
-                    <label class="mark" data-letter="B"></label>
-                    <label>${fixLatex(question.b)}</label>
-                </label>
-                <label class="choice-container C">
-                    <input type="radio" disabled ${userAnswer === 'C' ? 'checked' : ''}>
-                    <label class="mark" data-letter="C"></label>
-                    <label>${fixLatex(question.c)}</label>
-                </label>
-                <label class="choice-container D">
-                    <input type="radio" disabled ${userAnswer === 'D' ? 'checked' : ''}>
-                    <label class="mark" data-letter="D"></label>
-                    <label>${fixLatex(question.d)}</label>
-                </label>
-            `;
-
-            document.querySelectorAll('.choice-container').forEach(container => {
-                container.classList.remove('answered-incorrect', 'answer-correct');
-            });
-
-            if (correctAnswer) {
-                const correctContainer = document.querySelector(`.choice-container.${correctAnswer}`);
-                if (correctContainer) correctContainer.classList.add('answer-correct');
-            }
-            if (userAnswer && userAnswer !== correctAnswer) {
-                const userContainer = document.querySelector(`.choice-container.${userAnswer}`);
-                if (userContainer) userContainer.classList.add('answered-incorrect');
-            }
-
-            renderMath(document.getElementById('passage'));
-            renderMath(document.getElementById('question-text'));
-            renderMath(document.getElementById('answers'));
-            renderMath(document.getElementById('explanation'));
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderReviewMath);
+        } else {
+            renderReviewMath();
         }
-
-        document.addEventListener('DOMContentLoaded', loadQuestion);
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('selectstart', event => event.preventDefault());
-        document.addEventListener('keydown', event => {
-            if (event.ctrlKey && ['u', 's', 'p', 'c', 'j', 'i'].includes(event.key.toLowerCase())) {
-                event.preventDefault();
-            }
-            if (event.key === 'F12') {
-                event.preventDefault();
-            }
-        });
+        window.addEventListener('load', renderReviewMath);
     </script>
 </body>
 </html>

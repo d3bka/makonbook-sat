@@ -1,128 +1,133 @@
+{% load static %}
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Makon Book - Register</title>
-  {% load static %}
-  <!-- Link your custom CSS -->
+  {% include 'base/theme_init.html' %}
+  <title>SAT Makon - Register</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    .icon {
-      margin-right: 5px;
-      width: 40px;
-      height: 42px;
-    }
-    .title-field {
-      display: flex;
-      justify-content: center;
-      align-items: stretch;
-      flex-wrap: nowrap;
-    }
-    .app-title { 
-      font-size: 40px; 
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-nav-password-final.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-final-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-clean-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-raise-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-light-fix.css' %}">
 </head>
-<body>
-
-  <!-- Top banner area -->
-  <div class="top-banner">
-    <!-- Replace with your own logo or brand title -->
-    <div class="title-field">
-      <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class='icon' alt="Makon Book Logo" /><h1 class="app-title">MakonBook</h1>
-    </div>
-
-    <!-- Example announcement/alert box -->
-    {% if messages %}
-    <div class="alert-box">
-      <ul class="messages">
-        {% for message in messages %}
-          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-            {{ message }}
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Main container for form box -->
-  <div class="signin-container">
-    <div class="signin-box" style="max-width: 450px;">
-      <h2>Create an Account</h2>
-      
-      <!-- Registration form -->
-      <form action="" method="POST" class="signin-form">
-        {% csrf_token %}
-        
-        <!-- Username -->
-        <div class="form-group">
-          <input 
-            type="text" 
-            name="username" 
-            placeholder="Username" 
-            value="{{ form.username.value|default_if_none:'' }}"
-            required
-          >
-        </div>
-
-        <!-- Email -->
-        <div class="form-group">
-          <input 
-            type="email" 
-            name="email" 
-            placeholder="Email" 
-            value="{{ form.email.value|default_if_none:'' }}"
-            required
-          >
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-          <input 
-            id="password1-field" 
-            type="password" 
-            name="password" 
-            placeholder="Password" 
-            required
-          >
-          <!-- Optional eye icon if you have JS to toggle password -->
-          <span toggle="#password1-field" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="form-group">
-          <input 
-            id="password2-field" 
-            type="password" 
-            name="confirm_password" 
-            placeholder="Confirm Password" 
-            required
-          >
-          <!-- Optional eye icon if you have JS to toggle password -->
-          <span toggle="#password2-field" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-        </div>
-
-        <!-- Submit button -->
-        <div class="form-group">
-          <button type="submit" class="primary-btn">
-            Register
-          </button>
-        </div>
-      </form>
-
-      <!-- Footer links at the bottom of the sign-in box (optional) -->
-      <div class="footer-links">
-        <a href="/software/">Check out Software</a>
-        <a href="/login/">Already Have an Account? Sign in</a>
+<body class="auth-page auth-register">
+  <div class="auth-shell">
+    <nav class="auth-nav" data-auth-reveal>
+      <a href="/" class="auth-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="auth-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'login' %}" class="auth-link-pill">Login</a>
       </div>
+    </nav>
+
+    <div class="auth-grid">
+      <section class="auth-visual" data-auth-reveal>
+        <span class="eyebrow">New account</span>
+        <h1>Start with a clean SAT prep system.</h1>
+        <p>Create an account for practice tests, vocabulary work, classroom join codes, and score-growth style analytics.</p>
+
+        <div class="auth-metrics">
+          <div class="auth-metric"><strong>Full</strong><span>digital SAT flow</span></div>
+          <div class="auth-metric"><strong>Smart</strong><span>review workflow</span></div>
+          <div class="auth-metric"><strong>Class</strong><span>teacher tools</span></div>
+        </div>
+
+        <div class="auth-note-list">
+          <div class="auth-note-item"><i>✓</i><div><strong>Timed modules</strong><span>Practice under realistic pressure.</span></div></div>
+          <div class="auth-note-item"><i>✓</i><div><strong>Vocabulary</strong><span>Word lists, quizzes, and flashcards.</span></div></div>
+          <div class="auth-note-item"><i>✓</i><div><strong>Progress pages</strong><span>Track active and completed work.</span></div></div>
+        </div>
+
+        <div class="auth-dashboard-card" data-tilt>
+          <div class="mini-row"><span>Setup progress</span><span>2 steps</span></div>
+          <div class="score-big">Ready</div>
+          <div class="progress-line"><span></span></div>
+          <div class="mini-row"><span>Create profile</span><strong>01</strong></div>
+          <div class="mini-row"><span>Join classroom</span><strong>02</strong></div>
+        </div>
+      </section>
+
+      <section class="auth-card auth-register-card" data-auth-reveal>
+        <div class="auth-card-header">
+          <span class="eyebrow">Register</span>
+          <h2>Create account</h2>
+          <p>Keep the username simple. You will use it every time you log in.</p>
+        </div>
+
+        {% if messages %}
+          <div class="alert-box">
+            <ul class="messages">
+              {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <form action="" method="POST" class="signin-form auth-form">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="username-field">Username</label>
+            <input id="username-field" type="text" name="username" placeholder="Choose username" value="{{ form.username.value|default_if_none:'' }}" autocomplete="username" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email-field">Email</label>
+            <input id="email-field" type="email" name="email" placeholder="you@example.com" value="{{ form.email.value|default_if_none:'' }}" autocomplete="email" required>
+          </div>
+
+          <div class="form-group password-wrap">
+            <label class="form-label" for="password1-field">Password</label>
+            <input id="password1-field" type="password" name="password" placeholder="Minimum 8 characters" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" data-target="#password1-field" aria-label="Show password">Show</button>
+          </div>
+
+          <div class="form-group password-wrap">
+            <label class="form-label" for="password2-field">Confirm password</label>
+            <input id="password2-field" type="password" name="confirm_password" placeholder="Repeat password" autocomplete="new-password" required>
+            <button type="button" class="password-toggle" data-target="#password2-field" aria-label="Show password">Show</button>
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Create account</button>
+          </div>
+        </form>
+
+        <div class="auth-divider"><span>or sign up with Google</span></div>
+
+        <form method="post" action="{% provider_login_url 'google' %}" class="signin-form auth-form">
+          {% csrf_token %}
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Sign up with Google</button>
+          </div>
+        </form>
+
+        <div class="auth-divider"><span>already have access?</span></div>
+
+        <div class="auth-card-footer compact-footer">
+          <a href="/software/">Download app</a>
+          <a href="{% url 'login' %}">Sign in instead</a>
+        </div>
+      </section>
     </div>
   </div>
 
-  <!-- Include your script for toggling password visibility, etc. -->
   <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

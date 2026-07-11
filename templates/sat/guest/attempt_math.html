@@ -10,7 +10,10 @@
         onerror="console.error('Failed to load Desmos script'); window.desmosLoadError = true;"></script>
 
     <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
-    <link rel="stylesheet" href="{% static 'assets/css/makon-math.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/test-math-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
@@ -343,40 +346,8 @@
                 font-size: 17px;
             }
         }
-
-        /* Mobile layout: stack passage/answers and make tools usable on phones. */
-        @media (max-width: 900px) {
-            html, body { height: auto !important; min-height: 100dvh !important; overflow-x: hidden !important; overflow-y: auto !important; }
-            body.scroll-hide { overflow-y: auto !important; }
-            body > .container, .container { width: 100% !important; max-width: 100% !important; height: auto !important; min-height: 100dvh !important; padding: 0 !important; }
-            header { position: sticky; top: 0; z-index: 1000; display: grid !important; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 12px 14px !important; min-height: auto !important; }
-            header h1 { font-size: clamp(17px, 4.8vw, 22px) !important; line-height: 1.15 !important; }
-            .timer { position: static !important; transform: none !important; justify-self: end; font-size: 17px !important; font-weight: 800 !important; white-space: nowrap; }
-            header > div:last-child { grid-column: 1 / -1; justify-self: start; flex-wrap: wrap; }
-            .fm { display: block !important; width: 100% !important; }
-            main { display: flex !important; flex-direction: column !important; height: auto !important; min-height: 0 !important; margin-top: 0 !important; padding: 0 !important; overflow: visible !important; }
-            .question-container, .answers-container { width: 100% !important; max-width: 100% !important; flex: 0 0 auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; padding: 16px !important; border-right: 0 !important; box-sizing: border-box !important; }
-            .question-container { border-bottom: 1px dashed #c7b0ff !important; }
-            .question-title { height: auto !important; min-height: 42px !important; align-items: center !important; gap: 8px !important; flex-wrap: wrap !important; }
-            .question-number { width: 38px !important; height: 38px !important; font-size: 18px !important; }
-            .bookmark, .question-title .bookmark { min-height: 38px !important; height: auto !important; margin-left: 4px !important; padding-left: 30px !important; font-size: 14px !important; line-height: 1.15 !important; }
-            .crossing-options, .question-title .crossing-options { min-height: 38px !important; height: 38px !important; margin-left: auto !important; margin-right: 4px !important; }
-            #passage, #question-text, .question-text, .choice-content, .choice-container { overflow-wrap: anywhere !important; word-break: break-word !important; }
-            .choice-container { min-height: 56px !important; padding: 12px 44px 12px 12px !important; gap: 10px !important; font-size: 16px !important; }
-            .mark { flex-basis: 32px !important; width: 32px !important; height: 32px !important; font-size: 13px !important; }
-            footer { position: sticky !important; bottom: 0; z-index: 1000; height: auto !important; min-height: 0 !important; display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) !important; }
-            .footer-left, .footer-center, .footer-right { position: static !important; transform: none !important; margin: 0 !important; width: 100% !important; justify-content: center !important; }
-            .footer-left { display: none !important; }
-            .footer-right { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
-            .nav-button, .question-progress { height: 42px !important; min-width: 0 !important; padding: 0 14px !important; border-radius: 20px !important; font-size: 14px !important; flex: 1 1 auto; }
-            .question-progress { width: 100% !important; }
-            #calculator-popup { top: max(8px, env(safe-area-inset-top)) !important; right: 8px !important; left: 8px !important; bottom: max(8px, env(safe-area-inset-bottom)) !important; width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; max-width: none !important; max-height: none !important; resize: none !important; border-radius: 12px !important; }
-            #calculator-header { height: 50px !important; min-height: 50px !important; font-size: 16px !important; padding: 8px 12px !important; }
-            #calculator-body { height: calc(100% - 50px) !important; }
-            .reference-sheet { width: 100vw !important; height: 100dvh !important; }
-            .reference-body { height: calc(100dvh - 61px) !important; padding: 14px !important; }
-        }
     </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
 
 <body class="scroll-hide">

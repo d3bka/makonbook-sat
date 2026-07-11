@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Leaderboard - {{ event.title }}</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+</head>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        <a href="{% url 'global_event_detail' event.slug %}" class="public-link-pill">Back to event</a>
+      </div>
+    </nav>
+
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Leaderboard</span>
+      <h1>{{ event.title }}</h1>
+      <p>Submitted attempts are ranked here when score visibility is enabled.</p>
+    </section>
+
+    <div class="board-card" data-page-reveal>
+      {% if attempts %}
+        <div class="table-wrap">
+          <table class="public-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Score</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for attempt in attempts %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+                  <td>{{ attempt.guest.display_name|default:attempt.guest.full_name }}</td>
+                  {% if event.show_score_immediately %}
+                    <td>{{ attempt.score|default:"-" }}</td>
+                  {% else %}
+                    <td>Hidden</td>
+                  {% endif %}
+                  <td>{{ attempt.submitted_at|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-box">
+          <span class="eyebrow">Waiting</span>
+          <h3>No submitted attempts yet</h3>
+          <p>The leaderboard will update after students submit their event attempts.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

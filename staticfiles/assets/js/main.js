@@ -14,9 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   const preloader = document.querySelector('#preloader');
   if (preloader) {
-    window.addEventListener('load', () => {
-      preloader.remove();
-    });
+    const removePreloader = () => {
+      const currentPreloader = document.querySelector('#preloader');
+      if (currentPreloader) currentPreloader.remove();
+    };
+    window.addEventListener('load', removePreloader, { once: true });
+    window.setTimeout(removePreloader, 1200);
   }
 
   /**

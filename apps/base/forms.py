@@ -1,5 +1,6 @@
 from django.forms import ModelForm
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 
 
 from django import forms
@@ -12,7 +13,7 @@ class UserRegistrationForm(forms.ModelForm):
     )
     password = forms.CharField(
         widget=forms.PasswordInput,
-        help_text="Enter a password (minimum 8 characters)."
+        help_text="Enter a password."
     )
     confirm_password = forms.CharField(
         widget=forms.PasswordInput,
@@ -24,9 +25,19 @@ class UserRegistrationForm(forms.ModelForm):
         model = User
         fields = ['username', 'email', 'password']
 
+    def clean_username(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        if not username:
+            raise forms.ValidationError("Username is required.")
+        if User.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already in use.")
+        return username
+
     def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
+        email = (self.cleaned_data.get('email') or '').strip().lower()
+        if not email:
+            raise forms.ValidationError("Email is required.")
+        if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("This email address is already in use.")
         return email
 
@@ -36,14 +47,82 @@ class UserRegistrationForm(forms.ModelForm):
         confirm_password = cleaned_data.get("confirm_password")
         if password and confirm_password and password != confirm_password:
             raise forms.ValidationError("Passwords do not match.")
+        if password:
+            validate_password(password)
         return cleaned_data
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        user.username = (self.cleaned_data["username"] or "").strip()
+        user.email = (self.cleaned_data["email"] or "").strip().lower()
         user.set_password(self.cleaned_data["password"])
         if commit:
             user.save()
         return user
+
+
+
+class ForgotPasswordRequestForm(forms.Form):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "you@example.com",
+            "autocomplete": "email",
+        })
+    )
+
+
+class PasswordResetCodeForm(forms.Form):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "you@example.com",
+            "autocomplete": "email",
+        })
+    )
+    code = forms.CharField(
+        required=True,
+        min_length=6,
+        max_length=6,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "6-digit code",
+            "inputmode": "numeric",
+            "autocomplete": "one-time-code",
+        })
+    )
+    new_password = forms.CharField(
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "New password",
+            "autocomplete": "new-password",
+        })
+    )
+    confirm_password = forms.CharField(
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "Repeat new password",
+            "autocomplete": "new-password",
+        })
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data.get("code", "").strip()
+        if not code.isdigit():
+            raise forms.ValidationError("The code must contain only digits.")
+        return code
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get("new_password")
+        confirm_password = cleaned_data.get("confirm_password")
+        if new_password and confirm_password and new_password != confirm_password:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned_data
 
 class UserBatchCreationForm(forms.Form):
     prefix = forms.CharField(label='Prefix', max_length=50)
@@ -79,6 +158,16 @@ class EditProfileForm(forms.ModelForm):
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last name'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email'}),
         }
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip().lower()
+        if email:
+            qs = User.objects.filter(email__iexact=email)
+            if self.user and self.user.pk:
+                qs = qs.exclude(pk=self.user.pk)
+            if qs.exists():
+                raise forms.ValidationError("This email address is already in use.")
+        return email
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.get('instance')

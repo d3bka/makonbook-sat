@@ -1,0 +1,105 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ teacher.name }}{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% url 'support_teacher_list' %}">Support Teachers</a></li>{% endblock breadcrumb_parent %}
+{% block title %}Teacher Planner{% endblock title %}
+
+{% block style %}
+<style>
+  .support-detail { max-width:1120px; margin:0 auto; display:grid; grid-template-columns: 1.15fr .85fr; gap:22px; }
+  .panel { background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:22px; box-shadow:0 10px 24px rgba(0,0,0,.07); }
+  .muted { color:#64748b; }
+  .rating { color:#92400e; font-weight:900; }
+  .slots { display:grid; gap:10px; max-height:560px; overflow:auto; padding-right:4px; }
+  .slot-option { border:1px solid #e2e8f0; background:#f8fafc; border-radius:14px; padding:12px; display:flex; align-items:center; gap:10px; }
+  .slot-option.booked { opacity:.6; background:#fef2f2; }
+  .slot-option input { width:18px; height:18px; }
+  textarea { width:100%; border:1px solid #d1d5db; border-radius:12px; padding:12px; }
+  .btn-support { display:inline-flex; justify-content:center; align-items:center; border:none; border-radius:999px; padding:11px 18px; font-weight:800; cursor:pointer; text-decoration:none; }
+  .btn-primary-support { background:#7c3aed; color:#fff; }
+  .btn-secondary-support { background:#f1f5f9; color:#334155; }
+  .review { border-bottom:1px solid #e5e7eb; padding:14px 0; }
+  .review:last-child { border-bottom:0; }
+  .booking-mini { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; margin-bottom:10px; }
+  @media(max-width:900px){ .support-detail{grid-template-columns:1fr;} }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="support-detail">
+  <div style="display:grid; gap:22px;">
+    {% if messages %}
+      {% for message in messages %}<div class="panel"><strong>{{ message }}</strong></div>{% endfor %}
+    {% endif %}
+
+    <div class="panel">
+      <a class="btn-support btn-secondary-support" href="{% url 'support_teacher_list' %}">← Back</a>
+      <h2 style="margin-top:16px;">{{ teacher.name }}</h2>
+      {% if teacher.subjects %}<p><strong>Subjects:</strong> {{ teacher.subjects }}</p>{% endif %}
+      <p>
+        <strong>Telegram:</strong>
+        {% if teacher.clean_telegram_username %}
+          <a href="{{ teacher.telegram_url }}" target="_blank" rel="noopener">@{{ teacher.clean_telegram_username }}</a>
+        {% else %}—{% endif %}
+      </p>
+      <p><span class="rating">★ {{ teacher.average_rating|default:'No rating yet' }}</span> <span class="muted">({{ teacher.reviews_count }} review{{ teacher.reviews_count|pluralize }})</span></p>
+      {% if teacher.bio %}<p class="muted">{{ teacher.bio }}</p>{% endif %}
+    </div>
+
+    <div class="panel">
+      <h3>Planner availability</h3>
+      <form method="post" action="{% url 'book_support_lesson' teacher.id %}">
+        {% csrf_token %}
+        <div class="slots">
+          {% for slot in slots %}
+            <label class="slot-option {% if slot.is_booked %}booked{% endif %}">
+              <input type="radio" name="slot" value="{{ slot.value }}" {% if slot.is_booked %}disabled{% elif forloop.first %}checked{% endif %}>
+              <span>
+                <strong>{{ slot.date_label }}</strong><br>
+                {{ slot.time_label }}
+                {% if slot.is_booked %}<span class="muted"> · booked</span>{% endif %}
+              </span>
+            </label>
+          {% empty %}
+            <div class="slot-option muted">No planner slots configured yet.</div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:16px;">
+          <label><strong>Optional note for teacher</strong></label>
+          <textarea name="student_note" rows="3" placeholder="What do you want to work on?"></textarea>
+        </div>
+        <button class="btn-support btn-primary-support" style="margin-top:14px;" type="submit" {% if not available_slots %}disabled{% endif %}>Book selected slot</button>
+      </form>
+    </div>
+  </div>
+
+  <div style="display:grid; gap:22px; align-content:start;">
+    <div class="panel">
+      <h3>My lessons with this teacher</h3>
+      {% for booking in my_bookings %}
+        <div class="booking-mini">
+          <strong>{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</strong><br>
+          <span class="muted">{{ booking.get_status_display }}</span>
+        </div>
+      {% empty %}
+        <p class="muted">You have not booked this teacher yet.</p>
+      {% endfor %}
+      <a class="btn-support btn-secondary-support" href="{% url 'my_support_lessons' %}">Open all my support lessons</a>
+    </div>
+
+    <div class="panel">
+      <h3>Student feedback</h3>
+      {% for review in reviews %}
+        <div class="review">
+          <strong>{{ review.student.get_full_name|default:review.student.username }}</strong>
+          <span class="rating">★ {{ review.rating }}/5</span>
+          {% if review.feedback %}<p class="muted">{{ review.feedback }}</p>{% endif %}
+        </div>
+      {% empty %}
+        <p class="muted">No feedback yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

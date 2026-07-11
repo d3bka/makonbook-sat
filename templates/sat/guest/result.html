@@ -4,71 +4,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  {% include 'base/theme_init.html' %}
   <title>Result - {{ event.title }}</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    .page-wrap {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    .result-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-      text-align: center;
-    }
-    .score-box {
-      margin: 24px 0;
-      font-size: 28px;
-      font-weight: 700;
-    }
-    .actions {
-      margin-top: 24px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
-  <div class="page-wrap">
-    <div class="result-card">
-      <h1>Thank You</h1>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'global_event_list' %}" class="public-link-pill">Back to events</a>
+      </div>
+    </nav>
+
+    <div class="result-card" data-page-reveal>
+      <span class="eyebrow">Attempt complete</span>
+      <h1>Thank you</h1>
       <p>You have completed <strong>{{ event.title }}</strong>.</p>
 
       {% if show_score %}
-      <div class="score-box">
-        Total Score: {{ total_score }}
-      </div>
-      
-      <p><strong>Scoring:</strong> {{ scoring_label }}</p>
-      <p><strong>EBRW Score:</strong> {{ ebrw_score|default:"-" }}</p>
-      <p><strong>Math Score:</strong> {{ math_score|default:"-" }}</p>
-      {% if range_total %}
-      <p><strong>Estimated Range:</strong> {{ range_total.lower }}–{{ range_total.upper }}</p>
-      {% endif %}
+        <div class="score-box">Total Score: {{ total_score }}</div>
+        <p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>
+        <p><strong>Math Score:</strong> {{ math_score }}</p>
       {% else %}
-      <div class="score-box">
-        Your result will be available later.
-      </div>
+        <div class="score-box">Result available later</div>
       {% endif %}
 
       <p><strong>Answered:</strong> {{ attempt.answered_questions }} / {{ attempt.total_questions }}</p>
       <p><strong>Status:</strong> {{ attempt.status|title }}</p>
 
       <div class="actions">
-        <a href="{% url 'global_event_list' %}" class="primary-btn">Back to Events</a>
-
+        <a href="{% url 'global_event_list' %}" class="primary-btn">Back to events</a>
         {% if event.show_leaderboard %}
-          <a href="{% url 'global_event_leaderboard' event.slug %}" class="primary-btn">Leaderboard</a>
+          <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">Leaderboard</a>
         {% endif %}
       </div>
     </div>
   </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

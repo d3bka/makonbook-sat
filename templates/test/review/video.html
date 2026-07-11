@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'base/theme_init.html' %}
+    {% load static %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Secure Video Streaming</title>
@@ -57,8 +59,11 @@
             }
         });
     </script>
+    <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
+    <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
+<body class="mk-test-window mk-video-window">
     <video id="video" controls oncontextmenu="return false;"></video>
 </body>
 </html>

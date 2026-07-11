@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>SAT Makon - Guest Entry</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+</head>
+<body class="auth-page">
+  <div class="auth-shell">
+    <nav class="auth-nav" data-auth-reveal>
+      <a href="/" class="auth-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="auth-nav-actions">
+        <a href="{% url 'login' %}" class="auth-link-pill">Login</a>
+      </div>
+    </nav>
+
+    <div class="auth-grid">
+      <section class="auth-visual" data-auth-reveal>
+        <span class="eyebrow">Guest mode</span>
+        <h1>Join public events without an account.</h1>
+        <p>Use guest access for live or scheduled SAT events. Your name appears on the event leaderboard if the teacher enables it.</p>
+
+        <div class="auth-metrics">
+          <div class="auth-metric"><strong>No</strong><span>account needed</span></div>
+          <div class="auth-metric"><strong>Live</strong><span>event access</span></div>
+          <div class="auth-metric"><strong>Fast</strong><span>entry flow</span></div>
+        </div>
+
+        <div class="auth-dashboard-card" data-tilt>
+          <div class="mini-row"><span>Guest session</span><span>Ready</span></div>
+          <div class="score-big">Join</div>
+          <div class="progress-line"><span></span></div>
+          <div class="mini-row"><span>Global events</span><strong>Open</strong></div>
+        </div>
+      </section>
+
+      <section class="auth-card" data-auth-reveal>
+        <div class="auth-card-header">
+          <span class="eyebrow">Continue</span>
+          <h2>Guest entry</h2>
+          <p>Use a recognizable name. Teachers and leaderboard pages may show it.</p>
+        </div>
+
+        {% if messages %}
+          <div class="alert-box">
+            <ul class="messages">
+              {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if error %}
+          <div class="alert-box">
+            <ul class="messages">
+              <li class="error">{{ error }}</li>
+            </ul>
+          </div>
+        {% endif %}
+
+        <form action="" method="POST" class="signin-form auth-form">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="full-name-field">Full name or nickname</label>
+            <input id="full-name-field" type="text" name="full_name" placeholder="Enter your name" autocomplete="name" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="display-name-field">Display name</label>
+            <input id="display-name-field" type="text" name="display_name" placeholder="Optional leaderboard name">
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Enter as guest</button>
+          </div>
+        </form>
+
+        <div class="auth-card-footer">
+          <a href="{% url 'login' %}">Back to sign in</a>
+          <a href="{% url 'register' %}">Create account</a>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

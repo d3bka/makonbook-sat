@@ -5,179 +5,124 @@
 {% block title %}Classroom{% endblock title %}
 
 {% block style %}
-<style>
-  .classroom-home-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .classroom-intro {
-    text-align: center;
-    margin-bottom: 34px;
-  }
-
-  .classroom-intro h2 {
-    font-size: 36px;
-    font-weight: 700;
-    color: #7c3aed;
-    margin-bottom: 12px;
-  }
-
-  .classroom-intro p {
-    font-size: 18px;
-    color: #64748b;
-    margin: 0;
-  }
-
-  .classroom-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px;
-  }
-
-  .classroom-card {
-    position: relative;
-    min-height: 320px;
-    border-radius: 24px;
-    overflow: hidden;
-    text-decoration: none;
-    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
-    display: flex;
-    align-items: flex-end;
-    transition: transform 0.22s ease, box-shadow 0.22s ease;
-    background: #1f1f1f;
-  }
-
-  .classroom-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 18px 38px rgba(0,0,0,0.18);
-  }
-
-  .classroom-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-  }
-
-  .classroom-card::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      180deg,
-      rgba(0,0,0,0.08) 0%,
-      rgba(0,0,0,0.24) 35%,
-      rgba(17,24,39,0.82) 100%
-    );
-  }
-
-  .classroom-card.practice::before,
-  .classroom-card.vocabulary::before,
-  .classroom-card.admissions::before {
-    background-image: url("{% static 'assets/img/icons/icon_dashboard.png' %}");
-  }
-
-  .classroom-card-content {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    padding: 28px 24px 24px;
-    color: #fff;
-  }
-
-  .classroom-badge {
-    display: inline-block;
-    margin-bottom: 14px;
-    padding: 7px 12px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.16);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .classroom-card h3 {
-    font-size: 28px;
-    margin-bottom: 10px;
-    color: #fff;
-    font-weight: 800;
-  }
-
-  .classroom-card p {
-    font-size: 16px;
-    line-height: 1.6;
-    color: rgba(255,255,255,0.9);
-    margin-bottom: 20px;
-  }
-
-  @media (max-width: 992px) {
-    .classroom-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
+<link href="{% static 'assets/css/makon-classroom.css' %}" rel="stylesheet">
 {% endblock style %}
 
 {% block content %}
-<div class="classroom-home-wrap">
-  <div class="classroom-intro">
-    <h2>{{ classroom.name }}</h2>
-    <p>Welcome to your classroom.</p>
-    <div style="margin-top: 14px;">
-      <a href="{% url 'sat_menu' %}" style="display:inline-block; padding:10px 16px; border-radius:999px; background:#7c3aed; color:#fff; text-decoration:none; font-weight:700;">
-        Refresh Classroom Home
+<div class="mk-classroom">
+  <section class="mk-classroom-hero mk-student-home-hero" data-classroom-reveal>
+    <div class="mk-classroom-hero-inner">
+      <div>
+        <div class="mk-eyebrow">Student classroom</div>
+        <h2 class="mk-classroom-title">{{ classroom.name }}</h2>
+        <p class="mk-classroom-subtitle">
+          {{ classroom.description|default:"Your assigned SAT work lives here. Open available sections, message your classroom, and continue from the right place." }}
+        </p>
+      </div>
+      <div class="mk-hero-actions">
+        <a href="{% url 'classroom_chat' classroom.id %}" class="mk-btn">
+          <i class="bi bi-chat-dots"></i>
+          Classroom chat
+        </a>
+      </div>
+    </div>
+
+    <div class="mk-stats-strip">
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">{% if membership.status %}{{ membership.status|title }}{% else %}Active{% endif %}</span>
+        <span class="mk-stat-label">Membership</span>
+      </div>
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">SAT</span>
+        <span class="mk-stat-label">Classroom prep</span>
+      </div>
+      <div class="mk-stat-pill">
+        <span class="mk-stat-value">Live</span>
+        <span class="mk-stat-label">Teacher updates</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="mk-panel" data-classroom-reveal>
+    <div class="mk-panel-head">
+      <div>
+        <h3 class="mk-panel-title">Available sections</h3>
+        <p class="mk-card-subtitle">Open what your teacher enabled. Locked sections stay visible so you know what exists.</p>
+      </div>
+    </div>
+
+    <div class="mk-student-sections" style="margin-top: 22px;">
+      {% if access_map.practice_tests %}
+        <a href="{% url 'classroom_practice_tests' classroom.id %}" class="mk-section-card" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-stopwatch"></i></span>
+            <h3>Practice Tests</h3>
+            <p>Timed classroom practice with review states and teacher visibility.</p>
+          </div>
+          <span class="mk-section-cta">Start practice <i class="bi bi-arrow-right"></i></span>
+        </a>
+      {% else %}
+        <div class="mk-section-card is-locked" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-lock"></i></span>
+            <h3>Practice Tests</h3>
+            <p>This section is not enabled for your account yet.</p>
+          </div>
+          <span class="mk-section-cta">Locked</span>
+        </div>
+      {% endif %}
+
+      {% if access_map.vocabulary %}
+        <a href="{% url 'classroom_vocabulary' classroom.id %}" class="mk-section-card" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-journal-text"></i></span>
+            <h3>Vocabulary</h3>
+            <p>Study word units, flashcards, quizzes, and retention practice.</p>
+          </div>
+          <span class="mk-section-cta">Study words <i class="bi bi-arrow-right"></i></span>
+        </a>
+      {% else %}
+        <div class="mk-section-card is-locked" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-lock"></i></span>
+            <h3>Vocabulary</h3>
+            <p>Your teacher has not opened vocabulary work yet.</p>
+          </div>
+          <span class="mk-section-cta">Locked</span>
+        </div>
+      {% endif %}
+
+      {% if access_map.admissions %}
+        <a href="{% url 'classroom_admissions' classroom.id %}" class="mk-section-card" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-mortarboard"></i></span>
+            <h3>Admissions</h3>
+            <p>Open college application materials and admissions guidance.</p>
+          </div>
+          <span class="mk-section-cta">Open guidance <i class="bi bi-arrow-right"></i></span>
+        </a>
+      {% else %}
+        <div class="mk-section-card is-locked" data-classroom-reveal>
+          <div>
+            <span class="mk-section-icon"><i class="bi bi-lock"></i></span>
+            <h3>Admissions</h3>
+            <p>Admissions tools are currently locked for this classroom.</p>
+          </div>
+          <span class="mk-section-cta">Locked</span>
+        </div>
+      {% endif %}
+
+      <a href="{% url 'classroom_chat' classroom.id %}" class="mk-section-card" data-classroom-reveal>
+        <div>
+          <span class="mk-section-icon"><i class="bi bi-chat-dots"></i></span>
+          <h3>Classroom Chat</h3>
+          <p>Ask questions, check teacher updates, and share files inside this classroom.</p>
+        </div>
+        <span class="mk-section-cta">Open chat <i class="bi bi-arrow-right"></i></span>
       </a>
     </div>
-  </div>
-
-  <div class="classroom-grid">
-    {% if classroom.is_ap_classroom %}
-      <a href="{% url 'classroom_ap_tests' classroom.id %}" class="classroom-card practice">
-        <div class="classroom-card-content">
-          <span class="classroom-badge">AP Section</span>
-          <h3>AP Tests</h3>
-          <p>Open AP mock tests assigned by your teacher and review your submitted answers.</p>
-        </div>
-      </a>
-    {% elif access_map.practice_tests %}
-      <a href="{% url 'classroom_practice_tests' classroom.id %}" class="classroom-card practice">
-        <div class="classroom-card-content">
-          <span class="classroom-badge">Core Section</span>
-          <h3>SAT Tests</h3>
-          <p>Open your classroom-assigned SAT practice tests and track your preparation.</p>
-        </div>
-      </a>
-    {% endif %}
-
-    {% if access_map.vocabulary %}
-      <a href="{% url 'classroom_vocabulary' classroom.id %}" class="classroom-card vocabulary">
-        <div class="classroom-card-content">
-          <span class="classroom-badge">Language Skills</span>
-          <h3>Vocabulary</h3>
-          <p>Study units, review flashcards, and build stronger academic vocabulary.</p>
-        </div>
-      </a>
-    {% endif %}
-
-    {% if access_map.admissions %}
-      <a href="{% url 'classroom_admissions' classroom.id %}" class="classroom-card admissions">
-        <div class="classroom-card-content">
-          <span class="classroom-badge">Future Planning</span>
-          <h3>Admissions</h3>
-          <p>Access college application materials and admissions-related guidance.</p>
-        </div>
-      </a>
-    {% endif %}
-
-    <a href="{% url 'classroom_chat' classroom.id %}" class="classroom-card practice">
-      <div class="classroom-card-content">
-        <span class="classroom-badge">Communication</span>
-        <h3>Chat</h3>
-        <p>Send messages, ask questions, and share files inside your classroom.</p>
-      </div>
-    </a>
-  </div>
+  </section>
 </div>
+
+<script src="{% static 'assets/js/makon-classroom.js' %}"></script>
 {% endblock content %}

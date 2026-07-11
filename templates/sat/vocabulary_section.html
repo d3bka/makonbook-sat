@@ -213,7 +213,7 @@
 {% endblock style %}
 
 {% block content %}
-<main class="main-content">
+<main class="main-content mk-learning mk-vocab-section-page" data-learning-page="vocabulary-section">
   <div class="section-page">
     {% if classroom %}<a href="{% url 'classroom_vocabulary' classroom.id %}" class="back-btn">Back to Vocabulary</a>{% else %}<a href="{% url 'vocabulary' %}" class="back-btn">Back to Vocabulary</a>{% endif %}
 

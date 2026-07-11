@@ -12,7 +12,8 @@ from django.conf import settings
 from satmakon.settings import BASE_DIR
 from .libs import calculator
 from django.utils import timezone
-from datetime import timedelta
+from django.utils.dateparse import parse_datetime
+from datetime import timedelta, datetime
 from .libs.certificate.certificate import create_certificate
 from math import floor, ceil
 from django.contrib import messages  # Added for user feedback
@@ -24,7 +25,7 @@ import random
 import re
 import uuid
 from django.db.models import Count
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from collections import defaultdict
@@ -1366,6 +1367,8 @@ def results(request, test):
     if not review_key:
         testreview.score = score['total'] if isinstance(score, dict) else 0
         testreview.save(update_fields=['score'])
+        if classroom:
+            recalculate_practice_tests_progress(classroom, user)
 
     key = testreview.key
     selected_review = testreview
@@ -1465,6 +1468,153 @@ def start_Practise(request, pk):
     )
 
 
+def _normalize_review_choice_letter(value):
+    raw = str(value or '').strip().upper()
+    if not raw:
+        return ''
+    if raw in {'A', 'B', 'C', 'D'}:
+        return raw
+    prefixed = re.match(r'^([ABCD])(?:\s|[\.)\-:：])', raw)
+    if prefixed:
+        return prefixed.group(1)
+    any_letter = re.search(r'[ABCD]', raw)
+    return any_letter.group(0) if any_letter else ''
+
+
+def _strip_review_choice_prefix(value, letter):
+    if value is None:
+        return ''
+    text = str(value).strip()
+    if not text:
+        return ''
+    if text.startswith('IMAGE:'):
+        return text
+
+    target = str(letter or '').strip().upper()
+    if target not in {'A', 'B', 'C', 'D'}:
+        return text
+
+    patterns = [
+        rf'^{target}\s+{target}\s*[\.\)\-:]?\s*',
+        rf'^{target}{target}\s*[\.\)\-:]?\s*',
+        rf'^{target}\s*[\.\)\-:]\s*',
+        rf'^{target}\s+',
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE).strip()
+    return text
+
+
+def _review_question_payload(question, section):
+    """Serialize a review question safely and keep cleaned choices server-side.
+
+    Review pages must not depend on JS to show the question body. If JS fails,
+    the template still renders passage, question text and answer choices.
+    """
+    if not question:
+        return {}
+
+    if section == 'math':
+        return {
+            'id': question.id,
+            'passage': question.passage or '',
+            'number': question.number or 0,
+            'question': question.question or '',
+            'a': _strip_review_choice_prefix(question.get_a() or '', 'A'),
+            'b': _strip_review_choice_prefix(question.get_b() or '', 'B'),
+            'c': _strip_review_choice_prefix(question.get_c() or '', 'C'),
+            'd': _strip_review_choice_prefix(question.get_d() or '', 'D'),
+            'type': bool(getattr(question, 'written', False)),
+            'written': bool(getattr(question, 'written', False)),
+            'graph': question.get_graph() or '',
+        }
+
+    return {
+        'id': question.id,
+        'passage': question.passage or '',
+        'number': question.number or 0,
+        'question': question.question or '',
+        'a': _strip_review_choice_prefix(question.a or '', 'A'),
+        'b': _strip_review_choice_prefix(question.b or '', 'B'),
+        'c': _strip_review_choice_prefix(question.c or '', 'C'),
+        'd': _strip_review_choice_prefix(question.d or '', 'D'),
+        'graph': question.graph_url() or '',
+    }
+
+
+def _review_choices_payload(question, section):
+    payload = _review_question_payload(question, section)
+    choices = []
+    for letter in ('A', 'B', 'C', 'D'):
+        content = payload.get(letter.lower(), '') or ''
+        is_image = isinstance(content, str) and content.startswith('IMAGE:')
+        choices.append({
+            'letter': letter,
+            'content': '' if is_image else content,
+            'is_image': is_image,
+            'image_url': content[6:] if is_image else '',
+        })
+    return choices
+
+def _review_prev_answer_next(module_obj, question_model, question_id):
+    """Return prev id, user's answer, next id using the real module question order.
+
+    The old code used TestModule.find_answer(), which depends on the raw order of
+    submitted answers. If that payload order is stale or shuffled, Review navigation
+    jumps from Q1 to the last question and Next can become disabled. This function
+    sorts by the actual question numbers while still reading the user's answer from
+    the submitted payload.
+    """
+    previous, current_answer, future = '', '', ''
+    target_id = str(question_id)
+
+    try:
+        payload = json.loads(module_obj.answers or '{"answers": []}')
+        answer_items = payload.get('answers', []) or []
+    except Exception:
+        answer_items = []
+
+    answer_lookup = {}
+    raw_ids = []
+    for item in answer_items:
+        item_id = item.get('questionID') or item.get('question_id') or item.get('id')
+        if item_id is None:
+            continue
+        item_id = str(item_id)
+        if item_id not in raw_ids:
+            raw_ids.append(item_id)
+        raw_answer = item.get('answer')
+        answer_lookup[item_id] = '' if raw_answer is None else str(raw_answer)
+
+    current_answer = answer_lookup.get(target_id, '')
+
+    ordered_ids = []
+    if raw_ids:
+        questions = question_model.objects.filter(id__in=raw_ids).only('id', 'number')
+        number_map = {str(q.id): (q.number if q.number is not None else 10_000, q.id) for q in questions}
+        ordered_ids = sorted(
+            [qid for qid in raw_ids if qid in number_map],
+            key=lambda qid: (number_map[qid][0], raw_ids.index(qid)),
+        )
+
+    if target_id not in ordered_ids:
+        module_map = {'m1': 'module_1', 'm2': 'module_2', 'module_1': 'module_1', 'module_2': 'module_2'}
+        module_name = module_map.get(getattr(module_obj, 'module', ''), getattr(module_obj, 'module', ''))
+        qs = question_model.objects.all()
+        if getattr(module_obj, 'test_id', None):
+            qs = qs.filter(test=module_obj.test)
+        if module_name:
+            qs = qs.filter(module=module_name)
+        ordered_ids = [str(q.id) for q in qs.order_by('number', 'id').only('id', 'number')]
+
+    if target_id in ordered_ids:
+        idx = ordered_ids.index(target_id)
+        previous = ordered_ids[idx - 1] if idx > 0 else ''
+        future = ordered_ids[idx + 1] if idx < len(ordered_ids) - 1 else ''
+
+    return previous, current_answer, future
+
+
 @login_required(login_url='/login/')
 def question(request, key, section, module, id):
     group, _ = Group.objects.get_or_create(name='OFFLINE')
@@ -1510,7 +1660,11 @@ def question(request, key, section, module, id):
             return redirect('test', pk=review.test.name)
         return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
 
-    prev, answer, new = module_obj.find_answer(question_id=id)
+    review_question_model = English_Question if section == 'english' else Math_Question if section == 'math' else None
+    if review_question_model:
+        prev, answer, new = _review_prev_answer_next(module_obj, review_question_model, id)
+    else:
+        prev, answer, new = module_obj.find_answer(question_id=id)
     prev = f'/sat/question/{key}/{section}/{module}/{prev}' if prev else ''
     new = f'/sat/question/{key}/{section}/{module}/{new}' if new else ''
 
@@ -1536,6 +1690,10 @@ def question(request, key, section, module, id):
             return HttpResponse('Question is not found!')
         return render(request, 'test/review/test_eng.html', {
             'question': question,
+            'question_payload': _review_question_payload(question, section),
+            'review_choices': _review_choices_payload(question, section),
+            'answered_choice': _normalize_review_choice_letter(answer),
+            'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
             'prev': prev,
             'next': new,
@@ -1553,6 +1711,10 @@ def question(request, key, section, module, id):
             return HttpResponse('Question is not found!')
         return render(request, 'test/review/test_math.html', {
             'question': question,
+            'question_payload': _review_question_payload(question, section),
+            'review_choices': _review_choices_payload(question, section),
+            'answered_choice': _normalize_review_choice_letter(answer),
+            'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
             'prev': prev,
             'next': new,
@@ -2629,6 +2791,338 @@ def vocabulary_practice_quiz_result(request):
 @login_required(login_url='/login/')
 def vocabulary_flashcards(request):
     return render(request, 'sat/vocabulary_flashcards.html', _get_vocabulary_flashcards_context(request))
+
+
+
+SUPPORT_LESSON_LOOKAHEAD_DAYS = 21
+
+
+def _support_teacher_admin_allowed(user):
+    return user.is_authenticated and (
+        user.is_superuser
+        or user.is_staff
+        or user.groups.filter(name__iexact='Admin').exists()
+    )
+
+
+def _normalize_time_for_compare(value):
+    if not value:
+        return value
+    return value.replace(second=0, microsecond=0)
+
+
+def _make_local_datetime(day, time_value):
+    current_tz = timezone.get_current_timezone()
+    naive_value = datetime.combine(day, time_value)
+    if timezone.is_naive(naive_value):
+        return timezone.make_aware(naive_value, current_tz)
+    return naive_value
+
+
+def _build_support_teacher_slots(teacher, days=SUPPORT_LESSON_LOOKAHEAD_DAYS, include_booked=False):
+    """Build concrete bookable slots from a support teacher's weekly availability."""
+    now_value = timezone.now()
+    start_date = timezone.localdate()
+    end_date = start_date + timedelta(days=days)
+
+    availability_by_day = defaultdict(list)
+    for item in teacher.availabilities.filter(is_active=True).order_by('day_of_week', 'start_time'):
+        availability_by_day[item.day_of_week].append(item)
+
+    booked_pairs = set(
+        SupportLessonBooking.objects.filter(
+            teacher=teacher,
+            status=SupportLessonBooking.STATUS_SCHEDULED,
+            start_at__date__gte=start_date,
+            start_at__date__lte=end_date,
+        ).values_list('start_at', 'end_at')
+    )
+
+    slots = []
+    for offset in range(days + 1):
+        day = start_date + timedelta(days=offset)
+        for availability in availability_by_day.get(day.weekday(), []):
+            start_at = _make_local_datetime(day, availability.start_time)
+            end_at = _make_local_datetime(day, availability.end_time)
+            if end_at <= now_value:
+                continue
+
+            is_booked = (start_at, end_at) in booked_pairs
+            if is_booked and not include_booked:
+                continue
+
+            slots.append({
+                'availability': availability,
+                'start_at': start_at,
+                'end_at': end_at,
+                'is_booked': is_booked,
+                'value': f"{start_at.isoformat()}|{end_at.isoformat()}",
+                'date_label': timezone.localtime(start_at).strftime('%d %b %Y'),
+                'time_label': f"{timezone.localtime(start_at).strftime('%H:%M')} - {timezone.localtime(end_at).strftime('%H:%M')}",
+            })
+    return slots
+
+
+def _parse_support_lesson_slot(slot_value):
+    try:
+        start_raw, end_raw = (slot_value or '').split('|', 1)
+    except ValueError:
+        return None, None
+
+    start_at = parse_datetime(start_raw)
+    end_at = parse_datetime(end_raw)
+    current_tz = timezone.get_current_timezone()
+
+    if start_at and timezone.is_naive(start_at):
+        start_at = timezone.make_aware(start_at, current_tz)
+    if end_at and timezone.is_naive(end_at):
+        end_at = timezone.make_aware(end_at, current_tz)
+
+    return start_at, end_at
+
+
+def _slot_matches_support_teacher_availability(teacher, start_at, end_at):
+    if not start_at or not end_at or end_at <= start_at:
+        return False
+
+    local_start = timezone.localtime(start_at)
+    local_end = timezone.localtime(end_at)
+    if local_start.date() != local_end.date():
+        return False
+
+    return teacher.availabilities.filter(
+        is_active=True,
+        day_of_week=local_start.weekday(),
+        start_time=_normalize_time_for_compare(local_start.time()),
+        end_time=_normalize_time_for_compare(local_end.time()),
+    ).exists()
+
+
+def _sync_support_booking_completion(booking):
+    booking.mark_completed_if_past()
+    return booking
+
+
+@login_required(login_url='/login/')
+def support_teacher_list(request):
+    teachers = SupportTeacherProfile.objects.filter(is_active=True).select_related('user').prefetch_related('availabilities')
+    teacher_cards = []
+    for teacher in teachers:
+        free_slots = _build_support_teacher_slots(teacher, days=7, include_booked=False)
+        teacher_cards.append({
+            'teacher': teacher,
+            'next_slots': free_slots[:3],
+            'free_slots_count': len(free_slots),
+        })
+
+    my_upcoming_bookings = SupportLessonBooking.objects.filter(
+        student=request.user,
+        status=SupportLessonBooking.STATUS_SCHEDULED,
+        end_at__gte=timezone.now(),
+    ).select_related('teacher', 'teacher__user').order_by('start_at')[:5]
+
+    return render(request, 'sat/support_teacher_list.html', {
+        'teacher_cards': teacher_cards,
+        'my_upcoming_bookings': my_upcoming_bookings,
+    })
+
+
+@login_required(login_url='/login/')
+def support_teacher_detail(request, teacher_id):
+    teacher = get_object_or_404(
+        SupportTeacherProfile.objects.select_related('user').prefetch_related('availabilities'),
+        id=teacher_id,
+        is_active=True,
+    )
+    slots = _build_support_teacher_slots(teacher, include_booked=True)
+    reviews = teacher.reviews.select_related('student').order_by('-created_at')[:30]
+    my_bookings = SupportLessonBooking.objects.filter(
+        teacher=teacher,
+        student=request.user,
+    ).select_related('teacher', 'teacher__user').order_by('-start_at')[:10]
+
+    for booking in my_bookings:
+        _sync_support_booking_completion(booking)
+
+    return render(request, 'sat/support_teacher_detail.html', {
+        'teacher': teacher,
+        'slots': slots,
+        'available_slots': [slot for slot in slots if not slot['is_booked']],
+        'reviews': reviews,
+        'my_bookings': my_bookings,
+    })
+
+
+@login_required(login_url='/login/')
+@require_POST
+def book_support_lesson(request, teacher_id):
+    teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id, is_active=True)
+
+    if request.user == teacher.user:
+        messages.error(request, "You cannot book a lesson with yourself.")
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+    slot_value = request.POST.get('slot', '')
+    start_at, end_at = _parse_support_lesson_slot(slot_value)
+    student_note = request.POST.get('student_note', '').strip()
+
+    if not _slot_matches_support_teacher_availability(teacher, start_at, end_at):
+        messages.error(request, "Choose a valid available slot from the teacher planner.")
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+    if start_at <= timezone.now():
+        messages.error(request, "You cannot book a lesson in the past.")
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+    if SupportLessonBooking.objects.filter(
+        student=request.user,
+        status=SupportLessonBooking.STATUS_SCHEDULED,
+        start_at=start_at,
+        end_at=end_at,
+    ).exists():
+        messages.error(request, "You already have a support lesson at this time.")
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+    try:
+        with transaction.atomic():
+            if SupportLessonBooking.objects.select_for_update().filter(
+                teacher=teacher,
+                status=SupportLessonBooking.STATUS_SCHEDULED,
+                start_at=start_at,
+                end_at=end_at,
+            ).exists():
+                messages.error(request, "This slot was already booked. Pick another one.")
+                return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+            SupportLessonBooking.objects.create(
+                teacher=teacher,
+                student=request.user,
+                start_at=start_at,
+                end_at=end_at,
+                student_note=student_note,
+            )
+    except IntegrityError:
+        messages.error(request, "This slot was already booked. Pick another one.")
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
+    messages.success(request, f"Support lesson booked with {teacher.name}.")
+    return redirect('my_support_lessons')
+
+
+@login_required(login_url='/login/')
+def my_support_lessons(request):
+    bookings = list(SupportLessonBooking.objects.filter(
+        student=request.user,
+    ).select_related('teacher', 'teacher__user').order_by('start_at'))
+
+    for booking in bookings:
+        _sync_support_booking_completion(booking)
+
+    now_value = timezone.now()
+    upcoming_bookings = [
+        booking for booking in bookings
+        if booking.status == SupportLessonBooking.STATUS_SCHEDULED and booking.end_at >= now_value
+    ]
+    history_bookings = [
+        booking for booking in bookings
+        if booking.status != SupportLessonBooking.STATUS_SCHEDULED or booking.end_at < now_value
+    ]
+
+    return render(request, 'sat/my_support_lessons.html', {
+        'upcoming_bookings': upcoming_bookings,
+        'history_bookings': history_bookings,
+    })
+
+
+@login_required(login_url='/login/')
+@require_POST
+def cancel_support_lesson(request, booking_id):
+    booking = get_object_or_404(
+        SupportLessonBooking,
+        id=booking_id,
+        student=request.user,
+        status=SupportLessonBooking.STATUS_SCHEDULED,
+    )
+
+    if booking.start_at <= timezone.now():
+        messages.error(request, "You cannot cancel a support lesson after it has already started.")
+        return redirect('my_support_lessons')
+
+    booking.status = SupportLessonBooking.STATUS_CANCELLED
+    booking.cancellation_reason = request.POST.get('reason', '').strip()
+    booking.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
+    messages.success(request, "Support lesson cancelled.")
+    return redirect('my_support_lessons')
+
+
+@login_required(login_url='/login/')
+@require_POST
+def leave_support_lesson_feedback(request, booking_id):
+    booking = get_object_or_404(
+        SupportLessonBooking.objects.select_related('teacher', 'teacher__user'),
+        id=booking_id,
+        student=request.user,
+    )
+    booking.mark_completed_if_past()
+
+    if not booking.can_receive_feedback:
+        messages.error(request, "Feedback is available only after the planned lesson is finished and only once.")
+        return redirect('my_support_lessons')
+
+    try:
+        rating = int(request.POST.get('rating', '0'))
+    except (TypeError, ValueError):
+        rating = 0
+
+    if rating < 1 or rating > 5:
+        messages.error(request, "Rating must be between 1 and 5.")
+        return redirect('my_support_lessons')
+
+    SupportTeacherReview.objects.create(
+        booking=booking,
+        teacher=booking.teacher,
+        student=request.user,
+        rating=rating,
+        feedback=request.POST.get('feedback', '').strip(),
+    )
+    booking.status = SupportLessonBooking.STATUS_COMPLETED
+    booking.marked_completed_at = booking.marked_completed_at or timezone.now()
+    booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+
+    messages.success(request, "Thanks. Your support teacher feedback was saved.")
+    return redirect('my_support_lessons')
+
+
+@login_required(login_url='/login/')
+def support_teacher_planner(request):
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    if not profile and not _support_teacher_admin_allowed(request.user):
+        return HttpResponseForbidden("Only support teachers can view this planner.")
+
+    teacher_id = request.GET.get('teacher')
+    if _support_teacher_admin_allowed(request.user) and teacher_id:
+        profile = get_object_or_404(SupportTeacherProfile, id=teacher_id)
+
+    if not profile:
+        first_profile = SupportTeacherProfile.objects.select_related('user').first()
+        if not first_profile:
+            return HttpResponseForbidden("No support teacher profile exists yet.")
+        profile = first_profile
+
+    bookings = SupportLessonBooking.objects.filter(
+        teacher=profile,
+    ).select_related('student').order_by('start_at')
+
+    for booking in bookings:
+        _sync_support_booking_completion(booking)
+
+    return render(request, 'sat/support_teacher_planner.html', {
+        'teacher': profile,
+        'slots': _build_support_teacher_slots(profile, include_booked=True),
+        'upcoming_bookings': bookings.filter(status=SupportLessonBooking.STATUS_SCHEDULED, end_at__gte=timezone.now()),
+        'history_bookings': bookings.exclude(status=SupportLessonBooking.STATUS_SCHEDULED)[:30],
+        'reviews': profile.reviews.select_related('student').order_by('-created_at')[:30],
+    })
 
 def is_teacher(user):
     return (
@@ -3967,10 +4461,24 @@ def recalculate_practice_tests_progress(classroom, student):
     if not membership:
         return
 
-    total_items = Test.objects.count()
-    completed_items = TestReview.objects.filter(user=student, classroom=classroom).exclude(score__isnull=True).count()
-    activity_count = TestModule.objects.filter(user=student, classroom=classroom).count()
-    last_module = TestModule.objects.filter(user=student, classroom=classroom).order_by('-created_at').first()
+    allowed_tests = _get_membership_allowed_tests(membership)
+    allowed_test_ids = [test.pk for test in allowed_tests]
+    total_items = len(allowed_test_ids)
+    completed_items = TestReview.objects.filter(
+        user=student,
+        classroom=classroom,
+        test_id__in=allowed_test_ids,
+    ).exclude(score__isnull=True).count()
+    activity_count = TestModule.objects.filter(
+        user=student,
+        classroom=classroom,
+        test_id__in=allowed_test_ids,
+    ).count()
+    last_module = TestModule.objects.filter(
+        user=student,
+        classroom=classroom,
+        test_id__in=allowed_test_ids,
+    ).order_by('-created_at').first()
     last_activity_at = last_module.created_at if last_module else None
 
     completion_percent = 0
@@ -4255,7 +4763,11 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
     if not module_obj:
         return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
 
-    prev, answer, new = module_obj.find_answer(question_id=id)
+    review_question_model = English_Question if section == 'english' else Math_Question if section == 'math' else None
+    if review_question_model:
+        prev, answer, new = _review_prev_answer_next(module_obj, review_question_model, id)
+    else:
+        prev, answer, new = module_obj.find_answer(question_id=id)
     prev = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, prev]) if prev else ''
     new = reverse('classroom_student_review_question', args=[classroom.id, student.id, key, section, module, new]) if new else ''
 
@@ -4282,6 +4794,10 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             return HttpResponse('Question is not found!')
         return render(request, 'test/review/test_eng.html', {
             'question': question,
+            'question_payload': _review_question_payload(question, section),
+            'review_choices': _review_choices_payload(question, section),
+            'answered_choice': _normalize_review_choice_letter(answer),
+            'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
             'prev': prev,
             'next': new,
@@ -4302,6 +4818,10 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             return HttpResponse('Question is not found!')
         return render(request, 'test/review/test_math.html', {
             'question': question,
+            'question_payload': _review_question_payload(question, section),
+            'review_choices': _review_choices_payload(question, section),
+            'answered_choice': _normalize_review_choice_letter(answer),
+            'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
             'prev': prev,
             'next': new,

@@ -1,69 +1,57 @@
-  <!-- ======= Footer ======= -->
-  <footer id="footer" class="footer">
-
-    <div class="container">
-      <div class="row gy-4">
-        <div class="col-lg-5 col-md-12 footer-info">
-          <a href="index.html" class="logo d-flex align-items-center">
-            <span>SAT 800 | MAKON</span>
-          </a>
-          <p> Get your score now !!!</p>
-          <div class="social-links d-flex mt-4">
-            <a href="#" class="twitter"><i class="bi bi-twitter"></i></a>
-            <a href="#" class="facebook"><i class="bi bi-facebook"></i></a>
-            <a href="#" class="instagram"><i class="bi bi-instagram"></i></a>
-            <a href="#" class="linkedin"><i class="bi bi-linkedin"></i></a>
-          </div>
+{% load static %}
+<footer id="footer" class="footer makon-footer">
+  <div class="container">
+    <div class="row gy-4 align-items-start">
+      <div class="col-lg-5 col-md-12 footer-info">
+        <a href="/" class="logo d-flex align-items-center">
+          <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" alt="SAT Makon" style="max-height: 42px; margin-right: 12px;">
+          <span>SAT Makon</span>
+        </a>
+        <p>
+          Digital SAT practice, vocabulary training, analytics, and classroom tracking in one platform.
+        </p>
+        <div class="social-links d-flex mt-4">
+          <a href="https://t.me/sat_makon" class="telegram" aria-label="SAT Makon Telegram"><i class="bi bi-telegram"></i></a>
+          <a href="mailto:support@makonbook.uz" class="email" aria-label="SAT Makon email"><i class="bi bi-envelope"></i></a>
+          <a href="https://www.instagram.com/sat_makon_uz/" class="instagram" aria-label="SAT Makon Instagram"><i class="bi bi-instagram"></i></a>
         </div>
+      </div>
 
-        <div class="col-lg-2 col-6 footer-links">
-          <h4>Useful Links</h4>
-          <ul>
-            <li><a href="#">Home</a></li>
-            <li><a href="#">About us</a></li>
-            <li><a href="#">Services</a></li>
-            <li><a href="#">Terms of service</a></li>
-            <li><a href="#">Privacy policy</a></li>
-          </ul>
-        </div>
+      <div class="col-lg-2 col-6 footer-links">
+        <h4>Platform</h4>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="{% url 'software' %}">Software</a></li>
+          <li><a href="{% url 'login' %}">Login</a></li>
+          <li><a href="{% url 'register' %}">Register</a></li>
+        </ul>
+      </div>
 
-        <div class="col-lg-2 col-6 footer-links">
-          <h4>Our Services</h4>
-          <ul>
-            <li><a href="#">Web Design</a></li>
-            <li><a href="#">Web Development</a></li>
-            <li><a href="#">Product Management</a></li>
-            <li><a href="#">Marketing</a></li>
-          </ul>
-        </div>
+      <div class="col-lg-2 col-6 footer-links">
+        <h4>Learning</h4>
+        <ul>
+          <li><a href="{% url 'sat_menu' %}">SAT dashboard</a></li>
+          <li><a href="{% url 'practice_tests' %}">Practice tests</a></li>
+          <li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
+          <li><a href="{% url 'admissions' %}">Admissions</a></li>
+        </ul>
+      </div>
 
-        <div class="col-lg-3 col-md-12 footer-contact text-center text-md-start">
-          <h4>Contact Us</h4>
-          <p>
-            A108 Adam Street <br>
-            New York, NY 535022<br>
-            United States <br><br>
-            <strong>Telegram:</strong>  t.me/sat800makon<br>
-            <strong>Email:</strong> <a href="mailto:support@sat800makon.uz">support@sat800makon.uz</a><br>
-          </p>
-
-        </div>
-
+      <div class="col-lg-3 col-md-12 footer-contact text-center text-md-start">
+        <h4>Contact</h4>
+        <p>
+          SAT Makon<br>
+          Tashkent, Uzbekistan<br><br>
+          <strong>Telegram:</strong> <a href="https://t.me/sat_makon">t.me/sat_makon</a><br>
+          <strong>Email:</strong> <a href="mailto:support@makonbook.uz">support@makonbook.uz</a><br>
+        </p>
       </div>
     </div>
+  </div>
 
-    <div class="container mt-4">
-      <div class="copyright">
-        &copy; Copyright <strong><span>SAT 800 MAKON</span></strong>. All Rights Reserved
-      </div>
-      <div class="credits">
-        <!-- All the links in the footer should remain intact. -->
-        <!-- You can delete the links only if you purchased the pro version. -->
-        <!-- Licensing information: https://bootstrapmade.com/license/ -->
-        <!-- Purchase the pro version with working PHP/AJAX contact form: https://bootstrapmade.com/impact-bootstrap-business-website-template/ -->
-        Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
-      </div>
+  <div class="container mt-4 footer-bottom">
+    <div class="copyright">
+      &copy; {% now "Y" %} <strong><span>SAT Makon</span></strong>. All rights reserved.
     </div>
-
-  </footer><!-- End Footer -->
-  <!-- End Footer -->
+  </div>
+</footer>

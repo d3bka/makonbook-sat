@@ -7,13 +7,16 @@
         let answers = Array(questions.length).fill(null);
         let eliminatedChoices = Array(questions.length).fill().map(() => []);
         let markedForReview = Array(questions.length).fill(false);
-        let timeRemaining = Number(pageConfig.timeRemaining || 0);
+        const initialTimeRemaining = Math.max(Number(pageConfig.timeRemaining || 0), 1);
+        let timeRemaining = initialTimeRemaining;
         let timeSpent = Array(questions.length).fill(0);
 
         const testName = pageConfig.testName;
         const moduleName = pageConfig.moduleName;
         const sectionName = pageConfig.sectionName;
         const isGuestMode = pageConfig.mode === 'guest';
+        const classroomId = pageConfig.classroomId || null;
+        const testType = pageConfig.testType || 'regular';
         const submitUrl = pageConfig.submitUrl || '';
         const nextUrl = pageConfig.nextUrl || '';
         const submitTimeoutMs = Number(pageConfig.submitTimeoutMs || 30000);
@@ -34,9 +37,10 @@
         }
 
         function renderMath(root = document.body) {
-            if (typeof renderMathInElement !== 'function') return;
+            // KaTeX is optional. Do not let blocked CDN/resources delay or break the test.
+            if (typeof window.renderMathInElement !== 'function') return;
             try {
-                renderMathInElement(root, {
+                window.renderMathInElement(root, {
                     delimiters: [
                         { left: "\\(", right: "\\)", display: false },
                         { left: "\\[", right: "\\]", display: true }
@@ -48,14 +52,32 @@
             }
         }
 
-        function toggleQuestionModal() {
-            var modal = document.getElementById("questionModal");
-            if (modal.style.display === "block") {
-                modal.style.display = "none";
-            } else {
-                modal.style.display = "block";
-            }
+        function setQuestionModalOpen(open) {
+            const modal = document.getElementById("questionModal");
+            if (!modal) return;
+            modal.classList.toggle('is-open', Boolean(open));
+            modal.style.display = open ? 'flex' : 'none';
+            modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+            document.body.classList.toggle('question-modal-open', Boolean(open));
         }
+
+        function openQuestionModal() {
+            setQuestionModalOpen(true);
+        }
+
+        function closeQuestionModal() {
+            setQuestionModalOpen(false);
+        }
+
+        function toggleQuestionModal() {
+            const modal = document.getElementById("questionModal");
+            const isOpen = modal && (modal.classList.contains('is-open') || modal.style.display === 'block' || modal.style.display === 'flex');
+            setQuestionModalOpen(!isOpen);
+        }
+
+        window.openQuestionModal = openQuestionModal;
+        window.closeQuestionModal = closeQuestionModal;
+        window.toggleQuestionModal = toggleQuestionModal;
 
         function updateQuestionProgress() {
             document.getElementById("currentQuestionIndex").textContent = currentQuestionIndex + 1;
@@ -83,20 +105,6 @@
             return `${pageConfig.storageScope}_${moduleName}_${sectionName}`;
         }
 
-        function legacyStorageKey() {
-            if (!pageConfig.legacyStorageScope) return null;
-            return `${pageConfig.legacyStorageScope}_${moduleName}_${sectionName}`;
-        }
-
-        function getStoredValue(suffix) {
-            const currentKey = storageKey();
-            const currentValue = localStorage.getItem(`${currentKey}_${suffix}`);
-            if (currentValue !== null) return currentValue;
-
-            const legacyKey = legacyStorageKey();
-            return legacyKey ? localStorage.getItem(`${legacyKey}_${suffix}`) : null;
-        }
-
         function saveProgress() {
             const key = storageKey();
             localStorage.setItem(`${key}_timeSpent`, JSON.stringify(timeSpent));
@@ -107,34 +115,47 @@
             localStorage.setItem(`${key}_markedForReview`, JSON.stringify(markedForReview));
         }
 
-        function loadProgress() {
-            const savedAnswers = getStoredValue('answers');
-            const savedEliminatedChoices = getStoredValue('eliminatedChoices');
-            const savedIndex = getStoredValue('currentQuestionIndex');
-            const savedTime = getStoredValue('timeRemaining');
-            const savedReview = getStoredValue('markedForReview');
-            const savedTimeSpent = getStoredValue('timeSpent');
+        function parseSavedArray(raw, fallback) {
+            if (!raw) return fallback;
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) && parsed.length === questions.length ? parsed : fallback;
+            } catch (error) {
+                console.warn('Ignoring broken saved test state:', error);
+                return fallback;
+            }
+        }
 
-            if (savedTimeSpent) {
-                timeSpent = JSON.parse(savedTimeSpent);
-            }
-            if (savedAnswers) {
-                answers = JSON.parse(savedAnswers);
-            }
-            if (savedEliminatedChoices) {
-                eliminatedChoices = JSON.parse(savedEliminatedChoices);
-            }
-            if (savedReview) {
-                markedForReview = JSON.parse(savedReview);
-            }
-            if (savedIndex) {
-                currentQuestionIndex = parseInt(savedIndex, 10);
+        function clampQuestionIndex(value) {
+            const parsed = parseInt(value, 10);
+            const maxIndex = Math.max(questions.length - 1, 0);
+            if (!Number.isFinite(parsed)) return 0;
+            return Math.min(Math.max(parsed, 0), maxIndex);
+        }
+
+        function loadProgress() {
+            const key = storageKey();
+            const savedAnswers = localStorage.getItem(`${key}_answers`);
+            const savedEliminatedChoices = localStorage.getItem(`${key}_eliminatedChoices`);
+            const savedIndex = localStorage.getItem(`${key}_currentQuestionIndex`);
+            const savedTime = localStorage.getItem(`${key}_timeRemaining`);
+            const savedReview = localStorage.getItem(`${key}_markedForReview`);
+            const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
+
+            timeSpent = parseSavedArray(savedTimeSpent, Array(questions.length).fill(0));
+            answers = parseSavedArray(savedAnswers, Array(questions.length).fill(null));
+            eliminatedChoices = parseSavedArray(savedEliminatedChoices, Array(questions.length).fill().map(() => []));
+            markedForReview = parseSavedArray(savedReview, Array(questions.length).fill(false));
+            currentQuestionIndex = clampQuestionIndex(savedIndex);
+
+            const parsedTime = parseInt(savedTime, 10);
+            if (Number.isFinite(parsedTime) && parsedTime > 0) {
+                timeRemaining = parsedTime;
             } else {
-                currentQuestionIndex = 0;
+                timeRemaining = initialTimeRemaining;
+                localStorage.removeItem(`${key}_timeRemaining`);
             }
-            if (savedTime) {
-                timeRemaining = parseInt(savedTime, 10);
-            }
+
             updateAnsweredStatus();
         }
 
@@ -146,21 +167,24 @@
             localStorage.removeItem(`${key}_currentQuestionIndex`);
             localStorage.removeItem(`${key}_timeRemaining`);
             localStorage.removeItem(`${key}_markedForReview`);
-
-            const legacyKey = legacyStorageKey();
-            if (legacyKey) {
-                localStorage.removeItem(`${legacyKey}_timeSpent`);
-                localStorage.removeItem(`${legacyKey}_answers`);
-                localStorage.removeItem(`${legacyKey}_eliminatedChoices`);
-                localStorage.removeItem(`${legacyKey}_currentQuestionIndex`);
-                localStorage.removeItem(`${legacyKey}_timeRemaining`);
-                localStorage.removeItem(`${legacyKey}_markedForReview`);
-            }
         }
 
         function normalizeChoice(value) {
             const choice = String(value || '').trim().toUpperCase();
             return ['A', 'B', 'C', 'D'].includes(choice) ? choice : null;
+        }
+
+        function refreshEliminationState(index = currentQuestionIndex) {
+            const activeChoices = new Set((eliminatedChoices[index] || []).map(normalizeChoice).filter(Boolean));
+            document.querySelectorAll('#answers .big-container').forEach((box) => {
+                const input = box.querySelector('input[name="answer"]');
+                const letter = normalizeChoice(box.dataset.choiceLetter || (input && input.value));
+                const isEliminated = Boolean(letter && activeChoices.has(letter));
+                box.classList.toggle('is-eliminated', isEliminated);
+                const line = box.querySelector('.cross-line');
+                if (line) line.classList.toggle('active', isEliminated);
+                if (input) input.disabled = false;
+            });
         }
 
         function paintCurrentAnswer() {
@@ -174,14 +198,21 @@
                 if (label) label.classList.toggle('selected', isSelected);
                 if (input) input.checked = isSelected;
             });
+            refreshEliminationState();
         }
 
         function setCurrentAnswer(value) {
             const choice = normalizeChoice(value);
             if (!choice) return false;
 
+            const eliminated = eliminatedChoices[currentQuestionIndex] || [];
+            if (eliminated.includes(choice)) {
+                eliminatedChoices[currentQuestionIndex] = eliminated.filter((item) => item !== choice);
+            }
+
             answers[currentQuestionIndex] = choice;
             paintCurrentAnswer();
+            animateChoiceSelection(choice);
             updateAnsweredStatus();
             saveProgress();
             return true;
@@ -260,9 +291,54 @@
         window.setCurrentAnswer = setCurrentAnswer;
         window.syncCurrentAnswerFromDom = syncCurrentAnswerFromDom;
 
+
+        function restartMotion(element, className, timeout = 520) {
+            if (!element || !className) return;
+            element.classList.remove(className);
+            void element.offsetWidth;
+            element.classList.add(className);
+            window.setTimeout(() => element.classList.remove(className), timeout);
+        }
+
+        function pulseElement(element) {
+            restartMotion(element, 'is-pulsing', 360);
+        }
+
+        function triggerQuestionMotion(direction = 'next') {
+            const body = document.body;
+            if (!body) return;
+            body.classList.remove('question-enter-next', 'question-enter-prev');
+            void body.offsetWidth;
+            body.classList.add(direction === 'prev' ? 'question-enter-prev' : 'question-enter-next');
+            document.querySelectorAll('#answers .big-container').forEach((box, index) => {
+                box.style.setProperty('--choice-index', index);
+            });
+            window.setTimeout(() => body.classList.remove('question-enter-next', 'question-enter-prev'), 620);
+        }
+
+        function animateChoiceSelection(choice) {
+            const normalized = normalizeChoice(choice);
+            if (!normalized) return;
+            const box = document.querySelector(`#answers .big-container[data-choice-letter="${normalized}"]`);
+            restartMotion(box, 'choice-picked', 430);
+        }
+
+        function animateElimination(choice, removed = false) {
+            const normalized = normalizeChoice(choice);
+            if (!normalized) return;
+            const box = document.querySelector(`#answers .big-container[data-choice-letter="${normalized}"]`);
+            restartMotion(box, removed ? 'choice-uneliminated' : 'choice-eliminated', 430);
+        }
+
         function loadQuestion(index) {
-            const nextIndex = Number(index);
-            if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= questions.length) return;
+            if (!questions.length) {
+                const questionText = document.getElementById('question-text');
+                if (questionText) questionText.textContent = 'Questions did not load. Reload this module or check the test data.';
+                return;
+            }
+            const nextIndex = clampQuestionIndex(index);
+            const previousQuestionIndex = currentQuestionIndex;
+            const motionDirection = nextIndex < previousQuestionIndex ? 'prev' : 'next';
 
             if (nextIndex !== currentQuestionIndex) {
                 syncCurrentAnswerFromDom();
@@ -291,7 +367,7 @@
                 const isEliminated = eliminatedChoices[currentQuestionIndex].includes(letter) ? 'active' : '';
             
                 return `
-                    <div class="big-container" data-choice-letter="${letter}">
+                    <div class="big-container ${isEliminated ? 'is-eliminated' : ''}" data-choice-letter="${letter}">
                         <input
                             class="choice-input"
                             type="radio"
@@ -336,35 +412,51 @@
             updateAnsweredStatus();
         
             // ✅ KaTeX только там где надо
-            renderMath(passageElem);
             renderMath(questionTextElem);
             renderMath(document.getElementById('answers'));
             paintCurrentAnswer();
+            triggerQuestionMotion(motionDirection);
         }
 
         function show_eliminate() {
             eliminate_options = !eliminate_options;
-            let button = document.querySelector('.crossing-options');
-            button.classList.toggle("active-options");
-            let btns = document.querySelectorAll('.crossing-zone');
-            btns.forEach(element => {
-                element.classList.toggle('active');
+            const button = document.querySelector('.crossing-options');
+            if (button) {
+                button.classList.toggle('active-options', eliminate_options);
+                pulseElement(button);
+            }
+            document.body.classList.toggle('is-eliminate-mode', eliminate_options);
+            document.querySelectorAll('.crossing-zone').forEach((element) => {
+                element.classList.toggle('active', eliminate_options);
             });
         }
 
         function eliminate(choice, index) {
-            let line = document.querySelector(`.${choice}zone`);
-            line.classList.toggle('active');
-            if (eliminatedChoices[index].includes(choice)) {
-                const choiceIndex = eliminatedChoices[index].indexOf(choice);
-                eliminatedChoices[index].splice(choiceIndex, 1);
+            const normalizedChoice = normalizeChoice(choice);
+            const safeIndex = Number.isInteger(index) ? index : currentQuestionIndex;
+            if (!normalizedChoice || safeIndex < 0 || safeIndex >= eliminatedChoices.length) return;
+
+            const eliminated = eliminatedChoices[safeIndex] || [];
+            const wasEliminated = eliminated.includes(normalizedChoice);
+
+            if (wasEliminated) {
+                eliminatedChoices[safeIndex] = eliminated.filter((item) => item !== normalizedChoice);
             } else {
-                eliminatedChoices[index].push(choice);
+                eliminatedChoices[safeIndex] = [...eliminated, normalizedChoice];
+                if (normalizeChoice(answers[safeIndex]) === normalizedChoice) {
+                    answers[safeIndex] = null;
+                }
             }
+
+            animateElimination(normalizedChoice, wasEliminated);
+            refreshEliminationState(safeIndex);
+            paintCurrentAnswer();
+            updateAnsweredStatus();
             saveProgress();
         }
 
         function nextQuestion() {
+            pulseElement(document.getElementById('nextButton'));
             if (currentQuestionIndex < questions.length - 1) {
                 loadQuestion(currentQuestionIndex + 1);
             }
@@ -372,6 +464,7 @@
         }
 
         function prevQuestion() {
+            pulseElement(document.getElementById('backButton'));
             if (currentQuestionIndex > 0) {
                 loadQuestion(currentQuestionIndex - 1);
             }
@@ -442,7 +535,9 @@
                             answers: answerData,
                             section: sectionName,
                             test: testName,
-                            module: moduleName
+                            module: moduleName,
+                            classroom_id: classroomId,
+                            test_type: testType
                         })
                     });
 
@@ -489,7 +584,8 @@
                                 section: sectionName,
                                 test: testName,
                                 module: moduleName,
-                                classroom_id: pageConfig.classroomId || null
+                                classroom_id: classroomId,
+                                test_type: testType
                             }),
                             signal: createTimeoutSignal(submitTimeoutMs)
                         });
@@ -522,6 +618,7 @@
 
         function markForReview() {
             markedForReview[currentQuestionIndex] = !markedForReview[currentQuestionIndex];
+            pulseElement(document.querySelector('.bookmark'));
             updateAnsweredStatus();
             saveProgress();
         }
@@ -573,84 +670,146 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        let testBooted = false;
+        function bootTestWindow() {
+            if (testBooted) return;
+            const required = document.getElementById('answers') && document.getElementById('passage') && document.getElementById('question-text');
+            if (!required) return;
+            testBooted = true;
+            document.body.classList.add('mk-test-window');
+
+            // Make sure stale inline styles/classes cannot leave the question navigator stuck over the page.
+            closeQuestionModal();
+
             loadProgress();
             loadQuestion(currentQuestionIndex);
+            const timer = document.querySelector('.timer');
+            if (timer) timer.innerText = formatTime(timeRemaining);
             renderMath(document.body);
-            setInterval(updateTimer, 1000);
+            window.setInterval(updateTimer, 1000);
 
-            // Highlighter Logic
             const penButton = document.getElementById('pen-button');
+            const clearButton = document.getElementById('clear-button');
             const canvas = document.getElementById('drawing-canvas');
-            const ctx = canvas.getContext('2d');
             const body = document.body;
 
-            let isPenMode = false;
-            let isDrawing = false;
-            let lastX = 0;
-            let lastY = 0;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                let isPenMode = false;
+                let isDrawing = false;
+                let lastX = 0;
+                let lastY = 0;
+                let canvasRect = canvas.getBoundingClientRect();
 
-            function togglePenMode() {
-                isPenMode = !isPenMode;
-                console.log('Pen Mode:', isPenMode);
-                body.classList.toggle('pen-mode', isPenMode);
-                penButton.classList.toggle('active', isPenMode);
-                canvas.style.pointerEvents = isPenMode ? 'auto' : 'none';
-            }
+                function updateToolState() {
+                    body.classList.toggle('pen-mode', isPenMode);
+                    if (penButton) {
+                        penButton.classList.toggle('active', isPenMode);
+                        penButton.setAttribute('aria-pressed', isPenMode ? 'true' : 'false');
+                        penButton.setAttribute('title', isPenMode ? 'Turn highlighter off' : 'Turn highlighter on');
+                    }
+                    canvas.style.pointerEvents = isPenMode ? 'auto' : 'none';
+                }
 
-            if (penButton) {
-                penButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    togglePenMode();
+                function togglePenMode(force) {
+                    isPenMode = typeof force === 'boolean' ? force : !isPenMode;
+                    if (!isPenMode) isDrawing = false;
+                    updateToolState();
+                }
+
+                function resizeCanvas() {
+                    const main = document.querySelector('main');
+                    const rect = main ? main.getBoundingClientRect() : document.body.getBoundingClientRect();
+                    const ratio = window.devicePixelRatio || 1;
+                    canvas.style.left = `${Math.max(rect.left, 0)}px`;
+                    canvas.style.top = `${Math.max(rect.top, 0)}px`;
+                    canvas.style.width = `${Math.max(rect.width, 1)}px`;
+                    canvas.style.height = `${Math.max(rect.height, 1)}px`;
+                    canvas.width = Math.max(Math.floor(rect.width * ratio), 1);
+                    canvas.height = Math.max(Math.floor(rect.height * ratio), 1);
+                    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+                    ctx.lineWidth = 16;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = 'rgba(250, 204, 21, 0.34)';
+                    canvasRect = canvas.getBoundingClientRect();
+                }
+
+                function pointFromEvent(event) {
+                    const point = event.touches && event.touches[0] ? event.touches[0] : event;
+                    return { x: point.clientX - canvasRect.left, y: point.clientY - canvasRect.top };
+                }
+
+                function startDrawing(event) {
+                    if (!isPenMode) return;
+                    event.preventDefault();
+                    canvasRect = canvas.getBoundingClientRect();
+                    const point = pointFromEvent(event);
+                    isDrawing = true;
+                    lastX = point.x;
+                    lastY = point.y;
+                }
+
+                function draw(event) {
+                    if (!isDrawing || !isPenMode) return;
+                    event.preventDefault();
+                    const point = pointFromEvent(event);
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(point.x, point.y);
+                    ctx.stroke();
+                    lastX = point.x;
+                    lastY = point.y;
+                }
+
+                function stopDrawing() { isDrawing = false; }
+
+                if (penButton) {
+                    penButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePenMode();
+                    });
+                }
+
+                if (clearButton) {
+                    clearButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    });
+                }
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        if (isPenMode) togglePenMode(false);
+                        closeQuestionModal();
+                    }
                 });
-            } else {
-                console.error('Pen button not found');
+
+                const modal = document.getElementById('questionModal');
+                if (modal) {
+                    modal.addEventListener('click', (event) => {
+                        if (event.target === modal) closeQuestionModal();
+                    });
+                }
+
+                canvas.addEventListener('mousedown', startDrawing);
+                canvas.addEventListener('mousemove', draw);
+                window.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseleave', stopDrawing);
+                canvas.addEventListener('touchstart', startDrawing, { passive: false });
+                canvas.addEventListener('touchmove', draw, { passive: false });
+                window.addEventListener('touchend', stopDrawing);
+                window.addEventListener('resize', resizeCanvas);
+                window.addEventListener('scroll', resizeCanvas, { passive: true });
+
+                resizeCanvas();
+                updateToolState();
             }
+        }
 
-            function resizeCanvas() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-
-            ctx.lineWidth = 10;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(255, 255, 0, 0.05)';
-
-            canvas.addEventListener('mousedown', (e) => {
-                if (!isPenMode) return;
-                isDrawing = true;
-                [lastX, lastY] = [e.clientX, e.clientY];
-                console.log('Drawing started at:', lastX, lastY);
-            });
-
-            canvas.addEventListener('mousemove', (e) => {
-                if (!isDrawing || !isPenMode) return;
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(e.clientX, e.clientY);
-                ctx.stroke();
-                [lastX, lastY] = [e.clientX, e.clientY];
-            });
-
-            canvas.addEventListener('mouseup', () => {
-                isDrawing = false;
-            });
-
-            canvas.addEventListener('mouseleave', () => {
-                isDrawing = false;
-            });
-
-            const clearButton = document.getElementById('clear-button');
-            if (clearButton) {
-                clearButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    console.log('Canvas cleared');
-                });
-            } else {
-                console.error('Clear button not found');
-            }
-        });
-    
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootTestWindow, { once: true });
+        }
+        bootTestWindow();

@@ -1,0 +1,1274 @@
+
+/*
+  MakonBook Small Device CSS Fix V2
+  Loaded as the LAST CSS file. It fixes phones, tablets, small laptops, and narrow browser windows.
+*/
+
+:root {
+  --mk-mobile-pad: clamp(12px, 3vw, 24px);
+  --mk-mobile-radius: clamp(16px, 4vw, 24px);
+  --mk-touch-size: 44px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+.card,
+.mk-card,
+.mk-panel,
+.auth-card,
+.public-card,
+.software-card,
+.event-card,
+.detail-card,
+.results-shell,
+.review-shell,
+.total_score,
+.question-card,
+.passage-card {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.table-wrap,
+.table-responsive,
+.progress-table-wrap,
+.results-table-wrap,
+.overflow-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* =========================================================
+   AUTH / PUBLIC PAGES: login, register, forgot/reset, guest
+   ========================================================= */
+
+body.auth-page,
+body.public-page,
+body.software-page {
+  min-width: 0;
+}
+
+.auth-shell,
+.public-shell,
+.software-shell {
+  overflow: visible !important;
+}
+
+.auth-nav,
+.public-nav {
+  position: relative !important;
+  z-index: 7000 !important;
+  isolation: isolate;
+  width: 100%;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  flex-wrap: nowrap !important;
+}
+
+.auth-brand,
+.public-brand {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  overflow: hidden;
+}
+
+.auth-brand img,
+.public-brand img {
+  flex: 0 0 auto;
+}
+
+.auth-brand span,
+.public-brand span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-nav-actions,
+.public-nav-actions {
+  flex: 0 0 auto;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  flex-wrap: nowrap !important;
+  min-width: 0;
+  overflow: visible !important;
+}
+
+.auth-link-pill,
+.public-link-pill,
+.secondary-link {
+  flex: 0 0 auto;
+  white-space: nowrap !important;
+}
+
+.theme-switcher,
+.theme-switcher.is-open,
+.theme-menu {
+  overflow: visible !important;
+}
+
+.auth-nav .theme-switcher,
+.public-nav .theme-switcher,
+#header .theme-switcher,
+.header-tools .theme-switcher {
+  position: relative !important;
+  z-index: 7100 !important;
+  flex: 0 0 auto;
+}
+
+.theme-switcher.is-open {
+  z-index: 9000 !important;
+}
+
+.theme-menu {
+  z-index: 9001 !important;
+}
+
+.auth-grid {
+  width: 100%;
+  min-width: 0;
+  align-items: start !important;
+}
+
+.auth-login .auth-card,
+.auth-register .auth-card,
+.auth-guest .auth-card,
+.auth-card {
+  min-width: 0;
+}
+
+.auth-form,
+.signin-form,
+.form-group,
+.password-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.auth-form input,
+.signin-form input,
+.auth-form select,
+.signin-form select,
+.auth-form textarea,
+.signin-form textarea {
+  max-width: 100%;
+}
+
+.password-wrap input {
+  padding-right: 72px !important;
+}
+
+.password-wrap .password-toggle,
+.password-wrap .field-icon {
+  right: 10px !important;
+  bottom: 9px !important;
+  top: auto !important;
+  transform: none !important;
+}
+
+/* =========================================================
+   MAIN SITE HEADER: pages that extend template.html
+   ========================================================= */
+
+#header,
+.header {
+  width: 100%;
+  max-width: 100%;
+}
+
+#header .container-fluid,
+#header .container,
+.header .container-fluid,
+.header .container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+#header .logo,
+.header .logo {
+  min-width: 0;
+  overflow: hidden;
+}
+
+#header .logo img,
+.header .logo img {
+  max-width: min(210px, 48vw);
+  height: auto;
+  object-fit: contain;
+}
+
+.header-tools {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto;
+  margin-left: 8px !important;
+}
+
+#header .theme-menu,
+.header-tools .theme-menu {
+  right: 0;
+  left: auto;
+}
+
+.mobile-nav-toggle {
+  flex: 0 0 auto;
+}
+
+/* =========================================================
+   TEMPLATE / LEARNING PAGES
+   ========================================================= */
+
+.blog > .container,
+#main > .container,
+section > .container,
+.mk-learning,
+.classroom-shell,
+.practice-shell,
+.dashboard-shell,
+.menu-shell,
+.progress-shell,
+.detail-shell {
+  max-width: 100%;
+}
+
+.mk-learning :is(.lesson-cards, .practice-cards, .vocab-grid, .adm-grid, .unit-grid, .flashcards-grid, .summary-grid, .tests-grid, .units-grid, .sections-grid, .mk-grid, .mk-quick-grid),
+.mk-grid,
+.mk-quick-grid,
+.mk-form-grid,
+.practice-grid,
+.classroom-grid,
+.dashboard-grid,
+.menu-grid,
+.cards-grid {
+  min-width: 0;
+}
+
+.mk-learning :is(.btn-main, .btn-save, .submit-btn, .review-btn, .adm-btn, .vocab-button, .quiz-btn-primary, .result-btn-primary, .flashcard-btn-primary, .button-container a, .btn.btn-primary, .btn-secondary, .back-btn, .back-link),
+.mk-panel a,
+.mk-panel button {
+  min-height: var(--mk-touch-size);
+}
+
+/* =========================================================
+   RESULTS / REVIEW
+   ========================================================= */
+
+.results-shell {
+  margin-inline: auto !important;
+}
+
+.results-shell .sat,
+.results-shell .total,
+.results-shell .module-row {
+  min-width: 0;
+}
+
+.results-shell .sat > *,
+.results-shell .total > *,
+.results-shell .module-row > * {
+  min-width: 0;
+}
+
+.review-page,
+.review-shell,
+.review-main,
+.review-header {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.review-page .choice-container,
+.review-page .question-text,
+.review-page #question-text,
+.review-page #passage,
+.review-page .choice-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   TEST WINDOW: English / Math attempt pages
+   ========================================================= */
+
+body.mk-test-window {
+  min-width: 0;
+}
+
+body.mk-test-window .container,
+body.mk-test-window main,
+body.mk-test-window header,
+body.mk-test-window footer,
+body.mk-test-window .question-container,
+body.mk-test-window .answers-container {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+body.mk-test-window .question-text,
+body.mk-test-window #question-text,
+body.mk-test-window #passage,
+body.mk-test-window .choice-text,
+body.mk-test-window .math-content {
+  overflow-wrap: anywhere;
+}
+
+body.mk-test-window .choice-container,
+body.mk-test-window label.choice-container {
+  min-width: 0 !important;
+}
+
+/* =====================
+   Small laptops/tablets
+   ===================== */
+
+@media (max-width: 1180px) {
+  .auth-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-login .auth-card,
+  .auth-register .auth-card,
+  .auth-guest .auth-card,
+  .auth-card {
+    max-width: 640px !important;
+    margin-inline: auto !important;
+  }
+
+  .auth-login .auth-visual,
+  .auth-register .auth-visual,
+  .auth-guest .auth-visual {
+    max-width: 900px !important;
+    margin-inline: auto !important;
+  }
+
+  .results-shell .sat,
+  .results-shell .total,
+  .results-shell .module-row,
+  .review-header,
+  .review-main {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .results-shell .sat > [class*="col-"],
+  .results-shell .total > [class*="col-"],
+  .results-shell .module-row > [class*="col-"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .breadcrumbs .page-header {
+    min-height: 130px !important;
+    padding: 34px 0 28px !important;
+  }
+
+  .page-title-wrap,
+  .page-title-wrap > :first-child {
+    font-size: clamp(2rem, 7vw, 3rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .page-title-wrap > div,
+  .page-title-wrap > small,
+  .page-title-wrap > span {
+    font-size: clamp(1rem, 4vw, 1.45rem) !important;
+  }
+
+  .blog {
+    padding-top: 24px !important;
+  }
+
+  .mk-learning .section-header,
+  .mk-learning .top-bar,
+  .mk-learning .detail-head,
+  .mk-learning .head,
+  .mk-panel {
+    padding: 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .mk-learning .section-header h2,
+  .mk-learning .top-bar h2,
+  .mk-learning .detail-title,
+  .mk-learning .title {
+    font-size: clamp(1.75rem, 6vw, 2.5rem) !important;
+    line-height: 1.05 !important;
+  }
+}
+
+/* ======
+   Phone
+   ====== */
+
+@media (max-width: 768px) {
+  :root {
+    --mk-touch-size: 46px;
+  }
+
+  .auth-shell,
+  .public-shell,
+  .software-shell {
+    width: min(100% - 16px, 1180px) !important;
+    min-height: 100svh !important;
+    padding: 12px 0 18px !important;
+  }
+
+  .auth-nav,
+  .public-nav {
+    margin-bottom: 12px !important;
+  }
+
+  .auth-brand img,
+  .public-brand img {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+    padding: 5px !important;
+  }
+
+  .auth-brand span,
+  .public-brand span {
+    font-size: clamp(1.12rem, 5vw, 1.52rem) !important;
+    letter-spacing: -.045em !important;
+  }
+
+  .auth-nav-actions,
+  .public-nav-actions {
+    gap: 8px !important;
+  }
+
+  .auth-nav .theme-toggle,
+  .public-nav .theme-toggle,
+  #header .theme-toggle,
+  .header-tools .theme-toggle {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    transform: none !important;
+  }
+
+  .auth-nav .theme-toggle-label,
+  .public-nav .theme-toggle-label,
+  #header .theme-toggle-label,
+  .header-tools .theme-toggle-label {
+    display: none !important;
+  }
+
+  .theme-toggle-icon {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 13px !important;
+  }
+
+  .auth-link-pill,
+  .public-link-pill {
+    min-height: 44px !important;
+    padding-inline: 13px !important;
+    font-size: .84rem !important;
+    line-height: 1 !important;
+  }
+
+  .auth-nav .theme-menu,
+  .public-nav .theme-menu,
+  #header .theme-menu,
+  .header-tools .theme-menu {
+    position: fixed !important;
+    top: 66px !important;
+    right: 10px !important;
+    left: auto !important;
+    width: min(178px, calc(100vw - 20px)) !important;
+    max-height: calc(100svh - 76px) !important;
+    overflow-y: auto !important;
+    transform-origin: top right !important;
+  }
+
+  .theme-menu button {
+    min-height: 42px !important;
+    padding: 9px 10px !important;
+  }
+
+  /* Important: keep auth pages clean on phones. The visual card is too heavy and causes the broken strip seen in iPhone screenshots. */
+  .auth-login .auth-visual,
+  .auth-register .auth-visual,
+  .auth-guest .auth-visual,
+  body.auth-page .auth-visual {
+    display: none !important;
+  }
+
+  .auth-grid {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .auth-login .auth-card,
+  .auth-register .auth-card,
+  .auth-guest .auth-card,
+  .auth-card {
+    position: relative !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .auth-card-header {
+    margin-bottom: 16px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .auth-card .eyebrow {
+    padding: 7px 10px !important;
+    font-size: .66rem !important;
+    letter-spacing: .12em !important;
+  }
+
+  .auth-card h1,
+  .auth-card h2,
+  .auth-card-header h1,
+  .auth-card-header h2 {
+    font-size: clamp(1.9rem, 8.5vw, 2.35rem) !important;
+    line-height: 1.02 !important;
+    margin-bottom: 8px !important;
+  }
+
+  .auth-card p,
+  .auth-card-header p {
+    font-size: .94rem !important;
+    line-height: 1.55 !important;
+  }
+
+  .auth-form,
+  .signin-form {
+    gap: 13px !important;
+  }
+
+  .form-label {
+    margin-bottom: 7px !important;
+    font-size: .82rem !important;
+  }
+
+  .auth-form input,
+  .signin-form input,
+  .auth-form select,
+  .signin-form select {
+    min-height: 52px !important;
+    border-radius: 16px !important;
+    padding-inline: 14px !important;
+  }
+
+  .primary-btn,
+  .download-button,
+  .secondary-btn,
+  .guest-cta-card,
+  .auth-form button,
+  .signin-form button {
+    min-height: 52px !important;
+    border-radius: 16px !important;
+  }
+
+  .password-wrap .password-toggle,
+  .password-wrap .field-icon {
+    width: 46px !important;
+    height: 36px !important;
+    bottom: 8px !important;
+    right: 8px !important;
+  }
+
+  .auth-divider {
+    gap: 9px !important;
+    margin: 14px 0 12px !important;
+    font-size: .68rem !important;
+    letter-spacing: .08em !important;
+  }
+
+  .guest-cta-card {
+    padding: 13px !important;
+    gap: 12px !important;
+  }
+
+  .guest-cta-icon {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  .auth-card-footer,
+  .compact-footer {
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    gap: 10px !important;
+  }
+
+  /* Main header on logged-in/internal pages */
+  #header,
+  .header {
+    height: auto !important;
+    min-height: 68px !important;
+  }
+
+  #header .container-fluid,
+  #header .container,
+  .header .container-fluid,
+  .header .container {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    gap: 8px !important;
+    align-items: center !important;
+    min-height: 68px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  #header .logo img,
+  .header .logo img {
+    max-width: min(170px, 46vw) !important;
+    max-height: 42px !important;
+  }
+
+  #header .navbar,
+  .header .navbar {
+    grid-column: 1 / -1;
+  }
+
+  #header .header-tools,
+  .header .header-tools {
+    margin: 0 !important;
+  }
+
+  .mobile-nav-show,
+  .mobile-nav-hide {
+    margin: 0 !important;
+    font-size: 28px !important;
+  }
+
+  .navbar {
+    max-width: min(400px, 100vw) !important;
+  }
+
+  .navbar ul {
+    background: rgba(24, 8, 48, .96) !important;
+    backdrop-filter: blur(18px);
+  }
+
+  /* Main content pages */
+  .blog > .container,
+  #main > .container,
+  section > .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .breadcrumbs .page-header {
+    min-height: 105px !important;
+    padding: 28px 0 22px !important;
+  }
+
+  .breadcrumbs nav .container,
+  .breadcrumbs ol {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .page-title-wrap,
+  .page-title-wrap > :first-child {
+    font-size: clamp(1.85rem, 9vw, 2.65rem) !important;
+  }
+
+  .mk-learning,
+  .classroom-shell,
+  .practice-shell,
+  .dashboard-shell,
+  .menu-shell,
+  .progress-shell,
+  .detail-shell {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mk-learning :is(.lesson-cards, .practice-cards, .vocab-grid, .adm-grid, .unit-grid, .flashcards-grid, .summary-grid, .tests-grid, .units-grid, .sections-grid, .mk-grid, .mk-quick-grid),
+  .mk-grid,
+  .mk-quick-grid,
+  .mk-form-grid,
+  .practice-grid,
+  .classroom-grid,
+  .dashboard-grid,
+  .menu-grid,
+  .cards-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .mk-learning :is(.section-header, .top-bar, .detail-head, .head, .card, .practice-card, .vocab-card, .adm-card, .section-card, .unit-card, .flashcard, .quiz-card, .result-card, .empty-box, .detail-card, .summary-item, .word-item, .form-wrap, .access-wrap, .section-block, .test-card, .side-card, .chat-shell, .chat-form-wrap, .progress-table-wrap),
+  .mk-panel,
+  .mk-card {
+    border-radius: 20px !important;
+    padding: 16px !important;
+  }
+
+  .mk-learning :is(.btn-main, .btn-save, .submit-btn, .review-btn, .adm-btn, .vocab-button, .quiz-btn-primary, .result-btn-primary, .flashcard-btn-primary, .button-container a, .btn.btn-primary, .btn-secondary, .back-btn, .back-link),
+  .mk-panel a,
+  .mk-panel button,
+  .card-actions a,
+  .card-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Results */
+  .results-shell {
+    width: calc(100% - 20px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 24px !important;
+  }
+
+  .results-shell .sat,
+  .results-shell .total,
+  .results-shell .module-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .results-shell .sat {
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .results-shell .sat_left,
+  .results-shell .sat_right,
+  .results-shell .button-container,
+  .results-shell .teacher-mode-badge {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+  }
+
+  .results-shell .sat_left > p:first-child {
+    font-size: clamp(4.8rem, 24vw, 7rem) !important;
+  }
+
+  .results-shell .sat_right ul,
+  .results-shell .sat_right li {
+    padding-left: 0 !important;
+    text-align: left !important;
+  }
+
+  .results-shell .total_score {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .results-shell .total_above {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    text-align: center !important;
+  }
+
+  .results-shell .score,
+  .results-shell .total_above .score {
+    width: 100% !important;
+    font-size: clamp(3rem, 18vw, 5rem) !important;
+    line-height: .95 !important;
+  }
+
+  .results-shell .navigation {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 7px !important;
+  }
+
+  .results-shell .rect-question {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    line-height: 38px !important;
+    font-size: .85rem !important;
+  }
+
+  /* Review */
+  .review-shell {
+    padding: 10px !important;
+  }
+
+  .review-header,
+  .review-main,
+  .review-status-card {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .review-title-card,
+  .review-status-card,
+  .question-card,
+  .passage-card,
+  .meta-card {
+    padding: 15px !important;
+    border-radius: 20px !important;
+  }
+
+  .review-title-card h1 {
+    font-size: clamp(1.55rem, 8vw, 2.2rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  .review-page .choice-container {
+    padding: 13px !important;
+    border-radius: 16px !important;
+  }
+
+  .review-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 60 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin: 12px -10px -10px !important;
+    padding: 10px 10px max(10px, env(safe-area-inset-bottom)) !important;
+    backdrop-filter: blur(14px);
+  }
+
+  .review-footer a,
+  .review-footer button,
+  .review-footer .nav-button {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+
+  /* SAT Test Window */
+  body.mk-test-window {
+    height: 100svh !important;
+    min-height: 100svh !important;
+    overflow: hidden !important;
+  }
+
+  body.mk-test-window .container {
+    width: 100% !important;
+    height: 100svh !important;
+    padding: 0 !important;
+  }
+
+  body.mk-test-window header {
+    min-height: 104px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-areas: "title timer" "tools tools" !important;
+    gap: 8px !important;
+    padding: 9px 10px !important;
+  }
+
+  body.mk-test-window header h1 {
+    grid-area: title !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: .98rem !important;
+    line-height: 1.2 !important;
+  }
+
+  body.mk-test-window .timer {
+    grid-area: timer !important;
+    min-width: max-content !important;
+    font-size: .92rem !important;
+  }
+
+  body.mk-test-window .header-tools {
+    grid-area: tools !important;
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+  }
+
+  body.mk-test-window .header-tool,
+  body.mk-test-window .math-tool-btn,
+  body.mk-test-window header a[aria-label="Home"] {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+  }
+
+  body.mk-test-window main {
+    height: calc(100svh - 104px - 108px) !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(96px, 38%) minmax(0, 62%) !important;
+    overflow: hidden !important;
+  }
+
+  body.mk-test-window .question-container,
+  body.mk-test-window .answers-container {
+    padding: 12px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.mk-test-window .question-title {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  body.mk-test-window .question-number {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+    font-size: 1.25rem !important;
+  }
+
+  body.mk-test-window .bookmark {
+    width: auto !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding-inline: 10px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: .78rem !important;
+  }
+
+  body.mk-test-window .crossing-options {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    border-radius: 14px !important;
+  }
+
+  body.mk-test-window .question-text,
+  body.mk-test-window #question-text,
+  body.mk-test-window #passage {
+    font-size: clamp(.98rem, 4vw, 1.12rem) !important;
+    line-height: 1.55 !important;
+  }
+
+  body.mk-test-window .choice-container,
+  body.mk-test-window label.choice-container {
+    min-height: 56px !important;
+    padding: 12px 48px 12px 13px !important;
+    border-radius: 16px !important;
+    font-size: .95rem !important;
+  }
+
+  body.mk-test-window footer {
+    min-height: 108px !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 7px !important;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  body.mk-test-window .footer-left {
+    display: none !important;
+  }
+
+  body.mk-test-window .footer-center,
+  body.mk-test-window .footer-right {
+    width: 100% !important;
+  }
+
+  body.mk-test-window .footer-right {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  body.mk-test-window #clear-button,
+  body.mk-test-window #pen-button {
+    display: none !important;
+  }
+
+  body.mk-test-window .nav-button,
+  body.mk-test-window .question-progress {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    padding: 0 8px !important;
+    font-size: .78rem !important;
+    border-radius: 14px !important;
+  }
+
+  body.mk-test-window #calculator-popup {
+    position: fixed !important;
+    inset: 8px !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+
+  body.mk-test-window .reference-overlay {
+    padding: 8px !important;
+  }
+
+  body.mk-test-window .reference-sheet {
+    width: 100% !important;
+    max-height: calc(100svh - 16px) !important;
+  }
+
+  body.mk-test-window .reference-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.mk-test-window #questionModal .modal-content {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100svh - 56px) !important;
+    padding: 16px !important;
+  }
+
+  body.mk-test-window #questionModal .question-grid {
+    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)) !important;
+    gap: 8px !important;
+  }
+}
+
+/* Small phones: iPhone SE / 360px Android */
+@media (max-width: 430px) {
+  .auth-shell,
+  .public-shell,
+  .software-shell {
+    width: min(100% - 12px, 1180px) !important;
+    padding-top: 8px !important;
+  }
+
+  .auth-nav,
+  .public-nav {
+    gap: 8px !important;
+  }
+
+  .auth-brand,
+  .public-brand {
+    gap: 8px !important;
+  }
+
+  .auth-brand img,
+  .public-brand img {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 13px !important;
+  }
+
+  .auth-brand span,
+  .public-brand span {
+    font-size: clamp(1rem, 5vw, 1.28rem) !important;
+  }
+
+  .auth-nav-actions,
+  .public-nav-actions {
+    gap: 6px !important;
+  }
+
+  .auth-link-pill,
+  .public-link-pill {
+    min-height: 40px !important;
+    padding-inline: 10px !important;
+    font-size: .78rem !important;
+  }
+
+  .auth-nav .theme-toggle,
+  .public-nav .theme-toggle,
+  #header .theme-toggle,
+  .header-tools .theme-toggle {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .theme-toggle-icon {
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .auth-card,
+  .auth-login-card,
+  .auth-register-card,
+  .auth-guest-card {
+    padding: 15px !important;
+    border-radius: 20px !important;
+  }
+
+  .auth-card .eyebrow {
+    font-size: .6rem !important;
+    letter-spacing: .1em !important;
+  }
+
+  .auth-card h1,
+  .auth-card h2,
+  .auth-card-header h1,
+  .auth-card-header h2 {
+    font-size: 1.85rem !important;
+  }
+
+  .auth-card p,
+  .auth-card-header p {
+    font-size: .88rem !important;
+  }
+
+  .auth-divider {
+    font-size: .6rem !important;
+    letter-spacing: .07em !important;
+  }
+
+  .guest-cta-card small {
+    font-size: .76rem !important;
+  }
+
+  #header .logo img,
+  .header .logo img {
+    max-width: min(145px, 43vw) !important;
+  }
+
+  .page-title-wrap,
+  .page-title-wrap > :first-child {
+    font-size: 1.85rem !important;
+  }
+
+  .results-shell .rect-question {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    line-height: 34px !important;
+  }
+
+  .review-footer {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.mk-test-window header {
+    min-height: 98px !important;
+  }
+
+  body.mk-test-window main {
+    height: calc(100svh - 98px - 104px) !important;
+    grid-template-rows: minmax(88px, 36%) minmax(0, 64%) !important;
+  }
+
+  body.mk-test-window footer {
+    min-height: 104px !important;
+  }
+
+  body.mk-test-window .bookmark {
+    font-size: 0 !important;
+  }
+
+  body.mk-test-window .bookmark::before {
+    font-size: 1rem !important;
+  }
+
+  body.mk-test-window .nav-button,
+  body.mk-test-window .question-progress {
+    font-size: .72rem !important;
+  }
+}
+
+/* Landscape phones / short screens */
+@media (max-height: 560px) and (orientation: landscape) {
+  .auth-login .auth-visual,
+  .auth-register .auth-visual,
+  .auth-guest .auth-visual,
+  body.auth-page .auth-visual {
+    display: none !important;
+  }
+
+  .auth-shell,
+  .public-shell,
+  .software-shell {
+    padding-top: 8px !important;
+  }
+
+  body.mk-test-window header {
+    min-height: 54px !important;
+    display: flex !important;
+  }
+
+  body.mk-test-window header h1 {
+    white-space: nowrap !important;
+  }
+
+  body.mk-test-window .header-tools {
+    width: auto !important;
+    overflow: visible !important;
+  }
+
+  body.mk-test-window main {
+    height: calc(100svh - 54px - 58px) !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-rows: 1fr !important;
+  }
+
+  body.mk-test-window footer {
+    min-height: 58px !important;
+    grid-template-columns: auto 1fr !important;
+  }
+
+  body.mk-test-window .footer-center {
+    display: none !important;
+  }
+}

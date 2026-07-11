@@ -1,29 +1,29 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Manage Classroom Access{% endblock title-main %}
-{% block title %}Classroom Access{% endblock title %}
+{% block title-main %}Manage All Sections{% endblock title-main %}
+{% block title %}Classroom Section Access{% endblock title %}
 
 {% block style %}
 <style>
   .access-wrap {
-    max-width: 640px;
+    max-width: 980px;
     margin: 0 auto;
-    background: #fff;
-    border-radius: 18px;
+    background: linear-gradient(135deg, var(--mk-surface) 0%, var(--mk-surface-subtle) 100%);
+    border-radius: 24px;
     padding: 32px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    border: 1px solid var(--mk-card-border);
+    box-shadow: var(--mk-shadow-soft);
   }
 
   .access-wrap h2 {
     margin-bottom: 6px;
     font-size: 22px;
-    color: #111827;
+    color: var(--mk-text);
   }
 
   .access-subtitle {
-    color: #6b7280;
+    color: var(--mk-text-muted);
     font-size: 15px;
     margin-bottom: 28px;
   }
@@ -32,12 +32,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 0;
-    border-bottom: 1px solid #f3f4f6;
+    padding: 18px 18px;
+    margin-bottom: 14px;
+    border: 1px solid var(--mk-border);
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--mk-surface-soft) 0%, var(--mk-surface-subtle) 100%);
   }
 
   .section-row:last-of-type {
-    border-bottom: none;
     margin-bottom: 24px;
   }
 
@@ -50,18 +52,18 @@
   .section-name {
     font-weight: 700;
     font-size: 17px;
-    color: #111827;
+    color: var(--mk-text);
   }
 
   .section-count {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--mk-text-muted);
   }
 
   .toggle-wrap {
     position: relative;
-    width: 48px;
-    height: 26px;
+    width: 58px;
+    height: 32px;
     flex-shrink: 0;
   }
 
@@ -79,7 +81,7 @@
   .toggle-track {
     position: absolute;
     inset: 0;
-    background: #d1d5db;
+    background: var(--mk-border-strong);
     border-radius: 999px;
     transition: background 0.2s;
     pointer-events: none;
@@ -87,10 +89,10 @@
 
   .toggle-thumb {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 20px;
-    height: 20px;
+    top: 4px;
+    left: 4px;
+    width: 24px;
+    height: 24px;
     background: #fff;
     border-radius: 50%;
     transition: transform 0.2s;
@@ -99,50 +101,68 @@
   }
 
   .toggle-wrap input:checked ~ .toggle-track {
-    background: #7c3aed;
+    background: var(--mk-accent);
   }
 
   .toggle-wrap input:checked ~ .toggle-thumb {
-    transform: translateX(22px);
+    transform: translateX(26px);
   }
 
   .btn-save {
     width: 100%;
-    padding: 14px;
-    background: #7c3aed;
+    padding: 16px;
+    background: var(--mk-gradient-main);
     color: #fff;
     border: none;
-    border-radius: 12px;
+    border-radius: 999px;
     font-size: 16px;
     font-weight: 700;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 14px 28px rgba(109, 40, 217, 0.18);
   }
 
-  .btn-save:hover { background: #273ca3; }
+  .btn-save:hover { transform: translateY(-1px); }
+  .btn-save:disabled { opacity: .55; cursor: not-allowed; }
 
   .back-link {
     display: inline-block;
     margin-bottom: 20px;
-    color: #7c3aed;
+    color: var(--mk-text);
     text-decoration: none;
     font-weight: 600;
     font-size: 15px;
+    background: var(--mk-surface-soft);
+    border: 1px solid var(--mk-border);
+    padding: 10px 14px;
+    border-radius: 12px;
   }
 
-  .back-link:hover { text-decoration: underline; }
+  .access-wrap strong { color: var(--mk-text); }
+
+  .back-link { color: var(--mk-primary-strong); }
 
   .warning-note {
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 10px;
+    background: var(--mk-danger-soft);
+    border: 1px solid var(--mk-danger);
+    border-radius: 12px;
     padding: 12px 16px;
     font-size: 14px;
-    color: #92400e;
+    color: var(--mk-danger);
     margin-bottom: 24px;
     display: flex;
     gap: 8px;
     align-items: flex-start;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .section-row {
+      border-color: rgba(167, 139, 250, 0.3);
+    }
+
+    .toggle-track {
+      background: rgba(167, 139, 250, 0.35);
+    }
   }
 </style>
 {% endblock style %}
@@ -151,12 +171,9 @@
 <div class="access-wrap">
   <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="back-link">← Back to Dashboard</a>
 
-  <h2>{% if classroom.is_ap_classroom %}Manage Student Resources{% else %}Manage Section Access{% endif %}</h2>
+  <h2>Manage Section Access</h2>
   <p class="access-subtitle">
     These settings apply to <strong>all {{ student_count }} approved student{{ student_count|pluralize }}</strong> in <strong>{{ classroom.name }}</strong> at once.
-    {% if classroom.is_ap_classroom %}
-      AP tests are managed separately; this page controls Vocabulary and Admissions access.
-    {% endif %}
   </p>
 
   {% if student_count == 0 %}
@@ -168,19 +185,41 @@
   <form method="post">
     {% csrf_token %}
 
-    {% for section in section_rows %}
-      <div class="section-row">
-        <div class="section-label">
-          <span class="section-name">{{ section.label }}</span>
-          <span class="section-count">{{ section.count }} of {{ student_count }} students currently have access</span>
-        </div>
-        <label class="toggle-wrap">
-          <input type="checkbox" name="sections" value="{{ section.key }}" {% if section.checked %}checked{% endif %}>
-          <span class="toggle-track"></span>
-          <span class="toggle-thumb"></span>
-        </label>
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Practice Tests</span>
+        <span class="section-count">{{ section_counts.practice_tests }} of {{ student_count }} students currently have access</span>
       </div>
-    {% endfor %}
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="practice_tests" {% if majority_access.practice_tests %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Vocabulary</span>
+        <span class="section-count">{{ section_counts.vocabulary }} of {{ student_count }} students currently have access</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="vocabulary" {% if majority_access.vocabulary %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
+
+    <div class="section-row">
+      <div class="section-label">
+        <span class="section-name">Admissions</span>
+        <span class="section-count">{{ section_counts.admissions }} of {{ student_count }} students currently have access</span>
+      </div>
+      <label class="toggle-wrap">
+        <input type="checkbox" name="sections" value="admissions" {% if majority_access.admissions %}checked{% endif %}>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>
 
     <button type="submit" class="btn-save" {% if student_count == 0 %}disabled{% endif %}>
       Apply to All Students
@@ -195,10 +234,10 @@
       var thumb = this.parentElement.querySelector('.toggle-thumb');
       var track = this.parentElement.querySelector('.toggle-track');
       if (this.checked) {
-        track.style.background = '#324dc7';
-        thumb.style.transform = 'translateX(22px)';
+        track.style.background = 'var(--mk-accent)';
+        thumb.style.transform = 'translateX(26px)';
       } else {
-        track.style.background = '#d1d5db';
+        track.style.background = 'var(--mk-border-strong)';
         thumb.style.transform = '';
       }
     });

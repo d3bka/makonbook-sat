@@ -32,8 +32,11 @@
       text-align: center;
     }
   </style>
+    <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
+    <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
+<body class="mk-test-window">
   <div class="page-wrap">
     <div class="attempt-card">
       <h1>{{ event.title }}</h1>

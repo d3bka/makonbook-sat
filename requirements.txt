@@ -40,3 +40,4 @@ tzdata==2025.3
 urllib3==2.3.0
 yarl==1.23.0
 whitenoise==6.4.0
+django-allauth[socialaccount]==65.16.1

@@ -914,3 +914,37 @@ class GlobalEventAnswerAdmin(admin.ModelAdmin):
         "attempt__event__title",
         "selected_answer",
     )
+
+class SupportTeacherAvailabilityInline(admin.TabularInline):
+    model = SupportTeacherAvailability
+    extra = 1
+    fields = ('day_of_week', 'start_time', 'end_time', 'note', 'is_active')
+
+
+@admin.register(SupportTeacherProfile)
+class SupportTeacherProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'telegram_username', 'subjects', 'average_rating_display', 'reviews_count', 'is_active', 'sort_order')
+    list_filter = ('is_active',)
+    search_fields = ('display_name', 'user__username', 'user__first_name', 'user__last_name', 'telegram_username', 'subjects')
+    list_editable = ('is_active', 'sort_order')
+    inlines = [SupportTeacherAvailabilityInline]
+
+    def average_rating_display(self, obj):
+        return obj.average_rating or '—'
+    average_rating_display.short_description = 'Avg rating'
+
+
+@admin.register(SupportLessonBooking)
+class SupportLessonBookingAdmin(admin.ModelAdmin):
+    list_display = ('student', 'teacher', 'start_at', 'end_at', 'status', 'created_at')
+    list_filter = ('status', 'teacher', 'start_at')
+    search_fields = ('student__username', 'student__first_name', 'student__last_name', 'teacher__display_name', 'teacher__user__username')
+    autocomplete_fields = ('student', 'teacher')
+
+
+@admin.register(SupportTeacherReview)
+class SupportTeacherReviewAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'student', 'rating', 'created_at')
+    list_filter = ('rating', 'teacher', 'created_at')
+    search_fields = ('teacher__display_name', 'teacher__user__username', 'student__username', 'feedback')
+    readonly_fields = ('booking', 'teacher', 'student')

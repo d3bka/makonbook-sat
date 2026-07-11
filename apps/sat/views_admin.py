@@ -9,8 +9,8 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q, Count
 from django.core.paginator import Paginator
-from .models import Test, TestReview, Mock, SecretCode
-from .forms_admin import UserFilterForm, UserGroupEditForm, GroupCreateForm, MockCreateForm, GroupAssignedTestsForm
+from .models import Test, TestReview, Mock, SecretCode, SupportTeacherProfile, SupportTeacherAvailability, SupportLessonBooking
+from .forms_admin import UserFilterForm, UserGroupEditForm, GroupCreateForm, MockCreateForm, GroupAssignedTestsForm, SupportTeacherProfileForm, SupportTeacherAvailabilityForm
 
 
 def generate_password(length=12):
@@ -44,6 +44,9 @@ def admin_dashboard(request):
         'group_count': Group.objects.count(),
         'test_count': Test.objects.count(),
         'mock_count': Mock.objects.count(),
+        'support_teacher_count': SupportTeacherProfile.objects.count(),
+        'active_support_teacher_count': SupportTeacherProfile.objects.filter(is_active=True).count(),
+        'support_booking_count': SupportLessonBooking.objects.count(),
         'page_title': 'Admin Dashboard',
         'active_page': 'dashboard',
     }
@@ -493,3 +496,146 @@ def admin_mock_delete(request, mock_id):
         'mock': mock,
         'group': group,
     })
+
+
+# --- Support Teachers ---
+@login_required
+@admin_panel_required
+def admin_support_teachers(request):
+    teachers = SupportTeacherProfile.objects.select_related('user').prefetch_related('availabilities').order_by('sort_order', 'display_name', 'user__username')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    if query:
+        teachers = teachers.filter(
+            Q(display_name__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(telegram_username__icontains=query)
+            | Q(subjects__icontains=query)
+        )
+
+    if status == 'active':
+        teachers = teachers.filter(is_active=True)
+    elif status == 'inactive':
+        teachers = teachers.filter(is_active=False)
+
+    paginator = Paginator(teachers, 30)
+    teachers_page = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'sat/admin/support_teachers.html', {
+        'teachers': teachers_page,
+        'query': query,
+        'status': status,
+        'page_title': 'Support Teachers',
+        'active_page': 'support_teachers',
+    })
+
+
+@login_required
+@admin_panel_required
+def admin_support_teacher_create(request):
+    if request.method == 'POST':
+        form = SupportTeacherProfileForm(request.POST)
+        if form.is_valid():
+            teacher = form.save(commit=False)
+            teacher.created_by = request.user
+            teacher.save()
+            support_group, _ = Group.objects.get_or_create(name='Support Teacher')
+            teacher.user.groups.add(support_group)
+            messages.success(request, f"Support teacher '{teacher.name}' created.")
+            return redirect('admin_support_teacher_edit', teacher_id=teacher.id)
+    else:
+        form = SupportTeacherProfileForm()
+
+    return render(request, 'sat/admin/support_teacher_form.html', {
+        'form': form,
+        'teacher': None,
+        'availability_form': None,
+        'availabilities': [],
+        'recent_bookings': [],
+        'page_title': 'Create Support Teacher',
+        'active_page': 'support_teachers',
+    })
+
+
+@login_required
+@admin_panel_required
+def admin_support_teacher_edit(request, teacher_id):
+    teacher = get_object_or_404(SupportTeacherProfile.objects.select_related('user'), id=teacher_id)
+
+    if request.method == 'POST':
+        form = SupportTeacherProfileForm(request.POST, instance=teacher)
+        if form.is_valid():
+            teacher = form.save()
+            support_group, _ = Group.objects.get_or_create(name='Support Teacher')
+            teacher.user.groups.add(support_group)
+            messages.success(request, f"Support teacher '{teacher.name}' updated.")
+            return redirect('admin_support_teacher_edit', teacher_id=teacher.id)
+    else:
+        form = SupportTeacherProfileForm(instance=teacher)
+
+    availability_form = SupportTeacherAvailabilityForm(initial={'is_active': True})
+    availabilities = teacher.availabilities.all().order_by('day_of_week', 'start_time')
+    recent_bookings = SupportLessonBooking.objects.filter(teacher=teacher).select_related('student').order_by('-start_at')[:20]
+
+    return render(request, 'sat/admin/support_teacher_form.html', {
+        'form': form,
+        'teacher': teacher,
+        'availability_form': availability_form,
+        'availabilities': availabilities,
+        'recent_bookings': recent_bookings,
+        'page_title': f'Edit Support Teacher: {teacher.name}',
+        'active_page': 'support_teachers',
+    })
+
+
+@login_required
+@admin_panel_required
+@transaction.atomic
+def admin_support_teacher_toggle(request, teacher_id):
+    if request.method != 'POST':
+        return redirect('admin_support_teachers')
+
+    teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id)
+    teacher.is_active = not teacher.is_active
+    teacher.save(update_fields=['is_active', 'updated_at'])
+    messages.success(request, f"Support teacher '{teacher.name}' is now {'active' if teacher.is_active else 'inactive'}.")
+    return redirect('admin_support_teachers')
+
+
+@login_required
+@admin_panel_required
+def admin_support_teacher_availability_add(request, teacher_id):
+    teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id)
+    if request.method != 'POST':
+        return redirect('admin_support_teacher_edit', teacher_id=teacher.id)
+
+    form = SupportTeacherAvailabilityForm(request.POST)
+    if form.is_valid():
+        availability = form.save(commit=False)
+        availability.teacher = teacher
+        try:
+            availability.full_clean()
+            availability.save()
+            messages.success(request, "Availability slot added.")
+        except Exception as exc:
+            messages.error(request, f"Could not save availability: {exc}")
+    else:
+        messages.error(request, "Availability form has invalid values.")
+
+    return redirect('admin_support_teacher_edit', teacher_id=teacher.id)
+
+
+@login_required
+@admin_panel_required
+def admin_support_teacher_availability_delete(request, teacher_id, availability_id):
+    teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id)
+    if request.method != 'POST':
+        return redirect('admin_support_teacher_edit', teacher_id=teacher.id)
+
+    availability = get_object_or_404(SupportTeacherAvailability, id=availability_id, teacher=teacher)
+    availability.delete()
+    messages.success(request, "Availability slot deleted.")
+    return redirect('admin_support_teacher_edit', teacher_id=teacher.id)

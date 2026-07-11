@@ -1,130 +1,153 @@
+{% load static %}
+{% load socialaccount %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Makon Book - Login</title>
-  {% load static %}
-  <!-- Link your custom CSS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% include 'base/theme_init.html' %}
+  <title>SAT Makon - Login</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-	.icon {
-    margin-right: 5px;
-		width:40px;
-		height: 42px;
-	}
-	.title-field {
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    flex-wrap: nowrap;
-	}
-	.app-title{ 
-		font-size: 40px; 
-	}
-
-  .guest-info-box {
-    padding: 10px;
-    border-radius: 12px;
-    text-align: center;
-  }
-
-  .secondary-btn {
-    padding: 10px 10px;
-    font-size: 0.9rem;
-    text-decoration: none;
-    color: #1a73e8;
-  }
-
-  .secondary-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    text-decoration: underline;
-  }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-nav-password-final.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-final-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-clean-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-raise-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-show-light-fix.css' %}">
 </head>
-<body>
-
-  <!-- Top banner area -->
-  <div class="top-banner">
-    <!-- Replace with your own logo or brand title -->
-	 <div class="title-field">
-		<img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class='icon' alt="Makon Book Logo" /><h1 class="app-title">MakonBook</h1>
-	 </div>
-
-    <!-- Example announcement/alert box -->
-      {% if messages %}
-	  <div class="alert-box">
-        <ul class="messages">
-          {% for message in messages %}
-            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
-              {{ message }}
-            </li>
-          {% endfor %}
-        </ul>
-    </div>
-
-      {% endif %}
-  </div>
-
-  <!-- Main container for form box -->
-  <div class="signin-container">
-    <div class="signin-box">
-      <h2>Please sign in</h2>
-      
-      <!-- Django messages -->
-
-
-      <!-- Login form -->
-      <form action="" method="POST" class="signin-form">
-        {% csrf_token %}
-        
-        <!-- Username -->
-        <div class="form-group">
-          <input 
-            type="text" 
-            name="username" 
-            placeholder="Username" 
-            required
-          >
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-          <input 
-            id="password-field" 
-            type="password" 
-            name="password" 
-            placeholder="Password" 
-            required
-          >
-          <!-- Optional eye icon if you have JS to toggle password -->
-          <span toggle="#password-field" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-        </div>
-
-        <!-- Submit button -->
-        <div class="form-group">
-          <button type="submit" class="primary-btn">
-            Sign In
-          </button>
-        </div>
-      </form>
-
-      <!-- Footer links at the bottom of the sign-in box (optional) -->
-      <div class="footer-links">
-        <a href="/software/">Check out Software</a>
-        <a href="/register">Create an Account</a>
+<body class="auth-page auth-login">
+  <div class="auth-shell">
+    <nav class="auth-nav" data-auth-reveal>
+      <a href="/" class="auth-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="auth-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'register' %}" class="auth-link-pill">Create account</a>
       </div>
-      <div class="guest-info-box">
-        <a href="{% url 'guest_entry' %}" class="secondary-btn">
-          Continue as Guest
+    </nav>
+
+    <div class="auth-grid">
+      <section class="auth-visual" data-auth-reveal>
+        <span class="eyebrow">Student dashboard</span>
+        <h1>Get back to your SAT prep flow.</h1>
+        <p>Continue practice tests, review weak areas, track classroom work, and keep your score growth visible in one focused workspace.</p>
+
+        <div class="auth-metrics">
+          <div class="auth-metric">
+            <strong>1490</strong>
+            <span>target score view</span>
+          </div>
+          <div class="auth-metric">
+            <strong>92%</strong>
+            <span>completion tracking</span>
+          </div>
+          <div class="auth-metric">
+            <strong>11/14</strong>
+            <span>review fixes</span>
+          </div>
+        </div>
+
+        <div class="auth-note-list">
+          <div class="auth-note-item">
+            <i>1</i>
+            <div><strong>Practice</strong><span>Timed English and Math sections.</span></div>
+          </div>
+          <div class="auth-note-item">
+            <i>2</i>
+            <div><strong>Review</strong><span>Clear feedback after each attempt.</span></div>
+          </div>
+          <div class="auth-note-item">
+            <i>3</i>
+            <div><strong>Classrooms</strong><span>Teacher assignments and progress.</span></div>
+          </div>
+        </div>
+
+        <div class="auth-dashboard-card" data-tilt>
+          <div class="mini-row"><span>Predicted score</span><span>Active</span></div>
+          <div class="score-big">1490</div>
+          <div class="progress-line"><span></span></div>
+          <div class="mini-row"><span>Reading & Writing</span><strong>710</strong></div>
+          <div class="mini-row"><span>Math</span><strong>780</strong></div>
+        </div>
+      </section>
+
+      <section class="auth-card auth-login-card" data-auth-reveal>
+        <div class="auth-card-header">
+          <span class="eyebrow">Secure login</span>
+          <h2>Sign in</h2>
+          <p>Use your MakonBook credentials to continue your tests and classroom work.</p>
+        </div>
+
+        {% if messages %}
+          <div class="alert-box">
+            <ul class="messages">
+              {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <form action="" method="POST" class="signin-form auth-form">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="username-field">Username or email</label>
+            <input id="username-field" type="text" name="username" placeholder="Enter username or email" autocomplete="username" required>
+          </div>
+
+          <div class="form-group password-wrap">
+            <label class="form-label" for="password-field">Password</label>
+            <input id="password-field" type="password" name="password" placeholder="Enter password" autocomplete="current-password" required>
+            <button type="button" class="password-toggle" data-target="#password-field" aria-label="Show password">Show</button>
+          </div>
+
+
+          <div class="auth-card-footer compact-footer" style="justify-content: flex-end; margin-top: -6px; margin-bottom: 12px;">
+            <a href="{% url 'forgot_password' %}">Forgot password?</a>
+          </div>
+
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Sign in</button>
+          </div>
+        </form>
+
+        <div class="auth-divider"><span>or continue with Google</span></div>
+
+        <form method="post" action="{% provider_login_url 'google' %}" class="signin-form auth-form">
+          {% csrf_token %}
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Continue with Google</button>
+          </div>
+        </form>
+
+        <div class="auth-divider"><span>or continue without an account</span></div>
+
+        <a href="{% url 'guest_entry' %}" class="guest-cta-card" aria-label="Continue as guest">
+          <span class="guest-cta-icon">↗</span>
+          <span>
+            <strong>Continue as guest</strong>
+            <small>Join public events without creating an account.</small>
+          </span>
         </a>
-      </div>
+
+        <div class="auth-card-footer compact-footer">
+          <a href="/software/">Download app</a>
+          <a href="{% url 'register' %}">Create account</a>
+        </div>
+      </section>
     </div>
   </div>
 
-  <!-- Include your script for toggling password visibility, etc. -->
   <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

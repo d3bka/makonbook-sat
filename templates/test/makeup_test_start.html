@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+    {% include 'base/theme_init.html' %}
     {% load static %}
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -162,9 +163,13 @@
             text-decoration: underline
         }
     </style>
+    <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
+    <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
 
-<body>
+<body class="mk-test-window">
     <div class="ready-test">
         <span class="title">Digital SAT® Practice {{test}}</span>
         <div class="description">

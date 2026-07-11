@@ -1,0 +1,43 @@
+
+/*
+  MakonBook Auth Show Button Desktop Fix
+  Only affects tablet/desktop widths.
+  Keeps mobile layout unchanged.
+  Load as the last auth CSS file.
+*/
+
+@media (min-width: 769px) {
+  body.auth-page .password-wrap {
+    position: relative !important;
+  }
+
+  body.auth-page .password-wrap input[type="password"],
+  body.auth-page .password-wrap input[type="text"] {
+    padding-right: 96px !important;
+  }
+
+  body.auth-page .password-wrap .password-toggle,
+  body.auth-page .password-wrap .field-icon {
+    right: 22px !important;
+    bottom: 13px !important;
+    top: auto !important;
+    transform: none !important;
+
+    min-width: 50px !important;
+    width: auto !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+
+    padding: 0 11px !important;
+    border-radius: 11px !important;
+    box-sizing: border-box !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    line-height: 1 !important;
+    font-size: 0.72rem !important;
+  }
+}

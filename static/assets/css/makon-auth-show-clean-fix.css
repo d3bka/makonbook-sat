@@ -1,0 +1,79 @@
+
+/*
+  MakonBook Auth Show Clean Fix
+  Purpose:
+  - Replace previous messy Show-button patches with one clean desktop/tablet rule.
+  - Keep mobile unchanged.
+  - Must be loaded last on auth pages.
+*/
+
+@media (min-width: 769px) {
+  body.auth-page .auth-card .form-group.password-wrap {
+    position: relative !important;
+  }
+
+  body.auth-page .auth-card .form-group.password-wrap > input[type="password"],
+  body.auth-page .auth-card .form-group.password-wrap > input[type="text"] {
+    padding-right: 102px !important;
+  }
+
+  body.auth-page .auth-card .form-group.password-wrap > button.password-toggle,
+  body.auth-page .auth-card .form-group.password-wrap > .field-icon {
+    position: absolute !important;
+
+    /* Label + margin + half of 56px input */
+    top: 53px !important;
+    right: 18px !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: translateY(-50%) !important;
+
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.78) !important;
+
+    font-size: 0.74rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+
+    box-shadow: none !important;
+    float: none !important;
+    z-index: 20 !important;
+    cursor: pointer !important;
+  }
+
+  body.auth-page .auth-card .form-group.password-wrap > button.password-toggle:hover,
+  body.auth-page .auth-card .form-group.password-wrap > .field-icon:hover,
+  body.auth-page .auth-card .form-group.password-wrap > button.password-toggle.is-visible,
+  body.auth-page .auth-card .form-group.password-wrap > .field-icon.is-visible {
+    color: #fff !important;
+    border-color: rgba(53, 214, 255, 0.42) !important;
+    background: rgba(53, 214, 255, 0.12) !important;
+  }
+}
+
+/* Do not touch mobile; keep the version that already looks good. */

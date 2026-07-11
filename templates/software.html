@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -86,6 +87,8 @@
       margin-top: 40px;
     }
   </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
 <body>
   <header>
@@ -98,7 +101,7 @@
       <div class="card">
         <h2>MakonBook for Windows</h2>
         <p>Compatible with Windows 10 and 11. Secure, fully featured and ready to use.</p>
-        <a class="download-button" href="/static/app/windows/MakonBook.zip" download>Download for Windows</a>
+        <a class="download-button" href="{% static 'app/windows/MakonBook.zip' %}" download>Download for Windows</a>
       </div>
       <!-- macOS Software Card (disabled) -->
       <div class="card">

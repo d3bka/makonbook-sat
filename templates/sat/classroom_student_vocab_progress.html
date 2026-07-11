@@ -7,26 +7,27 @@
 {% block style %}
 <style>
   .detail-shell { max-width: 1180px; margin: 0 auto; }
-  .detail-card { background:#fff; border:1px solid #e5e7eb; border-radius:24px; padding:28px; box-shadow:0 16px 36px rgba(15,23,42,.08); }
+  .detail-card { background: linear-gradient(135deg, var(--mk-surface) 0%, var(--mk-surface-subtle) 100%); border:1px solid var(--mk-card-border); border-radius:24px; padding:28px; box-shadow:var(--mk-shadow-soft); color: var(--mk-text); }
   .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
-  .eyebrow { color:#0f766e; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
-  .title { margin:0; font-size:34px; font-weight:800; color:#111827; }
-  .subtitle { margin:8px 0 0; color:#64748b; }
-  .back-btn { text-decoration:none; padding:11px 16px; border-radius:12px; background:#f8fafc; border:1px solid #dbe2ea; color:#0f172a; font-weight:700; }
+  .eyebrow { color: var(--mk-primary-soft); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  .title { margin:0; font-size:34px; font-weight:800; color: var(--mk-primary-strong); }
+  .subtitle { margin:8px 0 0; color: var(--mk-text-muted); }
+  .back-btn { text-decoration:none; padding:11px 16px; border-radius:12px; background:var(--mk-surface-soft); border:1px solid var(--mk-border); color:var(--mk-primary-strong); font-weight:700; }
   .summary-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:24px; }
-  .summary-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:18px; padding:18px; }
-  .summary-label { color:#64748b; font-size:13px; font-weight:700; text-transform:uppercase; }
-  .summary-value { margin-top:10px; font-size:28px; font-weight:800; color:#111827; }
-  .summary-small { margin-top:8px; color:#64748b; font-size:14px; }
-  .note { margin-bottom:20px; padding:14px 16px; border-radius:14px; background:#ecfeff; color:#155e75; border:1px solid #a5f3fc; font-weight:600; }
-  .note.warning { background:#fff7ed; color:#9a3412; border-color:#fdba74; }
+  .summary-item { background:linear-gradient(135deg, var(--mk-surface-soft) 0%, var(--mk-surface-subtle) 100%); border:1px solid var(--mk-card-border); border-radius:18px; padding:18px; }
+  .summary-label { color:var(--mk-primary-soft); font-size:13px; font-weight:700; text-transform:uppercase; }
+  .summary-value { margin-top:10px; font-size:28px; font-weight:800; color:var(--mk-primary); }
+  .summary-small { margin-top:8px; color:var(--mk-text-muted); font-size:14px; }
+  .note { margin-bottom:20px; padding:14px 16px; border-radius:14px; background:var(--mk-primary-tint); color:var(--mk-primary-strong); border:1px solid var(--mk-border); font-weight:600; }
+  .note.warning { background:var(--mk-danger-soft); color:var(--mk-danger); border-color: color-mix(in srgb, var(--mk-danger) 40%, transparent); }
   .units-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
-  .unit-card { border:1px solid #e5e7eb; border-radius:18px; padding:18px; background:#fff; }
-  .unit-title { margin:0; font-size:20px; font-weight:800; color:#111827; }
-  .unit-meta { margin-top:8px; color:#64748b; }
+  .unit-card { border:1px solid var(--mk-card-border); border-radius:18px; padding:18px; background:linear-gradient(135deg, var(--mk-surface-soft) 0%, var(--mk-surface-subtle) 100%); }
+  .unit-title { margin:0; font-size:20px; font-weight:800; color:var(--mk-primary-strong); }
+  .unit-meta { margin-top:8px; color:var(--mk-text-muted); }
+  .detail-card, .summary-item, .unit-card { backdrop-filter: blur(4px); }
+  @supports not (background: color-mix(in srgb, red 50%, transparent)) { .note.warning { border-color: var(--mk-danger); } }
   @media (max-width: 900px) { .summary-grid, .units-grid { grid-template-columns:1fr; } }
 </style>
-<link rel="stylesheet" href="{% static 'assets/css/makon-vocab-admissions.css' %}">
 {% endblock style %}
 
 {% block content %}

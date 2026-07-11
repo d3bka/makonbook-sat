@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>SAT Makon - Global Events</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+</head>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        <a href="{% url 'guest_logout' %}" class="public-link-pill">Logout guest</a>
+      </div>
+    </nav>
+
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Global events</span>
+      <h1>Choose your live SAT event.</h1>
+      <p>Welcome, {{ request.session.guest_name }}. Open an available event, enter the access code if required, and start when ready.</p>
+    </section>
+
+    {% if messages %}
+      <div class="alert-box" data-page-reveal>
+        <ul class="messages">
+          {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if events %}
+      <div class="event-grid">
+        {% for event in events %}
+          <article class="event-card" data-page-reveal>
+            <div>
+              <span class="status-badge">{{ event.status|title }}</span>
+              <h3>{{ event.title }}</h3>
+
+              {% if event.description %}
+                <p>{{ event.description|truncatewords:22 }}</p>
+              {% endif %}
+
+              {% if event.always_live %}
+                <div class="event-meta"><strong>Availability:</strong> Always live, 24/7</div>
+              {% else %}
+                <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
+                <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
+              {% endif %}
+              <div class="event-meta"><strong>English:</strong> {{ event.english_duration_minutes }} min</div>
+              <div class="event-meta"><strong>Math:</strong> {{ event.math_duration_minutes }} min</div>
+            </div>
+
+            <div class="event-actions">
+              <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open event</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-box" data-page-reveal>
+        <span class="eyebrow">No events</span>
+        <h3>No public events available</h3>
+        <p>There are no live or scheduled global events right now.</p>
+      </div>
+    {% endif %}
+
+    <div class="public-footer">&copy; {% now "Y" %} SAT Makon. Guest event mode.</div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

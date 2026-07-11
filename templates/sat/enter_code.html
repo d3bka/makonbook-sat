@@ -179,14 +179,14 @@
 
     <h1>Start Code</h1>
     <p>Once the proctor shares the start code, enter it here to begin testing.</p>
-    <p>The start code can contain numbers or letters.</p>
+    <p>The start code contains numbers only.</p>
 
     <form method="post" action="{% url 'enter_secret_code' %}">
       {% csrf_token %}
 
       <div class="code-inputs">
         {% for i in "123456" %}
-          <input type="text" class="code-input" maxlength="1" pattern="[A-Za-z0-9]" name="code_{{ i }}" required>
+          <input type="text" class="code-input" maxlength="1" pattern="[0-9]" name="code_{{ i }}" required>
         {% endfor %}
       </div>
 
@@ -207,7 +207,7 @@
   inputs.forEach((input, index) => {
     input.addEventListener('input', (e) => {
       const value = e.target.value;
-      if (value.length === 1 && /[A-Za-z0-9]/.test(value)) {
+      if (value.length === 1 && /[0-9]/.test(value)) {
         if (index < inputs.length - 1) {
           inputs[index + 1].focus();
         }
@@ -231,14 +231,14 @@
   });
 
   document.querySelector('form').addEventListener('submit', (e) => {
-    const allFilled = Array.from(inputs).every(input => input.value.length === 1 && /[A-Za-z0-9]/.test(input.value));
+    const allFilled = Array.from(inputs).every(input => input.value.length === 1 && /[0-9]/.test(input.value));
     if (!allFilled) {
       e.preventDefault();
-      alert('Please fill all fields with letters or numbers only.');
+      alert('Please fill all fields with numbers only.');
       return;
     }
 
-    const secretCode = Array.from(inputs).map(input => input.value.toUpperCase()).join('');
+    const secretCode = Array.from(inputs).map(input => input.value).join('');
     const hiddenInput = document.createElement('input');
     hiddenInput.type = 'hidden';
     hiddenInput.name = 'secret_code';

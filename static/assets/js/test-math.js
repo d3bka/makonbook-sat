@@ -6,12 +6,19 @@
         const submitUrl = pageConfig.submitUrl || '';
         const nextUrl = pageConfig.nextUrl || '';
         const isGuestMode = pageConfig.mode === 'guest';
+        const classroomId = pageConfig.classroomId || null;
+        const testType = pageConfig.testType || 'regular';
         const submitTimeoutMs = Number(pageConfig.submitTimeoutMs || 30000);
 
         const questions = JSON.parse(document.getElementById('sat-test-questions').textContent);
 
         let currentQuestionIndex = 0;
-        let timeRemaining = Number(pageConfig.timeRemaining || 0);
+        const DEFAULT_TIME_REMAINING = 35 * 60;
+        const configuredTimeRemaining = Number(pageConfig.timeRemaining);
+        const initialTimeRemaining = Number.isFinite(configuredTimeRemaining) && configuredTimeRemaining > 0
+            ? configuredTimeRemaining
+            : DEFAULT_TIME_REMAINING;
+        let timeRemaining = initialTimeRemaining;
 
         let eliminateOptions = false;
         let answers = Array(questions.length).fill(null);
@@ -97,18 +104,156 @@
         }
 
         function renderMath(root = document.body) {
+            // KaTeX is optional. Blocked external scripts must not block the test.
+            if (typeof window.renderMathInElement !== 'function') return;
             try {
-                renderMathInElement(root, {
+                window.renderMathInElement(root, {
                     delimiters: [
                         { left: "\\(", right: "\\)", display: false },
                         { left: "\\[", right: "\\]", display: true }
-                    ]
+                    ],
+                    throwOnError: false
                 });
             } catch (error) {
                 console.error('KaTeX render failed:', error);
             }
         }
 
+
+
+
+
+        function normalizeChoice(value) {
+            const choice = String(value || '').trim().toUpperCase();
+            return ['A', 'B', 'C', 'D'].includes(choice) ? choice : null;
+        }
+
+        function refreshEliminationState(index = currentQuestionIndex) {
+            const activeChoices = new Set((eliminatedChoices[index] || []).map(normalizeChoice).filter(Boolean));
+            document.querySelectorAll('#answers .big-container').forEach((box) => {
+                const input = box.querySelector('input[name="answer"]');
+                const letter = normalizeChoice(box.dataset.choiceLetter || (input && input.value));
+                const isEliminated = Boolean(letter && activeChoices.has(letter));
+                box.classList.toggle('is-eliminated', isEliminated);
+                const line = box.querySelector('.cross-line');
+                if (line) line.classList.toggle('active', isEliminated);
+                if (input) input.disabled = false;
+            });
+        }
+
+        function paintCurrentAnswer() {
+            const selected = normalizeChoice(answers[currentQuestionIndex]);
+            document.querySelectorAll('#answers .big-container').forEach((box) => {
+                const input = box.querySelector('input[name="answer"]');
+                const letter = normalizeChoice(box.dataset.choiceLetter || (input && input.value));
+                const isSelected = Boolean(selected && letter === selected);
+                box.classList.toggle('selected', isSelected);
+                const label = box.querySelector('.choice-container');
+                if (label) label.classList.toggle('selected', isSelected);
+                if (input) input.checked = isSelected;
+            });
+            refreshEliminationState();
+        }
+
+        function setCurrentAnswer(value) {
+            const choice = normalizeChoice(value);
+            if (!choice) return false;
+
+            const eliminated = eliminatedChoices[currentQuestionIndex] || [];
+            if (eliminated.includes(choice)) {
+                eliminatedChoices[currentQuestionIndex] = eliminated.filter((item) => item !== choice);
+            }
+
+            answers[currentQuestionIndex] = choice;
+            paintCurrentAnswer();
+            animateChoiceSelection(choice);
+            updateAnsweredStatus();
+            saveProgress();
+            return true;
+        }
+
+        function choiceFromEvent(event) {
+            if (!event || !event.target || !document.getElementById('answers')) return null;
+            const target = event.target;
+            if (!target.closest || !target.closest('#answers')) return null;
+            if (target.closest('.crossing-zone')) return null;
+
+            const input = target.closest('input[name="answer"]');
+            if (input) return normalizeChoice(input.value);
+
+            const box = target.closest('.big-container');
+            if (box) return normalizeChoice(box.dataset.choiceLetter || box.querySelector('input[name="answer"]')?.value);
+
+            const label = target.closest('.choice-container');
+            if (label) return normalizeChoice(label.dataset.choiceLetter || label.closest('.big-container')?.dataset.choiceLetter);
+
+            return null;
+        }
+
+        function captureChoiceEvent(event) {
+            const choice = choiceFromEvent(event);
+            if (!choice) return;
+            setCurrentAnswer(choice);
+        }
+
+        function bindAnswerChoiceEvents(container) {
+            if (!container) return;
+
+            container.onchange = captureChoiceEvent;
+            container.onclick = (event) => {
+                const eliminateButton = event.target.closest('.crossing-zone');
+                if (eliminateButton) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!eliminateOptions) return;
+                    const letter = normalizeChoice(eliminateButton.dataset.letter);
+                    const index = Number(eliminateButton.dataset.index);
+                    if (letter && Number.isInteger(index)) {
+                        eliminate(letter, index);
+                    }
+                    return;
+                }
+                captureChoiceEvent(event);
+            };
+        }
+
+        function restartMotion(element, className, timeout = 520) {
+            if (!element || !className) return;
+            element.classList.remove(className);
+            void element.offsetWidth;
+            element.classList.add(className);
+            window.setTimeout(() => element.classList.remove(className), timeout);
+        }
+
+        function pulseElement(element) {
+            restartMotion(element, 'is-pulsing', 360);
+        }
+
+        function triggerQuestionMotion(direction = 'next') {
+            const body = document.body;
+            if (!body) return;
+            body.classList.remove('question-enter-next', 'question-enter-prev');
+            void body.offsetWidth;
+            body.classList.add(direction === 'prev' ? 'question-enter-prev' : 'question-enter-next');
+            document.querySelectorAll('#answers .big-container').forEach((box, index) => {
+                box.style.setProperty('--choice-index', index);
+            });
+            window.setTimeout(() => body.classList.remove('question-enter-next', 'question-enter-prev'), 620);
+        }
+
+        function animateChoiceSelection(choice) {
+            const normalized = String(choice || '').trim().toUpperCase();
+            if (!['A','B','C','D'].includes(normalized)) return;
+            const box = document.querySelector(`#answers .big-container[data-choice-letter="${normalized}"]`);
+            restartMotion(box, 'choice-picked', 430);
+        }
+
+        function animateElimination(choice, removed = false) {
+            const normalized = String(choice || '').trim().toUpperCase();
+            if (!['A','B','C','D'].includes(normalized)) return;
+            const box = document.querySelector(`#answers .big-container[data-choice-letter="${normalized}"]`);
+            restartMotion(box, removed ? 'choice-uneliminated' : 'choice-eliminated', 430);
+        }
 
         function renderQuestionMath() {
             ['passage', 'question-text', 'answers', 'graph-container'].forEach((id) => {
@@ -166,6 +311,33 @@
         function hideCalculatorFallback() {
             const fallback = document.getElementById('calculator-fallback');
             if (fallback) fallback.style.display = 'none';
+        }
+
+        let desmosScriptPromise = null;
+        function loadDesmosScript() {
+            if (typeof window.Desmos !== 'undefined' && typeof window.Desmos.GraphingCalculator === 'function') {
+                return Promise.resolve(true);
+            }
+            if (desmosScriptPromise) return desmosScriptPromise;
+
+            desmosScriptPromise = new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://www.desmos.com/api/v1.10/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6';
+                script.async = true;
+                script.onload = () => resolve(true);
+                script.onerror = () => {
+                    window.desmosLoadError = true;
+                    resolve(false);
+                };
+                window.setTimeout(() => {
+                    if (typeof window.Desmos === 'undefined') {
+                        window.desmosLoadError = true;
+                        resolve(false);
+                    }
+                }, 7000);
+                document.head.appendChild(script);
+            });
+            return desmosScriptPromise;
         }
 
         function initDesmos() {
@@ -252,6 +424,24 @@
             localStorage.setItem(`${key}_markedForReview`, JSON.stringify(markedForReview));
         }
 
+        function parseSavedArray(raw, fallback) {
+            if (!raw) return fallback;
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) && parsed.length === questions.length ? parsed : fallback;
+            } catch (error) {
+                console.warn('Ignoring broken saved math state:', error);
+                return fallback;
+            }
+        }
+
+        function clampQuestionIndex(value) {
+            const parsed = parseInt(value, 10);
+            const maxIndex = Math.max(questions.length - 1, 0);
+            if (!Number.isFinite(parsed)) return 0;
+            return Math.min(Math.max(parsed, 0), maxIndex);
+        }
+
         function loadProgress() {
             const key = storageKey();
 
@@ -263,12 +453,20 @@
             const savedTimeSpent = localStorage.getItem(`${key}_timeSpent`);
             const savedDesmosStates = localStorage.getItem(`${key}_desmosStates_v2`);
 
-            if (savedAnswers) answers = JSON.parse(savedAnswers);
-            if (savedEliminatedChoices) eliminatedChoices = JSON.parse(savedEliminatedChoices);
-            if (savedReview) markedForReview = JSON.parse(savedReview);
-            if (savedTimeSpent) timeSpent = JSON.parse(savedTimeSpent);
-            if (savedIndex) currentQuestionIndex = parseInt(savedIndex, 10);
-            if (savedTime) timeRemaining = parseInt(savedTime, 10);
+            answers = parseSavedArray(savedAnswers, Array(questions.length).fill(null));
+            eliminatedChoices = parseSavedArray(savedEliminatedChoices, Array.from({ length: questions.length }, () => []));
+            markedForReview = parseSavedArray(savedReview, Array(questions.length).fill(false));
+            timeSpent = parseSavedArray(savedTimeSpent, Array(questions.length).fill(0));
+            currentQuestionIndex = clampQuestionIndex(savedIndex);
+
+            const parsedTime = parseInt(savedTime, 10);
+            if (Number.isFinite(parsedTime) && parsedTime > 0) {
+                timeRemaining = parsedTime;
+            } else {
+                timeRemaining = initialTimeRemaining;
+                localStorage.removeItem(`${key}_timeRemaining`);
+            }
+
             if (savedDesmosStates) {
                 try {
                     const parsedStates = JSON.parse(savedDesmosStates);
@@ -319,7 +517,7 @@
             }
 
             return `
-                <div class="big-container">
+                <div class="big-container ${isEliminated ? 'is-eliminated' : ''}" data-choice-letter="${letter}">
                     <input
                         class="choice-input"
                         type="radio"
@@ -351,11 +549,19 @@
         }
 
         function loadQuestion(index) {
-            switchDesmosQuestionState(index);
-            currentQuestionIndex = index;
-            const question = questions[index];
+            if (!questions.length) {
+                const questionText = document.getElementById('question-text');
+                if (questionText) questionText.textContent = 'Questions did not load. Reload this module or check the test data.';
+                return;
+            }
+            const safeIndex = clampQuestionIndex(index);
+            const previousQuestionIndex = currentQuestionIndex;
+            const motionDirection = safeIndex < previousQuestionIndex ? 'prev' : 'next';
+            switchDesmosQuestionState(safeIndex);
+            currentQuestionIndex = safeIndex;
+            const question = questions[safeIndex];
 
-            document.getElementById('currentQuestionIndex').textContent = index + 1;
+            document.getElementById('currentQuestionIndex').textContent = safeIndex + 1;
             document.getElementById('totalQuestions').textContent = questions.length;
             document.querySelector('.question-number').innerText = question.number;
 
@@ -375,7 +581,7 @@
                         type="text"
                         id="written-answer"
                         class="written-answer-input"
-                        value="${answers[index] || ''}"
+                        value="${answers[safeIndex] || ''}"
                         maxlength="6"
                         inputmode="text"
                         autocomplete="off"
@@ -403,33 +609,16 @@
                     });
                 }
             } else {
-                answersContainer.innerHTML = buildMultipleChoice(question, index);
-
-                answersContainer.querySelectorAll('.choice-input').forEach((input) => {
-                    input.addEventListener('change', (event) => {
-                        answers[currentQuestionIndex] = event.target.value;
-                        saveProgress();
-                        updateAnsweredStatus();
-                    });
-                });
-
-                answersContainer.querySelectorAll('.crossing-zone').forEach((button) => {
-                    button.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        if (!eliminateOptions) return;
-
-                        const letter = button.dataset.letter;
-                        eliminate(letter, currentQuestionIndex);
-                    });
-                });
+                answersContainer.innerHTML = buildMultipleChoice(question, safeIndex);
+                bindAnswerChoiceEvents(answersContainer);
+                paintCurrentAnswer();
             }
 
             renderQuestionMath();
             updateNavigationButtons();
             updateAnsweredStatus();
             saveProgress();
+            triggerQuestionMotion(motionDirection);
         }
 
         function updateNavigationButtons() {
@@ -468,33 +657,49 @@
         function toggleEliminateMode() {
             eliminateOptions = !eliminateOptions;
             const button = document.querySelector('.crossing-options');
-            button.classList.toggle('active-options');
+            if (button) {
+                button.classList.toggle('active-options', eliminateOptions);
+                pulseElement(button);
+            }
 
+            document.body.classList.toggle('is-eliminate-mode', eliminateOptions);
             document.querySelectorAll('.crossing-zone').forEach(el => {
-                el.classList.toggle('active');
+                el.classList.toggle('active', eliminateOptions);
             });
         }
 
         function eliminate(choice, index) {
-            const line = document.querySelector(`.${choice}zone`);
-            if (line) line.classList.toggle('active');
+            const safeIndex = clampQuestionIndex(index);
+            const normalized = normalizeChoice(choice);
+            if (!normalized) return;
 
-            if (eliminatedChoices[index].includes(choice)) {
-                eliminatedChoices[index] = eliminatedChoices[index].filter(c => c !== choice);
+            const wasEliminated = eliminatedChoices[safeIndex].includes(normalized);
+            if (wasEliminated) {
+                eliminatedChoices[safeIndex] = eliminatedChoices[safeIndex].filter(c => c !== normalized);
             } else {
-                eliminatedChoices[index].push(choice);
+                eliminatedChoices[safeIndex].push(normalized);
+                if (answers[safeIndex] === normalized) {
+                    answers[safeIndex] = null;
+                }
             }
 
+            animateElimination(normalized, wasEliminated);
+            if (safeIndex === currentQuestionIndex) {
+                paintCurrentAnswer();
+            }
+            updateAnsweredStatus();
             saveProgress();
         }
 
         function nextQuestion() {
+            pulseElement(document.getElementById('nextButton'));
             if (currentQuestionIndex < questions.length - 1) {
                 loadQuestion(currentQuestionIndex + 1);
             }
         }
 
         function prevQuestion() {
+            pulseElement(document.getElementById('backButton'));
             if (currentQuestionIndex > 0) {
                 loadQuestion(currentQuestionIndex - 1);
             }
@@ -502,6 +707,7 @@
 
         function markForReview() {
             markedForReview[currentQuestionIndex] = !markedForReview[currentQuestionIndex];
+            pulseElement(document.querySelector('.bookmark'));
             updateAnsweredStatus();
             saveProgress();
         }
@@ -520,10 +726,32 @@
             });
         }
 
+        function setQuestionModalOpen(open) {
+            const modal = document.getElementById('questionModal');
+            if (!modal) return;
+            modal.classList.toggle('is-open', Boolean(open));
+            modal.style.display = open ? 'flex' : 'none';
+            modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+            document.body.classList.toggle('question-modal-open', Boolean(open));
+        }
+
+        function openQuestionModal() {
+            setQuestionModalOpen(true);
+        }
+
+        function closeQuestionModal() {
+            setQuestionModalOpen(false);
+        }
+
         function toggleQuestionModal() {
             const modal = document.getElementById('questionModal');
-            modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+            const isOpen = modal && (modal.classList.contains('is-open') || modal.style.display === 'block' || modal.style.display === 'flex');
+            setQuestionModalOpen(!isOpen);
         }
+
+        window.openQuestionModal = openQuestionModal;
+        window.closeQuestionModal = closeQuestionModal;
+        window.toggleQuestionModal = toggleQuestionModal;
 
         function closeCalculator() {
             saveCurrentDesmosState();
@@ -541,7 +769,16 @@
         function openCalculator() {
             document.getElementById('calculator-popup').style.display = 'block';
             if (!calculator) {
-                initDesmos();
+                loadDesmosScript().then((loaded) => {
+                    if (!loaded) {
+                        showCalculatorFallback();
+                        return;
+                    }
+                    initDesmos();
+                    ensureDesmosExpressionPanel();
+                    requestDesmosResize();
+                    repairDesmosFocusIfLost(calculatorElement);
+                });
             } else {
                 loadDesmosStateForQuestion(currentQuestionIndex);
                 ensureDesmosExpressionPanel();
@@ -563,19 +800,28 @@
             );
         }
 
-        function updateTimer() {
-            const minutes = Math.floor(timeRemaining / 60);
-            const seconds = timeRemaining % 60;
-            document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        function formatTime(seconds) {
+            const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+            const minutes = Math.floor(safeSeconds / 60);
+            const secs = safeSeconds % 60;
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
 
-            timeSpent[currentQuestionIndex] += 1;
-            saveProgress();
+        function updateTimer() {
+            const timerElement = document.getElementById('timer');
+            if (timerElement) timerElement.innerText = formatTime(timeRemaining);
 
             if (timeRemaining <= 0) {
                 finishTest(true);
-            } else {
-                timeRemaining--;
+                return;
             }
+
+            if (!Number.isFinite(Number(timeSpent[currentQuestionIndex]))) {
+                timeSpent[currentQuestionIndex] = 0;
+            }
+            timeSpent[currentQuestionIndex] += 1;
+            timeRemaining -= 1;
+            saveProgress();
         }
 
         function createTimeoutSignal(timeoutMs) {
@@ -593,6 +839,8 @@
         }
 
         async function finishTest(force = false) {
+            if (window.__mathSubmitInProgress) return;
+            window.__mathSubmitInProgress = true;
             saveCurrentDesmosState();
             const confirmed = force || confirm('Are you sure you want to finish the test? Make sure you are ready.');
             if (!confirmed) return;
@@ -622,7 +870,9 @@
                             answers: answerData,
                             section: sectionName,
                             test: testName,
-                            module: moduleName
+                            module: moduleName,
+                            classroom_id: classroomId,
+                            test_type: testType
                         })
                     });
 
@@ -667,7 +917,9 @@
                                 answers: answerData,
                                 section: sectionName,
                                 test: testName,
-                                module: moduleName
+                                module: moduleName,
+                                classroom_id: classroomId,
+                                test_type: testType
                             }),
                             signal: createTimeoutSignal(submitTimeoutMs)
                         });
@@ -691,9 +943,16 @@
                 }
             } catch (error) {
                 console.error('Finish test error:', error);
-                alert(`Failed to submit test: ${error.message}. Please try again or contact support.`);
+                const message = error && error.message ? error.message : 'Unknown error';
+                if (/Invalid module order/i.test(message) && nextUrl) {
+                    clearProgress();
+                    window.location.href = nextUrl;
+                    return;
+                }
+                alert(`Failed to submit test: ${message}. Please try again or contact support.`);
             } finally {
                 finishButton.textContent = originalText;
+                window.__mathSubmitInProgress = false;
                 finishButton.disabled = false;
             }
         }
@@ -723,6 +982,7 @@
             if (event.key === 'Escape') {
                 closeReference();
                 closeCalculator();
+                closeQuestionModal();
                 return;
             }
 
@@ -836,7 +1096,17 @@
             }
         }
 
+        closeQuestionModal();
+        const modal = document.getElementById('questionModal');
+        if (modal) {
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) closeQuestionModal();
+            });
+        }
+
         loadProgress();
         loadQuestion(currentQuestionIndex);
+        const timer = document.querySelector('.timer');
+        if (timer) timer.innerText = formatTime(timeRemaining);
         setInterval(updateTimer, 1000);
     

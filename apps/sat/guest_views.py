@@ -362,6 +362,49 @@ def level_check_score(raw_score, total_questions):
     return convert_raw_to_equiv(raw_to_25_equivalent(raw_score, total_questions))
 
 
+def calculate_level_check_percentage(raw_score, total_questions):
+    """Return a safe percentage for Level Check placement."""
+    try:
+        raw_score = int(raw_score or 0)
+        total_questions = int(total_questions or 0)
+    except (TypeError, ValueError):
+        return 0
+
+    if total_questions <= 0:
+        return 0
+
+    ratio = max(0, min(raw_score / total_questions, 1))
+    return round(ratio * 100, 1)
+
+
+def get_level_check_placement(raw_score, total_questions):
+    """Map Level Check percentage to the student's allowed/recommended level."""
+    percentage = calculate_level_check_percentage(raw_score, total_questions)
+
+    if percentage >= 85:
+        level_number = 5
+        level_name = "Advanced"
+    elif percentage >= 70:
+        level_number = 4
+        level_name = "Upper-Intermediate"
+    elif percentage >= 55:
+        level_number = 3
+        level_name = "Intermediate"
+    elif percentage >= 40:
+        level_number = 2
+        level_name = "Beginner"
+    else:
+        level_number = 1
+        level_name = "Foundation"
+
+    return {
+        "percentage": percentage,
+        "level_number": level_number,
+        "level_name": level_name,
+        "label": f"Level {level_number} — {level_name}",
+    }
+
+
 def mark_answers_and_count_correct(attempt):
     ebrw_raw = 0
     math_raw = 0
@@ -409,6 +452,11 @@ def calculate_attempt_breakdown(attempt):
     test_mode = get_test_mode(test)
     scoring_type = get_event_scoring_type(test)
     totals = get_event_question_totals(test)
+    english_total = totals["english"]["m1"] + totals["english"]["m2"]
+    math_total = totals["math"]["m1"] + totals["math"]["m2"]
+    placement_total_questions = english_total + math_total
+    if not placement_total_questions:
+        placement_total_questions = attempt.total_questions or 0
 
     if scoring_type == "sat_standard":
         score_result = regular_score_from_counts(test_mode, correct_counts, totals)
@@ -420,16 +468,22 @@ def calculate_attempt_breakdown(attempt):
         total_score = score_result["total"]
         range_total = score_result.get("range_total")
     else:
-        english_total = totals["english"]["m1"] + totals["english"]["m2"]
-        math_total = totals["math"]["m1"] + totals["math"]["m2"]
         ebrw_score = level_check_score(ebrw_raw, english_total) if test_mode in ["full", "ebrw_only"] else None
         math_score = level_check_score(math_raw, math_total) if test_mode in ["full", "math_only"] else None
         total_score = (ebrw_score or 0) + (math_score or 0)
         range_total = None
 
+    total_raw = ebrw_raw + math_raw
+    placement = (
+        get_level_check_placement(total_raw, placement_total_questions)
+        if scoring_type == "level_check"
+        else None
+    )
+
     return {
         "ebrw_raw": ebrw_raw,
         "math_raw": math_raw,
+        "total_raw": total_raw,
         "correct_counts": correct_counts,
         "ebrw_score": ebrw_score,
         "math_score": math_score,
@@ -437,6 +491,8 @@ def calculate_attempt_breakdown(attempt):
         "range_total": range_total,
         "scoring_type": scoring_type,
         "scoring_label": get_event_scoring_label(test),
+        "placement": placement,
+        "placement_total_questions": placement_total_questions,
     }
 
 
@@ -956,6 +1012,9 @@ def global_event_result_view(request, guest_token):
         "range_total": breakdown["range_total"],
         "scoring_label": breakdown["scoring_label"],
         "scoring_type": breakdown["scoring_type"],
+        "placement": breakdown["placement"],
+        "placement_total_questions": breakdown["placement_total_questions"],
+        "total_raw": breakdown["total_raw"],
 
         # если захочешь где-то показать raw
         "ebrw_raw": breakdown["ebrw_raw"],

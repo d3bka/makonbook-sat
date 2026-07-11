@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{{ event.title }} - SAT Makon</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+</head>
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        <a href="{% url 'global_event_list' %}" class="public-link-pill">Back to events</a>
+      </div>
+    </nav>
+
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Event detail</span>
+      <h1>{{ event.title }}</h1>
+      {% if event.description %}
+        <p>{{ event.description }}</p>
+      {% else %}
+        <p>Review event timing, section duration, and access settings before starting.</p>
+      {% endif %}
+    </section>
+
+    <div class="detail-card" data-page-reveal>
+      {% if messages %}
+        <div class="alert-box">
+          <ul class="messages">
+            {% for message in messages %}
+              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <span class="status-badge">{{ event.status|title }}</span>
+
+      {% if event.always_live %}
+        <div class="event-meta"><strong>Availability:</strong> Always live, 24/7</div>
+      {% else %}
+        <div class="event-meta"><strong>Start:</strong> {{ event.start_at }}</div>
+        <div class="event-meta"><strong>End:</strong> {{ event.end_at }}</div>
+      {% endif %}
+      <div class="event-meta"><strong>English duration:</strong> {{ event.english_duration_minutes }} minutes</div>
+      <div class="event-meta"><strong>Math duration:</strong> {{ event.math_duration_minutes }} minutes</div>
+
+      {% if event.rules %}
+        <div class="rules-box">
+          <h3>Rules</h3>
+          <p>{{ event.rules|linebreaks }}</p>
+        </div>
+      {% endif %}
+
+      {% if existing_attempt and existing_attempt.status == "in_progress" %}
+        <div class="actions">
+          <a href="{% url 'global_event_attempt' existing_attempt.guest_token %}" class="primary-btn">Resume attempt</a>
+        </div>
+      {% elif existing_attempt and existing_attempt.status == "submitted" %}
+        <div class="actions">
+          <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn">View result</a>
+        </div>
+      {% else %}
+        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form auth-form">
+          {% csrf_token %}
+
+          <div class="form-group">
+            <label class="form-label" for="access-code-field">Access code{% if not event.access_code %} optional{% endif %}</label>
+            <input id="access-code-field" type="text" name="access_code" placeholder="Enter access code" {% if event.access_code %}required{% endif %}>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary-btn">Start event</button>
+            {% if event.show_leaderboard %}
+              <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">View leaderboard</a>
+            {% endif %}
+          </div>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="public-footer">&copy; {% now "Y" %} SAT Makon. Stay focused.</div>
+  </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+</body>
+</html>

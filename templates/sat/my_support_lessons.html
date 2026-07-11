@@ -1,0 +1,95 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}My Support Lessons{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% url 'support_teacher_list' %}">Support Teachers</a></li>{% endblock breadcrumb_parent %}
+{% block title %}My Support Lessons{% endblock title %}
+
+{% block style %}
+<style>
+  .support-page { max-width:1040px; margin:0 auto; display:grid; gap:22px; }
+  .panel { background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:22px; box-shadow:0 10px 24px rgba(0,0,0,.07); }
+  .lesson-card { border:1px solid #e2e8f0; border-radius:14px; padding:16px; margin-bottom:12px; background:#f8fafc; }
+  .lesson-head { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .muted { color:#64748b; }
+  .btn-support { display:inline-flex; justify-content:center; align-items:center; border:none; border-radius:999px; padding:9px 15px; font-weight:800; cursor:pointer; text-decoration:none; }
+  .btn-primary-support { background:#7c3aed; color:#fff; }
+  .btn-danger-support { background:#dc2626; color:#fff; }
+  .btn-secondary-support { background:#f1f5f9; color:#334155; }
+  textarea, select { width:100%; border:1px solid #d1d5db; border-radius:12px; padding:10px; }
+  .feedback-form { margin-top:14px; display:grid; gap:10px; }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="support-page">
+  {% if messages %}
+    {% for message in messages %}<div class="panel"><strong>{{ message }}</strong></div>{% endfor %}
+  {% endif %}
+
+  <div class="panel">
+    <h2>My support lessons</h2>
+    <a class="btn-support btn-primary-support" href="{% url 'support_teacher_list' %}">Book another lesson</a>
+  </div>
+
+  <div class="panel">
+    <h3>Upcoming</h3>
+    {% for booking in upcoming_bookings %}
+      <div class="lesson-card">
+        <div class="lesson-head">
+          <div>
+            <strong>{{ booking.teacher.name }}</strong><br>
+            <span class="muted">{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</span><br>
+            {% if booking.teacher.clean_telegram_username %}<a href="{{ booking.teacher.telegram_url }}" target="_blank" rel="noopener">@{{ booking.teacher.clean_telegram_username }}</a>{% endif %}
+          </div>
+          <form method="post" action="{% url 'cancel_support_lesson' booking.id %}" onsubmit="return confirm('Cancel this support lesson?');">
+            {% csrf_token %}
+            <button class="btn-support btn-danger-support" type="submit">Cancel</button>
+          </form>
+        </div>
+        {% if booking.student_note %}<p class="muted"><strong>Your note:</strong> {{ booking.student_note }}</p>{% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">No upcoming support lessons.</p>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h3>Past / cancelled</h3>
+    {% for booking in history_bookings %}
+      <div class="lesson-card">
+        <div class="lesson-head">
+          <div>
+            <strong>{{ booking.teacher.name }}</strong><br>
+            <span class="muted">{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }} · {{ booking.get_status_display }}</span>
+          </div>
+          {% if booking.review %}
+            <strong>★ {{ booking.review.rating }}/5</strong>
+          {% endif %}
+        </div>
+
+        {% if booking.review %}
+          {% if booking.review.feedback %}<p class="muted"><strong>Your feedback:</strong> {{ booking.review.feedback }}</p>{% endif %}
+        {% elif booking.can_receive_feedback %}
+          <form class="feedback-form" method="post" action="{% url 'leave_support_lesson_feedback' booking.id %}">
+            {% csrf_token %}
+            <label><strong>Rating</strong></label>
+            <select name="rating" required>
+              <option value="5">5 — Excellent</option>
+              <option value="4">4 — Good</option>
+              <option value="3">3 — Average</option>
+              <option value="2">2 — Weak</option>
+              <option value="1">1 — Bad</option>
+            </select>
+            <label><strong>Optional feedback</strong></label>
+            <textarea name="feedback" rows="3" placeholder="What went well? What should improve?"></textarea>
+            <button class="btn-support btn-primary-support" type="submit">Save feedback</button>
+          </form>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">No completed support lessons yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

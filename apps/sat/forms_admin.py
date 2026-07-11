@@ -1,6 +1,6 @@
 from django import forms
-from django.contrib.auth.models import Group
-from .models import Test
+from django.contrib.auth.models import Group, User
+from .models import Test, SupportTeacherProfile, SupportTeacherAvailability
 
 
 class UserFilterForm(forms.Form):
@@ -90,3 +90,40 @@ class GroupAssignedTestsForm(forms.Form):
 
         for test in self.cleaned_data['tests']:
             test.groups.add(self.group)
+
+
+class SupportTeacherProfileForm(forms.ModelForm):
+    user = forms.ModelChoiceField(
+        queryset=User.objects.all().order_by('username'),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text='Choose the platform user who will act as a support teacher.'
+    )
+
+    class Meta:
+        model = SupportTeacherProfile
+        fields = ['user', 'display_name', 'telegram_username', 'subjects', 'bio', 'sort_order', 'is_active']
+        widgets = {
+            'display_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Public name shown to students'}),
+            'telegram_username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'username without @'}),
+            'subjects': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'SAT Math, Reading, Writing'}),
+            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Short public description'}),
+            'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_telegram_username(self):
+        value = (self.cleaned_data.get('telegram_username') or '').strip().lstrip('@')
+        return value
+
+
+class SupportTeacherAvailabilityForm(forms.ModelForm):
+    class Meta:
+        model = SupportTeacherAvailability
+        fields = ['day_of_week', 'start_time', 'end_time', 'note', 'is_active']
+        widgets = {
+            'day_of_week': forms.Select(attrs={'class': 'form-control'}),
+            'start_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'end_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional note'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }

@@ -16,6 +16,7 @@ from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from .storages import PublicStorage, PrivateStorage
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 # Abstract base model for common fields
 class BaseModel(models.Model):
@@ -732,7 +733,12 @@ class Mock(BaseModel):
 # Signal to clean up related objects when TestStage is deleted
 @receiver(pre_delete, sender=TestStage)
 def delete_related_objects(sender, instance, **kwargs):
-    instance.delete_related()
+    # Old versions tried to call instance.delete_related(), but TestStage has no
+    # such method in the current model. Keep this receiver safe so deleting a
+    # stage from admin/scripts does not crash.
+    cleanup = getattr(instance, "delete_related", None)
+    if callable(cleanup):
+        cleanup()
 
 class VocabularyUnit(models.Model):
     title = models.CharField(max_length=200, unique=True)
@@ -800,6 +806,213 @@ class VocabularyQuestion(models.Model):
             self.choice_c,
             self.choice_d,
         ]
+
+
+
+# Support teacher planning and reviews
+class SupportTeacherProfile(BaseModel):
+    """Public profile for teachers who can be booked by students for support lessons."""
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='support_teacher_profile'
+    )
+    display_name = models.CharField(max_length=255, blank=True)
+    telegram_username = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Telegram username without @."
+    )
+    subjects = models.CharField(max_length=255, blank=True, help_text="Example: SAT Math, Reading, Writing")
+    bio = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_support_teacher_profiles'
+    )
+
+    class Meta:
+        ordering = ['sort_order', 'display_name', 'user__first_name', 'user__username']
+        verbose_name = "Support Teacher"
+        verbose_name_plural = "Support Teachers"
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def name(self):
+        fallback = self.user.get_full_name() or self.user.username
+        return self.display_name.strip() or fallback
+
+    @property
+    def clean_telegram_username(self):
+        return (self.telegram_username or '').strip().lstrip('@')
+
+    @property
+    def telegram_url(self):
+        username = self.clean_telegram_username
+        if not username:
+            return ''
+        return f"https://t.me/{username}"
+
+    @property
+    def average_rating(self):
+        value = self.reviews.aggregate(avg=models.Avg('rating')).get('avg')
+        return round(value, 1) if value is not None else None
+
+    @property
+    def reviews_count(self):
+        return self.reviews.count()
+
+
+class SupportTeacherAvailability(BaseModel):
+    MONDAY = 0
+    TUESDAY = 1
+    WEDNESDAY = 2
+    THURSDAY = 3
+    FRIDAY = 4
+    SATURDAY = 5
+    SUNDAY = 6
+    DAY_CHOICES = [
+        (MONDAY, 'Monday'),
+        (TUESDAY, 'Tuesday'),
+        (WEDNESDAY, 'Wednesday'),
+        (THURSDAY, 'Thursday'),
+        (FRIDAY, 'Friday'),
+        (SATURDAY, 'Saturday'),
+        (SUNDAY, 'Sunday'),
+    ]
+
+    teacher = models.ForeignKey(
+        SupportTeacherProfile,
+        on_delete=models.CASCADE,
+        related_name='availabilities'
+    )
+    day_of_week = models.PositiveSmallIntegerField(choices=DAY_CHOICES)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['day_of_week', 'start_time', 'end_time']
+        unique_together = ('teacher', 'day_of_week', 'start_time', 'end_time')
+        verbose_name = "Support Teacher Availability"
+        verbose_name_plural = "Support Teacher Availabilities"
+
+    def __str__(self):
+        return f"{self.teacher.name} · {self.get_day_of_week_display()} {self.start_time:%H:%M}-{self.end_time:%H:%M}"
+
+    def clean(self):
+        super().clean()
+        if self.start_time and self.end_time and self.end_time <= self.start_time:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("End time must be later than start time.")
+
+
+class SupportLessonBooking(BaseModel):
+    STATUS_SCHEDULED = 'scheduled'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_SCHEDULED, 'Scheduled'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    teacher = models.ForeignKey(
+        SupportTeacherProfile,
+        on_delete=models.CASCADE,
+        related_name='bookings'
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='support_lesson_bookings'
+    )
+    start_at = models.DateTimeField(db_index=True)
+    end_at = models.DateTimeField(db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SCHEDULED, db_index=True)
+    student_note = models.TextField(blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    marked_completed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-start_at']
+        indexes = [
+            models.Index(fields=['teacher', 'status', 'start_at']),
+            models.Index(fields=['student', 'status', 'start_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['teacher', 'start_at', 'end_at'],
+                condition=models.Q(status='scheduled'),
+                name='unique_scheduled_support_lesson_slot'
+            )
+        ]
+        verbose_name = "Support Lesson Booking"
+        verbose_name_plural = "Support Lesson Bookings"
+
+    def __str__(self):
+        return f"{self.student.username} → {self.teacher.name} · {self.start_at:%Y-%m-%d %H:%M}"
+
+    @property
+    def is_past(self):
+        return timezone.now() >= self.end_at
+
+    @property
+    def can_receive_feedback(self):
+        return self.is_past and self.status != self.STATUS_CANCELLED and not hasattr(self, 'review')
+
+    def mark_completed_if_past(self):
+        if self.status == self.STATUS_SCHEDULED and self.is_past:
+            self.status = self.STATUS_COMPLETED
+            self.marked_completed_at = timezone.now()
+            self.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+
+    def clean(self):
+        super().clean()
+        if self.start_at and self.end_at and self.end_at <= self.start_at:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("End time must be later than start time.")
+
+
+class SupportTeacherReview(BaseModel):
+    booking = models.OneToOneField(
+        SupportLessonBooking,
+        on_delete=models.CASCADE,
+        related_name='review'
+    )
+    teacher = models.ForeignKey(
+        SupportTeacherProfile,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='support_teacher_reviews'
+    )
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    feedback = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Support Teacher Review"
+        verbose_name_plural = "Support Teacher Reviews"
+
+    def __str__(self):
+        return f"{self.teacher.name} · {self.rating}/5 by {self.student.username}"
+
+    def save(self, *args, **kwargs):
+        if self.booking_id:
+            self.teacher = self.booking.teacher
+            self.student = self.booking.student
+        super().save(*args, **kwargs)
 
 class Classroom(models.Model):
     CLASSROOM_TYPE_SAT = 'sat'

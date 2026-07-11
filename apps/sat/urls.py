@@ -31,6 +31,15 @@ urlpatterns = [
     path('vocabulary/', views.vocabulary, name='vocabulary'),
     path('admissions/', views.admissions, name='admissions'),
 
+    # Support teacher planning
+    path('support-teachers/', views.support_teacher_list, name='support_teacher_list'),
+    path('support-teachers/me/planner/', views.support_teacher_planner, name='support_teacher_planner'),
+    path('support-teachers/<int:teacher_id>/', views.support_teacher_detail, name='support_teacher_detail'),
+    path('support-teachers/<int:teacher_id>/book/', views.book_support_lesson, name='book_support_lesson'),
+    path('support-lessons/', views.my_support_lessons, name='my_support_lessons'),
+    path('support-lessons/<int:booking_id>/cancel/', views.cancel_support_lesson, name='cancel_support_lesson'),
+    path('support-lessons/<int:booking_id>/feedback/', views.leave_support_lesson_feedback, name='leave_support_lesson_feedback'),
+
     path('vocabulary/practice-quiz/', views.vocabulary_practice_quiz, name='vocabulary_practice_quiz'),
     path('vocabulary/practice-quiz/start/', views.vocabulary_practice_quiz_start, name='vocabulary_practice_quiz_start'),
     path('vocabulary/practice-quiz/result/', views.vocabulary_practice_quiz_result, name='vocabulary_practice_quiz_result'),

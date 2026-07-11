@@ -7,6 +7,7 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     {% load auth_extras %}
     <title>Practice {{ test }}</title>
+    {% include 'base/theme_init.html' %}
     <meta content="" name="description">
     <meta content="" name="keywords">
 
@@ -159,9 +160,13 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
+    <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
 
-<body>
+<body class="mk-test-window">
     <script>
         window.addEventListener('load', () => {
             try {
@@ -171,7 +176,7 @@
                     return;
                 }
 
-                const prefix = ${testName}_;
+                const prefix = `${testName}_`;
 
                 for (let i = localStorage.length - 1; i >= 0; i--) {
                     const key = localStorage.key(i);
@@ -185,8 +190,12 @@
     </script>
 
     <div class="ready-test">
-        <span class="title">Digital SAT® Practice {{ test }}</span>
-        <div class="description">
+        <div class="ready-shell" data-test-reveal>
+            <div class="ready-badge"><i class="bi bi-lightning-charge-fill"></i><span>{% if has_active_attempt %}Resume practice{% else %}Ready to start{% endif %}</span></div>
+            <span class="title">Digital SAT® Practice {{ test }}</span>
+            <p class="ready-subtitle">Check the rules, timing, and score flow before opening the test window.</p>
+        </div>
+        <div class="description" data-test-reveal>
             <div class="single-desc">
                 <div class="desc-title">
                     <div class="desc-icon"><i class="bi bi-clock"></i></div>
@@ -222,15 +231,15 @@
 
         <footer class="footer">
             {% if classroom %}
-                <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn">Back</a>
+                <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn btn-secondary">Back</a>
             {% else %}
-                <a href="{% url 'practice_tests' %}" class="btn">Back</a>
+                <a href="{% url 'practice_tests' %}" class="btn btn-secondary">Back</a>
             {% endif %}
 
             {% if start_url %}
-                <a class="btn" href="{{ start_url }}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
+                <a class="btn btn-primary" href="{{ start_url }}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
             {% else %}
-                <a class="btn" href="{% url 'test' test.name %}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
+                <a class="btn btn-primary" href="{% url 'test' test.name %}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
             {% endif %}
         </footer>
     </div>

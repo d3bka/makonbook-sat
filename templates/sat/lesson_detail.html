@@ -1,0 +1,31 @@
+{% extends 'template.html' %}
+
+{% block title-main %}{{ lesson.name }}{% endblock title-main %}
+{% block title %}Lesson Detail{% endblock title %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto; background: #fff; padding: 28px; border-radius: 20px; box-shadow: 0 10px 24px rgba(0,0,0,.08);">
+  <a href="{% url 'practice_tests' %}" style="text-decoration:none; color:#7c3aed; font-weight:700;">← Back to Practice Tests</a>
+  <h1 style="margin-top: 18px;">{{ lesson.name }}</h1>
+  <p><strong>Package:</strong> {{ lesson.package.name }}</p>
+  <p><strong>Subject:</strong> {{ lesson.subject }}</p>
+  {% if lesson.question_type %}<p><strong>Question type:</strong> {{ lesson.question_type.name }}</p>{% endif %}
+
+  <h3>Practice Questions</h3>
+  {% if questions %}
+    <ol>
+      {% for question in questions %}
+        <li style="margin-bottom: 18px;">
+          <div>{{ question.question|safe }}</div>
+          {% if question.a %}<div>A. {{ question.a|safe }}</div>{% endif %}
+          {% if question.b %}<div>B. {{ question.b|safe }}</div>{% endif %}
+          {% if question.c %}<div>C. {{ question.c|safe }}</div>{% endif %}
+          {% if question.d %}<div>D. {{ question.d|safe }}</div>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p>No questions are attached to this lesson yet.</p>
+  {% endif %}
+</div>
+{% endblock content %}

@@ -37,11 +37,38 @@
     font-size: 14px;
     color: #666;
   }
+
+  .support-quick-card {
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 10px 24px rgba(0,0,0,.07);
+    margin-bottom:20px;
+  }
+  .support-quick-card a {
+    display:inline-flex;
+    background:#7c3aed;
+    color:#fff;
+    border-radius:999px;
+    padding:10px 16px;
+    font-weight:800;
+    text-decoration:none;
+    margin-right:8px;
+  }
 </style>
 {% endblock style %}
 
 {% block content %}
 <main class="main-content">
+
+  <section class="support-quick-card">
+    <h2>Support lessons</h2>
+    <p>Check support teacher planners, Telegram usernames, ratings, and book an available lesson slot.</p>
+    <a href="{% url 'support_teacher_list' %}">Open Support Teachers</a>
+    <a href="{% url 'my_support_lessons' %}">My Support Lessons</a>
+  </section>
+
   <section class="lessons-section" style="margin-bottom: 20px;">
     <div class="section-header">
       <h2>Your Lessons</h2>
@@ -60,7 +87,7 @@
               {% if lesson.package.image %}
                 <img src="{{ lesson.package.image.url }}" alt="{{ lesson.package.name }}" class="test-logo" style="padding:6px;"/>
               {% else %}
-                <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                <img src="{% static 'assets/img/icons/original-big-icon.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
               {% endif %}
               <hr>
               <h3>{{ lesson.name }}</h3>
@@ -84,7 +111,7 @@
               {% if lesson.package.image %}
                 <img src="{{ lesson.package.image.url }}" alt="{{ lesson.package.name }}" class="test-logo" style="padding:6px;"/>
               {% else %}
-                <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                <img src="{% static 'assets/img/icons/original-big-icon.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
               {% endif %}
               <hr>
               <h3>{{ lesson.name }}</h3>
@@ -108,7 +135,7 @@
               {% if package.image %}
                 <img src="{{ package.image.url }}" alt="{{ package.name }}" class="test-logo" style="padding:6px;"/>
               {% else %}
-                <img src="{% static 'assets/img/placeholder.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
+                <img src="{% static 'assets/img/icons/original-big-icon.png' %}" alt="Placeholder" class="test-logo" style="padding:6px;"/>
               {% endif %}
               <hr>
               <h3>{{ package.name }}</h3>

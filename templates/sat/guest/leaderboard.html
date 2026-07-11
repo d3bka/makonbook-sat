@@ -4,75 +4,73 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  {% include 'base/theme_init.html' %}
   <title>Leaderboard - {{ event.title }}</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    .page-wrap {
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-    .board-card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      text-align: left;
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-    }
-    th {
-      background: #f8fafc;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
-  <div class="page-wrap">
-    <div class="board-card">
-      <h1>{{ event.title }} - Leaderboard</h1>
-      <p><a href="{% url 'global_event_detail' event.slug %}">← Back to Event</a></p>
-      {% if scoring_label %}
-        <p><strong>Scoring:</strong> {{ scoring_label }}</p>
-      {% endif %}
+<body class="public-page">
+  <div class="public-shell">
+    <nav class="public-nav" data-page-reveal>
+      <a href="/" class="public-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="public-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'global_event_detail' event.slug %}" class="public-link-pill">Back to event</a>
+      </div>
+    </nav>
 
+    <section class="public-hero" data-page-reveal>
+      <span class="eyebrow">Leaderboard</span>
+      <h1>{{ event.title }}</h1>
+      <p>Submitted attempts are ranked here when score visibility is enabled.</p>
+    </section>
+
+    <div class="board-card" data-page-reveal>
       {% if attempts %}
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Score</th>
-              <th>Submitted</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for attempt in attempts %}
+        <div class="table-wrap">
+          <table class="public-table">
+            <thead>
               <tr>
-                <td>{{ forloop.counter }}</td>
-                <td>{{ attempt.guest.display_name|default:attempt.guest.full_name }}</td>
-                {% if event.show_score_immediately %}
-                <td>{{ attempt.score|default:"-" }}</td>
-                {% else %}
-                <td>Hidden</td>
-                {% endif %}
-                <td>{{ attempt.submitted_at|default:"-" }}</td>
+                <th>#</th>
+                <th>Name</th>
+                <th>Score</th>
+                <th>Submitted</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for attempt in attempts %}
+                <tr>
+                  <td>{{ forloop.counter }}</td>
+                  <td>{{ attempt.guest.display_name|default:attempt.guest.full_name }}</td>
+                  {% if event.show_score_immediately %}
+                    <td>{{ attempt.score|default:"-" }}</td>
+                  {% else %}
+                    <td>Hidden</td>
+                  {% endif %}
+                  <td>{{ attempt.submitted_at|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
-        <p>No submitted attempts yet.</p>
+        <div class="empty-box">
+          <span class="eyebrow">Waiting</span>
+          <h3>No submitted attempts yet</h3>
+          <p>The leaderboard will update after students submit their event attempts.</p>
+        </div>
       {% endif %}
     </div>
   </div>
+
+  <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

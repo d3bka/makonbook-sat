@@ -1,196 +1,88 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Makon Book - Verify Email</title>
-  {% load static %}
+  {% include 'base/theme_init.html' %}
+  <title>SAT Makon - Verify Email</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600&display=swap');
-    body {
-      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .top-banner {
-      width: 100%;
-      background: #3d008e;
-      padding: 20px;
-      text-align: center;
-      border-bottom-left-radius: 12px;
-      border-bottom-right-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    .title-field {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .icon {
-      margin-right: 10px;
-      width: 40px;
-      height: 40px;
-    }
-    .app-title {
-      font-size: 36px;
-      color: #ffffff;
-      margin: 0;
-      font-weight: 600;
-    }
-    .alert-box {
-      background: #ffffff;
-      color: #3d008e;
-      padding: 15px;
-      margin: 20px auto;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(61, 0, 142, 0.2);
-      max-width: 400px;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-    .alert-box ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .alert-box li {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-    .alert-box .success { color: #28a745; }
-    .alert-box .error { color: #dc3545; }
-    .signin-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      margin-top: 20px;
-    }
-    .signin-box {
-      background: #3d008e;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 400px;
-      color: #ffffff;
-    }
-    .signin-box h2 {
-      font-size: 24px;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    .signin-box p {
-      text-align: center;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
-    .signin-form {
-      display: flex;
-      flex-direction: column;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    .form-group input {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 12px;
-      font-size: 14px;
-      background: #ffffff;
-      color: #3d008e;
-      transition: all 0.3s ease;
-    }
-    .form-group input:focus {
-      outline: none;
-      box-shadow: 0 0 8px rgba(61, 0, 142, 0.5);
-    }
-    .primary-btn {
-      background: #ffffff;
-      color: #3d008e;
-      padding: 12px;
-      border: none;
-      border-radius: 12px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      width: 100%;
-    }
-    .primary-btn:hover {
-      background: #e0e0e0;
-      color: #3d008e;
-    }
-    .footer-links {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .footer-links a {
-      color: #ffffff;
-      text-decoration: none;
-      margin: 0 15px;
-      font-size: 14px;
-      transition: color 0.3s ease;
-    }
-    .footer-links a:hover {
-      color: #e0e0e0;
-    }
-  </style>
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
 </head>
-<body>
-  <div class="top-banner">
-    <div class="title-field">
-      <img src="{% static 'assets/img/icons/white-icon-nobg.png' %}" class='icon' alt="Makon Book Logo" />
-      <h1 class="app-title">MakonBook</h1>
-    </div>
-    {% if messages %}
-    <div class="alert-box">
-      <ul class="messages">
-        {% for message in messages %}
-          <li class="{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endif %}
-  </div>
-
-  <div class="signin-container">
-    <div class="signin-box">
-      <h2>Verify Your Email</h2>
-      <p>Please enter the verification code sent to your email.</p>
-
-      <form action="" method="POST" class="signin-form">
-        {% csrf_token %}
-        <div class="form-group">
-          <input 
-            type="text" 
-            name="code" 
-            placeholder="Verification Code" 
-            required
-          >
-        </div>
-        <div class="form-group">
-          <button type="submit" class="primary-btn">
-            Verify
-          </button>
-        </div>
-      </form>
-
-      <div class="footer-links">
-        <a href="/software/">Check out Software</a>
-        <a href="/register/">Resend Code</a>
+<body class="auth-page">
+  <div class="auth-shell">
+    <nav class="auth-nav" data-auth-reveal>
+      <a href="/" class="auth-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="auth-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'login' %}" class="auth-link-pill">Login</a>
       </div>
+    </nav>
+
+    <div class="auth-grid">
+      <section class="auth-visual" data-auth-reveal>
+        <span class="eyebrow">Email security</span>
+        <h1>Verify once. Keep your account safe.</h1>
+        <p>Enter the verification code from your email to activate access to your dashboard, practice history, and classroom tools.</p>
+
+        <div class="auth-metrics">
+          <div class="auth-metric"><strong>01</strong><span>check inbox</span></div>
+          <div class="auth-metric"><strong>02</strong><span>enter code</span></div>
+          <div class="auth-metric"><strong>03</strong><span>start prep</span></div>
+        </div>
+
+        <div class="auth-dashboard-card" data-tilt>
+          <div class="mini-row"><span>Account status</span><span>Pending</span></div>
+          <div class="score-big">Verify</div>
+          <div class="progress-line"><span></span></div>
+          <div class="mini-row"><span>Email confirmation</span><strong>Required</strong></div>
+        </div>
+      </section>
+
+      <section class="auth-card" data-auth-reveal>
+        <div class="auth-card-header">
+          <span class="eyebrow">Verification</span>
+          <h2>Enter code</h2>
+          <p>Use the latest code. Old codes may be expired.</p>
+        </div>
+
+        {% if messages %}
+          <div class="alert-box">
+            <ul class="messages">
+              {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <form action="" method="POST" class="signin-form auth-form">
+          {% csrf_token %}
+          <div class="form-group">
+            <label class="form-label" for="code-field">Verification code</label>
+            <input id="code-field" type="text" name="code" placeholder="Enter verification code" inputmode="numeric" autocomplete="one-time-code" required>
+          </div>
+          <div class="form-group">
+            <button type="submit" class="primary-btn">Verify account</button>
+          </div>
+        </form>
+
+        <div class="auth-card-footer">
+          <a href="/software/">Download app</a>
+          <a href="{% url 'register' %}">Resend code</a>
+        </div>
+      </section>
     </div>
   </div>
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
 </body>
 </html>

@@ -1,0 +1,13 @@
+
+/*
+  MakonBook Auth Show Raise Fix
+  Tiny adjustment: raises the desktop/tablet Show button slightly.
+  Mobile unchanged.
+*/
+
+@media (min-width: 769px) {
+  body.auth-page .auth-card .form-group.password-wrap > button.password-toggle,
+  body.auth-page .auth-card .form-group.password-wrap > .field-icon {
+    top: 50px !important;
+  }
+}

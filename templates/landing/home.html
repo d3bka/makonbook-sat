@@ -5,122 +5,151 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAT Makon | Digital SAT prep platform</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <meta name="description" content="SAT Makon helps students prepare for the Digital SAT with full practice tests, targeted analytics, vocabulary, and classroom tracking.">
+  {% include 'base/theme_init.html' %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-mobile-nav-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-desktop-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-faq-animation.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
 </head>
 <body>
-  <div class="landing-shell">
-    <header class="site-header">
+  <div id="top" class="landing-shell">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+
+    <header class="site-header" data-header>
       <div class="container nav-row">
         <a href="/" class="brand" aria-label="SAT Makon home">
-          <img src="{% static 'assets/img/icons/original-big-icon.png' %}" alt="SAT Makon logo">
+          <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+          <span>SAT Makon</span>
         </a>
 
-        <nav class="site-nav" aria-label="Main navigation">
+        <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" data-nav-toggle>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="site-nav" aria-label="Main navigation" data-nav>
           <a href="#features">Features</a>
-          <a href="#results">Results</a>
+          <a href="#results">Analytics</a>
           <a href="#classrooms">Classrooms</a>
           <a href="#faq">FAQ</a>
+
+          <div class="site-nav-mobile-actions" aria-label="Mobile account actions">
+            <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
+            <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
+          </div>
         </nav>
 
         <div class="nav-actions">
-          <a href="/login/" class="btn btn-ghost">Login</a>
-          <a href="/register/" class="btn btn-primary">Start for free</a>
+          {% include 'base/theme_toggle.html' %}
+          <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
+          <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
         </div>
       </div>
     </header>
 
     <main>
-      <section class="hero-section">
+      <section class="hero-section" aria-labelledby="hero-title">
+        <div class="hero-noise"></div>
         <div class="container hero-grid">
           <div class="hero-copy">
-            <span class="eyebrow">Digital SAT prep that actually feels modern</span>
-            <h1>Train for the <span>Digital SAT</span> with a sharper platform, cleaner analytics, and real classroom control.</h1>
-            <p>
-              SAT Makon gives students realistic practice tests, targeted review, vocabulary drills,
-              and performance breakdowns — all inside a purple-first brand experience that does not look like a broken school portal.
+            <span class="eyebrow reveal-up">Digital SAT prep platform</span>
+            <h1 id="hero-title" class="reveal-up delay-1">Prepare for the <span>Digital SAT</span> with practice, analytics, and classroom control.</h1>
+            <p class="reveal-up delay-2">
+              Full-length tests, vocabulary practice, performance breakdowns, and teacher dashboards in one focused SAT platform.
             </p>
 
-            <div class="hero-actions">
-              <a href="/register/" class="btn btn-primary btn-large">Start practice</a>
-              <a href="#features" class="btn btn-secondary btn-large">Explore platform</a>
+            <div class="hero-actions reveal-up delay-3">
+              <a href="{% url 'register' %}" class="btn btn-primary btn-large magnetic">Start practice</a>
+              <a href="#features" class="btn btn-secondary btn-large">See features</a>
             </div>
 
-            <div class="hero-points">
+            <div class="hero-points reveal-up delay-4" data-stagger>
               <div>
-                <strong>Full-length tests</strong>
-                <span>Timed Digital SAT flow with module logic</span>
+                <strong>Real test flow</strong>
+                <span>Timed modules and review states</span>
               </div>
               <div>
-                <strong>Smart review</strong>
-                <span>Find weak domains instead of guessing</span>
+                <strong>Smarter review</strong>
+                <span>Weak areas are visible fast</span>
               </div>
               <div>
-                <strong>Teacher tracking</strong>
-                <span>Classroom progress without spreadsheet hell</span>
+                <strong>Teacher tools</strong>
+                <span>Classrooms, join codes, tracking</span>
               </div>
             </div>
           </div>
 
-          <div class="hero-visual">
+          <div class="hero-visual reveal-scale delay-2" data-tilt>
+            <div class="orbit orbit-one"></div>
+            <div class="orbit orbit-two"></div>
             <div class="platform-preview glass-card">
               <div class="preview-glow"></div>
 
               <div class="preview-header">
                 <div>
-                  <span class="preview-kicker">SAT Makon dashboard</span>
+                  <span class="preview-kicker">Live dashboard</span>
                   <strong>Score growth plan</strong>
                 </div>
-                <span class="status-pill"><i></i> Live</span>
+                <span class="status-pill"><i></i> Active</span>
               </div>
 
               <div class="preview-score-grid">
                 <div class="score-card-main">
                   <span class="score-label">Predicted score</span>
-                  <div class="score-number">1490</div>
+                  <div class="score-number"><span data-counter="1490">1490</span></div>
                   <div class="score-meta-row">
                     <span>Target 1500+</span>
                     <strong>87%</strong>
                   </div>
-                  <div class="score-track"><span style="width: 87%"></span></div>
-                  <p>+120 points from diagnostic after 4 practice tests</p>
+                  <div class="score-track"><span style="--bar: 87%"></span></div>
+                  <p>+120 points from diagnostic after focused practice.</p>
                 </div>
 
                 <div class="module-stack">
-                  <article class="module-score-card">
+                  <article class="module-score-card floating-card">
                     <div>
                       <span>Reading & Writing</span>
                       <strong>710</strong>
                     </div>
-                    <div class="mini-line"><span style="width: 78%"></span></div>
+                    <div class="mini-line"><span style="--bar: 78%"></span></div>
                   </article>
-                  <article class="module-score-card">
+                  <article class="module-score-card floating-card delay-float">
                     <div>
                       <span>Math</span>
                       <strong>780</strong>
                     </div>
-                    <div class="mini-line"><span style="width: 84%"></span></div>
+                    <div class="mini-line"><span style="--bar: 84%"></span></div>
                   </article>
                 </div>
               </div>
 
-              <div class="next-action-card">
+              <div class="next-action-card shine-card">
                 <div>
-                  <span>Next best focus</span>
+                  <span>Next focus</span>
                   <strong>Problem Solving & Data Analysis</strong>
-                  <p>12 targeted questions recommended before the next full test.</p>
+                  <p>12 targeted questions before the next full test.</p>
                 </div>
                 <a href="{% url 'register' %}">Start</a>
               </div>
 
-              <div class="preview-bottom-grid">
+              <div class="preview-bottom-grid" data-stagger>
                 <article>
                   <span class="tile-icon">01</span>
-                  <strong>Adaptive practice</strong>
-                  <p>Module-based SAT flow</p>
+                  <strong>Adaptive flow</strong>
+                  <p>Module-based SAT practice</p>
                 </article>
                 <article>
                   <span class="tile-icon">02</span>
@@ -138,64 +167,61 @@
         </div>
       </section>
 
-      <section class="metrics-strip">
-        <div class="container metrics-grid">
-          <div class="metric-card">
-            <strong>Practice-first</strong>
-            <span>Real interface, timed modules, and review flow built for Digital SAT prep.</span>
+      <section class="metrics-strip" aria-label="Platform highlights">
+        <div class="container metrics-grid" data-stagger>
+          <div class="metric-card" data-reveal>
+            <strong><span data-counter="4">4</span> modules</strong>
+            <span>Digital SAT-style timed practice and review flow.</span>
           </div>
-          <div class="metric-card">
-            <strong>Vocabulary every day</strong>
-            <span>Flashcards and quizzes to stop forgetting words after two days.</span>
+          <div class="metric-card" data-reveal>
+            <strong><span data-counter="92">92</span>% tracking</strong>
+            <span>Completion and progress visibility for classrooms.</span>
           </div>
-          <div class="metric-card">
-            <strong>Analytics that matter</strong>
-            <span>Domain-level breakdowns, classroom progress, and result tracking.</span>
+          <div class="metric-card" data-reveal>
+            <strong><span data-counter="120">120</span>+ points</strong>
+            <span>Score-growth style analytics and next-step feedback.</span>
           </div>
         </div>
       </section>
 
       <section id="features" class="section-block">
         <div class="container">
-          <div class="section-heading center narrow">
-            <span class="eyebrow">Why students and teachers use it</span>
-            <h2>One platform for full tests, daily drills, and actual progress visibility.</h2>
-            <p>
-              The old landing page was generic and weak. This version sells the product properly:
-              realistic practice, focused improvement, and classroom control.
-            </p>
+          <div class="section-heading center narrow" data-reveal>
+            <span class="eyebrow">Platform features</span>
+            <h2>Everything students need to practice — and everything teachers need to manage it.</h2>
+            <p>Tests, vocabulary, review, and classroom workflows stay connected instead of scattered across separate tools.</p>
           </div>
 
-          <div class="feature-grid">
-            <article class="info-card large">
+          <div class="feature-grid" data-stagger>
+            <article class="info-card large" data-reveal>
               <div class="icon-badge">01</div>
               <h3>Full Digital SAT practice tests</h3>
-              <p>Students practice in a structured environment with section timing, review, progress saving, and resume flow.</p>
+              <p>Students practice with timed sections, progress saving, review states, and a focused test-taking experience.</p>
             </article>
-            <article class="info-card">
+            <article class="info-card" data-reveal>
               <div class="icon-badge">02</div>
               <h3>Detailed score analytics</h3>
-              <p>Breakdowns by section and domain make weak areas obvious instead of burying them under one total score.</p>
+              <p>Section and domain breakdowns make weak areas obvious instead of hiding everything behind one total score.</p>
             </article>
-            <article class="info-card">
+            <article class="info-card" data-reveal>
               <div class="icon-badge">03</div>
               <h3>Vocabulary system</h3>
-              <p>Word lists, flashcards, practice quizzes, and daily repetition keep retention from collapsing.</p>
+              <p>Word lists, flashcards, quizzes, and retention practice help students build vocabulary consistently.</p>
             </article>
-            <article class="info-card">
+            <article class="info-card" data-reveal>
               <div class="icon-badge">04</div>
               <h3>Teacher classrooms</h3>
-              <p>Manage students, assign work, monitor completion, and stop guessing who is actually practicing.</p>
+              <p>Create classrooms, invite students with join codes, assign work, and monitor activity from one place.</p>
             </article>
-            <article class="info-card">
+            <article class="info-card" data-reveal>
               <div class="icon-badge">05</div>
               <h3>Review and retake workflow</h3>
-              <p>Completed tests move to history, unfinished attempts can continue, and results stay accessible.</p>
+              <p>Completed tests, active attempts, and resumable progress are kept clear for students and teachers.</p>
             </article>
-            <article class="info-card">
+            <article class="info-card" data-reveal>
               <div class="icon-badge">06</div>
-              <h3>Faster, cleaner UI</h3>
-              <p>Purple-led visual system, clearer CTA hierarchy, and less template garbage pretending to be design.</p>
+              <h3>Modern SAT interface</h3>
+              <p>Clean hierarchy, strong CTA flow, responsive layout, and animated feedback without heavy dependencies.</p>
             </article>
           </div>
         </div>
@@ -203,47 +229,44 @@
 
       <section id="results" class="section-block alt-bg">
         <div class="container split-grid">
-          <div class="section-heading left">
-            <span class="eyebrow">Results that tell you what to do next</span>
-            <h2>Not just a score report. A clearer path to score growth.</h2>
-            <p>
-              Students need feedback they can act on. Teachers need dashboards that do not lie, lag,
-              or mix attempts together. SAT Makon is built around that reality.
-            </p>
+          <div class="section-heading left" data-reveal>
+            <span class="eyebrow">Actionable analytics</span>
+            <h2>Score reports should tell students what to fix next.</h2>
+            <p>Students need a path, not just a number. Teachers need clean visibility into completion, weak domains, and progress.</p>
 
-            <ul class="bullet-list">
-              <li>Domain and section breakdowns for Reading & Writing and Math</li>
-              <li>Review pages that support mistake analysis and targeted practice</li>
-              <li>Visible progress states for active, completed, and resumable tests</li>
-              <li>Classroom-level tracking for completion and performance</li>
+            <ul class="bullet-list" data-stagger>
+              <li data-reveal>Domain and section breakdowns for Reading & Writing and Math</li>
+              <li data-reveal>Review pages that support mistake analysis and targeted practice</li>
+              <li data-reveal>Visible states for active, completed, and resumable attempts</li>
+              <li data-reveal>Classroom-level tracking for completion and performance</li>
             </ul>
           </div>
 
-          <div class="analytics-stack">
+          <div class="analytics-stack" data-reveal data-tilt>
             <div class="glass-card panel-card">
               <div class="panel-head">
                 <strong>Weekly score trajectory</strong>
                 <span>Last 4 practice tests</span>
               </div>
               <div class="chart-bars">
-                <div><span style="height: 55%"></span><label>1320</label></div>
-                <div><span style="height: 68%"></span><label>1380</label></div>
-                <div><span style="height: 79%"></span><label>1440</label></div>
-                <div><span style="height: 86%"></span><label>1480</label></div>
+                <div><span style="--height: 55%"></span><label>1320</label></div>
+                <div><span style="--height: 68%"></span><label>1380</label></div>
+                <div><span style="--height: 79%"></span><label>1440</label></div>
+                <div><span style="--height: 86%"></span><label>1480</label></div>
               </div>
             </div>
-            <div class="glass-card panel-card small-cards">
-              <div class="small-panel">
+            <div class="glass-card panel-card small-cards" data-stagger>
+              <div class="small-panel" data-reveal>
                 <span>Best growth</span>
-                <strong>+130 points</strong>
+                <strong>+130</strong>
               </div>
-              <div class="small-panel">
-                <span>Completion rate</span>
+              <div class="small-panel" data-reveal>
+                <span>Completion</span>
                 <strong>92%</strong>
               </div>
-              <div class="small-panel">
-                <span>Review accuracy</span>
-                <strong>11/14 fixed</strong>
+              <div class="small-panel" data-reveal>
+                <span>Review fixes</span>
+                <strong>11/14</strong>
               </div>
             </div>
           </div>
@@ -252,32 +275,29 @@
 
       <section id="classrooms" class="section-block">
         <div class="container">
-          <div class="classroom-banner glass-card">
+          <div class="classroom-banner glass-card" data-reveal>
             <div class="section-heading left max-text">
-              <span class="eyebrow">Built for classrooms, not just solo students</span>
-              <h2>Teachers can run structured prep instead of chasing updates manually.</h2>
-              <p>
-                Create classrooms, generate join codes, manage vocabulary, assign practice tests,
-                and review student activity in one place.
-              </p>
+              <span class="eyebrow">Classrooms</span>
+              <h2>Run structured prep without chasing students manually.</h2>
+              <p>Create classrooms, generate join codes, manage vocabulary, assign practice tests, and review student activity in one place.</p>
             </div>
 
-            <div class="classroom-grid">
-              <div class="classroom-item">
+            <div class="classroom-grid" data-stagger>
+              <div class="classroom-item" data-reveal>
                 <strong>Join codes</strong>
-                <p>Simple student onboarding without ugly multi-step chaos.</p>
+                <p>Simple student onboarding.</p>
               </div>
-              <div class="classroom-item">
+              <div class="classroom-item" data-reveal>
                 <strong>Practice control</strong>
-                <p>Track which tests are active, completed, and ready for review.</p>
+                <p>Track active and completed tests.</p>
               </div>
-              <div class="classroom-item">
+              <div class="classroom-item" data-reveal>
                 <strong>Progress pages</strong>
-                <p>See student-level movement in vocabulary, tests, and sections.</p>
+                <p>Monitor vocabulary, tests, and sections.</p>
               </div>
-              <div class="classroom-item">
+              <div class="classroom-item" data-reveal>
                 <strong>Admin clarity</strong>
-                <p>Less confusion, fewer missing attempts, better workflow discipline.</p>
+                <p>Cleaner workflow for teachers.</p>
               </div>
             </div>
           </div>
@@ -286,23 +306,23 @@
 
       <section class="section-block alt-bg">
         <div class="container testimonials-wrap">
-          <div class="section-heading center narrow">
-            <span class="eyebrow">What the platform promises</span>
-            <h2>A landing page should convert. That means clarity, proof, and clean structure.</h2>
+          <div class="section-heading center narrow" data-reveal>
+            <span class="eyebrow">Why it works</span>
+            <h2>Focused practice beats random worksheets.</h2>
           </div>
 
-          <div class="testimonial-grid">
-            <article class="quote-card">
-              <p>“The full-length test flow finally feels like a serious prep product, not a random worksheet archive.”</p>
-              <strong>Student value proposition</strong>
+          <div class="testimonial-grid" data-stagger>
+            <article class="quote-card" data-reveal>
+              <p>“Practice feels structured, and review points students toward the next useful task.”</p>
+              <strong>Student workflow</strong>
             </article>
-            <article class="quote-card">
-              <p>“Classroom tracking matters because teachers need to see completion and weak points without opening ten tabs.”</p>
-              <strong>Teacher value proposition</strong>
+            <article class="quote-card" data-reveal>
+              <p>“Teachers can see completion and weak points without opening ten separate files.”</p>
+              <strong>Classroom workflow</strong>
             </article>
-            <article class="quote-card">
-              <p>“Purple branding can look premium if you stop mixing it with template junk and build one real visual system.”</p>
-              <strong>Brand direction</strong>
+            <article class="quote-card" data-reveal>
+              <p>“The page now has motion, hierarchy, and a stronger product feel.”</p>
+              <strong>Brand experience</strong>
             </article>
           </div>
         </div>
@@ -310,41 +330,41 @@
 
       <section id="faq" class="section-block">
         <div class="container faq-layout">
-          <div class="section-heading left">
+          <div class="section-heading left" data-reveal>
             <span class="eyebrow">FAQ</span>
-            <h2>Questions users will actually ask before signing up.</h2>
+            <h2>Questions users ask before signing up.</h2>
           </div>
 
-          <div class="faq-list">
-            <article class="faq-item">
-              <h3>Is this for self-study or classrooms?</h3>
+          <div class="faq-list" data-stagger>
+            <details class="faq-item" data-reveal open>
+              <summary>Is this for self-study or classrooms?</summary>
               <p>Both. Students can practice alone, and teachers can manage classrooms, track progress, and review performance.</p>
-            </article>
-            <article class="faq-item">
-              <h3>Does it focus only on full tests?</h3>
+            </details>
+            <details class="faq-item" data-reveal>
+              <summary>Does it focus only on full tests?</summary>
               <p>No. It also includes vocabulary work, analytics, review flow, and progress tracking around test performance.</p>
-            </article>
-            <article class="faq-item">
-              <h3>Can unfinished tests be continued later?</h3>
+            </details>
+            <details class="faq-item" data-reveal>
+              <summary>Can unfinished tests be continued later?</summary>
               <p>Yes. The platform supports resuming active attempts instead of forcing students to restart from zero.</p>
-            </article>
-            <article class="faq-item">
-              <h3>Why does this page look different now?</h3>
-              <p>Because the old landing page looked generic. This one is built to look like a real SAT prep product with stronger hierarchy and branding.</p>
-            </article>
+            </details>
+            <details class="faq-item" data-reveal>
+              <summary>Does it work on mobile?</summary>
+              <p>The landing page is responsive. The test-taking experience should still be reviewed on actual devices before launch.</p>
+            </details>
           </div>
         </div>
       </section>
 
       <section class="cta-block">
         <div class="container">
-          <div class="cta-card">
-            <span class="eyebrow">Ready to launch the new first impression?</span>
-            <h2>Use SAT Makon to prep smarter, review faster, and track real progress.</h2>
-            <p>Start with the platform students can actually navigate and teachers can actually manage.</p>
+          <div class="cta-card" data-reveal>
+            <span class="eyebrow">Start SAT prep with structure</span>
+            <h2>Practice smarter, review faster, and track real progress.</h2>
+            <p>Use SAT Makon for Digital SAT tests, vocabulary, analytics, and classroom control.</p>
             <div class="hero-actions centered">
-              <a href="/register/" class="btn btn-primary btn-large">Create account</a>
-              <a href="/login/" class="btn btn-secondary btn-large">Go to login</a>
+              <a href="{% url 'register' %}" class="btn btn-primary btn-large magnetic">Create account</a>
+              <a href="{% url 'login' %}" class="btn btn-secondary btn-large">Go to login</a>
             </div>
           </div>
         </div>
@@ -359,12 +379,20 @@
         </div>
         <div class="footer-links">
           <a href="#features">Features</a>
+          <a href="#results">Analytics</a>
           <a href="#faq">FAQ</a>
-          <a href="/login/">Login</a>
-          <a href="/register/">Register</a>
+          <a href="{% url 'login' %}">Login</a>
+          <a href="{% url 'register' %}">Register</a>
         </div>
       </div>
     </footer>
+    <a class="back-to-top is-visible" href="#top" aria-label="Back to top" data-back-to-top>
+      <span aria-hidden="true">↑</span>
+    </a>
   </div>
+
+  <script src="{% static 'assets/js/landing.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  <script src="{% static 'assets/js/makon-faq-animation.js' %}"></script>
 </body>
 </html>

@@ -1,0 +1,66 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Support Planner{% endblock title-main %}
+{% block title %}Support Planner{% endblock title %}
+
+{% block style %}
+<style>
+  .planner-page { max-width:1120px; margin:0 auto; display:grid; gap:22px; }
+  .panel { background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:22px; box-shadow:0 10px 24px rgba(0,0,0,.07); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+  .item { border:1px solid #e2e8f0; background:#f8fafc; border-radius:14px; padding:14px; }
+  .muted { color:#64748b; }
+  .rating { color:#92400e; font-weight:900; }
+</style>
+{% endblock style %}
+
+{% block content %}
+<div class="planner-page">
+  <div class="panel">
+    <h2>{{ teacher.name }} — support planner</h2>
+    <p class="muted">Students see the free slots. Booked slots are shown here for teacher/admin tracking.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Upcoming booked lessons</h3>
+    <div class="grid">
+      {% for booking in upcoming_bookings %}
+        <div class="item">
+          <strong>{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</strong><br>
+          <span>{{ booking.student.get_full_name|default:booking.student.username }}</span>
+          {% if booking.student_note %}<p class="muted">{{ booking.student_note }}</p>{% endif %}
+        </div>
+      {% empty %}
+        <p class="muted">No upcoming booked lessons.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Next planner slots</h3>
+    <div class="grid">
+      {% for slot in slots %}
+        <div class="item">
+          <strong>{{ slot.date_label }}</strong><br>
+          {{ slot.time_label }} · {% if slot.is_booked %}<span class="rating">booked</span>{% else %}<span class="muted">free</span>{% endif %}
+        </div>
+      {% empty %}
+        <p class="muted">No availability slots configured.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Latest reviews</h3>
+    {% for review in reviews %}
+      <div class="item" style="margin-bottom:10px;">
+        <strong>{{ review.student.get_full_name|default:review.student.username }}</strong> <span class="rating">★ {{ review.rating }}/5</span>
+        {% if review.feedback %}<p class="muted">{{ review.feedback }}</p>{% endif %}
+      </div>
+    {% empty %}
+      <p class="muted">No reviews yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}

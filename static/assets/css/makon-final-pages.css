@@ -1,0 +1,364 @@
+/* Final SAT app polish for remaining template-based pages. */
+:root {
+  --fp-bg: #f7f4ff;
+  --fp-surface: rgba(255, 255, 255, .90);
+  --fp-surface-strong: rgba(255, 255, 255, .98);
+  --fp-surface-soft: rgba(246, 242, 255, .86);
+  --fp-border: rgba(109, 40, 217, .16);
+  --fp-border-strong: rgba(109, 40, 217, .30);
+  --fp-text: #130821;
+  --fp-muted: #655875;
+  --fp-muted-strong: #3f3050;
+  --fp-primary: #7c3aed;
+  --fp-primary-2: #d946ef;
+  --fp-cyan: #06b6d4;
+  --fp-green: #16a34a;
+  --fp-amber: #d97706;
+  --fp-red: #dc2626;
+  --fp-shadow: 0 26px 80px rgba(76, 29, 149, .13);
+  --fp-shadow-soft: 0 16px 44px rgba(76, 29, 149, .10);
+  --fp-gradient: linear-gradient(135deg, var(--fp-primary), var(--fp-primary-2));
+}
+
+html[data-theme="dark"] {
+  --fp-bg: #080315;
+  --fp-surface: rgba(18, 13, 34, .84);
+  --fp-surface-strong: rgba(20, 14, 38, .96);
+  --fp-surface-soft: rgba(255, 255, 255, .065);
+  --fp-border: rgba(255, 255, 255, .12);
+  --fp-border-strong: rgba(188, 123, 255, .32);
+  --fp-text: #ffffff;
+  --fp-muted: rgba(255, 255, 255, .68);
+  --fp-muted-strong: rgba(255, 255, 255, .86);
+  --fp-primary: #a78bfa;
+  --fp-primary-2: #f472d0;
+  --fp-cyan: #22d3ee;
+  --fp-green: #4ade80;
+  --fp-amber: #fbbf24;
+  --fp-red: #fb7185;
+  --fp-shadow: 0 28px 86px rgba(0, 0, 0, .42);
+  --fp-shadow-soft: 0 16px 46px rgba(0, 0, 0, .32);
+}
+
+body:not(.auth-page):not(.public-page):not(.software-page) #blog.blog {
+  position: relative;
+  overflow: hidden;
+}
+
+body:not(.auth-page):not(.public-page):not(.software-page) #blog.blog::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(124, 58, 237, .09), transparent 24rem),
+    radial-gradient(circle at 90% 20%, rgba(6, 182, 212, .08), transparent 24rem);
+  z-index: -1;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) {
+  position: relative;
+  overflow: hidden;
+  border-radius: 30px !important;
+  border: 1px solid var(--fp-border) !important;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(124, 58, 237, .13), transparent 20rem),
+    radial-gradient(circle at 92% 16%, rgba(6, 182, 212, .11), transparent 20rem),
+    linear-gradient(135deg, var(--fp-surface-strong), var(--fp-surface-soft)) !important;
+  color: var(--fp-text) !important;
+  box-shadow: var(--fp-shadow) !important;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card)::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,.32), transparent 34%, rgba(217,70,239,.10));
+  opacity: .65;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) > * {
+  position: relative;
+  z-index: 1;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h1,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h2,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h3,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h4 {
+  color: var(--fp-text) !important;
+  letter-spacing: -.045em;
+  font-weight: 950 !important;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h1,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) h2 {
+  font-size: clamp(30px, 4.4vw, 52px) !important;
+  line-height: .98 !important;
+  margin-bottom: 14px !important;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) p,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) li {
+  color: var(--fp-muted) !important;
+  font-weight: 650;
+  line-height: 1.65;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) label {
+  color: var(--fp-muted-strong) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.01em;
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) input,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) textarea,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) select {
+  min-height: 52px;
+  border: 1px solid var(--fp-border) !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,.68) !important;
+  color: var(--fp-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+html[data-theme="dark"] :is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) input,
+html[data-theme="dark"] :is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) textarea,
+html[data-theme="dark"] :is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) select {
+  background: rgba(255,255,255,.07) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) input:focus,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) textarea:focus,
+:is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) select:focus {
+  outline: none;
+  border-color: var(--fp-primary) !important;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, .14) !important;
+}
+
+.join-input {
+  font-size: clamp(26px, 5vw, 42px) !important;
+  height: 72px !important;
+  letter-spacing: .55em !important;
+  text-transform: uppercase;
+  font-weight: 950 !important;
+  padding-left: .55em !important;
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, .08), rgba(6, 182, 212, .08)),
+    rgba(255,255,255,.70) !important;
+}
+
+:is(.submit-btn, .join-btn, .btn-main, .btn-primary, .success-container .btn-primary, .limit-container .btn-primary, .review-container .btn-primary, .primary-btn, button[type="submit"]):not(.theme-toggle-button) {
+  appearance: none;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 0 20px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  background: var(--fp-gradient) !important;
+  text-decoration: none !important;
+  font-weight: 950 !important;
+  letter-spacing: -.02em;
+  box-shadow: 0 18px 44px rgba(124, 58, 237, .24) !important;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+:is(.submit-btn, .join-btn, .btn-main, .btn-primary, .success-container .btn-primary, .limit-container .btn-primary, .review-container .btn-primary, .primary-btn, button[type="submit"]):not(.theme-toggle-button):hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+  box-shadow: 0 24px 58px rgba(124, 58, 237, .30) !important;
+}
+
+:is(.btn-secondary, .limit-container .btn-secondary, .review-container .btn-secondary, .denied-card .btn-secondary) {
+  color: var(--fp-text) !important;
+  background: rgba(255,255,255,.56) !important;
+  border: 1px solid var(--fp-border) !important;
+  box-shadow: var(--fp-shadow-soft) !important;
+}
+
+html[data-theme="dark"] :is(.btn-secondary, .limit-container .btn-secondary, .review-container .btn-secondary, .denied-card .btn-secondary) {
+  background: rgba(255,255,255,.07) !important;
+}
+
+.denied-icon,
+.success-icon,
+.limit-icon,
+.review-icon {
+  width: 88px !important;
+  height: 88px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28px !important;
+  color: #fff !important;
+  background: var(--fp-gradient) !important;
+  box-shadow: 0 18px 44px rgba(124, 58, 237, .24) !important;
+  font-size: 38px !important;
+  margin-bottom: 22px !important;
+  animation: mkStatusFloat 4.5s ease-in-out infinite;
+}
+
+.limit-icon { background: linear-gradient(135deg, #ef4444, #d946ef) !important; }
+.review-icon { background: linear-gradient(135deg, #f59e0b, #d946ef) !important; }
+.success-icon { background: linear-gradient(135deg, #10b981, #06b6d4) !important; }
+
+@keyframes mkStatusFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+.status-card,
+.retake-info,
+.review-info,
+.time-details,
+.status-box,
+.approved-links span {
+  border: 1px solid var(--fp-border) !important;
+  border-radius: 22px !important;
+  background: rgba(255,255,255,.54) !important;
+  color: var(--fp-text) !important;
+  box-shadow: var(--fp-shadow-soft) !important;
+}
+
+html[data-theme="dark"] :is(.status-card, .retake-info, .review-info, .time-details, .status-box, .approved-links span) {
+  background: rgba(255,255,255,.065) !important;
+}
+
+.approved-links span {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px !important;
+  color: var(--fp-primary) !important;
+  font-weight: 950 !important;
+  box-shadow: none !important;
+}
+
+.approved-links span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--fp-green);
+  box-shadow: 0 0 16px rgba(22, 163, 74, .48);
+}
+
+.retake-info h4,
+.review-info h4 {
+  color: var(--fp-text) !important;
+}
+
+.retake-info strong,
+.review-info strong,
+.time-details span {
+  color: var(--fp-primary) !important;
+}
+
+.alert,
+.messages,
+.message,
+.errorlist,
+.nonfield {
+  border-radius: 18px !important;
+  border: 1px solid var(--fp-border) !important;
+  background: rgba(255,255,255,.64) !important;
+  color: var(--fp-muted-strong) !important;
+  box-shadow: var(--fp-shadow-soft) !important;
+}
+
+html[data-theme="dark"] :is(.alert, .messages, .message, .errorlist, .nonfield) {
+  background: rgba(255,255,255,.07) !important;
+  color: var(--fp-muted-strong) !important;
+}
+
+/* Test results / retake buttons inside regular result pages. */
+.restart-btn-container :is(.btn-warning, .btn-danger),
+:is(.btn-warning, .btn-danger).btn-sm {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  color: #fff !important;
+  font-weight: 900 !important;
+  padding: 10px 14px !important;
+  box-shadow: 0 14px 34px rgba(124, 58, 237, .22) !important;
+}
+
+.restart-btn-container .btn-warning,
+.btn-warning.btn-sm {
+  background: linear-gradient(135deg, #f59e0b, #d946ef) !important;
+}
+
+.restart-btn-container .btn-danger,
+.btn-danger.btn-sm {
+  background: linear-gradient(135deg, #ef4444, #7c3aed) !important;
+}
+
+/* Generic old pages cleanup. */
+.blog :is(.container > .row, .content-card, .main-card, .dashboard-card, .panel, .box) {
+  color: var(--fp-text);
+}
+
+.blog :is(table, .table) {
+  border: 1px solid var(--fp-border) !important;
+  border-radius: 22px !important;
+  overflow: hidden;
+  background: var(--fp-surface) !important;
+  color: var(--fp-text) !important;
+  box-shadow: var(--fp-shadow-soft) !important;
+}
+
+.blog :is(th, td) {
+  border-color: var(--fp-border) !important;
+  color: var(--fp-muted-strong) !important;
+}
+
+.blog thead th,
+.blog .table thead th {
+  background: rgba(124, 58, 237, .10) !important;
+  color: var(--fp-text) !important;
+  font-weight: 900;
+}
+
+[data-final-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+html.js-final-pages [data-final-reveal] {
+  opacity: 0;
+  transform: translateY(20px) scale(.985);
+  transition: opacity .58s ease, transform .58s cubic-bezier(.2,.8,.2,1);
+}
+
+html.js-final-pages [data-final-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (max-width: 760px) {
+  :is(.form-wrap, .join-wrap, .status-card, .denied-card, .success-container, .limit-container, .review-container, .attempt-card) {
+    border-radius: 24px !important;
+    padding: 22px !important;
+  }
+
+  .join-input {
+    letter-spacing: .28em !important;
+    padding-left: .28em !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-final-reveal],
+  .denied-icon,
+  .success-icon,
+  .limit-icon,
+  .review-icon {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,132 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:15px;">
+  <h2 style="margin:0;"><i class="fa fa-calendar-check-o"></i> {% if teacher %}Edit Support Teacher{% else %}Create Support Teacher{% endif %}</h2>
+  <a href="{% url 'admin_support_teachers' %}" class="btn-admin btn-secondary">Back</a>
+</div>
+
+<div class="admin-card">
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="form-group">
+      <label>User</label>
+      {{ form.user }}
+      {% for error in form.user.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:15px;">
+      <div class="form-group">
+        <label>Display name</label>
+        {{ form.display_name }}
+        {% for error in form.display_name.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
+        <label>Telegram username</label>
+        {{ form.telegram_username }}
+        {% for error in form.telegram_username.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
+        <label>Subjects</label>
+        {{ form.subjects }}
+        {% for error in form.subjects.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
+        <label>Sort order</label>
+        {{ form.sort_order }}
+        {% for error in form.sort_order.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Bio</label>
+      {{ form.bio }}
+      {% for error in form.bio.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:8px;">{{ form.is_active }} Active</label>
+      {% for error in form.is_active.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+    </div>
+
+    <button class="btn-admin btn-primary" type="submit">Save</button>
+  </form>
+</div>
+
+{% if teacher %}
+<div class="admin-card">
+  <h4>Availability planner</h4>
+  <form method="post" action="{% url 'admin_support_teacher_availability_add' teacher.id %}" style="display:grid; grid-template-columns:1fr 1fr 1fr 2fr auto auto; gap:10px; align-items:end;">
+    {% csrf_token %}
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Day</label>
+      {{ availability_form.day_of_week }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Start</label>
+      {{ availability_form.start_time }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>End</label>
+      {{ availability_form.end_time }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Note</label>
+      {{ availability_form.note }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Active</label>
+      {{ availability_form.is_active }}
+    </div>
+    <button class="btn-admin btn-success" type="submit">Add Slot</button>
+  </form>
+
+  <table class="admin-table" style="margin-top:18px;">
+    <thead>
+      <tr><th>Day</th><th>Time</th><th>Note</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for slot in availabilities %}
+      <tr>
+        <td>{{ slot.get_day_of_week_display }}</td>
+        <td>{{ slot.start_time|time:'H:i' }} — {{ slot.end_time|time:'H:i' }}</td>
+        <td>{{ slot.note|default:'-' }}</td>
+        <td>{% if slot.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Inactive</span>{% endif %}</td>
+        <td>
+          <form method="post" action="{% url 'admin_support_teacher_availability_delete' teacher.id slot.id %}" style="display:inline;" onsubmit="return confirm('Delete this availability slot?');">
+            {% csrf_token %}
+            <button type="submit" class="btn-admin btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="text-align:center; color:#94a3b8;">No availability slots yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="admin-card">
+  <h4>Recent support bookings</h4>
+  <table class="admin-table">
+    <thead>
+      <tr><th>Student</th><th>Time</th><th>Status</th><th>Note</th></tr>
+    </thead>
+    <tbody>
+      {% for booking in recent_bookings %}
+      <tr>
+        <td>{{ booking.student.username }}</td>
+        <td>{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</td>
+        <td>{{ booking.get_status_display }}</td>
+        <td>{{ booking.student_note|default:'-'|truncatewords:10 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" style="text-align:center; color:#94a3b8;">No bookings yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock admin_content %}

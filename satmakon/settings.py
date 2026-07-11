@@ -18,6 +18,10 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def env_str(name: str, default: str = "") -> str:
+    return os.getenv(name, default).strip() or default
+
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     config_path = BASE_DIR / "satmakon" / "config.ini"
@@ -51,6 +55,12 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     "storages",
 
+    "django.contrib.sites",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+
     "apps.base.apps.BaseConfig",
     "apps.sat.apps.SatConfig",
     "apps.apclasses.apps.ApClassesConfig",
@@ -63,8 +73,10 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "apps.base.middleware.MakonErrorPageMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "apps.sat.middleware.ClientSoftwareMiddleware",
     "apps.sat.middleware.RequestTimeoutMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -203,6 +215,18 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Email settings for verification/password reset codes
+EMAIL_BACKEND = env_str("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env_str("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(env_str("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_HOST_USER = env_str("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env_str("EMAIL_HOST_PASSWORD", env_str("EMAIL_PASSWORD", ""))
+DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@localhost")
+SERVER_EMAIL = env_str("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+
 # File upload and request size limits for test submissions
 DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
@@ -323,3 +347,44 @@ LOGGING = {
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = 'sat_menu'
 LOGOUT_REDIRECT_URL = '/login/'
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+SITE_ID = int(os.getenv("SITE_ID", "1"))
+
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/sat/"
+ACCOUNT_LOGOUT_REDIRECT_URL = "/login/"
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+# ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+
+GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "VERIFIED_EMAIL": True,
+        "EMAIL_AUTHENTICATION": True,
+        "EMAIL_AUTHENTICATION_AUTO_CONNECT": True,
+        "APPS": [
+            {
+                "client_id": GOOGLE_OAUTH_CLIENT_ID,
+                "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+                "key": "",
+                "settings": {
+                    "scope": ["profile", "email"],
+                    "auth_params": {"access_type": "online"},
+                },
+            }
+        ],
+        "OAUTH_PKCE_ENABLED": True,
+    }
+}

@@ -15,844 +15,154 @@
 
 {% block style %}
 <style>
-  :root {
-    --flash-primary: #6d28d9;
-    --flash-primary-dark: #5b21b6;
-    --flash-primary-soft: #f3e8ff;
-    --flash-ink: #111827;
-    --flash-muted: #6b7280;
-    --flash-border: #e5e7eb;
-    --flash-bg: #f8fafc;
-    --flash-good: #16a34a;
-    --flash-good-soft: #dcfce7;
-    --flash-bad: #dc2626;
-    --flash-bad-soft: #fee2e2;
-  }
-
-  .flash-page {
-    max-width: 1180px;
+  .page-wrap {
+    max-width: 1200px;
     margin: 0 auto;
   }
 
-  .flash-back {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 0 18px;
-    border-radius: 999px;
-    background: #fff;
-    color: var(--flash-primary) !important;
-    border: 1px solid #ddd6fe;
-    text-decoration: none;
+  .unit-block {
+    margin-bottom: 30px;
+  }
+
+  .unit-title {
+    font-size: 28px;
     font-weight: 800;
-    margin-bottom: 18px;
-    box-shadow: 0 8px 20px rgba(109, 40, 217, 0.08);
-  }
-
-  .flash-back:hover {
-    color: var(--flash-primary-dark) !important;
-    border-color: #c4b5fd;
-  }
-
-  .flash-hero {
-    position: relative;
-    overflow: hidden;
-    background: radial-gradient(circle at top right, rgba(255,255,255,.25), transparent 30%), linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%);
-    color: #fff;
-    border-radius: 28px;
-    padding: 34px;
-    margin-bottom: 26px;
-    box-shadow: 0 18px 45px rgba(79, 70, 229, 0.24);
-  }
-
-  .flash-hero h2 {
-    margin: 0 0 10px;
-    font-size: 36px;
-    line-height: 1.1;
-    font-weight: 900;
-  }
-
-  .flash-hero p {
-    margin: 0;
-    max-width: 760px;
-    color: rgba(255,255,255,.9);
-    font-size: 16px;
-    line-height: 1.6;
-  }
-
-  .unit-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 18px;
-  }
-
-  .unit-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-height: 190px;
-    padding: 24px;
-    background: #fff;
-    color: inherit;
-    text-decoration: none;
-    border: 1px solid var(--flash-border);
-    border-radius: 24px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-  }
-
-  .unit-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.13);
-    border-color: #c4b5fd;
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .unit-kicker {
-    display: inline-flex;
-    width: fit-content;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 12px;
-    border-radius: 999px;
-    background: var(--flash-primary-soft);
-    color: var(--flash-primary);
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: .04em;
+    color: #7c3aed;
     margin-bottom: 16px;
   }
 
-  .unit-card h3 {
-    margin: 0 0 10px;
-    color: var(--flash-ink);
-    font-size: 22px;
-    font-weight: 900;
-    line-height: 1.25;
-  }
-
-  .unit-card p {
-    margin: 0 0 18px;
-    color: var(--flash-muted);
-    line-height: 1.55;
-  }
-
-  .unit-footer {
-    margin-top: auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    color: var(--flash-primary);
-    font-weight: 900;
-  }
-
-  .empty-state {
-    padding: 34px;
-    border: 1px dashed #cbd5e1;
-    border-radius: 24px;
-    color: var(--flash-muted);
-    background: #fff;
-    text-align: center;
-    font-weight: 700;
-  }
-
-  .study-shell {
+  .flashcards-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 24px;
-    align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 22px;
   }
 
-  .study-panel,
-  .stats-panel {
+  .flashcard {
     background: #fff;
-    border: 1px solid var(--flash-border);
-    border-radius: 26px;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-  }
-
-  .study-panel {
+    border-radius: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
     padding: 24px;
-  }
-
-  .stats-panel {
-    padding: 22px;
-    position: sticky;
-    top: 18px;
-  }
-
-  .study-topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-  }
-
-  .progress-copy {
-    color: var(--flash-muted);
-    font-weight: 800;
-  }
-
-  .progress-track {
-    width: 100%;
-    height: 10px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: #ede9fe;
-    margin-bottom: 22px;
-  }
-
-  .progress-fill {
-    width: 0%;
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #7c3aed, #4f46e5);
-    transition: width .25s ease;
-  }
-
-  .flip-axis {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px;
-    border-radius: 999px;
-    background: #f3f4f6;
-  }
-
-  .axis-btn {
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--flash-muted);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 900;
-    padding: 8px 12px;
-  }
-
-  .axis-btn.is-active {
-    background: #fff;
-    color: var(--flash-primary);
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
-  }
-
-  .flashcard-stage {
-    perspective: 1400px;
-    min-height: 380px;
-  }
-
-  .study-card {
-    position: relative;
-    width: 100%;
-    min-height: 380px;
-    cursor: pointer;
-    transform-style: preserve-3d;
-  }
-
-  .card-inner {
-    position: absolute;
-    inset: 0;
-    transition: transform .62s cubic-bezier(.2,.65,.2,1);
-    transform-style: preserve-3d;
-  }
-
-  .study-card.is-flipped.axis-horizontal .card-inner {
-    transform: rotateY(180deg);
-  }
-
-  .study-card.is-flipped.axis-vertical .card-inner {
-    transform: rotateX(180deg);
-  }
-
-  .card-face {
-    position: absolute;
-    inset: 0;
+    min-height: 240px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    padding: 34px;
-    border-radius: 28px;
-    border: 1px solid #ddd6fe;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 20px 50px rgba(109, 40, 217, 0.14);
   }
 
-  .card-back {
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    transform: rotateY(180deg);
-  }
-
-  .study-card.axis-vertical .card-back {
-    transform: rotateX(180deg);
-  }
-
-  .face-label {
-    position: absolute;
-    top: 22px;
-    left: 24px;
-    display: inline-flex;
-    padding: 7px 12px;
+  .flashcard-label {
+    display: inline-block;
+    width: fit-content;
+    padding: 6px 12px;
     border-radius: 999px;
-    background: var(--flash-primary-soft);
-    color: var(--flash-primary);
-    font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-  }
-
-  .word-text {
-    margin: 0;
-    color: var(--flash-ink);
-    font-size: clamp(38px, 6vw, 68px);
-    line-height: 1.06;
-    font-weight: 950;
-    letter-spacing: -0.04em;
-    text-align: center;
-  }
-
-  .meaning-title {
-    margin: 0 0 14px;
-    color: var(--flash-primary);
-    font-size: 14px;
-    font-weight: 950;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-  }
-
-  .meaning-text {
-    margin: 0;
-    color: var(--flash-ink);
-    font-size: clamp(22px, 3vw, 34px);
-    line-height: 1.35;
-    font-weight: 850;
-  }
-
-  .example-box {
-    margin-top: 22px;
-    padding: 18px;
-    border-radius: 18px;
-    background: #f1f5f9;
-    color: #475569;
-    line-height: 1.55;
-    font-size: 15px;
-  }
-
-  .hint-copy {
-    position: absolute;
-    bottom: 22px;
-    left: 24px;
-    right: 24px;
-    text-align: center;
-    color: var(--flash-muted);
+    background: #eef2ff;
+    color: #7c3aed;
     font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .flashcard-front {
+    font-size: 28px;
     font-weight: 800;
-  }
-
-  .study-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 20px;
-  }
-
-  .flash-btn {
-    border: none;
-    border-radius: 999px;
-    min-height: 48px;
-    padding: 0 20px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 950;
-    transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-  }
-
-  .flash-btn:hover {
-    transform: translateY(-1px);
-  }
-
-  .flash-btn-primary {
-    background: var(--flash-primary);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(109, 40, 217, 0.22);
-  }
-
-  .flash-btn-primary:hover {
-    background: var(--flash-primary-dark);
-  }
-
-  .flash-btn-good {
-    background: var(--flash-good);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(22, 163, 74, 0.18);
-  }
-
-  .flash-btn-bad {
-    background: var(--flash-bad);
-    color: #fff;
-    box-shadow: 0 10px 24px rgba(220, 38, 38, 0.16);
-  }
-
-  .flash-btn-secondary {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  .flash-btn:disabled {
-    opacity: .45;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .score-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    color: #111827;
+    line-height: 1.3;
     margin-bottom: 18px;
   }
 
-  .score-card {
-    border-radius: 18px;
-    padding: 18px;
-    background: #f8fafc;
-    border: 1px solid var(--flash-border);
-  }
-
-  .score-card.good {
-    background: var(--flash-good-soft);
-    border-color: #bbf7d0;
-  }
-
-  .score-card.bad {
-    background: var(--flash-bad-soft);
-    border-color: #fecaca;
-  }
-
-  .score-label {
-    color: var(--flash-muted);
-    font-size: 12px;
-    font-weight: 950;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-  }
-
-  .score-value {
-    margin-top: 6px;
-    color: var(--flash-ink);
-    font-size: 32px;
-    font-weight: 950;
-  }
-
-  .stats-title {
-    margin: 0 0 12px;
-    color: var(--flash-ink);
-    font-size: 18px;
-    font-weight: 950;
-  }
-
-  .stats-line {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 11px 0;
-    border-bottom: 1px solid #f1f5f9;
-    color: var(--flash-muted);
-    font-weight: 800;
-  }
-
-  .stats-line strong {
-    color: var(--flash-ink);
-  }
-
-  .result-panel {
+  .flashcard-answer {
     display: none;
-    padding: 34px;
-    border-radius: 28px;
-    background: #fff;
-    border: 1px solid var(--flash-border);
-    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.10);
-    text-align: center;
+    margin-top: 12px;
+    padding: 16px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+    line-height: 1.6;
+    font-size: 15px;
   }
 
-  .result-panel.is-visible {
+  .flashcard-answer.show {
     display: block;
   }
 
-  .result-panel h3 {
-    margin: 0 0 10px;
-    color: var(--flash-ink);
-    font-size: 32px;
-    font-weight: 950;
+  .flashcard-actions {
+    margin-top: auto;
+    padding-top: 18px;
   }
 
-  .result-panel p {
-    margin: 0 0 22px;
-    color: var(--flash-muted);
-    font-size: 16px;
+  .flashcard-btn {
+    border: none;
+    cursor: pointer;
+    border-radius: 999px;
+    height: 42px;
+    padding: 0 18px;
+    font-weight: 700;
+    font-size: 14px;
+    background: #7c3aed;
+    color: #fff;
   }
 
-  .result-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .is-hidden {
-    display: none !important;
-  }
-
-  @media (max-width: 980px) {
-    .study-shell {
-      grid-template-columns: 1fr;
-    }
-
-    .stats-panel {
-      position: static;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .flash-hero {
-      padding: 26px;
-      border-radius: 22px;
-    }
-
-    .flash-hero h2 {
-      font-size: 30px;
-    }
-
-    .study-panel,
-    .stats-panel,
-    .result-panel {
-      padding: 18px;
-      border-radius: 22px;
-    }
-
-    .flashcard-stage,
-    .study-card {
-      min-height: 330px;
-    }
-
-    .card-face {
-      padding: 28px 20px;
-      border-radius: 22px;
-    }
-
-    .study-actions .flash-btn,
-    .result-actions .flash-btn {
-      width: 100%;
-    }
+  .flashcard-btn:hover {
+    background: #6d28d9;
   }
 </style>
 <link rel="stylesheet" href="{% static 'assets/css/makon-vocab-admissions.css' %}">
 {% endblock style %}
 
 {% block content %}
-<main class="main-content">
-  <div class="flash-page">
-    {% if selected_unit %}
-      <a href="{{ request.path }}" class="flash-back">← Back to Units</a>
-    {% elif classroom %}
-      <a href="{% url 'classroom_vocabulary' classroom.id %}" class="flash-back">← Back to Vocabulary</a>
-    {% else %}
-      <a href="{% url 'vocabulary' %}" class="flash-back">← Back to Vocabulary</a>
-    {% endif %}
+<main class="main-content mk-learning mk-vocab-flashcards-page" data-learning-page="vocab-flashcards">
+  <div class="page-wrap">
+    {% for unit in units %}
+      <div class="unit-block">
+        <div class="unit-title">{{ unit.title }}</div>
 
-    {% if not selected_unit %}
-      <section class="flash-hero">
-        <h2>Choose a Unit</h2>
-        <p>Flashcards now start from units only. Pick one unit, then study cards one by one, flip answers, mark what you got right or missed, and retry weak words at the end.</p>
-      </section>
+        <div class="flashcards-grid">
+          {% for word in unit.words.all %}
+            {% if word.is_active %}
+              <div class="flashcard">
+                <span class="flashcard-label">Flashcard</span>
 
-      <section class="unit-grid">
-        {% for unit in units %}
-          <a class="unit-card" href="{{ request.path }}?unit={{ unit.id }}">
-            <span class="unit-kicker">Unit {{ forloop.counter }}</span>
-            <h3>{{ unit.title }}</h3>
-            {% if unit.description %}<p>{{ unit.description|truncatechars:120 }}</p>{% endif %}
-            <div class="unit-footer">
-              <span>{{ unit.active_flashcards_count }} cards</span>
-              <span>Start →</span>
-            </div>
-          </a>
-        {% empty %}
-          <div class="empty-state">No vocabulary units available yet.</div>
-        {% endfor %}
-      </section>
-    {% else %}
-      <section class="flash-hero">
-        <h2>{{ selected_unit.title }}</h2>
-        <p>{% if selected_unit.description %}{{ selected_unit.description }}{% else %}Flip each card, decide honestly whether you knew it, then retry all cards or only missed cards at the end.{% endif %}</p>
-      </section>
+                <div class="flashcard-front">
+                  {{ word.word }}
+                </div>
 
-      {% if flashcard_words %}
-        {{ flashcard_words|json_script:"flashcard-data" }}
+                <div class="flashcard-answer" id="flashcard-answer-{{ word.id }}">
+                  <strong>Meaning:</strong> {{ word.meaning }}
+                  {% if word.example %}
+                    <br><br>
+                    <strong>Example:</strong> {{ word.example }}
+                  {% endif %}
+                </div>
 
-        <section class="study-shell" id="study-shell">
-          <div class="study-panel" id="study-panel">
-            <div class="study-topbar">
-              <div class="progress-copy" id="progress-copy">Card 1 of {{ flashcard_words|length }}</div>
-              <div class="flip-axis" aria-label="Flip animation direction">
-                <button type="button" class="axis-btn is-active" data-axis="horizontal">Horizontal</button>
-                <button type="button" class="axis-btn" data-axis="vertical">Vertical</button>
-              </div>
-            </div>
-
-            <div class="progress-track" aria-hidden="true">
-              <div class="progress-fill" id="progress-fill"></div>
-            </div>
-
-            <div class="flashcard-stage">
-              <div class="study-card axis-horizontal" id="study-card" role="button" tabindex="0" aria-label="Flip flashcard">
-                <div class="card-inner">
-                  <div class="card-face card-front">
-                    <span class="face-label">Word</span>
-                    <h3 class="word-text" id="card-word"></h3>
-                    <div class="hint-copy">Click the card or press “Show answer”</div>
-                  </div>
-                  <div class="card-face card-back">
-                    <span class="face-label">Answer</span>
-                    <div>
-                      <p class="meaning-title">Meaning</p>
-                      <p class="meaning-text" id="card-meaning"></p>
-                      <div class="example-box is-hidden" id="card-example"></div>
-                    </div>
-                    <div class="hint-copy">Now mark your result honestly</div>
-                  </div>
+                <div class="flashcard-actions">
+                  <button type="button" class="flashcard-btn" onclick="toggleFlashcardAnswer('{{ word.id }}', this)">
+                    Show Answer
+                  </button>
                 </div>
               </div>
-            </div>
-
-            <div class="study-actions">
-              <button type="button" class="flash-btn flash-btn-primary" id="flip-btn">Show answer</button>
-              <button type="button" class="flash-btn flash-btn-good is-hidden" id="correct-btn">I guessed it</button>
-              <button type="button" class="flash-btn flash-btn-bad is-hidden" id="missed-btn">I missed it</button>
-            </div>
-          </div>
-
-          <aside class="stats-panel" aria-label="Flashcard score">
-            <h3 class="stats-title">Live Score</h3>
-            <div class="score-grid">
-              <div class="score-card good">
-                <div class="score-label">Guessed</div>
-                <div class="score-value" id="correct-count">0</div>
-              </div>
-              <div class="score-card bad">
-                <div class="score-label">Missed</div>
-                <div class="score-value" id="missed-count">0</div>
-              </div>
-            </div>
-            <div class="stats-line"><span>Total cards</span><strong id="total-count">{{ flashcard_words|length }}</strong></div>
-            <div class="stats-line"><span>Remaining</span><strong id="remaining-count">{{ flashcard_words|length }}</strong></div>
-            <div class="stats-line"><span>Mode</span><strong id="mode-label">All cards</strong></div>
-          </aside>
-        </section>
-
-        <section class="result-panel" id="result-panel" aria-live="polite">
-          <h3>Unit Finished</h3>
-          <p id="result-copy"></p>
-          <div class="score-grid" style="max-width: 420px; margin: 0 auto 22px;">
-            <div class="score-card good">
-              <div class="score-label">Guessed</div>
-              <div class="score-value" id="final-correct">0</div>
-            </div>
-            <div class="score-card bad">
-              <div class="score-label">Missed</div>
-              <div class="score-value" id="final-missed">0</div>
-            </div>
-          </div>
-          <div class="result-actions">
-            <button type="button" class="flash-btn flash-btn-primary" id="restart-all-btn">Restart all cards</button>
-            <button type="button" class="flash-btn flash-btn-bad" id="retry-missed-btn">Retry missed only</button>
-            <a href="{{ request.path }}" class="flash-btn flash-btn-secondary" style="display:inline-flex;align-items:center;text-decoration:none;">Choose another unit</a>
-          </div>
-        </section>
-      {% else %}
-        <div class="empty-state">This unit has no active words yet.</div>
-      {% endif %}
-    {% endif %}
+            {% endif %}
+          {% empty %}
+            <div>No words added yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div>No units available yet.</div>
+    {% endfor %}
   </div>
 </main>
 
-{% if selected_unit and flashcard_words %}
 <script>
-  (function () {
-    const allCards = JSON.parse(document.getElementById('flashcard-data').textContent);
+  function toggleFlashcardAnswer(id, button) {
+    const answer = document.getElementById(`flashcard-answer-${id}`);
+    const isShown = answer.classList.contains('show');
 
-    const els = {
-      shell: document.getElementById('study-shell'),
-      panel: document.getElementById('study-panel'),
-      result: document.getElementById('result-panel'),
-      card: document.getElementById('study-card'),
-      word: document.getElementById('card-word'),
-      meaning: document.getElementById('card-meaning'),
-      example: document.getElementById('card-example'),
-      progressCopy: document.getElementById('progress-copy'),
-      progressFill: document.getElementById('progress-fill'),
-      flipBtn: document.getElementById('flip-btn'),
-      correctBtn: document.getElementById('correct-btn'),
-      missedBtn: document.getElementById('missed-btn'),
-      correctCount: document.getElementById('correct-count'),
-      missedCount: document.getElementById('missed-count'),
-      remainingCount: document.getElementById('remaining-count'),
-      totalCount: document.getElementById('total-count'),
-      modeLabel: document.getElementById('mode-label'),
-      finalCorrect: document.getElementById('final-correct'),
-      finalMissed: document.getElementById('final-missed'),
-      resultCopy: document.getElementById('result-copy'),
-      restartAllBtn: document.getElementById('restart-all-btn'),
-      retryMissedBtn: document.getElementById('retry-missed-btn'),
-      axisButtons: document.querySelectorAll('.axis-btn'),
-    };
-
-    let deck = [...allCards];
-    let index = 0;
-    let correct = 0;
-    let missed = 0;
-    let missedCards = [];
-    let isFlipped = false;
-    let mode = 'All cards';
-    let isTransitioning = false;
-
-    function renderCard() {
-      const card = deck[index];
-      if (!card) {
-        finishDeck();
-        return;
-      }
-
-      isFlipped = false;
-      els.card.classList.remove('is-flipped');
-      els.word.textContent = card.word;
-      els.meaning.textContent = card.meaning;
-
-      if (card.example) {
-        els.example.textContent = 'Example: ' + card.example;
-        els.example.classList.remove('is-hidden');
-      } else {
-        els.example.textContent = '';
-        els.example.classList.add('is-hidden');
-      }
-
-      els.flipBtn.textContent = 'Show answer';
-      els.flipBtn.classList.remove('is-hidden');
-      els.correctBtn.classList.add('is-hidden');
-      els.missedBtn.classList.add('is-hidden');
-      updateStats();
+    if (isShown) {
+      answer.classList.remove('show');
+      button.textContent = 'Show Answer';
+    } else {
+      answer.classList.add('show');
+      button.textContent = 'Hide Answer';
     }
-
-    function flipCard() {
-      if (isTransitioning) return;
-      isTransitioning = true;
-      window.setTimeout(function () { isTransitioning = false; }, 640);
-
-      isFlipped = !isFlipped;
-      els.card.classList.toggle('is-flipped', isFlipped);
-
-      if (isFlipped) {
-        els.flipBtn.classList.add('is-hidden');
-        els.correctBtn.classList.remove('is-hidden');
-        els.missedBtn.classList.remove('is-hidden');
-      } else {
-        els.flipBtn.textContent = 'Show answer';
-        els.flipBtn.classList.remove('is-hidden');
-        els.correctBtn.classList.add('is-hidden');
-        els.missedBtn.classList.add('is-hidden');
-      }
-    }
-
-    function markResult(wasCorrect) {
-      if (!isFlipped) return;
-
-      const currentCard = deck[index];
-      if (wasCorrect) {
-        correct += 1;
-      } else {
-        missed += 1;
-        missedCards.push(currentCard);
-      }
-
-      index += 1;
-      renderCard();
-    }
-
-    function updateStats() {
-      const total = deck.length;
-      const completed = Math.min(index, total);
-      const remaining = Math.max(total - completed, 0);
-      const progress = total ? (completed / total) * 100 : 0;
-
-      els.progressCopy.textContent = total ? `Card ${Math.min(index + 1, total)} of ${total}` : 'No cards';
-      els.progressFill.style.width = progress + '%';
-      els.correctCount.textContent = correct;
-      els.missedCount.textContent = missed;
-      els.remainingCount.textContent = remaining;
-      els.totalCount.textContent = total;
-      els.modeLabel.textContent = mode;
-    }
-
-    function finishDeck() {
-      els.shell.classList.add('is-hidden');
-      els.result.classList.add('is-visible');
-      els.progressFill.style.width = '100%';
-      els.finalCorrect.textContent = correct;
-      els.finalMissed.textContent = missed;
-      els.resultCopy.textContent = missed === 0
-        ? 'Clean run. You got every card right.'
-        : `You missed ${missed} card${missed === 1 ? '' : 's'}. Retry only missed cards or restart the full unit.`;
-      els.retryMissedBtn.disabled = missedCards.length === 0;
-    }
-
-    function restart(nextDeck, nextMode) {
-      deck = [...nextDeck];
-      index = 0;
-      correct = 0;
-      missed = 0;
-      missedCards = [];
-      mode = nextMode;
-      els.result.classList.remove('is-visible');
-      els.shell.classList.remove('is-hidden');
-      renderCard();
-    }
-
-    els.card.addEventListener('click', flipCard);
-    els.card.addEventListener('keydown', function (event) {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        flipCard();
-      }
-    });
-    els.flipBtn.addEventListener('click', flipCard);
-    els.correctBtn.addEventListener('click', function () { markResult(true); });
-    els.missedBtn.addEventListener('click', function () { markResult(false); });
-    els.restartAllBtn.addEventListener('click', function () { restart(allCards, 'All cards'); });
-    els.retryMissedBtn.addEventListener('click', function () {
-      if (missedCards.length > 0) restart(missedCards, 'Missed only');
-    });
-
-    els.axisButtons.forEach(function (button) {
-      button.addEventListener('click', function () {
-        const axis = button.dataset.axis;
-        els.axisButtons.forEach(function (btn) { btn.classList.remove('is-active'); });
-        button.classList.add('is-active');
-        els.card.classList.toggle('axis-horizontal', axis === 'horizontal');
-        els.card.classList.toggle('axis-vertical', axis === 'vertical');
-      });
-    });
-
-    renderCard();
-  })();
+  }
 </script>
-{% endif %}
 {% endblock content %}

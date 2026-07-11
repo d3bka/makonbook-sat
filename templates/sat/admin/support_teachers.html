@@ -1,0 +1,77 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:15px;">
+  <h2 style="margin:0;"><i class="fa fa-calendar-check-o"></i> Support Teachers</h2>
+  <a href="{% url 'admin_support_teacher_create' %}" class="btn-admin btn-success"><i class="fa fa-plus"></i> Add Support Teacher</a>
+</div>
+
+<div class="admin-card">
+  <form method="get" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <div class="form-group" style="margin-bottom:0; min-width:240px;">
+      <label>Search</label>
+      <input class="form-control" type="text" name="q" value="{{ query }}" placeholder="name, user, telegram, subject">
+    </div>
+    <div class="form-group" style="margin-bottom:0; min-width:160px;">
+      <label>Status</label>
+      <select class="form-control" name="status">
+        <option value="" {% if not status %}selected{% endif %}>All</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+      </select>
+    </div>
+    <button class="btn-admin btn-primary" type="submit">Filter</button>
+  </form>
+</div>
+
+<div class="admin-card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>User</th>
+        <th>Telegram</th>
+        <th>Subjects</th>
+        <th>Rating</th>
+        <th>Availability</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for teacher in teachers %}
+      <tr>
+        <td><a href="{% url 'admin_support_teacher_edit' teacher.id %}">{{ teacher.name }}</a></td>
+        <td>{{ teacher.user.username }}</td>
+        <td>{% if teacher.clean_telegram_username %}@{{ teacher.clean_telegram_username }}{% else %}-{% endif %}</td>
+        <td>{{ teacher.subjects|default:'-' }}</td>
+        <td>{% if teacher.average_rating %}★ {{ teacher.average_rating }}{% else %}-{% endif %}</td>
+        <td>{{ teacher.availabilities.count }}</td>
+        <td>
+          {% if teacher.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Inactive</span>{% endif %}
+        </td>
+        <td style="white-space:nowrap;">
+          <a href="{% url 'admin_support_teacher_edit' teacher.id %}" class="btn-admin btn-sm btn-primary">Edit</a>
+          <form method="post" action="{% url 'admin_support_teacher_toggle' teacher.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn-admin btn-sm {% if teacher.is_active %}btn-danger{% else %}btn-success{% endif %}" type="submit">
+              {% if teacher.is_active %}Disable{% else %}Enable{% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8" style="text-align:center; color:#94a3b8;">No support teachers found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if teachers.paginator.num_pages > 1 %}
+  <div class="pagination-bar">
+    {% if teachers.has_previous %}<a href="?page={{ teachers.previous_page_number }}&q={{ query }}&status={{ status }}">Previous</a>{% endif %}
+    <span class="current">{{ teachers.number }} / {{ teachers.paginator.num_pages }}</span>
+    {% if teachers.has_next %}<a href="?page={{ teachers.next_page_number }}&q={{ query }}&status={{ status }}">Next</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock admin_content %}
