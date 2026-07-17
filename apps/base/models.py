@@ -88,3 +88,46 @@ def save_user_profile(sender, instance, **kwargs):
         instance.profile.save()
     else:
         UserProfile.objects.get_or_create(user=instance)
+
+class GeneralIssueReport(models.Model):
+    CATEGORY_CHOICES = [
+        ("technical", "Technical problem"),
+        ("content", "Question or content problem"),
+        ("account", "Account or access problem"),
+        ("rating", "Rating problem"),
+        ("suggestion", "Suggestion"),
+        ("other", "Other"),
+    ]
+    STATUS_CHOICES = [
+        ("new", "New"),
+        ("reviewing", "Reviewing"),
+        ("resolved", "Resolved"),
+        ("rejected", "Rejected"),
+    ]
+
+    reporter = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="general_issue_reports",
+    )
+    reporter_name = models.CharField(max_length=160, blank=True)
+    reporter_email = models.EmailField(blank=True)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default="technical")
+    message = models.TextField(max_length=4000)
+    page_url = models.CharField(max_length=1000, blank=True)
+    page_title = models.CharField(max_length=300, blank=True)
+    user_agent = models.CharField(max_length=1000, blank=True)
+    context_data = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="new", db_index=True)
+    admin_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status", "created_at"], name="base_issue_status_date")]
+
+    def __str__(self):
+        return f"Issue #{self.pk} - {self.get_category_display()}"

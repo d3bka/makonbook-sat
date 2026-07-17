@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "apps.base.apps.BaseConfig",
     "apps.sat.apps.SatConfig",
     "apps.apclasses.apps.ApClassesConfig",
+    "apps.ratings.apps.RatingsConfig",
     "apps.telegram_bot",
 ]
 
@@ -388,3 +389,10 @@ SOCIALACCOUNT_PROVIDERS = {
         "OAUTH_PKCE_ENABLED": True,
     }
 }
+
+# AI is used only for an administrator-run question-bank audit.
+# Student answers are never sent to the model and the audit never edits the database.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+QUESTION_AUDIT_MODEL = os.getenv("QUESTION_AUDIT_MODEL", "gpt-5.6-terra")
+QUESTION_AUDIT_TIMEOUT_SECONDS = int(os.getenv("QUESTION_AUDIT_TIMEOUT_SECONDS", "60"))
+QUESTION_AUDIT_BATCH_SIZE = max(1, min(30, int(os.getenv("QUESTION_AUDIT_BATCH_SIZE", "12"))))

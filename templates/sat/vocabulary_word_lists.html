@@ -1,87 +1,59 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Makon Book{% endblock title-main %}
-
-{% block breadcrumb_parent %}
-{% if classroom %}
-<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
-{% else %}
-<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
-{% endif %}
-{% endblock breadcrumb_parent %}
-
+{% block title-main %}{% if classroom %}{{ classroom.name }}{% else %}MakonBook{% endif %}{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% if classroom %}{% url 'classroom_vocabulary' classroom.id %}{% else %}{% url 'vocabulary' %}{% endif %}">Vocabulary</a></li>{% endblock breadcrumb_parent %}
 {% block title %}Word Lists{% endblock title %}
 
-{% block style %}
-<style>
-  .page-wrap {
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .unit-card {
-    background: #fff;
-    border-radius: 18px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    padding: 24px;
-    margin-bottom: 22px;
-  }
-
-  .unit-card h3 {
-    color: #7c3aed;
-    margin-bottom: 10px;
-  }
-
-  .word-list {
-    display: grid;
-    gap: 10px;
-    margin-top: 14px;
-  }
-
-  .word-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 12px 14px;
-    background: #f9fafb;
-  }
-
-  .word-item strong {
-    display: block;
-    margin-bottom: 4px;
-    color: #111827;
-  }
-</style>
-<link rel="stylesheet" href="{% static 'assets/css/makon-vocab-admissions.css' %}">
-{% endblock style %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/makon-vocabulary-v2.css' %}">{% endblock style %}
 
 {% block content %}
-<main class="main-content mk-learning mk-vocab-word-list-page" data-learning-page="word-lists">
-  <div class="page-wrap">
-    {% for unit in units %}
-      <div class="unit-card">
-        <h3>{{ unit.title }}</h3>
-        {% if unit.description %}
-          <p>{{ unit.description }}</p>
-        {% endif %}
+<div class="vocab-shell">
+  <section class="vocab-hero">
+    <div class="vocab-hero-grid">
+      <div>
+        <span class="vocab-eyebrow">Reference library</span>
+        <h2 class="vocab-title">Search every word without digging through units.</h2>
+        <p class="vocab-copy">Definitions and examples stay searchable. Status badges show what is new, learning, or already mastered.</p>
+      </div>
+      <div class="vocab-summary-grid">
+        <div class="vocab-stat"><small>Total words</small><strong>{{ summary.total_words }}</strong><span>Across active units</span></div>
+        <div class="vocab-stat"><small>Mastered</small><strong>{{ summary.mastered_words }}</strong><span>{{ summary.completion_percent }}%</span></div>
+        <div class="vocab-stat"><small>Learning</small><strong>{{ summary.learning_words }}</strong><span>Needs more recall</span></div>
+        <div class="vocab-stat"><small>Unseen</small><strong>{{ summary.unseen_words }}</strong><span>Not reviewed yet</span></div>
+      </div>
+    </div>
+  </section>
 
-        <div class="word-list">
-          {% for word in unit.words.all %}
-            {% if word.is_active %}
-              <div class="word-item">
-                <strong>{{ word.word }}</strong>
-                <span>{{ word.meaning }}</span>
-              </div>
-            {% endif %}
+  <section class="vocab-section vocab-panel">
+    <div class="vocab-toolbar">
+      <input class="vocab-input" type="search" placeholder="Search a word, meaning, example, or unit..." data-vocab-search>
+      <span class="vocab-badge" data-vocab-search-status>{{ unit_rows|length }} units available.</span>
+      {% if classroom %}<a class="vocab-btn vocab-btn-primary" href="{% url 'classroom_vocabulary_section' classroom.id 'flashcards' %}">Study flashcards</a>{% else %}<a class="vocab-btn vocab-btn-primary" href="{% url 'vocabulary_section' 'flashcards' %}">Study flashcards</a>{% endif %}
+    </div>
+
+    {% for row in unit_rows %}
+      <details class="vocab-word-unit" data-vocab-unit data-search="{{ row.unit.title|lower }} {{ row.unit.description|default:''|lower }}" {% if forloop.first %}open{% endif %}>
+        <summary>
+          <span>{{ row.unit.title }} <small style="color:var(--vocab-muted);font-weight:600">· {{ row.word_count }} words</small></span>
+          <span class="vocab-badge">{{ row.mastered_words }} mastered</span>
+        </summary>
+        <div class="vocab-word-list">
+          {% for item in row.words %}
+            <div class="vocab-word-row" data-vocab-word-row data-search="{{ item.word.word|lower }} {{ item.word.meaning|lower }} {{ item.word.example|default:''|lower }} {{ row.unit.title|lower }}">
+              <div class="vocab-word-main"><strong>{{ item.word.word }}</strong><small>{{ row.unit.title }}</small></div>
+              <div class="vocab-word-meaning"><span>{{ item.word.meaning }}</span>{% if item.word.example %}<small>Example: {{ item.word.example }}</small>{% endif %}</div>
+              <span class="vocab-status vocab-status-{{ item.status }}">{{ item.status }}</span>
+            </div>
           {% empty %}
-            <div class="word-item">No words added yet.</div>
+            <div class="vocab-empty">No active words in this unit.</div>
           {% endfor %}
         </div>
-      </div>
+      </details>
     {% empty %}
-      <div class="unit-card">No units available yet.</div>
+      <div class="vocab-empty">No vocabulary units available.</div>
     {% endfor %}
-  </div>
-</main>
+  </section>
+</div>
+<script src="{% static 'assets/js/makon-vocabulary-v2.js' %}"></script>
 {% endblock content %}

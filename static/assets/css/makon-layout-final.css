@@ -1,0 +1,674 @@
+/*
+  MakonBook final responsive layer.
+  Loaded last on every user-facing page to neutralize legacy fixed widths.
+*/
+
+:root {
+  --mk-layout-gutter: clamp(12px, 3.2vw, 36px);
+  --mk-layout-gap: clamp(12px, 2vw, 24px);
+  --mk-layout-touch: 44px;
+}
+
+html {
+  width: 100%;
+  max-width: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+picture,
+svg,
+video,
+canvas,
+iframe,
+object,
+embed {
+  max-width: 100%;
+}
+
+img,
+video,
+canvas {
+  height: auto;
+}
+
+pre,
+code,
+.math-content,
+.question-text,
+.choice-text,
+#question-text,
+#passage {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+/* Main page shells */
+.main-content,
+.mk-learning,
+.mk-classroom,
+.classroom-shell,
+.practice-shell,
+.dashboard-shell,
+.menu-shell,
+.progress-shell,
+.detail-shell,
+.results-shell,
+.review-shell,
+.public-shell,
+.auth-shell,
+.software-shell,
+.page-wrap,
+.wrap {
+  width: min(100%, 1240px);
+  min-width: 0;
+  margin-inline: auto;
+}
+
+.main-content {
+  padding-inline: var(--mk-layout-gutter) !important;
+}
+
+.blog > .container,
+#main > .container,
+section > .container,
+.breadcrumbs > nav > .container {
+  min-width: 0;
+}
+
+/* Legacy dashboard/practice layouts */
+.practice-cards,
+.lesson-cards,
+.cards-grid,
+.dashboard-grid,
+.practice-grid,
+.classroom-grid,
+.menu-grid,
+.mk-grid,
+.mk-quick-grid,
+.unit-grid,
+.vocab-grid,
+.adm-grid,
+.tests-grid,
+.sections-grid,
+.summary-grid {
+  width: 100%;
+  min-width: 0;
+}
+
+.practice-cards,
+.lesson-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: var(--mk-layout-gap);
+}
+
+.practice-card,
+.no-cards,
+.placeholder-box,
+.support-quick-card,
+.content-card,
+.form-card,
+.dashboard-panel,
+.mk-panel,
+.mk-card,
+.mk-tile,
+.mk-list-card,
+.mk-section-card,
+.mk-student-card,
+.event-card,
+.detail-card,
+.public-card,
+.software-card,
+.auth-card,
+.total_score,
+.module-card,
+.question-card,
+.passage-card,
+.meta-card,
+.review-title-card,
+.review-status-card {
+  width: 100%;
+  min-width: 0;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+
+.card {
+  min-width: 0;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+
+.no-cards,
+.placeholder-box {
+  padding: clamp(16px, 3vw, 26px);
+}
+
+.section-header,
+.panel-header,
+.card-header,
+.mk-panel-head,
+.mk-card-head,
+.detail-head,
+.top-bar {
+  min-width: 0;
+  gap: 12px;
+}
+
+.section-header > *,
+.panel-header > *,
+.card-header > *,
+.mk-panel-head > *,
+.mk-card-head > * {
+  min-width: 0;
+}
+
+.tabs,
+.tab-buttons,
+.card-actions,
+.dashboard-actions,
+.practice-actions,
+.classroom-actions,
+.mk-actions-row,
+.mk-card-actions,
+.mk-hero-actions,
+.support-quick-card {
+  flex-wrap: wrap;
+}
+
+.button-container,
+.button-container a,
+.primary-btn,
+.secondary-btn,
+.nav-button,
+.mk-btn,
+.btn,
+button,
+input[type="submit"] {
+  min-height: var(--mk-layout-touch);
+}
+
+/* Header and navigation */
+#header,
+.header,
+#header .container,
+#header .container-fluid,
+.header .container,
+.header .container-fluid {
+  max-width: 100%;
+  min-width: 0;
+}
+
+#header .logo,
+.header .logo,
+#header .logo img,
+.header .logo img {
+  min-width: 0;
+}
+
+#header .logo img,
+.header .logo img {
+  width: auto;
+  max-width: min(220px, 46vw);
+  max-height: 48px;
+  object-fit: contain;
+}
+
+.navbar,
+.navbar ul,
+.navbar li,
+.navbar a,
+.header-tools {
+  min-width: 0;
+}
+
+.navbar .dropdown > a > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Forms */
+form,
+.form-group,
+.form-row,
+.input-group,
+.password-wrap,
+.auth-form,
+.signin-form {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.form-row,
+.mk-form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.form-control {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Tables stay usable without forcing the whole page wider. */
+.table-responsive,
+.table-wrap,
+.results-table-wrap,
+.progress-table-wrap,
+.overflow-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table,
+.table-wrap table,
+.results-table-wrap table,
+.progress-table-wrap table,
+.overflow-table table {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Results and review */
+.results-shell .sat,
+.results-shell .total,
+.results-shell .module-row,
+.review-header,
+.review-main,
+.review-status-card {
+  min-width: 0;
+}
+
+.results-shell .navigation {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.review-footer,
+.footer-nav-group {
+  flex-wrap: wrap;
+}
+
+/* AP classes simple layout */
+.wrap,
+.simple-header-inner,
+.simple-footer-inner,
+.page-wrap {
+  padding-left: var(--mk-layout-gutter) !important;
+  padding-right: var(--mk-layout-gutter) !important;
+}
+
+.ap-question,
+.question,
+.choice,
+.frq-page,
+.frq-page img {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Test/review windows */
+body.mk-test-window,
+body.scroll-hide,
+body.review-page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.mk-test-window > .container,
+body.mk-test-window main,
+body.mk-test-window header,
+body.mk-test-window footer,
+body.mk-test-window .question-container,
+body.mk-test-window .answers-container,
+body.scroll-hide .container,
+body.scroll-hide main,
+body.scroll-hide .question-container,
+body.scroll-hide .answers-container {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+body.mk-test-window #calculator-popup,
+#calculator-popup {
+  min-width: 0 !important;
+  max-width: calc(100vw - 16px) !important;
+  max-height: calc(100svh - 16px) !important;
+}
+
+.choice-container,
+label.choice-container {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Footer */
+.makon-footer,
+.makon-footer .container,
+.makon-footer .row,
+.makon-footer [class*="col-"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.makon-footer a,
+.makon-footer p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .mk-grid-4,
+  .mk-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mk-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .review-header,
+  .review-main,
+  .results-shell .sat,
+  .results-shell .module-row,
+  .mk-classroom-hero-inner,
+  .mk-chat-page .chat-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .mk-chat-page .side-card {
+    position: static !important;
+  }
+
+  body.mk-test-window main,
+  body.scroll-hide main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --mk-layout-gutter: 12px;
+    --mk-layout-touch: 46px;
+  }
+
+  .main-content {
+    padding: 20px 12px 28px !important;
+  }
+
+  .blog {
+    padding-inline: 0 !important;
+  }
+
+  .section-header,
+  .mk-panel-head,
+  .mk-card-head,
+  .detail-head,
+  .top-bar {
+    align-items: stretch !important;
+  }
+
+  .section-header h1,
+  .section-header h2,
+  .section-header h3 {
+    width: 100%;
+    margin-right: 0 !important;
+  }
+
+  .tabs,
+  .tab-buttons {
+    width: 100%;
+    justify-content: center;
+    margin-right: 0 !important;
+  }
+
+  .practice-cards,
+  .lesson-cards,
+  .cards-grid,
+  .dashboard-grid,
+  .practice-grid,
+  .classroom-grid,
+  .menu-grid,
+  .mk-grid,
+  .mk-grid-2,
+  .mk-grid-3,
+  .mk-grid-4,
+  .mk-quick-grid,
+  .mk-quick-grid-2,
+  .unit-grid,
+  .vocab-grid,
+  .adm-grid,
+  .tests-grid,
+  .sections-grid,
+  .summary-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .practice-card,
+  .no-cards,
+  .support-quick-card,
+  .mk-panel,
+  .mk-card,
+  .event-card,
+  .detail-card,
+  .public-card,
+  .software-card {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .support-quick-card a,
+  .card-actions a,
+  .card-actions button,
+  .dashboard-actions a,
+  .dashboard-actions button,
+  .practice-actions a,
+  .practice-actions button,
+  .classroom-actions a,
+  .classroom-actions button {
+    width: 100%;
+    margin-right: 0 !important;
+    justify-content: center;
+  }
+
+  #header .container,
+  #header .container-fluid,
+  .header .container,
+  .header .container-fluid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding-inline: 12px !important;
+  }
+
+  #header .navbar,
+  .header .navbar {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  #header .logo img,
+  .header .logo img {
+    max-width: min(160px, 45vw) !important;
+  }
+
+  .breadcrumbs nav .container,
+  .breadcrumbs ol {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .makon-footer .row {
+    row-gap: 26px;
+  }
+
+  .makon-footer .footer-info,
+  .makon-footer .footer-contact {
+    text-align: left !important;
+  }
+
+  .results-shell {
+    width: calc(100% - 20px) !important;
+  }
+
+  .review-footer {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .review-footer > *,
+  .review-footer .nav-button {
+    width: 100%;
+  }
+
+  body.mk-test-window header,
+  body.scroll-hide header {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body.mk-test-window footer,
+  body.scroll-hide footer {
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  body.mk-test-window .header-tools,
+  body.mk-test-window .footer-left,
+  body.mk-test-window .footer-center,
+  body.mk-test-window .footer-right,
+  body.scroll-hide .header-tools,
+  body.scroll-hide .footer-left,
+  body.scroll-hide .footer-center,
+  body.scroll-hide .footer-right {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .main-content {
+    padding-inline: 10px !important;
+  }
+
+  .auth-shell,
+  .public-shell,
+  .software-shell,
+  .review-shell,
+  .wrap,
+  .page-wrap {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .review-footer {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rect-question,
+  .question-number-button {
+    min-width: 34px !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  body.mk-test-window main,
+  body.scroll-hide main {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.mk-test-window footer,
+  body.scroll-hide footer {
+    min-height: 56px !important;
+  }
+}
+
+/* Authentication/public-entry navigation: prevent action pills from exceeding the shell. */
+.auth-nav,
+.auth-nav-actions,
+.auth-brand {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.auth-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  body.auth-page .auth-nav {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body.auth-page .auth-nav-actions {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    justify-self: end !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body.auth-page .auth-nav {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.auth-page .auth-nav-actions {
+    width: 100% !important;
+    margin-left: 0 !important;
+    justify-self: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  body.auth-page .auth-nav-actions > * {
+    flex: 1 1 auto;
+  }
+
+  body.auth-page .auth-nav-actions .theme-switcher,
+  body.auth-page .auth-nav-actions .theme-toggle {
+    flex: 0 0 auto;
+  }
+}

@@ -1,168 +1,103 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Makon Book{% endblock title-main %}
-
-{% block breadcrumb_parent %}
-{% if classroom %}
-<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
-{% else %}
-<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
-{% endif %}
-{% endblock breadcrumb_parent %}
-
+{% block title-main %}{% if classroom %}{{ classroom.name }}{% else %}MakonBook{% endif %}{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% if classroom %}{% url 'classroom_vocabulary' classroom.id %}{% else %}{% url 'vocabulary' %}{% endif %}">Vocabulary</a></li>{% endblock breadcrumb_parent %}
 {% block title %}Flashcards{% endblock title %}
 
-{% block style %}
-<style>
-  .page-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .unit-block {
-    margin-bottom: 30px;
-  }
-
-  .unit-title {
-    font-size: 28px;
-    font-weight: 800;
-    color: #7c3aed;
-    margin-bottom: 16px;
-  }
-
-  .flashcards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 22px;
-  }
-
-  .flashcard {
-    background: #fff;
-    border-radius: 20px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
-    padding: 24px;
-    min-height: 240px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .flashcard-label {
-    display: inline-block;
-    width: fit-content;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #7c3aed;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 16px;
-  }
-
-  .flashcard-front {
-    font-size: 28px;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1.3;
-    margin-bottom: 18px;
-  }
-
-  .flashcard-answer {
-    display: none;
-    margin-top: 12px;
-    padding: 16px;
-    border-radius: 14px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    color: #374151;
-    line-height: 1.6;
-    font-size: 15px;
-  }
-
-  .flashcard-answer.show {
-    display: block;
-  }
-
-  .flashcard-actions {
-    margin-top: auto;
-    padding-top: 18px;
-  }
-
-  .flashcard-btn {
-    border: none;
-    cursor: pointer;
-    border-radius: 999px;
-    height: 42px;
-    padding: 0 18px;
-    font-weight: 700;
-    font-size: 14px;
-    background: #7c3aed;
-    color: #fff;
-  }
-
-  .flashcard-btn:hover {
-    background: #6d28d9;
-  }
-</style>
-<link rel="stylesheet" href="{% static 'assets/css/makon-vocab-admissions.css' %}">
-{% endblock style %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/makon-vocabulary-v2.css' %}">{% endblock style %}
 
 {% block content %}
-<main class="main-content mk-learning mk-vocab-flashcards-page" data-learning-page="vocab-flashcards">
-  <div class="page-wrap">
-    {% for unit in units %}
-      <div class="unit-block">
-        <div class="unit-title">{{ unit.title }}</div>
+<div class="vocab-shell">
+  <section class="vocab-hero">
+    <div class="vocab-hero-grid">
+      <div>
+        <span class="vocab-eyebrow">Active recall</span>
+        <h2 class="vocab-title">Flip, judge honestly, repeat.</h2>
+        <p class="vocab-copy">A word becomes mastered after repeated correct recall. Clicking through cards without rating them does not inflate progress.</p>
+      </div>
+      <div class="vocab-summary-grid">
+        <div class="vocab-stat"><small>Mastered</small><strong>{{ summary.mastered_words }}</strong><span>{{ summary.completion_percent }}%</span></div>
+        <div class="vocab-stat"><small>Learning</small><strong>{{ summary.learning_words }}</strong><span>Needs repetition</span></div>
+        <div class="vocab-stat"><small>Reviews</small><strong>{{ summary.review_count }}</strong><span>Saved interactions</span></div>
+        <div class="vocab-stat"><small>Accuracy</small><strong>{{ summary.accuracy_percent }}%</strong><span>Across review and quiz</span></div>
+      </div>
+    </div>
+  </section>
 
-        <div class="flashcards-grid">
-          {% for word in unit.words.all %}
-            {% if word.is_active %}
-              <div class="flashcard">
-                <span class="flashcard-label">Flashcard</span>
+  <section class="vocab-section vocab-flash-layout">
+    <aside class="vocab-panel vocab-deck-sidebar">
+      <div class="vocab-section-head"><div><h2>Units</h2><p>Choose one deck.</p></div></div>
+      <div class="vocab-unit-nav">
+        {% for row in unit_rows %}
+          {% if classroom %}
+            <a class="{% if selected_unit and row.unit.id == selected_unit.id %}active{% endif %}" href="{% url 'classroom_vocabulary_section' classroom.id 'flashcards' %}?unit={{ row.unit.id }}">
+          {% else %}
+            <a class="{% if selected_unit and row.unit.id == selected_unit.id %}active{% endif %}" href="{% url 'vocabulary_section' 'flashcards' %}?unit={{ row.unit.id }}">
+          {% endif %}
+              <span>{{ row.unit.title }}</span><strong>{{ row.mastered_words }}/{{ row.word_count }}</strong>
+            </a>
+        {% empty %}<div class="vocab-empty">No units.</div>{% endfor %}
+      </div>
+    </aside>
 
-                <div class="flashcard-front">
-                  {{ word.word }}
-                </div>
+    <div class="vocab-panel vocab-deck" data-vocab-deck data-mark-url="{{ mark_url }}">
+      {% if flashcard_words %}
+        <div class="vocab-deck-head">
+          <div>
+            <h2 style="margin:0">{{ selected_unit.title }}</h2>
+            <p style="margin:5px 0 0;color:var(--vocab-muted)">{{ selected_unit_progress.mastered_words }} mastered · {{ selected_unit_progress.learning_words }} learning</p>
+          </div>
+          <div class="vocab-deck-meta">
+            <div class="vocab-deck-progress"><span data-deck-counter>1 / {{ flashcard_words|length }}</span> · <span data-deck-status>new</span></div>
+            <div class="vocab-save-state" data-deck-save-state aria-live="polite">Saved</div>
+          </div>
+        </div>
+        <div class="vocab-meter"><span data-deck-progress style="width:0"></span></div>
 
-                <div class="flashcard-answer" id="flashcard-answer-{{ word.id }}">
-                  <strong>Meaning:</strong> {{ word.meaning }}
-                  {% if word.example %}
-                    <br><br>
-                    <strong>Example:</strong> {{ word.example }}
-                  {% endif %}
-                </div>
-
-                <div class="flashcard-actions">
-                  <button type="button" class="flashcard-btn" onclick="toggleFlashcardAnswer('{{ word.id }}', this)">
-                    Show Answer
-                  </button>
-                </div>
+        <div class="vocab-card-stage" data-card-stage>
+          {% for item in flashcard_words %}
+          <article
+            class="vocab-flashcard"
+            data-flashcard
+            data-word-id="{{ item.word.id }}"
+            data-status="{{ item.status }}"
+            tabindex="0"
+            role="button"
+            aria-label="Flashcard for {{ item.word.word }}. Press Space to flip."
+            aria-pressed="false"
+          >
+            <span class="vocab-status vocab-status-{{ item.status }}" data-card-status>{{ item.status }}</span>
+            <div class="vocab-flashcard-inner">
+              <div class="vocab-flashcard-face vocab-flashcard-front">
+                <div class="vocab-flashcard-word">{{ item.word.word }}</div>
+                <div class="vocab-flashcard-hint">Click the card or press Space to reveal the answer.</div>
               </div>
-            {% endif %}
-          {% empty %}
-            <div>No words added yet.</div>
+              <div class="vocab-flashcard-face vocab-flashcard-back">
+                <div class="vocab-flashcard-meaning">{{ item.word.meaning }}</div>
+                {% if item.word.example %}<div class="vocab-flashcard-example">{{ item.word.example }}</div>{% endif %}
+                <div class="vocab-flashcard-hint">Rate recall below. Keyboard: 1 Again, 2 Learning, 3 Know it.</div>
+              </div>
+            </div>
+          </article>
           {% endfor %}
         </div>
-      </div>
-    {% empty %}
-      <div>No units available yet.</div>
-    {% endfor %}
-  </div>
-</main>
 
-<script>
-  function toggleFlashcardAnswer(id, button) {
-    const answer = document.getElementById(`flashcard-answer-${id}`);
-    const isShown = answer.classList.contains('show');
-
-    if (isShown) {
-      answer.classList.remove('show');
-      button.textContent = 'Show Answer';
-    } else {
-      answer.classList.add('show');
-      button.textContent = 'Hide Answer';
-    }
-  }
-</script>
+        <div class="vocab-deck-feedback" data-deck-feedback aria-live="polite">Flip the card, then rate your recall.</div>
+        <div class="vocab-deck-controls" aria-label="Rate your recall">
+          <button type="button" class="vocab-btn vocab-btn-danger" data-mark-again data-outcome="again"><span class="vocab-keycap">1</span><span>Again</span></button>
+          <button type="button" class="vocab-btn vocab-btn-warning" data-mark-learning data-outcome="learning"><span class="vocab-keycap">2</span><span>Learning</span></button>
+          <button type="button" class="vocab-btn vocab-btn-success" data-mark-known data-outcome="known"><span class="vocab-keycap">3</span><span>Know it</span></button>
+        </div>
+        <div class="vocab-deck-footer">
+          <button type="button" class="vocab-btn" data-deck-prev>← Previous</button>
+          <button type="button" class="vocab-btn" data-deck-next>Next →</button>
+        </div>
+      {% else %}
+        <div class="vocab-empty">This unit has no active flashcards.</div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+<script src="{% static 'assets/js/makon-vocabulary-v2.js' %}"></script>
 {% endblock content %}

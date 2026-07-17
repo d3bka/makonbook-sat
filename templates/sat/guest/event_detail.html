@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="public-page">
   <div class="public-shell">
@@ -47,7 +48,7 @@
         </div>
       {% endif %}
 
-      <span class="status-badge">{{ event.status|title }}</span>
+      <span class="status-badge status-{{ availability.state }}">{{ availability.label }}</span>
 
       {% if event.always_live %}
         <div class="event-meta"><strong>Availability:</strong> Always live, 24/7</div>
@@ -73,22 +74,25 @@
         <div class="actions">
           <a href="{% url 'global_event_result' existing_attempt.guest_token %}" class="primary-btn">View result</a>
         </div>
-      {% else %}
-        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form auth-form">
+      {% elif availability.can_start %}
+        <form action="{% url 'start_global_event' event.slug %}" method="POST" class="signin-form auth-form" data-guest-start-form>
           {% csrf_token %}
-
-          <div class="form-group">
-            <label class="form-label" for="access-code-field">Access code{% if not event.access_code %} optional{% endif %}</label>
-            <input id="access-code-field" type="text" name="access_code" placeholder="Enter access code" {% if event.access_code %}required{% endif %}>
-          </div>
-
+          {% if event.access_code %}
+            <div class="form-group">
+              <label class="form-label" for="access-code-field">Access code</label>
+              <input id="access-code-field" type="password" name="access_code" placeholder="Enter access code" autocomplete="one-time-code" required>
+            </div>
+          {% endif %}
           <div class="actions">
-            <button type="submit" class="primary-btn">Start event</button>
+            <button type="submit" class="primary-btn" data-start-event-button>Start event</button>
             {% if event.show_leaderboard %}
               <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">View leaderboard</a>
             {% endif %}
           </div>
         </form>
+      {% else %}
+        <div class="alert-box"><p>This event cannot be started yet. Current status: <strong>{{ availability.label }}</strong>.</p></div>
+        {% if event.show_leaderboard %}<div class="actions"><a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">View leaderboard</a></div>{% endif %}
       {% endif %}
     </div>
 
@@ -97,5 +101,7 @@
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  <script src="{% static 'assets/js/makon-guest-events-v18.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

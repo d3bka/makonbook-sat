@@ -1,0 +1,45 @@
+<div id="questionModal" class="modal question-overview-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="question-overview-title" hidden>
+  <div class="modal-content question-overview-card">
+    <div class="question-overview-header">
+      <div>
+        <span class="question-overview-kicker">Module progress</span>
+        <h2 id="question-overview-title">Question overview</h2>
+        <p>Select any question to jump directly to it. Your answers and review marks are saved automatically.</p>
+      </div>
+      <button type="button" class="close-button" onclick="closeQuestionModal()" aria-label="Close question overview">×</button>
+    </div>
+
+    <div class="question-overview-summary" aria-label="Question status summary">
+      <div class="overview-stat overview-stat-answered">
+        <span>Answered</span>
+        <strong data-test-answered-count>0</strong>
+      </div>
+      <div class="overview-stat overview-stat-unanswered">
+        <span>Unanswered</span>
+        <strong data-test-unanswered-count>{{ questions|length }}</strong>
+      </div>
+      <div class="overview-stat overview-stat-marked">
+        <span>Marked</span>
+        <strong data-test-marked-count>0</strong>
+      </div>
+    </div>
+
+    <div class="question-grid" role="list" aria-label="Questions">
+      {% for q in questions %}
+      <button type="button" class="rect-question" role="listitem" data-question-index="{{ forloop.counter0 }}">
+        <span>{{ q.number|default:forloop.counter }}</span>
+      </button>
+      {% endfor %}
+    </div>
+
+    <div class="question-overview-legend" aria-label="Question status legend">
+      <span class="legend-current">Current</span>
+      <span class="legend-answered">Answered</span>
+      <span class="legend-marked">Marked for review</span>
+    </div>
+
+    <div class="question-overview-footer">
+      <button type="button" class="overview-return-button" onclick="closeQuestionModal()">Return to question</button>
+    </div>
+  </div>
+</div>

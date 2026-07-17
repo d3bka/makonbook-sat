@@ -868,3 +868,20 @@ html[data-theme="dark"] .mk-status-rejected { color: #fecdd3; }
     letter-spacing: .1em;
   }
 }
+
+/* POST-only classroom membership actions */
+.mk-inline-action-form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.mk-inline-action-form .mk-btn {
+  margin: 0;
+}
+
+.mk-btn.is-loading,
+.mk-btn:disabled {
+  opacity: .68;
+  cursor: wait;
+  pointer-events: none;
+}

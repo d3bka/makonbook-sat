@@ -7,10 +7,13 @@
     {% url 'check_the_answers' as form_action %}
     {% if classroom %}
         {% url 'classroom_test' classroom.id test.name as next_url %}
+        {% url 'classroom_practice_tests' classroom.id as home_url %}
     {% elif is_makeup %}
         {% url 'makeup_test_module' pk=test.name as next_url %}
+        {% url 'practice_tests' as home_url %}
     {% else %}
         {% url 'test' pk=test.name as next_url %}
+        {% url 'practice_tests' as home_url %}
     {% endif %}
 {% endif %}
 <!DOCTYPE html>
@@ -18,7 +21,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Quiz</title>
+    <title>{{ test.name|default:'SAT' }} · Mathematics · {{ module|upper }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
@@ -29,12 +32,25 @@
     <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=21">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=21">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=21">
+  {% include 'base/responsive_css.html' %}
 </head>
-<body class="scroll-hide mk-test-window">
+<body class="scroll-hide mk-test-window github-test-template-v20 github-test-math">
+    <noscript><div class="sat-test-noscript" role="alert">JavaScript is required for this timed module. Enable JavaScript and reload the page. The server timer is still running.</div></noscript>
     <div class="container">
         <header>
-            <h1>Section 2: Mathematics</h1>
-            <div class="timer" id="timer">0:00</div>
+            <div class="github-test-heading">
+                <h1>Section 2: Mathematics</h1>
+                <small>{{ test.name }} · Module {% if module == 'm2' or module == 'module_2' %}2{% else %}1{% endif %}</small>
+            </div>
+            <div class="github-test-timer-wrap">
+                <div class="timer" id="timer" aria-label="Time remaining">0:00</div>
+                <div class="test-save-status" data-test-save-status data-state="saved" role="status" aria-live="polite">
+                    <span class="save-status-dot" aria-hidden="true"></span><span data-test-save-label>Ready</span>
+                </div>
+            </div>
             <div class="header-tools" aria-label="Math section tools">
                 <button id="open-reference" type="button" class="header-tool" title="Reference Sheet" aria-label="Reference Sheet">
                     <i class="fa fa-book" aria-hidden="true"></i>
@@ -42,7 +58,7 @@
                 <button id="open-calculator" type="button" class="header-tool" title="Desmos Calculator" aria-label="Desmos Calculator">
                     <i class="fa fa-calculator" aria-hidden="true"></i>
                 </button>
-                <a href="{{ home_url|default:'/' }}" class="header-tool home-link" title="Home" aria-label="Home">
+                <a href="{{ home_url|default:'/' }}" data-test-exit class="header-tool home-link" title="Exit module" aria-label="Exit module">
                     <i class="fa fa-home" aria-hidden="true"></i>
                 </a>
             </div>
@@ -60,7 +76,7 @@
                     <div class="question-title">
                         <div class="question-number"></div>
                         <div class="bookmark" onclick="markForReview()">Mark for Review</div>
-                        <div class="crossing-options" onclick="toggleEliminateMode()"></div>
+                        <button type="button" class="crossing-options" onclick="toggleEliminateMode()" aria-label="Toggle answer elimination" aria-pressed="false" title="Cross out answer choices"></button>
                     </div>
 
                     <div class="question-text" id="question-text"></div>
@@ -87,38 +103,45 @@
             <div class="footer-right">
                 <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
                 <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
-                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish module</button>
             </div>
         </footer>
     </div>
 
-    <div id="calculator-popup">
+    <div id="calculator-popup" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="calculator-title">
         <div id="calculator-header">
-            <span>Desmos Calculator</span>
-            <button type="button" onclick="closeCalculator()" class="desmos-close-btn">✕</button>
+            <div class="desmos-title-wrap">
+                <span class="desmos-app-icon" aria-hidden="true"><i class="fa fa-calculator"></i></span>
+                <div>
+                    <strong id="calculator-title">Desmos Calculator</strong>
+                    <small>Graphing calculator</small>
+                </div>
+            </div>
+            <div class="desmos-header-actions">
+                <button id="desmos-maximize" type="button" class="desmos-window-btn" aria-label="Maximize calculator" title="Maximize">
+                    <i class="fa fa-expand" aria-hidden="true"></i>
+                </button>
+                <button type="button" onclick="closeCalculator()" class="desmos-window-btn desmos-close-btn" aria-label="Close calculator" title="Close">✕</button>
+            </div>
         </div>
         <div id="calculator-body">
+            <div id="calculator-loading" class="calculator-loading" aria-live="polite">
+                <span class="calculator-loading-spinner" aria-hidden="true"></span>
+                <strong>Loading calculator…</strong>
+                <small>This normally takes only a moment.</small>
+            </div>
             <div id="calculator"></div>
-            <div id="calculator-fallback" style="display:none; padding:20px; text-align:center; color:#666;">
-                <h3>Calculator Unavailable</h3>
-                <p>The graphing calculator could not be loaded. Please check your internet connection and reload the page.</p>
-                <p>You can still complete the test using external calculation tools.</p>
+            <div id="calculator-fallback" class="calculator-fallback" hidden>
+                <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+                <h3>Calculator unavailable</h3>
+                <p>Desmos could not be loaded. Check your internet connection and try again.</p>
+                <button type="button" id="retry-calculator" class="calculator-retry-btn">Try again</button>
             </div>
         </div>
+        <div id="calculator-resize-handle" aria-hidden="true"></div>
     </div>
 
-    <div id="questionModal" class="modal" aria-hidden="true">
-        <div class="modal-content">
-            <button type="button" class="close-button" onclick="closeQuestionModal()" aria-label="Close question navigator">×</button>
-            <div class="question-grid">
-                {% for q in questions %}
-                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); closeQuestionModal();">
-                    {{ q.number }}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+    {% include 'test/shared/question_overview.html' %}
 
     <div id="reference-overlay" class="reference-overlay">
         <div class="reference-sheet">
@@ -243,6 +266,8 @@
         </div>
     </div>
 
+    {% include 'test/shared/flow_overlays.html' %}
+
     <script id="sat-test-config" type="application/json">
     {
         "mode": "{% if attempt %}guest{% else %}standard{% endif %}",
@@ -250,8 +275,11 @@
         "moduleName": "{{ module|escapejs }}",
         "sectionName": "{{ section|escapejs }}",
         "classroomId": "{% if classroom %}{{ classroom.id }}{% endif %}",
+        "attemptId": "{{ attempt_id|default_if_none:''|escapejs }}",
         "testType": "{% if is_makeup %}makeup{% else %}regular{% endif %}",
-        "timeRemaining": {% if attempt %}{{ time_left_seconds|default:2100 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}2100{% endif %},
+        "timeRemaining": {% if time_remaining_seconds is not None %}{{ time_remaining_seconds }}{% elif attempt %}{{ time_left_seconds|default:2100 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}2100{% endif %},
+        "deadlineAt": {% if test_session_state.deadlineAt %}{{ test_session_state.deadlineAt }}{% else %}0{% endif %},
+        "draftSaveUrl": "{{ draft_save_url|default_if_none:''|escapejs }}",
         "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
         "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",
         "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
@@ -260,6 +288,10 @@
     </script>
 
     {{ questions_data|json_script:"sat-test-questions" }}
-    <script src="{% static 'assets/js/test-math.js' %}"></script>
+    {% if test_session_state %}{{ test_session_state|json_script:"sat-test-session-state" }}{% else %}<script id="sat-test-session-state" type="application/json">{}</script>{% endif %}
+    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=21"></script>
+    <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=21"></script>
+    <script src="{% static 'assets/js/test-math.js' %}?v=21"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

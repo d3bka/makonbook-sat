@@ -5,83 +5,67 @@
 {% block title %}Vocabulary Progress{% endblock title %}
 
 {% block style %}
-<style>
-  .detail-shell { max-width: 1180px; margin: 0 auto; }
-  .detail-card { background: linear-gradient(135deg, var(--mk-surface) 0%, var(--mk-surface-subtle) 100%); border:1px solid var(--mk-card-border); border-radius:24px; padding:28px; box-shadow:var(--mk-shadow-soft); color: var(--mk-text); }
-  .head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
-  .eyebrow { color: var(--mk-primary-soft); font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
-  .title { margin:0; font-size:34px; font-weight:800; color: var(--mk-primary-strong); }
-  .subtitle { margin:8px 0 0; color: var(--mk-text-muted); }
-  .back-btn { text-decoration:none; padding:11px 16px; border-radius:12px; background:var(--mk-surface-soft); border:1px solid var(--mk-border); color:var(--mk-primary-strong); font-weight:700; }
-  .summary-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:24px; }
-  .summary-item { background:linear-gradient(135deg, var(--mk-surface-soft) 0%, var(--mk-surface-subtle) 100%); border:1px solid var(--mk-card-border); border-radius:18px; padding:18px; }
-  .summary-label { color:var(--mk-primary-soft); font-size:13px; font-weight:700; text-transform:uppercase; }
-  .summary-value { margin-top:10px; font-size:28px; font-weight:800; color:var(--mk-primary); }
-  .summary-small { margin-top:8px; color:var(--mk-text-muted); font-size:14px; }
-  .note { margin-bottom:20px; padding:14px 16px; border-radius:14px; background:var(--mk-primary-tint); color:var(--mk-primary-strong); border:1px solid var(--mk-border); font-weight:600; }
-  .note.warning { background:var(--mk-danger-soft); color:var(--mk-danger); border-color: color-mix(in srgb, var(--mk-danger) 40%, transparent); }
-  .units-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
-  .unit-card { border:1px solid var(--mk-card-border); border-radius:18px; padding:18px; background:linear-gradient(135deg, var(--mk-surface-soft) 0%, var(--mk-surface-subtle) 100%); }
-  .unit-title { margin:0; font-size:20px; font-weight:800; color:var(--mk-primary-strong); }
-  .unit-meta { margin-top:8px; color:var(--mk-text-muted); }
-  .detail-card, .summary-item, .unit-card { backdrop-filter: blur(4px); }
-  @supports not (background: color-mix(in srgb, red 50%, transparent)) { .note.warning { border-color: var(--mk-danger); } }
-  @media (max-width: 900px) { .summary-grid, .units-grid { grid-template-columns:1fr; } }
-</style>
+<link href="{% static 'assets/css/makon-classroom.css' %}" rel="stylesheet">
+<link href="{% static 'assets/css/makon-progress-dashboard-v2.css' %}" rel="stylesheet">
+<link href="{% static 'assets/css/makon-vocabulary-v2.css' %}" rel="stylesheet">
 {% endblock style %}
 
 {% block content %}
-<div class="detail-shell">
-  <div class="detail-card">
-    <div class="head">
+<div class="progress-shell">
+  <section class="progress-hero">
+    <div class="progress-hero-top">
       <div>
-        <div class="eyebrow">Student Vocabulary Progress</div>
-        <h2 class="title">{{ student_obj.get_full_name|default:student_obj.username }}</h2>
-        <p class="subtitle">@{{ student_obj.username }} · {{ classroom.name }}</p>
+        <div class="mk-eyebrow">Student vocabulary progress</div>
+        <h2>{{ student_obj.get_full_name|default:student_obj.username }}</h2>
+        <p>@{{ student_obj.username }} · {{ classroom.name }}. This page uses real flashcard and quiz activity, not guessed completion.</p>
       </div>
-      <a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="back-btn">Back to Progress</a>
+      <div class="mk-hero-actions"><a href="{% url 'classroom_progress_dashboard' classroom.id %}" class="mk-btn mk-btn-secondary"><i class="bi bi-arrow-left"></i> Progress dashboard</a></div>
+    </div>
+    {% if not access_map.vocabulary %}<div class="mk-alert mk-alert-danger" style="margin-top:18px">Vocabulary access is disabled for this student.</div>{% endif %}
+  </section>
+
+  <section class="student-vocab-grid" style="margin-top:18px">
+    <div class="student-vocab-stat"><small>Mastery</small><strong>{{ summary.completion_percent }}%</strong><span>{{ summary.mastered_words }}/{{ summary.total_words }} words</span></div>
+    <div class="student-vocab-stat"><small>Studied</small><strong>{{ summary.studied_words }}</strong><span>{{ summary.unseen_words }} unseen</span></div>
+    <div class="student-vocab-stat"><small>Accuracy</small><strong>{{ summary.accuracy_percent }}%</strong><span>{{ summary.correct_count }} correct · {{ summary.incorrect_count }} wrong</span></div>
+    <div class="student-vocab-stat"><small>Quiz attempts</small><strong>{{ summary.quiz_count }}</strong><span>{% if summary.best_quiz_percent != None %}Best {{ summary.best_quiz_percent }}%{% else %}No quiz yet{% endif %}</span></div>
+  </section>
+
+  <section class="student-vocab-layout">
+    <div class="mk-panel">
+      <div class="mk-panel-head"><div><h3 class="mk-panel-title">Unit mastery</h3><p class="mk-card-subtitle">Mastered words are the completion metric.</p></div></div>
+      <div class="rating-table-wrap">
+        <table class="student-vocab-table">
+          <thead><tr><th>Unit</th><th>Studied</th><th>Mastered</th><th>Accuracy</th><th>Mastery</th></tr></thead>
+          <tbody>
+            {% for row in unit_rows %}
+              <tr><td><strong>{{ row.unit.title }}</strong><br><small>{{ row.word_count }} words</small></td><td>{{ row.studied_words }}/{{ row.word_count }}</td><td>{{ row.mastered_words }}/{{ row.word_count }}</td><td>{{ row.accuracy_percent }}%</td><td><div class="progress-meter"><span style="width:{{ row.mastery_percent }}%"></span></div><small>{{ row.mastery_percent }}%</small></td></tr>
+            {% empty %}<tr><td colspan="5">No active units.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    {% if not access_map.vocabulary %}
-      <div class="note warning">Vocabulary section is disabled for this student inside this classroom.</div>
-    {% endif %}
-
-    <div class="summary-grid">
-      <div class="summary-item">
-        <div class="summary-label">Completion</div>
-        <div class="summary-value">{% if vocab_progress %}{{ vocab_progress.completion_percent }}%{% else %}0.00%{% endif %}</div>
-        <div class="summary-small">Current tracked vocabulary completion</div>
+    <aside class="mk-panel">
+      <div class="mk-panel-head"><div><h3 class="mk-panel-title">Weak words</h3><p class="mk-card-subtitle">High-error words that still need work.</p></div></div>
+      <div class="weak-word-list">
+        {% for item in weak_words %}
+          <div class="weak-word"><div><strong>{{ item.word.word }}</strong><small>{{ item.unit.title }} · {{ item.progress.incorrect_count }} misses</small></div><strong>{{ item.accuracy_percent }}%</strong></div>
+        {% empty %}<div class="mk-empty-state">No weak words recorded yet.</div>{% endfor %}
       </div>
-      <div class="summary-item">
-        <div class="summary-label">Units</div>
-        <div class="summary-value">{{ units|length }}</div>
-        <div class="summary-small">Active units available in vocabulary</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">Words</div>
-        <div class="summary-value">{{ total_words }}</div>
-        <div class="summary-small">Total active words across all units</div>
-      </div>
-    </div>
+    </aside>
+  </section>
 
-    <div class="note">
-      Detailed per-student vocabulary completion is not fully tracked in the current database yet. This page shows the student section status and the active unit structure instead of fake progress.
+  <section class="mk-panel" style="margin-top:18px">
+    <div class="mk-panel-head"><div><h3 class="mk-panel-title">Recent quiz attempts</h3><p class="mk-card-subtitle">Saved classroom attempts only.</p></div></div>
+    <div class="rating-table-wrap">
+      <table class="student-vocab-table">
+        <thead><tr><th>Date</th><th>Mode</th><th>Score</th><th>Percentage</th><th>Duration</th></tr></thead>
+        <tbody>
+          {% for attempt in recent_attempts %}<tr><td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td><td>{{ attempt.get_mode_display }}</td><td>{{ attempt.score }}/{{ attempt.total_questions }}</td><td>{{ attempt.percentage }}%</td><td>{{ attempt.duration_seconds }}s</td></tr>{% empty %}<tr><td colspan="5">No classroom vocabulary quizzes yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
     </div>
-
-    <div class="units-grid">
-      {% for unit in units %}
-        <div class="unit-card">
-          <h3 class="unit-title">{{ unit.title }}</h3>
-          <div class="unit-meta">
-            Order: {{ unit.order }}<br>
-            Active words: {{ unit.words_count }}<br>
-            Questions: {{ unit.questions.count }}
-          </div>
-        </div>
-      {% empty %}
-        <div class="unit-card">No vocabulary units found.</div>
-      {% endfor %}
-    </div>
-  </div>
+  </section>
 </div>
 {% endblock content %}

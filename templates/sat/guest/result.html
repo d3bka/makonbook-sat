@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="public-page">
   <div class="public-shell">
@@ -33,8 +34,11 @@
 
       {% if show_score %}
         <div class="score-box">Total Score: {{ total_score }}</div>
-        <p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>
-        <p><strong>Math Score:</strong> {{ math_score }}</p>
+        <p><strong>Scoring:</strong> {{ scoring_label }}</p>
+        {% if test_mode == "full" or test_mode == "ebrw_only" %}<p><strong>EBRW Score:</strong> {{ ebrw_score }}</p>{% endif %}
+        {% if test_mode == "full" or test_mode == "math_only" %}<p><strong>Math Score:</strong> {{ math_score }}</p>{% endif %}
+        {% if range_total %}<p><strong>Estimated range:</strong> {{ range_total.lower }}–{{ range_total.upper }}</p>{% endif %}
+        {% if placement %}<div class="score-box placement-box">{{ placement.label }} · {{ placement.percentage }}%</div>{% endif %}
       {% else %}
         <div class="score-box">Result available later</div>
       {% endif %}
@@ -44,7 +48,8 @@
 
       <div class="actions">
         <a href="{% url 'global_event_list' %}" class="primary-btn">Back to events</a>
-        {% if event.show_leaderboard %}
+        {% if can_review %}<a href="{% url 'global_event_review' attempt.guest_token %}" class="secondary-link">Review answers</a>{% endif %}
+        {% if event.show_leaderboard and show_score %}
           <a href="{% url 'global_event_leaderboard' event.slug %}" class="secondary-link">Leaderboard</a>
         {% endif %}
       </div>
@@ -53,5 +58,6 @@
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

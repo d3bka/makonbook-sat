@@ -357,13 +357,15 @@
 
   .retake-form { display: inline-flex; margin: 0; }
   .retake-form button { border: 0; }
+  .retake-form button[disabled] { opacity:.68; cursor:wait; }
+  .chart-container.charts-unavailable::after { content:'Timing chart could not load. Question review and scores are still available above.'; display:block; margin-top:14px; padding:14px; border:1px solid var(--results-border); border-radius:14px; color:var(--results-muted); }
 </style>
 {% endblock style %}
 
 {% block content %}
 <div class="mx-auto results-shell" style="width:90%;">
   <div data-v-27935a7a="" class="row mx-auto sat">
-    <a data-v-27935a7a="" href="/practices" class="col-md-4 sat_left print_div">
+    <a data-v-27935a7a="" href="{% if classroom %}{% url 'classroom_practice_tests' classroom.id %}{% else %}{% url 'practice_tests' %}{% endif %}" class="col-md-4 sat_left print_div">
       <p data-v-27935a7a="">SAT</p><span data-v-27935a7a="">®</span>
     </a>
     <div data-v-27935a7a="" class="col-md-4 sat_right row">
@@ -381,7 +383,7 @@
     {% if not is_teacher_review %}
     <div class="col-md-1" style="padding-top: 30px; padding-right: 30px;">
       <div class="button-container">
-        <a href="/sat/results/certificate/{{stats.test}}/" style="text-decoration:none; color:inherit; margin-left:10px;">
+        <a href="{% url 'results_certificate' stats.test %}?review_key={{ key|urlencode }}" style="text-decoration:none; color:inherit; margin-left:10px;">
           <i class="fa fa-vcard" style="font-size: -webkit-xxx-large;"></i> Certificate
         </a>
       </div>
@@ -395,19 +397,15 @@
     {% endif %}
   </div>
 
-  {% if attempts and attempts|length > 1 %}
+  {% if attempt_options and attempt_options|length > 1 %}
   <div class="row" style="margin: 20px 0;">
-    <div class="col-md-6">
-      <form method="get">
-        <label for="review_key" style="font-weight: 700; margin-right: 10px;">Select attempt for review:</label>
-        <select id="review_key" name="review_key" onchange="this.form.submit()" style="padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc;">
-          {% for attempt in attempts %}
-            <option value="{{ attempt.key }}" {% if attempt.key == selected_review_key %}selected{% endif %}>
-              {{ attempt.created_at|date:'Y-m-d H:i' }} · Score: {{ attempt.score }}
-            </option>
-          {% endfor %}
-        </select>
-      </form>
+    <div class="col-md-8">
+      <label for="review_attempt_url" style="font-weight:700;margin-right:10px;">Select attempt for review:</label>
+      <select id="review_attempt_url" onchange="if(this.value){window.location.assign(this.value)}" style="padding:8px 12px;border-radius:10px;border:1px solid var(--results-border);background:var(--results-surface-2);color:var(--results-text);">
+        {% for option in attempt_options %}
+          <option value="{{ option.url }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+        {% endfor %}
+      </select>
     </div>
   </div>
   {% endif %}
@@ -514,7 +512,7 @@
 
   <hr style="margin-top: 10px; margin-bottom: 30px;">
   <div class="row module-row">
-    {% if has_english %}
+    {% if has_english_m1 %}
     <div class="col-md-3 module-card">
       <h5>English Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -525,7 +523,9 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
 
+    {% if has_english_m2 %}
     <div class="col-md-3 module-card">
       <h5>English Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -538,7 +538,7 @@
     </div>
     {% endif %}
 
-    {% if has_math %}
+    {% if has_math_m1 %}
     <div class="col-md-3 module-card">
       <h5>Math Module 1</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -549,7 +549,9 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
 
+    {% if has_math_m2 %}
     <div class="col-md-3 module-card">
       <h5>Math Module 2</h5>
       <div class="navigation" style="display: flex; flex-wrap: wrap;">
@@ -566,35 +568,20 @@
   <div class="chart-container">
     <h4>Time Spent Per Question for Each Module</h4>
 
-    {% if has_english %}
-    <div class="row" style="margin-bottom: 30px;">
-      <div class="col-md-6">
-        <h5>English Module 1</h5>
-        <canvas id="chart-english-m1"></canvas>
-      </div>
-      <div class="col-md-6">
-        <h5>English Module 2</h5>
-        <canvas id="chart-english-m2"></canvas>
-      </div>
+    <div class="row" style="row-gap:24px;">
+      {% if has_english_m1 %}<div class="col-md-6"><h5>English Module 1</h5><canvas id="chart-english-m1"></canvas></div>{% endif %}
+      {% if has_english_m2 %}<div class="col-md-6"><h5>English Module 2</h5><canvas id="chart-english-m2"></canvas></div>{% endif %}
+      {% if has_math_m1 %}<div class="col-md-6"><h5>Math Module 1</h5><canvas id="chart-math-m1"></canvas></div>{% endif %}
+      {% if has_math_m2 %}<div class="col-md-6"><h5>Math Module 2</h5><canvas id="chart-math-m2"></canvas></div>{% endif %}
     </div>
-    {% endif %}
-
-    {% if has_math %}
-    <div class="row">
-      <div class="col-md-6">
-        <h5>Math Module 1</h5>
-        <canvas id="chart-math-m1"></canvas>
-      </div>
-      <div class="col-md-6">
-        <h5>Math Module 2</h5>
-        <canvas id="chart-math-m2"></canvas>
-      </div>
-    </div>
-    {% endif %}
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    if (typeof window.Chart === 'undefined') {
+      document.querySelector('.chart-container')?.classList.add('charts-unavailable');
+      console.warn('Chart.js was unavailable; score and review data remain accessible.');
+    }
     const __resultsDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const __chartText = __resultsDark ? '#e8e3ff' : '#312e81';
     const __chartGrid = __resultsDark ? 'rgba(196,181,253,0.16)' : 'rgba(99,102,241,0.14)';
@@ -609,7 +596,7 @@
         title: { color: __chartTitle }
       }
     };
-    {% if has_english %}
+    {% if has_english_m1 %}
     var englishM1Labels = [
       {% for q in questions.english.m1 %}
       "{{ q.number }}",
@@ -620,8 +607,8 @@
       {{ q.time_spent }},
       {% endfor %}
     ];
-    var ctx1 = document.getElementById('chart-english-m1').getContext('2d');
-    new Chart(ctx1, {
+    var ctx1 = document.getElementById('chart-english-m1')?.getContext('2d');
+    if (ctx1 && window.Chart) new Chart(ctx1, {
       type: 'bar',
       data: {
         labels: englishM1Labels,
@@ -635,7 +622,9 @@
       },
       options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'English Module 1', color: __chartTitle } } }
     });
+    {% endif %}
 
+    {% if has_english_m2 %}
     var englishM2Labels = [
       {% for q in questions.english.m2 %}
       "{{ q.number }}",
@@ -646,8 +635,8 @@
       {{ q.time_spent }},
       {% endfor %}
     ];
-    var ctx2 = document.getElementById('chart-english-m2').getContext('2d');
-    new Chart(ctx2, {
+    var ctx2 = document.getElementById('chart-english-m2')?.getContext('2d');
+    if (ctx2 && window.Chart) new Chart(ctx2, {
       type: 'bar',
       data: {
         labels: englishM2Labels,
@@ -663,7 +652,7 @@
     });
     {% endif %}
 
-    {% if has_math %}
+    {% if has_math_m1 %}
     var mathM1Labels = [
       {% for q in questions.math.m1 %}
       "{{ q.number }}",
@@ -674,8 +663,8 @@
       {{ q.time_spent }},
       {% endfor %}
     ];
-    var ctx3 = document.getElementById('chart-math-m1').getContext('2d');
-    new Chart(ctx3, {
+    var ctx3 = document.getElementById('chart-math-m1')?.getContext('2d');
+    if (ctx3 && window.Chart) new Chart(ctx3, {
       type: 'bar',
       data: {
         labels: mathM1Labels,
@@ -689,7 +678,9 @@
       },
       options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'Math Module 1', color: __chartTitle } } }
     });
+    {% endif %}
 
+    {% if has_math_m2 %}
     var mathM2Labels = [
       {% for q in questions.math.m2 %}
       "{{ q.number }}",
@@ -700,8 +691,8 @@
       {{ q.time_spent }},
       {% endfor %}
     ];
-    var ctx4 = document.getElementById('chart-math-m2').getContext('2d');
-    new Chart(ctx4, {
+    var ctx4 = document.getElementById('chart-math-m2')?.getContext('2d');
+    if (ctx4 && window.Chart) new Chart(ctx4, {
       type: 'bar',
       data: {
         labels: mathM2Labels,
@@ -716,5 +707,16 @@
       options: { ...__baseChartOptions, plugins: { ...__baseChartOptions.plugins, title: { display: true, text: 'Math Module 2', color: __chartTitle } } }
     });
     {% endif %}
+  </script>
+  <script>
+    document.querySelectorAll('.retake-form').forEach(function(form){
+      form.addEventListener('submit',function(event){
+        if(form.dataset.submitting==='1'){event.preventDefault();return;}
+        if(!window.confirm('Start a new attempt? The selected previous result will remain available in attempt history.')){event.preventDefault();return;}
+        form.dataset.submitting='1';
+        const button=form.querySelector('button[type="submit"]');
+        if(button){button.disabled=true;button.innerHTML='<i class="fa fa-circle-o-notch fa-spin"></i> Starting…';}
+      });
+    });
   </script>
 {% endblock content %}

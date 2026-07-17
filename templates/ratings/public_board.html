@@ -1,0 +1,189 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Student Rating | MakonBook</title>
+  {% include 'base/theme_init.html' %}
+  <link rel="icon" href="{% static 'assets/img/icons/original-icon-nobg.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-mobile-nav-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-desktop-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-ratings.css' %}">
+  {% include 'base/responsive_css.html' %}
+</head>
+<body class="rating-public-body">
+  <div id="top" class="landing-shell rating-shell">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+    <div class="hero-noise rating-top-noise"></div>
+
+    <header class="site-header" data-header>
+      <div class="container nav-row">
+        <a href="/" class="brand" aria-label="MakonBook home">
+          <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="MakonBook logo">
+          <span>SAT Makon</span>
+        </a>
+
+        <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" data-nav-toggle>
+          <span></span><span></span><span></span>
+        </button>
+
+        <nav class="site-nav" aria-label="Main navigation" data-nav>
+          <a href="/#features">Features</a>
+          <a href="/#results">Analytics</a>
+          <a href="/#classrooms">Classrooms</a>
+          <a href="/#faq">FAQ</a>
+          <a href="{% url 'rating_home' %}" aria-current="page">Student Rating</a>
+
+          <div class="site-nav-mobile-actions" aria-label="Mobile actions">
+            {% if request.user.is_authenticated %}
+              <a href="{% url 'rating_home' %}" class="btn btn-ghost">My rating</a>
+            {% else %}
+              <a href="{% url 'login' %}" class="btn btn-ghost">Student login</a>
+            {% endif %}
+            <a href="/" class="btn btn-primary">Back to MakonBook</a>
+          </div>
+        </nav>
+
+        <div class="nav-actions">
+          {% include 'base/theme_toggle.html' %}
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'rating_home' %}" class="btn btn-ghost">My rating</a>
+          {% else %}
+            <a href="{% url 'login' %}" class="btn btn-ghost">Student login</a>
+          {% endif %}
+          <a href="/" class="btn btn-primary">Back to MakonBook</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero-section rating-public-section" aria-labelledby="rating-title">
+        <div class="container rating-public-intro">
+          <div class="section-heading narrow" data-reveal>
+            <span class="eyebrow">Student rating</span>
+            <h1 id="rating-title">MakonBook Student Rating</h1>
+            <p>Monthly rating based on homework, progress, activity, attendance, and behavior. Public names stay masked for privacy.</p>
+            <div class="rating-public-actions reveal-up delay-1">
+              <a href="{% url 'rating_parent_lookup' %}" class="btn btn-secondary btn-large">Parent access</a>
+              {% if request.user.is_authenticated %}
+                <a href="{% url 'rating_home' %}" class="btn btn-primary btn-large">Open My Rating</a>
+              {% else %}
+                <a href="{% url 'login' %}" class="btn btn-primary btn-large">Student login</a>
+              {% endif %}
+            </div>
+          </div>
+
+          <aside class="rating-search-card glass-card" data-reveal>
+            <h2>Search students instantly</h2>
+            <p>Type a name, rank, or rating. Results update automatically while you type — no submit button needed.</p>
+            <input
+              type="search"
+              class="rating-search-input"
+              data-rating-search
+              placeholder="Search by masked name, rank, or rating"
+              aria-label="Search students"
+              {% if not board %}disabled{% endif %}
+            >
+            <div class="rating-search-status" data-rating-search-status>
+              {% if board %}Showing all {{ board|length }} ranked students.{% else %}No students qualify for the current month yet.{% endif %}
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="container rating-page">
+          {% if not config.public_board_enabled %}
+            <div class="rating-card rating-empty">Public rating is temporarily disabled.</div>
+          {% elif board %}
+            <section class="rating-podium" data-rating-podium>
+              {% for row in board|slice:":3" %}
+                <a
+                  class="rating-card {% if row.rank == 1 %}first{% endif %}"
+                  data-rating-podium-card
+                  data-search="{{ row.masked_name|lower }} rank {{ row.rank }} rating {{ row.rating }}"
+                  href="{% url 'rating_public_student' row.student.id %}"
+                  style="text-decoration:none;color:inherit"
+                >
+                  <div class="rating-medal">{% if row.rank == 1 %}🥇{% elif row.rank == 2 %}🥈{% else %}🥉{% endif %}</div>
+                  <div class="rating-badge">#{{ row.rank }}</div>
+                  <h2>{{ row.masked_name }}</h2>
+                  <div class="rating-score">{{ row.rating }}</div>
+                  <p class="rating-help">{{ row.assessment_count }} assessments</p>
+                </a>
+              {% endfor %}
+            </section>
+
+            <section class="rating-card rating-public-board-card">
+              <h2>Current leaderboard</h2>
+              <div class="rating-table-wrap">
+                <table class="rating-table">
+                  <thead>
+                    <tr>
+                      <th>Rank</th>
+                      <th>Student</th>
+                      <th>Rating</th>
+                      <th>Assessments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in board %}
+                      <tr data-rating-row data-search="{{ row.masked_name|lower }} rank {{ row.rank }} rating {{ row.rating }} {{ row.assessment_count }}">
+                        <td>#{{ row.rank }}</td>
+                        <td><a href="{% url 'rating_public_student' row.student.id %}">{{ row.masked_name }}</a></td>
+                        <td><strong>{{ row.rating }}</strong></td>
+                        <td>{{ row.assessment_count }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div class="rating-card rating-empty rating-search-empty" data-rating-empty-search hidden>
+              No students match your search.
+            </div>
+          {% else %}
+            <div class="rating-card rating-empty">No students qualify for the current month yet.</div>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <div>
+          <strong>SAT Makon</strong>
+          <p>Digital SAT practice platform with tests, analytics, classrooms, and now a public student rating board.</p>
+        </div>
+        <div class="footer-links">
+          <a href="/">Home</a>
+          <a href="/#features">Features</a>
+          <a href="/#faq">FAQ</a>
+          <a href="{% url 'rating_parent_lookup' %}">Parent access</a>
+        </div>
+      </div>
+    </footer>
+
+    <a class="back-to-top" href="#top" aria-label="Back to top" data-back-to-top>
+      <span aria-hidden="true">↑</span>
+    </a>
+  </div>
+
+  <script src="{% static 'assets/js/landing.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  <script src="{% static 'assets/js/rating-public-board.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
+</body>
+</html>

@@ -5,7 +5,7 @@
   Load after landing.css and makon-small-device.css.
 */
 
-@media (max-width: 880px) {
+@media (max-width: 1024px) {
   body:has(.site-nav.is-open) {
     overflow: hidden;
   }
@@ -293,15 +293,16 @@
   }
 }
 
-html[data-theme="light"] @media (max-width: 880px) {
-  .site-header.is-scrolled,
-  .site-header:has(.site-nav.is-open) {
+@media (max-width: 1024px) {
+  html[data-theme="light"] .site-header.is-scrolled,
+  html[data-theme="light"] .site-header:has(.site-nav.is-open) {
     background: rgba(255, 255, 255, 0.88);
     border-bottom-color: rgba(104, 62, 171, 0.14);
   }
 }
 
-@media (max-width: 880px) {
+
+@media (max-width: 1024px) {
   html[data-theme="light"] .site-nav {
     color: #24113e;
     border-color: rgba(104, 62, 171, 0.16);

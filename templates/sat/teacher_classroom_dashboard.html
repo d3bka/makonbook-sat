@@ -28,6 +28,10 @@
           <i class="bi bi-graph-up-arrow"></i>
           Progress
         </a>
+        <a href="{% url 'rating_teacher_classroom' classroom.id %}" class="mk-btn">
+          <i class="bi bi-star-fill"></i>
+          Assess students
+        </a>
       </div>
     </div>
 
@@ -225,12 +229,29 @@
 
           <div class="mk-student-actions" style="margin-top: 16px;">
             {% if membership.status == 'pending' %}
-              <a href="{% url 'approve_join_request' classroom.id membership.id %}" class="mk-btn mk-btn-sm">
-                Approve
-              </a>
-              <a href="{% url 'reject_join_request' classroom.id membership.id %}" class="mk-btn mk-btn-danger mk-btn-sm">
-                Reject
-              </a>
+              <form
+                method="post"
+                action="{% url 'approve_join_request' classroom.id membership.id %}"
+                class="mk-inline-action-form"
+                data-classroom-action-form
+              >
+                {% csrf_token %}
+                <button type="submit" class="mk-btn mk-btn-sm" data-action-label="Approving...">
+                  Approve
+                </button>
+              </form>
+              <form
+                method="post"
+                action="{% url 'reject_join_request' classroom.id membership.id %}"
+                class="mk-inline-action-form"
+                data-classroom-action-form
+                data-confirm-message="Reject {{ membership.user.get_full_name|default:membership.user.username|escapejs }}'s join request?"
+              >
+                {% csrf_token %}
+                <button type="submit" class="mk-btn mk-btn-danger mk-btn-sm" data-action-label="Rejecting...">
+                  Reject
+                </button>
+              </form>
             {% endif %}
 
             {% if membership.status == 'approved' %}
@@ -240,9 +261,18 @@
               <a href="{% url 'update_student_practice_test_access' classroom.id membership.user.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">
                 Practice tests
               </a>
-              <a href="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}" class="mk-btn mk-btn-danger mk-btn-sm">
-                Remove
-              </a>
+              <form
+                method="post"
+                action="{% url 'remove_student_from_classroom' classroom.id membership.user.id %}"
+                class="mk-inline-action-form"
+                data-classroom-action-form
+                data-confirm-message="Remove {{ membership.user.get_full_name|default:membership.user.username|escapejs }} from this classroom?"
+              >
+                {% csrf_token %}
+                <button type="submit" class="mk-btn mk-btn-danger mk-btn-sm" data-action-label="Removing...">
+                  Remove
+                </button>
+              </form>
             {% endif %}
           </div>
         </article>

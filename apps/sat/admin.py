@@ -156,11 +156,12 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
         'number',
         'domain',
         'type',
+        'response_type',
         'has_image',
         'has_explanation',
         'created_at',
     ]
-    list_filter = ['test', 'module', 'domain', 'type', 'graph', 'created_at']
+    list_filter = ['test', 'module', 'response_type', 'domain', 'type', 'graph', 'created_at']
     search_fields = ['test__name', 'number', 'question']
     list_per_page = 25
     list_select_related = ['test', 'domain', 'type']
@@ -170,7 +171,7 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Basic Information', {
-            'fields': ('test', 'module', 'number', 'domain', 'type')
+            'fields': ('test', 'module', 'number', 'domain', 'type', 'response_type')
         }),
         ('Question Content', {
             'fields': ('question', 'passage', 'image', 'graph')
@@ -179,7 +180,7 @@ class EnglishQuestionAdmin(admin.ModelAdmin):
             'fields': ('a', 'b', 'c', 'd')
         }),
         ('Answer and Explanation', {
-            'fields': ('answer', 'explained')
+            'fields': ('answer', 'accepted_answers', 'answer_patterns', 'explained')
         }),
     )
 
@@ -680,10 +681,12 @@ class TestStageAdmin(admin.ModelAdmin):
         count = 0
         for stage in queryset:
             max_retakes = stage.get_max_retakes()
-            if stage.retake_count >= max_retakes:
-                # Allow one extra retake
-                stage.retake_count = max_retakes - 1
-                stage.save()
+            if max_retakes is None:
+                continue
+            if (stage.retake_count or 0) >= max_retakes:
+                # Allow one extra retake.
+                stage.retake_count = max(max_retakes - 1, 0)
+                stage.save(update_fields=['retake_count', 'updated_at'])
                 count += 1
         self.message_user(request, f'Allowed extra retake for {count} test stages.')
     allow_extra_retake.short_description = 'Allow one extra retake'
@@ -804,6 +807,32 @@ class VocabularyQuestionAdmin(admin.ModelAdmin):
     short_question.short_description = 'Question'
 
 
+@admin.register(VocabularyWordProgress)
+class VocabularyWordProgressAdmin(admin.ModelAdmin):
+    list_display = ('user', 'word', 'classroom', 'status', 'times_seen', 'correct_count', 'incorrect_count', 'last_reviewed_at')
+    list_filter = ('status', 'classroom', 'word__unit')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'word__word', 'word__unit__title', 'classroom__name')
+    readonly_fields = ('created_at', 'updated_at', 'last_reviewed_at', 'mastered_at')
+    ordering = ('-last_reviewed_at',)
+
+
+class VocabularyQuizAnswerInline(admin.TabularInline):
+    model = VocabularyQuizAnswer
+    extra = 0
+    can_delete = False
+    readonly_fields = ('word', 'prompt', 'selected_answer', 'correct_answer', 'is_correct')
+
+
+@admin.register(VocabularyQuizAttempt)
+class VocabularyQuizAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'classroom', 'mode', 'score', 'total_questions', 'percentage', 'duration_seconds', 'completed_at')
+    list_filter = ('mode', 'classroom', 'completed_at')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'classroom__name')
+    readonly_fields = ('started_at', 'completed_at')
+    inlines = [VocabularyQuizAnswerInline]
+    ordering = ('-completed_at',)
+
+
 class ClassroomJoinCodeInline(admin.StackedInline):
     model = ClassroomJoinCode
     extra = 0
@@ -859,14 +888,14 @@ class StudentProgressAdmin(admin.ModelAdmin):
         'last_activity_at',
     )
     list_filter = ('section', 'classroom')
-    search_fields = ('studentusername', 'classroomname')
+    search_fields = ('student__username', 'classroom__name')
 
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ('sender', 'classroom', 'is_deleted', 'created_at')
     list_filter = ('is_deleted', 'created_at', 'classroom')
-    search_fields = ('senderusername', 'classroomname', 'message')
+    search_fields = ('sender__username', 'classroom__name', 'message')
 
 @admin.register(GlobalEvent)
 class GlobalEventAdmin(admin.ModelAdmin):
@@ -885,7 +914,7 @@ class GlobalEventAdmin(admin.ModelAdmin):
         "english_duration_minutes",
         "math_duration_minutes",
     )
-    search_fields = ("title", "slug", "test__title")
+    search_fields = ("title", "slug", "test__name")
     list_filter = ("status", "is_public", "always_live", "show_score_immediately", "show_leaderboard")
     autocomplete_fields = ("test",)
     list_editable = ("show_score_immediately", "show_leaderboard", "status", "is_public", "always_live")
@@ -914,6 +943,32 @@ class GlobalEventAnswerAdmin(admin.ModelAdmin):
         "attempt__event__title",
         "selected_answer",
     )
+
+
+@admin.register(GlobalEventModuleDraft)
+class GlobalEventModuleDraftAdmin(admin.ModelAdmin):
+    list_display = ("attempt", "section", "module", "current_question_index", "deadline_at", "updated_at")
+    list_filter = ("section", "module", "deadline_at")
+    search_fields = (
+        "attempt__guest__full_name",
+        "attempt__guest__display_name",
+        "attempt__event__title",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(MakeupTestModuleDraft)
+class MakeupTestModuleDraftAdmin(admin.ModelAdmin):
+    list_display = ("makeup_test", "user", "section", "module", "current_question_index", "deadline_at", "updated_at")
+    list_filter = ("section", "module", "deadline_at")
+    search_fields = (
+        "makeup_test__name",
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+    )
+    readonly_fields = ("created_at", "updated_at")
+
 
 class SupportTeacherAvailabilityInline(admin.TabularInline):
     model = SupportTeacherAvailability

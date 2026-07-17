@@ -123,7 +123,7 @@ a {
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 9500;
   padding: 18px 0;
   transition: padding 220ms ease, background 220ms ease, border-color 220ms ease, backdrop-filter 220ms ease;
 }
@@ -1555,7 +1555,7 @@ p {
   }
 }
 
-@media (max-width: 880px) {
+@media (max-width: 1024px) {
   .nav-toggle {
     display: inline-flex;
     flex-direction: column;

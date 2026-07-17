@@ -12,6 +12,7 @@ urlpatterns = [
 
     path("", include("apps.base.urls")),
     path("sat/", include("apps.sat.urls")),
+    path("rating/", include("apps.ratings.urls")),
     path("ap-classes/admin-panel/", RedirectView.as_view(pattern_name="apclasses:event_list", permanent=False), name="ap_admin_exam_list"),
     path("ap-classes/", include("apps.apclasses.urls")),
     path("admin/", admin.site.urls),

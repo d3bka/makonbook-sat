@@ -284,7 +284,7 @@ html[data-theme="light"] body #faq .faq-item.is-open {
 
 /* ===== MOBILE LIGHT ===== */
 
-@media (max-width: 880px) {
+@media (max-width: 1024px) {
   html[data-theme="light"] body .site-nav {
     background:
       radial-gradient(circle at 88% 12%, rgba(236,72,153,.12), transparent 12rem),

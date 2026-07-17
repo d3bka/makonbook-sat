@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="public-page">
   <div class="public-shell">
@@ -47,7 +48,10 @@
         {% for event in events %}
           <article class="event-card" data-page-reveal>
             <div>
-              <span class="status-badge">{{ event.status|title }}</span>
+              <div class="event-badge-row">
+                <span class="status-badge status-{{ event.availability.state }}">{{ event.availability.label }}</span>
+                <span class="status-badge source-badge">{{ event.source_label }}</span>
+              </div>
               <h3>{{ event.title }}</h3>
 
               {% if event.description %}
@@ -60,12 +64,18 @@
                 <div class="event-meta"><strong>Starts:</strong> {{ event.start_at }}</div>
                 <div class="event-meta"><strong>Ends:</strong> {{ event.end_at }}</div>
               {% endif %}
-              <div class="event-meta"><strong>English:</strong> {{ event.english_duration_minutes }} min</div>
-              <div class="event-meta"><strong>Math:</strong> {{ event.math_duration_minutes }} min</div>
+              {% if event.source == "sat" %}
+                <div class="event-meta"><strong>English:</strong> {{ event.english_duration_minutes }} min per module</div>
+                <div class="event-meta"><strong>Math:</strong> {{ event.math_duration_minutes }} min per module</div>
+              {% else %}
+                {% if event.english_duration_minutes %}<div class="event-meta"><strong>Part A:</strong> {{ event.english_duration_minutes }} min</div>{% endif %}
+                {% if event.math_duration_minutes %}<div class="event-meta"><strong>Part B:</strong> {{ event.math_duration_minutes }} min</div>{% endif %}
+                {% if event.frq_duration_minutes %}<div class="event-meta"><strong>FRQ:</strong> {{ event.frq_duration_minutes }} min</div>{% endif %}
+              {% endif %}
             </div>
 
             <div class="event-actions">
-              <a href="{% url 'global_event_detail' event.slug %}" class="primary-btn">Open event</a>
+              <a href="{{ event.detail_url }}" class="primary-btn">Open event</a>
             </div>
           </article>
         {% endfor %}
@@ -83,5 +93,6 @@
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

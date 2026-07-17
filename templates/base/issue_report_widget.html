@@ -1,0 +1,41 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'assets/css/general-issue-report.css' %}">
+<button type="button" class="issue-report-fab" data-issue-report-open aria-label="Report a problem">
+  <span aria-hidden="true">!</span><span class="issue-report-fab-label">Report issue</span>
+</button>
+<div class="issue-report-backdrop" data-issue-report-backdrop hidden>
+  <section class="issue-report-modal" role="dialog" aria-modal="true" aria-labelledby="issue-report-title">
+    <button type="button" class="issue-report-close" data-issue-report-close aria-label="Close">×</button>
+    <h2 id="issue-report-title">Report a problem</h2>
+    <p>Describe what happened and what you expected. This is one general platform report, not an automatic request to change an answer key.</p>
+    <form method="post" action="{% url 'submit_general_issue_report' %}" data-issue-report-form>
+      {% csrf_token %}
+      <input type="text" name="website" tabindex="-1" autocomplete="off" class="issue-report-honeypot" aria-hidden="true">
+      <input type="hidden" name="page_url" data-issue-page-url>
+      <input type="hidden" name="page_title" data-issue-page-title>
+      <input type="hidden" name="context_json" data-issue-context>
+      <label>Category
+        <select name="category">
+          <option value="technical">Technical problem</option>
+          <option value="content">Question or content problem</option>
+          <option value="account">Account or access problem</option>
+          <option value="rating">Rating problem</option>
+          <option value="suggestion">Suggestion</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      {% if not request.user.is_authenticated %}
+      <div class="issue-report-two-col">
+        <label>Name (optional)<input name="reporter_name" maxlength="160"></label>
+        <label>Email (optional)<input type="email" name="reporter_email" maxlength="254"></label>
+      </div>
+      {% endif %}
+      <label>Comment
+        <textarea name="message" rows="6" maxlength="4000" minlength="10" required placeholder="Example: On the results page, question 12 shows my answer as wrong even though..."></textarea>
+      </label>
+      <div class="issue-report-status" data-issue-report-status aria-live="polite"></div>
+      <button type="submit" class="issue-report-submit">Send report</button>
+    </form>
+  </section>
+</div>
+<script src="{% static 'assets/js/general-issue-report.js' %}" defer></script>

@@ -19,6 +19,7 @@ urlpatterns = [
     path('question/<str:key>/<str:section>/<str:module>/<str:id>', views.question, name='question'),
     path('practise/<str:pk>/start', views.module_test, name='test'),
     path('check_the_answers', views.check_the_answers, name='check_the_answers'),
+    path('test-flow/draft/save/', views.save_test_module_draft, name='save_test_module_draft'),
     path('rankings/<str:pk>', views.rankings, name='rankings'),
     path('enter-code/', views.enter_secret_code, name='enter_secret_code'),
     path('start-makeup-test/<str:pk>/', views.start_makeup_test, name='start_makeup_test'),
@@ -43,6 +44,7 @@ urlpatterns = [
     path('vocabulary/practice-quiz/', views.vocabulary_practice_quiz, name='vocabulary_practice_quiz'),
     path('vocabulary/practice-quiz/start/', views.vocabulary_practice_quiz_start, name='vocabulary_practice_quiz_start'),
     path('vocabulary/practice-quiz/result/', views.vocabulary_practice_quiz_result, name='vocabulary_practice_quiz_result'),
+    path('vocabulary/flashcards/mark/', views.vocabulary_flashcard_mark, name='vocabulary_flashcard_mark'),
 
     path('vocabulary/<slug:slug>/', views.vocabulary_section, name='vocabulary_section'),
     path('admissions/<slug:slug>/', views.admissions_section, name='admissions_section'),
@@ -76,6 +78,7 @@ urlpatterns = [
     path('classroom/<int:classroom_id>/vocabulary/<slug:slug>/', views.classroom_vocabulary_section, name='classroom_vocabulary_section'),
     path('classroom/<int:classroom_id>/vocabulary/practice-quiz/start/', views.classroom_vocabulary_practice_quiz_start, name='classroom_vocabulary_practice_quiz_start'),
     path('classroom/<int:classroom_id>/vocabulary/practice-quiz/result/', views.classroom_vocabulary_practice_quiz_result, name='classroom_vocabulary_practice_quiz_result'),
+    path('classroom/<int:classroom_id>/vocabulary/flashcards/mark/', views.classroom_vocabulary_flashcard_mark, name='classroom_vocabulary_flashcard_mark'),
     path('classroom/<int:classroom_id>/admissions/', views.classroom_admissions, name='classroom_admissions'),
 
     path('teacher/classrooms/<int:classroom_id>/progress/', views.classroom_progress_dashboard, name='classroom_progress_dashboard'),
@@ -108,6 +111,12 @@ urlpatterns = [
     path("global-events/attempt/<uuid:guest_token>/save/", guest_views.save_global_event_answer_view, name="save_global_event_answer"),
     path("global-events/attempt/<uuid:guest_token>/submit/", guest_views.submit_global_event_view, name="submit_global_event"),
     path("global-events/attempt/<uuid:guest_token>/result/", guest_views.global_event_result_view, name="global_event_result"),
+    path("global-events/attempt/<uuid:guest_token>/review/", guest_views.global_event_review_view, name="global_event_review"),
+    path(
+        "global-events/attempt/<uuid:guest_token>/review/<str:section>/<str:module>/<int:id>/",
+        guest_views.global_event_review_question_view,
+        name="global_event_review_question",
+    ),
 
     path("global-events/<slug:slug>/leaderboard/", guest_views.global_event_leaderboard_view, name="global_event_leaderboard"),
 

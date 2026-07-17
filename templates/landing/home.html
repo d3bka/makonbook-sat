@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-faq-animation.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body>
   <div id="top" class="landing-shell">
@@ -45,6 +46,7 @@
           <a href="#results">Analytics</a>
           <a href="#classrooms">Classrooms</a>
           <a href="#faq">FAQ</a>
+          <a href="{% url 'rating_home' %}">Student Rating</a>
 
           <div class="site-nav-mobile-actions" aria-label="Mobile account actions">
             <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
@@ -74,6 +76,7 @@
             <div class="hero-actions reveal-up delay-3">
               <a href="{% url 'register' %}" class="btn btn-primary btn-large magnetic">Start practice</a>
               <a href="#features" class="btn btn-secondary btn-large">See features</a>
+              <a href="{% url 'rating_parent_lookup' %}" class="btn btn-secondary btn-large">Parent access</a>
             </div>
 
             <div class="hero-points reveal-up delay-4" data-stagger>
@@ -394,5 +397,6 @@
   <script src="{% static 'assets/js/landing.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
   <script src="{% static 'assets/js/makon-faq-animation.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

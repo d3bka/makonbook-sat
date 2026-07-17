@@ -170,6 +170,32 @@ class EnglishQuestionForm(BaseQuestionForm):
         model = English_Question
         fields = '__all__'
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, role, rows in [
+            ("accepted_answers", "answer", 6),
+            ("answer_patterns", "answer", 6),
+        ]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+                self.fields[field_name].widget = SATEditorTextarea(
+                    field_role=role,
+                    attrs={"rows": rows, "style": "width: 95%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;"},
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        response_type = cleaned_data.get("response_type") or "multiple_choice"
+        answer = (cleaned_data.get("answer") or "").strip()
+        accepted = (cleaned_data.get("accepted_answers") or "").strip()
+        patterns = (cleaned_data.get("answer_patterns") or "").strip()
+        if response_type == "multiple_choice":
+            if answer.upper() not in {"A", "B", "C", "D"}:
+                self.add_error("answer", "Multiple-choice English questions must use A, B, C, or D as the answer key.")
+        elif not any([answer, accepted, patterns]):
+            self.add_error("accepted_answers", "Add at least one accepted answer or a carefully reviewed full-match pattern.")
+        return cleaned_data
+
 
 class MathQuestionForm(BaseQuestionForm):
     class Meta:

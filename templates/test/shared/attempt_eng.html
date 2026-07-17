@@ -7,8 +7,13 @@
     {% url 'check_the_answers' as form_action %}
     {% if classroom %}
         {% url 'classroom_test' classroom.id test.name as next_url %}
+        {% url 'classroom_practice_tests' classroom.id as home_url %}
+    {% elif is_makeup %}
+        {% url 'makeup_test_module' pk=test.name as next_url %}
+        {% url 'practice_tests' as home_url %}
     {% else %}
         {% url 'test' pk=test.name as next_url %}
+        {% url 'practice_tests' as home_url %}
     {% endif %}
 {% endif %}
 <!DOCTYPE html>
@@ -16,20 +21,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English</title>
+    <title>{{ test.name|default:'SAT' }} · Reading and Writing · {{ module|upper }}</title>
     <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/open-text-answer.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=21">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=21">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=21">
+  {% include 'base/responsive_css.html' %}
 </head>
-<body class="scroll-hide mk-test-window">
+<body class="scroll-hide mk-test-window github-test-template-v20 github-test-english">
+    <noscript><div class="sat-test-noscript" role="alert">JavaScript is required for this timed module. Enable JavaScript and reload the page. The server timer is still running.</div></noscript>
     <div class="container">
         <header>
-            <h1>Section 1: Reading and Writing</h1>
-            <div class="timer" id="timer">0:00</div>
-            <a href="{{ home_url|default:'/' }}" style="text-decoration: none;" title="Home" aria-label="Home">
+            <div class="github-test-heading">
+                <h1>Section 1: Reading and Writing</h1>
+                <small>{{ test.name }} · Module {% if module == 'm2' or module == 'module_2' %}2{% else %}1{% endif %}</small>
+            </div>
+            <div class="github-test-timer-wrap">
+                <div class="timer" id="timer" aria-label="Time remaining">0:00</div>
+                <div class="test-save-status" data-test-save-status data-state="saved" role="status" aria-live="polite">
+                    <span class="save-status-dot" aria-hidden="true"></span><span data-test-save-label>Ready</span>
+                </div>
+            </div>
+            <a href="{{ home_url|default:'/' }}" data-test-exit style="text-decoration: none;" title="Exit module" aria-label="Exit module">
                 <i class="fa fa-home" aria-hidden="true"></i>
             </a>
         </header>
@@ -44,7 +63,7 @@
                     <div class="question-title">
                         <div class="question-number"></div>
                         <div class="bookmark" onclick="markForReview()">Mark for Review</div>
-                        <div class="crossing-options" onclick="show_eliminate()"></div>
+                        <button type="button" class="crossing-options" onclick="show_eliminate()" aria-label="Toggle answer elimination" aria-pressed="false" title="Cross out answer choices"></button>
                     </div>
                     <div class="question-text" id="question-text"></div>
                     <div class="answers" id="answers"></div>
@@ -72,22 +91,12 @@
                 </button>
                 <button id="backButton" type="button" class="nav-button" onclick="prevQuestion()">Back</button>
                 <button id="nextButton" type="button" class="nav-button" onclick="nextQuestion()">Next</button>
-                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish Test</button>
+                <button id="finishButton" type="button" class="nav-button" onclick="finishTest()">Finish module</button>
             </div>
         </footer>
     </div>
-    <div id="questionModal" class="modal" aria-hidden="true">
-        <div class="modal-content">
-            <button type="button" class="close-button" onclick="closeQuestionModal()" aria-label="Close question navigator">×</button>
-            <div class="question-grid">
-                {% for q in questions %}
-                <div class="rect-question" onclick="loadQuestion({{ forloop.counter0 }}); closeQuestionModal();">
-                    {{ q.number }}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+    {% include 'test/shared/question_overview.html' %}
+    {% include 'test/shared/flow_overlays.html' %}
     <canvas id="drawing-canvas"></canvas>
 
     <script id="sat-test-config" type="application/json">
@@ -97,8 +106,11 @@
         "moduleName": "{{ module|escapejs }}",
         "sectionName": "{{ section|escapejs }}",
         "classroomId": "{% if classroom %}{{ classroom.id }}{% endif %}",
+        "attemptId": "{{ attempt_id|default_if_none:''|escapejs }}",
         "testType": "{% if is_makeup %}makeup{% else %}regular{% endif %}",
-        "timeRemaining": {% if attempt %}{{ time_left_seconds|default:1920 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}1920{% endif %},
+        "timeRemaining": {% if time_remaining_seconds is not None %}{{ time_remaining_seconds }}{% elif attempt %}{{ time_left_seconds|default:1920 }}{% elif custom_time_seconds %}{{ custom_time_seconds }}{% else %}1920{% endif %},
+        "deadlineAt": {% if test_session_state.deadlineAt %}{{ test_session_state.deadlineAt }}{% else %}0{% endif %},
+        "draftSaveUrl": "{{ draft_save_url|default_if_none:''|escapejs }}",
         "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
         "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",
         "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
@@ -112,6 +124,7 @@
             "passage": "{{ question.passage|default_if_none:''|escapejs }}",
             "number": {{ question.number|default:forloop.counter }},
             "question": "{{ question.question|default_if_none:''|escapejs }}",
+            "response_type": "{{ question.response_type|default:'multiple_choice'|escapejs }}",
             "a": "{{ question.a|default_if_none:''|escapejs }}",
             "b": "{{ question.b|default_if_none:''|escapejs }}",
             "c": "{{ question.c|default_if_none:''|escapejs }}",
@@ -122,6 +135,9 @@
     {% endfor %}
     ]</script>
 
-    <script src="{% static 'assets/js/test-eng.js' %}"></script>
+    {% if test_session_state %}{{ test_session_state|json_script:"sat-test-session-state" }}{% else %}<script id="sat-test-session-state" type="application/json">{}</script>{% endif %}
+    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=21"></script>
+    <script src="{% static 'assets/js/test-eng.js' %}?v=21"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

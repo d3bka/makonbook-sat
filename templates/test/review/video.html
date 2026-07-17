@@ -62,8 +62,10 @@
     <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
     <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="mk-test-window mk-video-window">
     <video id="video" controls oncontextmenu="return false;"></video>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

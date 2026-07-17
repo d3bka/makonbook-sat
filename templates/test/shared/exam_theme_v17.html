@@ -1,0 +1,1005 @@
+<style id="sat-exam-theme-v17">
+  :root {
+    --exam-purple: #5b21b6;
+    --exam-purple-2: #7c3aed;
+    --exam-purple-3: #a855f7;
+    --exam-pink: #ec4899;
+    --exam-ink: #1f1b2d;
+    --exam-muted: #6f687c;
+    --exam-page: #f3f1f8;
+    --exam-panel: #ffffff;
+    --exam-panel-soft: #faf9fd;
+    --exam-line: #ddd8e8;
+    --exam-line-strong: #c7bfd7;
+    --exam-success: #16a34a;
+    --exam-warning: #d97706;
+    --exam-danger: #dc2626;
+    --exam-header-h: 82px;
+    --exam-footer-h: 78px;
+  }
+
+  html,
+  body.sat-exam-v17 {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: var(--exam-page) !important;
+    color: var(--exam-ink) !important;
+    color-scheme: light !important;
+  }
+
+  body.sat-exam-v17,
+  body.sat-exam-v17 button,
+  body.sat-exam-v17 input,
+  body.sat-exam-v17 textarea {
+    font-family: Inter, Arial, sans-serif !important;
+  }
+
+  body.sat-exam-v17 *,
+  body.sat-exam-v17 *::before,
+  body.sat-exam-v17 *::after {
+    box-sizing: border-box;
+  }
+
+  body.sat-exam-v17 [hidden] {
+    display: none !important;
+  }
+
+  body.sat-exam-v17 .classic-test-shell {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--exam-page) !important;
+  }
+
+  /* Header */
+  body.sat-exam-v17 .classic-test-header {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+    min-height: var(--exam-header-h) !important;
+    height: var(--exam-header-h) !important;
+    flex: 0 0 var(--exam-header-h) !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 18px !important;
+    padding: 12px 24px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(76, 29, 149, .18) !important;
+    border-radius: 0 !important;
+    background:
+      radial-gradient(circle at 78% -20%, rgba(255, 255, 255, .2), transparent 30%),
+      linear-gradient(120deg, #4c1d95 0%, #6d28d9 56%, #7c3aed 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 18px rgba(46, 16, 101, .15) !important;
+  }
+
+  body.sat-exam-v17 .classic-test-heading {
+    min-width: 0 !important;
+  }
+
+  body.sat-exam-v17 .classic-test-heading h1 {
+    margin: 0 !important;
+    color: #fff !important;
+    font-size: clamp(20px, 2vw, 28px) !important;
+    font-weight: 850 !important;
+    line-height: 1.08 !important;
+    letter-spacing: -.035em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body.sat-exam-v17 .classic-test-heading small {
+    display: block !important;
+    margin-top: 5px !important;
+    color: rgba(255, 255, 255, .72) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: .02em !important;
+  }
+
+  body.sat-exam-v17 .classic-test-timer-wrap {
+    position: static !important;
+    transform: none !important;
+    justify-self: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  body.sat-exam-v17 .timer {
+    position: static !important;
+    left: auto !important;
+    transform: none !important;
+    min-width: 104px !important;
+    min-height: 46px !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 7px 16px !important;
+    margin: 0 !important;
+    border: 2px solid rgba(255, 255, 255, .9) !important;
+    border-radius: 999px !important;
+    background: #fff !important;
+    color: #2b1746 !important;
+    box-shadow: 0 7px 18px rgba(27, 8, 66, .22) !important;
+    font-size: 23px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  body.sat-exam-v17 .timer.is-warning {
+    border-color: #f59e0b !important;
+    color: #9a3412 !important;
+  }
+
+  body.sat-exam-v17 .timer.is-critical {
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+    animation: examTimerPulse 1s ease-in-out infinite !important;
+  }
+
+  body.sat-exam-v17 .test-save-status {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-height: 16px !important;
+    color: rgba(255, 255, 255, .78) !important;
+    font-size: 10px !important;
+    font-weight: 750 !important;
+  }
+
+  body.sat-exam-v17 .save-status-dot {
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 50% !important;
+    background: #4ade80 !important;
+    box-shadow: 0 0 0 4px rgba(74, 222, 128, .14) !important;
+  }
+
+  body.sat-exam-v17 .test-save-status[data-state="saving"] .save-status-dot {
+    background: #fbbf24 !important;
+  }
+
+  body.sat-exam-v17 .test-save-status[data-state="offline"] .save-status-dot {
+    background: #fb7185 !important;
+  }
+
+  body.sat-exam-v17 .classic-home-button,
+  body.sat-exam-v17 .classic-header-tools .header-tool {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, .36) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, .96) !important;
+    color: #4c1d95 !important;
+    box-shadow: 0 8px 18px rgba(27, 8, 66, .16) !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease !important;
+  }
+
+  body.sat-exam-v17 .classic-home-button {
+    justify-self: end !important;
+  }
+
+  body.sat-exam-v17 .classic-home-button:hover,
+  body.sat-exam-v17 .classic-header-tools .header-tool:hover {
+    transform: translateY(-2px) !important;
+    background: #fff !important;
+    box-shadow: 0 11px 24px rgba(27, 8, 66, .23) !important;
+  }
+
+  body.sat-exam-v17 .classic-header-tools {
+    justify-self: end !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    margin: 0 !important;
+  }
+
+  /* Main content */
+  body.sat-exam-v17 .fm {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.sat-exam-v17 .classic-test-main {
+    width: 100% !important;
+    height: calc(100dvh - var(--exam-header-h) - var(--exam-footer-h)) !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    background: var(--exam-page) !important;
+  }
+
+  body.sat-exam-v17 .question-container,
+  body.sat-exam-v17 .answers-container {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    margin: 0 !important;
+    overflow: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #b7a9cf transparent !important;
+    border: 1px solid var(--exam-line) !important;
+    border-radius: 18px !important;
+    background: var(--exam-panel) !important;
+    color: var(--exam-ink) !important;
+    box-shadow: 0 10px 28px rgba(42, 27, 74, .07) !important;
+  }
+
+  body.sat-exam-v17 .question-container {
+    padding: clamp(28px, 4vw, 62px) !important;
+  }
+
+  body.sat-exam-v17 .answers-container {
+    padding: clamp(24px, 3.1vw, 48px) !important;
+    background: var(--exam-panel-soft) !important;
+  }
+
+  body.sat-exam-v17 #passage {
+    max-width: 760px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    color: #282331 !important;
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-size: clamp(18px, 1.32vw, 22px) !important;
+    font-weight: 400 !important;
+    line-height: 1.72 !important;
+    letter-spacing: .002em !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body.sat-exam-v17 #question-text,
+  body.sat-exam-v17 .question-text {
+    margin: 22px 0 20px !important;
+    color: #211c2b !important;
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-size: clamp(18px, 1.27vw, 22px) !important;
+    font-weight: 700 !important;
+    line-height: 1.43 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body.sat-exam-v17 .graph {
+    max-width: 100% !important;
+    margin: 0 auto 22px !important;
+    padding: 10px !important;
+    overflow: auto !important;
+    border: 1px solid var(--exam-line) !important;
+    border-radius: 14px !important;
+    background: #fff !important;
+  }
+
+  body.sat-exam-v17 .graph img,
+  body.sat-exam-v17 .choice-image {
+    display: block !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: auto !important;
+  }
+
+  /* Question toolbar */
+  body.sat-exam-v17 .question-title {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 8 !important;
+    width: 100% !important;
+    min-height: 54px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 6px !important;
+    margin: 0 !important;
+    border: 1px solid #ded5ed !important;
+    border-radius: 14px !important;
+    background: rgba(245, 240, 255, .96) !important;
+    color: var(--exam-ink) !important;
+    box-shadow: 0 7px 18px rgba(77, 42, 122, .08) !important;
+    backdrop-filter: blur(12px) !important;
+  }
+
+  body.sat-exam-v17 .question-number {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 11px !important;
+    background: linear-gradient(135deg, var(--exam-purple-2), var(--exam-pink)) !important;
+    color: #fff !important;
+    font-size: 19px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 7px 16px rgba(124, 58, 237, .22) !important;
+  }
+
+  body.sat-exam-v17 .bookmark,
+  body.sat-exam-v17 .crossing-options {
+    appearance: none !important;
+    border: 0 !important;
+    background-image: none !important;
+    background-color: transparent !important;
+    color: #49365f !important;
+    cursor: pointer !important;
+    font-family: Inter, Arial, sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 750 !important;
+    transition: background .15s ease, color .15s ease, transform .15s ease !important;
+  }
+
+  body.sat-exam-v17 .bookmark {
+    min-height: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 14px !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+  }
+
+  body.sat-exam-v17 .bookmark:hover,
+  body.sat-exam-v17 .bookmark.filledbook {
+    background: #e9ddff !important;
+    color: var(--exam-purple) !important;
+  }
+
+  body.sat-exam-v17 .bookmark.filledbook i::before {
+    content: "\f02e" !important;
+  }
+
+  body.sat-exam-v17 .crossing-options {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin-left: auto !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+  }
+
+  body.sat-exam-v17 .crossing-options:hover,
+  body.sat-exam-v17 .crossing-options.active-options {
+    background: #e9ddff !important;
+    color: var(--exam-purple) !important;
+  }
+
+  /* Answers */
+  body.sat-exam-v17 .answers {
+    padding: 0 0 24px !important;
+  }
+
+  body.sat-exam-v17 .big-container {
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 0 12px !important;
+  }
+
+  body.sat-exam-v17 .choice-input {
+    position: absolute !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  body.sat-exam-v17 .choice-container {
+    width: 100% !important;
+    min-height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    margin: 0 !important;
+    padding: 13px 54px 13px 14px !important;
+    border: 1px solid #d4cfdd !important;
+    border-radius: 14px !important;
+    background: #fff !important;
+    color: #292331 !important;
+    box-shadow: 0 3px 9px rgba(43, 30, 66, .035) !important;
+    font-family: Georgia, 'Times New Roman', serif !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    line-height: 1.45 !important;
+    cursor: pointer !important;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease !important;
+  }
+
+  body.sat-exam-v17 .choice-container:hover {
+    transform: translateY(-1px) !important;
+    border-color: #9c7bd0 !important;
+    background: #fdfcff !important;
+    box-shadow: 0 7px 18px rgba(90, 51, 143, .08) !important;
+  }
+
+  body.sat-exam-v17 .big-container.selected .choice-container,
+  body.sat-exam-v17 .choice-container.selected,
+  body.sat-exam-v17 .choice-input:checked + .choice-container {
+    border-color: var(--exam-purple-2) !important;
+    background: linear-gradient(90deg, #f2ebff 0%, #fbf8ff 100%) !important;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, .12) !important;
+  }
+
+  body.sat-exam-v17 .mark {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid #b9b3c2 !important;
+    border-radius: 10px !important;
+    background: #efedf2 !important;
+    color: #5f5968 !important;
+    font-family: Inter, Arial, sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 850 !important;
+  }
+
+  body.sat-exam-v17 .big-container.selected .mark,
+  body.sat-exam-v17 .choice-container.selected .mark,
+  body.sat-exam-v17 .choice-input:checked + .choice-container .mark {
+    border-color: transparent !important;
+    background: linear-gradient(135deg, var(--exam-purple-2), var(--exam-pink)) !important;
+    color: #fff !important;
+    box-shadow: 0 6px 14px rgba(124, 58, 237, .22) !important;
+  }
+
+  body.sat-exam-v17 .choice-content {
+    min-width: 0 !important;
+    color: inherit !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  body.sat-exam-v17 .crossing-zone {
+    position: absolute !important;
+    top: 50% !important;
+    right: 12px !important;
+    transform: translateY(-50%) !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: none !important;
+    place-items: center !important;
+    padding: 0 !important;
+    border: 1px solid #cfc8da !important;
+    border-radius: 9px !important;
+    background: #fff !important;
+    color: #655c70 !important;
+    cursor: pointer !important;
+  }
+
+  body.sat-exam-v17.is-eliminate-mode .crossing-zone {
+    display: grid !important;
+  }
+
+  body.sat-exam-v17 .big-container.is-eliminated .choice-container {
+    opacity: .48 !important;
+    filter: grayscale(.35) !important;
+  }
+
+  body.sat-exam-v17 .big-container.is-eliminated .choice-content {
+    text-decoration: line-through !important;
+  }
+
+  body.sat-exam-v17 .sentence-answer-card,
+  body.sat-exam-v17 .written-answer-card,
+  body.sat-exam-v17 .written-answer-container {
+    padding: 20px !important;
+    border: 1px solid var(--exam-line) !important;
+    border-radius: 16px !important;
+    background: #fff !important;
+    color: var(--exam-ink) !important;
+    box-shadow: 0 7px 18px rgba(42, 27, 74, .05) !important;
+  }
+
+  body.sat-exam-v17 .sentence-answer-card label,
+  body.sat-exam-v17 .written-answer-card label {
+    display: block !important;
+    margin-bottom: 9px !important;
+    color: var(--exam-ink) !important;
+    font-weight: 800 !important;
+  }
+
+  body.sat-exam-v17 textarea,
+  body.sat-exam-v17 .written-answer-input {
+    width: 100% !important;
+    min-height: 52px !important;
+    padding: 13px 14px !important;
+    border: 1px solid #bbb3ca !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    color: var(--exam-ink) !important;
+    font-size: 16px !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  body.sat-exam-v17 textarea:focus,
+  body.sat-exam-v17 .written-answer-input:focus {
+    border-color: var(--exam-purple-2) !important;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, .12) !important;
+  }
+
+  /* Footer */
+  body.sat-exam-v17 .classic-test-footer {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 1100 !important;
+    width: 100% !important;
+    min-height: var(--exam-footer-h) !important;
+    height: var(--exam-footer-h) !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 10px 20px max(10px, env(safe-area-inset-bottom)) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-top: 1px solid var(--exam-line) !important;
+    border-radius: 0 !important;
+    background: rgba(255, 255, 255, .97) !important;
+    color: var(--exam-ink) !important;
+    box-shadow: 0 -8px 24px rgba(40, 26, 70, .08) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+
+  body.sat-exam-v17 .footer-left {
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    color: var(--exam-muted) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    overflow: hidden !important;
+  }
+
+  body.sat-exam-v17 .test-taker-name {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body.sat-exam-v17 .footer-center {
+    position: static !important;
+    left: auto !important;
+    transform: none !important;
+    justify-self: center !important;
+  }
+
+  body.sat-exam-v17 .footer-right {
+    min-width: 0 !important;
+    margin: 0 !important;
+    justify-self: end !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 9px !important;
+  }
+
+  body.sat-exam-v17 .nav-button {
+    min-width: 0 !important;
+    min-height: 46px !important;
+    height: 46px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 23px !important;
+    border: 1px solid transparent !important;
+    border-radius: 13px !important;
+    background: var(--exam-purple) !important;
+    color: #fff !important;
+    box-shadow: 0 7px 17px rgba(91, 33, 182, .16) !important;
+    font-size: 14px !important;
+    font-weight: 850 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    transition: transform .15s ease, box-shadow .15s ease, background .15s ease, opacity .15s ease !important;
+  }
+
+  body.sat-exam-v17 .nav-button:hover:not(:disabled) {
+    transform: translateY(-1px) !important;
+    background: #4c1d95 !important;
+    box-shadow: 0 10px 21px rgba(91, 33, 182, .22) !important;
+  }
+
+  body.sat-exam-v17 .nav-button:disabled {
+    opacity: .38 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  body.sat-exam-v17 .question-progress.nav-button {
+    min-width: 190px !important;
+    border-color: #d8d0e5 !important;
+    background: #f8f5ff !important;
+    color: #3d2759 !important;
+    box-shadow: none !important;
+  }
+
+  body.sat-exam-v17 .question-progress.nav-button:hover {
+    background: #efe7ff !important;
+  }
+
+  body.sat-exam-v17 .tool-button {
+    width: 46px !important;
+    min-width: 46px !important;
+    padding: 0 !important;
+    border-color: #d8d0e5 !important;
+    background: #fff !important;
+    color: #4c1d95 !important;
+    box-shadow: none !important;
+  }
+
+  body.sat-exam-v17 .tool-button.active {
+    border-color: #f59e0b !important;
+    background: #fef3c7 !important;
+    color: #92400e !important;
+  }
+
+  body.sat-exam-v17 #nextButton,
+  body.sat-exam-v17 #finishButton {
+    background: linear-gradient(135deg, var(--exam-purple-2), var(--exam-pink)) !important;
+  }
+
+  /* Floating report button must not cover exam controls. */
+  body.sat-exam-v17 .issue-report-fab {
+    right: 18px !important;
+    bottom: calc(var(--exam-footer-h) + 14px) !important;
+    z-index: 1090 !important;
+  }
+
+  /* Navigator and finish dialogs */
+  body.sat-exam-v17 .modal,
+  body.sat-exam-v17 .test-flow-modal {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 3000 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 18px !important;
+    background: rgba(31, 20, 49, .55) !important;
+    backdrop-filter: blur(7px) !important;
+  }
+
+  body.sat-exam-v17 .modal.is-open,
+  body.sat-exam-v17 .test-flow-modal.is-open {
+    display: flex !important;
+  }
+
+  body.sat-exam-v17 .modal[hidden],
+  body.sat-exam-v17 .test-flow-modal[hidden] {
+    display: none !important;
+  }
+
+  body.sat-exam-v17 .classic-question-nav-card,
+  body.sat-exam-v17 .test-flow-modal-card {
+    width: min(650px, 100%) !important;
+    max-height: calc(100dvh - 36px) !important;
+    overflow: auto !important;
+    margin: 0 !important;
+    padding: 28px !important;
+    border: 1px solid #e2dbea !important;
+    border-radius: 22px !important;
+    background: #fff !important;
+    color: var(--exam-ink) !important;
+    box-shadow: 0 30px 80px rgba(24, 14, 42, .28) !important;
+  }
+
+  body.sat-exam-v17 .question-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)) !important;
+    gap: 10px !important;
+    margin-top: 18px !important;
+  }
+
+  body.sat-exam-v17 .rect-question {
+    min-width: 48px !important;
+    height: 46px !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid #d7d0e2 !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    color: #44384f !important;
+    font-size: 15px !important;
+    font-weight: 850 !important;
+    cursor: pointer !important;
+  }
+
+  body.sat-exam-v17 .rect-question.answered {
+    border-color: #a78bfa !important;
+    background: #ede9fe !important;
+    color: #5b21b6 !important;
+  }
+
+  body.sat-exam-v17 .rect-question.here,
+  body.sat-exam-v17 .rect-question.current {
+    border-color: var(--exam-purple) !important;
+    background: var(--exam-purple) !important;
+    color: #fff !important;
+  }
+
+  body.sat-exam-v17 .rect-question.marked::after {
+    content: "" !important;
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 50% !important;
+    background: #ec4899 !important;
+  }
+
+  body.sat-exam-v17 .close-button {
+    color: #675b73 !important;
+  }
+
+  /* Math tools */
+  body.sat-exam-v17 #calculator-popup,
+  body.sat-exam-v17 .reference-sheet {
+    background: #fff !important;
+    color: var(--exam-ink) !important;
+  }
+
+  body.sat-exam-v17 #calculator-header {
+    background: linear-gradient(135deg, #4c1d95, #7c3aed) !important;
+    color: #fff !important;
+  }
+
+  body.sat-exam-v17 .reference-overlay {
+    background: rgba(31, 20, 49, .55) !important;
+    backdrop-filter: blur(7px) !important;
+  }
+
+  body.sat-exam-v17 .reference-header {
+    background: #f7f3ff !important;
+    color: var(--exam-ink) !important;
+    border-bottom: 1px solid var(--exam-line) !important;
+  }
+
+  /* Gentle question transition without moving the whole page. */
+  body.sat-exam-v17.question-enter-next .answers-container > :not(.question-title),
+  body.sat-exam-v17.question-enter-prev .answers-container > :not(.question-title) {
+    animation: examQuestionIn .2s ease both !important;
+  }
+
+  @media (max-width: 980px) {
+    :root {
+      --exam-header-h: 76px;
+      --exam-footer-h: 74px;
+    }
+
+    body.sat-exam-v17 .classic-test-header {
+      padding: 10px 14px !important;
+      gap: 10px !important;
+    }
+
+    body.sat-exam-v17 .classic-test-main {
+      gap: 8px !important;
+      padding: 8px !important;
+    }
+
+    body.sat-exam-v17 .question-container,
+    body.sat-exam-v17 .answers-container {
+      padding: 24px !important;
+      border-radius: 14px !important;
+    }
+
+    body.sat-exam-v17 .classic-test-footer {
+      padding-inline: 12px !important;
+    }
+
+    body.sat-exam-v17 .footer-left {
+      display: none !important;
+    }
+
+    body.sat-exam-v17 .classic-test-footer {
+      grid-template-columns: auto minmax(0, 1fr) !important;
+    }
+
+    body.sat-exam-v17 .footer-center {
+      justify-self: start !important;
+    }
+  }
+
+  @media (max-width: 760px) {
+    :root {
+      --exam-header-h: 104px;
+      --exam-footer-h: 116px;
+    }
+
+    body.sat-exam-v17 .classic-test-header {
+      height: var(--exam-header-h) !important;
+      min-height: var(--exam-header-h) !important;
+      grid-template-columns: minmax(0, 1fr) auto !important;
+      grid-template-areas:
+        "heading timer"
+        "tools tools" !important;
+      align-content: center !important;
+    }
+
+    body.sat-exam-v17 .classic-test-heading {
+      grid-area: heading !important;
+    }
+
+    body.sat-exam-v17 .classic-test-heading h1 {
+      font-size: 17px !important;
+    }
+
+    body.sat-exam-v17 .classic-test-heading small {
+      font-size: 10px !important;
+    }
+
+    body.sat-exam-v17 .classic-test-timer-wrap {
+      grid-area: timer !important;
+    }
+
+    body.sat-exam-v17 .timer {
+      min-width: 86px !important;
+      min-height: 42px !important;
+      font-size: 19px !important;
+    }
+
+    body.sat-exam-v17 .classic-home-button,
+    body.sat-exam-v17 .classic-header-tools {
+      grid-area: tools !important;
+      justify-self: end !important;
+    }
+
+    body.sat-exam-v17 .classic-test-main {
+      grid-template-columns: 1fr !important;
+      grid-template-rows: minmax(120px, 38%) minmax(0, 62%) !important;
+      height: calc(100dvh - var(--exam-header-h) - var(--exam-footer-h)) !important;
+    }
+
+    body.sat-exam-v17 .question-container,
+    body.sat-exam-v17 .answers-container {
+      padding: 18px !important;
+    }
+
+    body.sat-exam-v17 #passage {
+      font-size: 17px !important;
+      line-height: 1.62 !important;
+    }
+
+    body.sat-exam-v17 #question-text,
+    body.sat-exam-v17 .question-text {
+      margin: 16px 0 !important;
+      font-size: 17px !important;
+    }
+
+    body.sat-exam-v17 .classic-test-footer {
+      height: var(--exam-footer-h) !important;
+      min-height: var(--exam-footer-h) !important;
+      grid-template-columns: 1fr !important;
+      grid-template-rows: auto auto !important;
+      gap: 8px !important;
+      padding: 9px 10px max(9px, env(safe-area-inset-bottom)) !important;
+    }
+
+    body.sat-exam-v17 .footer-center {
+      width: 100% !important;
+      justify-self: stretch !important;
+    }
+
+    body.sat-exam-v17 .question-progress.nav-button {
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 40px !important;
+      min-height: 40px !important;
+    }
+
+    body.sat-exam-v17 .footer-right {
+      width: 100% !important;
+      justify-self: stretch !important;
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 7px !important;
+    }
+
+    body.sat-exam-v17 .footer-right .tool-button {
+      display: none !important;
+    }
+
+    body.sat-exam-v17 .footer-right .nav-button {
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 43px !important;
+      min-height: 43px !important;
+      padding: 0 10px !important;
+      font-size: 13px !important;
+    }
+
+    body.sat-exam-v17 .issue-report-fab {
+      right: 10px !important;
+      bottom: calc(var(--exam-footer-h) + 10px) !important;
+    }
+
+    body.sat-exam-v17 .issue-report-fab-label {
+      display: none !important;
+    }
+
+    body.sat-exam-v17 .bookmark span {
+      display: none !important;
+    }
+
+    body.sat-exam-v17 .bookmark {
+      width: 42px !important;
+      min-width: 42px !important;
+      padding: 0 !important;
+      justify-content: center !important;
+    }
+  }
+
+  @media (max-width: 430px) {
+    body.sat-exam-v17 .classic-test-main {
+      padding: 6px !important;
+      gap: 6px !important;
+    }
+
+    body.sat-exam-v17 .question-container,
+    body.sat-exam-v17 .answers-container {
+      padding: 14px !important;
+      border-radius: 12px !important;
+    }
+
+    body.sat-exam-v17 .choice-container {
+      min-height: 58px !important;
+      padding: 11px 45px 11px 11px !important;
+      font-size: 15px !important;
+    }
+
+    body.sat-exam-v17 .mark {
+      flex-basis: 32px !important;
+      width: 32px !important;
+      height: 32px !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.sat-exam-v17 *,
+    body.sat-exam-v17 *::before,
+    body.sat-exam-v17 *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @keyframes examQuestionIn {
+    from { opacity: .35; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes examTimerPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.035); }
+  }
+</style>

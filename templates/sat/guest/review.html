@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  {% include 'base/theme_init.html' %}
+  <title>Question Review · {{ event.title }}</title>
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-guest-review-v22.css' %}?v=22">
+  {% include 'base/responsive_css.html' %}
+</head>
+<body class="guest-review-overview-page">
+  <main class="guest-review-overview-shell">
+    <nav class="guest-review-overview-nav">
+      <a href="/" class="guest-review-brand">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon logo">
+        <span>SAT Makon</span>
+      </a>
+      <div class="guest-review-nav-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a href="{% url 'global_event_result' attempt.guest_token %}" class="guest-review-nav-link">Back to result</a>
+      </div>
+    </nav>
+
+    <section class="guest-review-overview-hero">
+      <div>
+        <span class="guest-review-eyebrow">Question review</span>
+        <h1>{{ event.title }}</h1>
+        <p>Select a question to compare your answer with the correct answer and explanation.</p>
+      </div>
+      {% if first_review_url %}
+        <a href="{{ first_review_url }}" class="guest-review-primary-action">Start review</a>
+      {% endif %}
+    </section>
+
+    <section class="guest-review-summary-grid" aria-label="Review summary">
+      <article><span>Total</span><strong>{{ total_questions }}</strong></article>
+      <article class="is-correct"><span>Correct</span><strong>{{ correct_count }}</strong></article>
+      <article class="is-incorrect"><span>Incorrect</span><strong>{{ incorrect_count }}</strong></article>
+      <article class="is-unanswered"><span>Unanswered</span><strong>{{ unanswered_count }}</strong></article>
+    </section>
+
+    {% if groups %}
+      <section class="guest-review-module-list">
+        {% for group in groups %}
+          <article class="guest-review-module-card">
+            <header>
+              <div>
+                <span>{{ group.section|title }}</span>
+                <h2>{{ group.module|upper }}</h2>
+              </div>
+              <p>{{ group.correct }} correct · {{ group.answered }}/{{ group.questions|length }} answered</p>
+            </header>
+            <div class="guest-review-question-grid">
+              {% for row in group.questions %}
+                <a
+                  href="{{ row.review_url }}"
+                  class="guest-review-question-link{% if row.is_correct %} is-correct{% elif row.is_answered %} is-incorrect{% else %} is-unanswered{% endif %}"
+                  aria-label="Open question {{ row.number }}"
+                >
+                  {{ row.number }}
+                </a>
+              {% endfor %}
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+    {% else %}
+      <section class="guest-review-empty">
+        <h2>No review questions are available.</h2>
+        <p>The test has no questions configured for this attempt.</p>
+      </section>
+    {% endif %}
+
+    <footer class="guest-review-legend">
+      <span><i class="is-correct"></i>Correct</span>
+      <span><i class="is-incorrect"></i>Incorrect</span>
+      <span><i class="is-unanswered"></i>Unanswered</span>
+      <strong>No per-question timer is shown in Guest Review.</strong>
+    </footer>
+  </main>
+
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
+</body>
+</html>

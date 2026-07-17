@@ -1,200 +1,48 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Makon Book{% endblock title-main %}
+{% block title-main %}{% if classroom %}{{ classroom.name }}{% else %}MakonBook{% endif %}{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% if classroom %}{% url 'classroom_vocabulary' classroom.id %}{% else %}{% url 'vocabulary' %}{% endif %}">Vocabulary</a></li>{% endblock breadcrumb_parent %}
+{% block title %}Quiz Result{% endblock title %}
 
-{% block breadcrumb_parent %}
-{% if classroom %}
-<li><a href="{% url 'classroom_vocabulary' classroom.id %}">Vocabulary</a></li>
-{% else %}
-<li><a href="{% url 'vocabulary' %}">Vocabulary</a></li>
-{% endif %}
-{% endblock breadcrumb_parent %}
-
-{% block title %}Practice Quiz Result{% endblock title %}
-
-{% block style %}
-<style>
-  .quiz-result-page {
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .result-hero {
-    background: linear-gradient(135deg, #7c3aed 0%, #5b73e8 100%);
-    border-radius: 22px;
-    padding: 32px;
-    color: white;
-    margin-bottom: 24px;
-    box-shadow: 0 12px 30px rgba(50, 77, 199, 0.2);
-    text-align: center;
-  }
-
-  .result-hero h2 {
-    margin: 0 0 8px 0;
-    font-size: 34px;
-    font-weight: 800;
-  }
-
-  .result-score {
-    font-size: 54px;
-    font-weight: 900;
-    margin: 12px 0;
-  }
-
-  .result-subtitle {
-    font-size: 17px;
-    color: rgba(255,255,255,0.95);
-  }
-
-  .result-card {
-    background: #fff;
-    border-radius: 18px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    padding: 26px;
-    margin-bottom: 20px;
-  }
-
-  .result-unit {
-    display: inline-block;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #7c3aed;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 12px;
-  }
-
-  .result-question {
-    font-size: 20px;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1.5;
-    margin-bottom: 16px;
-  }
-
-  .result-answer {
-    margin-bottom: 10px;
-    font-size: 15px;
-    color: #374151;
-  }
-
-  .result-answer strong {
-    color: #111827;
-  }
-
-  .result-status {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 10px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .result-status.correct {
-    background: #dcfce7;
-    color: #166534;
-  }
-
-  .result-status.incorrect {
-    background: #fee2e2;
-    color: #991b1b;
-  }
-
-  .result-actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    margin-top: 24px;
-    flex-wrap: wrap;
-  }
-
-  .result-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 180px;
-    height: 46px;
-    padding: 0 22px;
-    border-radius: 999px;
-    text-decoration: none;
-    font-weight: 700;
-    transition: .2s ease;
-  }
-
-  .result-btn-primary {
-    background: #7c3aed;
-    color: #fff !important;
-  }
-
-  .result-btn-primary:hover {
-    background: #273ca3;
-  }
-
-  .result-btn-secondary {
-    background: #eef2ff;
-    color: #7c3aed !important;
-  }
-
-  .result-btn-secondary:hover {
-    background: #dfe7ff;
-  }
-</style>
-<link rel="stylesheet" href="{% static 'assets/css/makon-vocab-admissions.css' %}">
-{% endblock style %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/makon-vocabulary-v2.css' %}">{% endblock style %}
 
 {% block content %}
-<main class="main-content mk-learning mk-vocab-result-page" data-learning-page="vocab-result">
-  <div class="quiz-result-page">
-
-    <div class="result-hero">
-      <h2>Your Result</h2>
-      <div class="result-score">{{ score }} / {{ total }}</div>
-      <div class="result-subtitle">
-        {% if total > 0 %}
-          Accuracy: {% widthratio score total 100 %}%
-        {% else %}
-          No questions were submitted.
-        {% endif %}
+<div class="vocab-shell">
+  <section class="vocab-hero vocab-result-hero">
+    <div class="vocab-score-ring" style="--score:{{ percentage|floatformat:0 }}"><div style="text-align:center"><strong>{{ percentage|floatformat:0 }}%</strong><span>{{ score }}/{{ total_questions }} correct</span></div></div>
+    <div>
+      <span class="vocab-eyebrow">Saved result</span>
+      <h2 class="vocab-title" style="font-size:clamp(34px,5vw,54px)">{% if percentage >= 85 %}Strong recall.{% elif percentage >= 65 %}Useful progress, but not mastery yet.{% else %}Too many weak words remain.{% endif %}</h2>
+      <p class="vocab-copy">This attempt updated each word’s recall history. Incorrect answers move words back into learning instead of hiding the problem.</p>
+      <div class="vocab-actions">
+        <a class="vocab-btn vocab-btn-primary" href="{% if classroom %}{% url 'classroom_vocabulary_section' classroom.id 'practice-quiz' %}{% else %}{% url 'vocabulary_practice_quiz' %}{% endif %}">Build another quiz</a>
+        <a class="vocab-btn" href="{% if classroom %}{% url 'classroom_vocabulary_section' classroom.id 'flashcards' %}{% else %}{% url 'vocabulary_section' 'flashcards' %}{% endif %}">Review flashcards</a>
       </div>
     </div>
+  </section>
 
-    {% for item in results %}
-      <div class="result-card">
-        <div class="result-unit">{{ item.unit }}</div>
-        <div class="result-question">{{ forloop.counter }}. {{ item.question }}</div>
-
-        <div class="result-answer">
-          <strong>Your answer:</strong>
-          {% if item.user_answer %}
-            {{ item.user_answer }}
-          {% else %}
-            No answer
-          {% endif %}
-        </div>
-
-        <div class="result-answer">
-          <strong>Correct answer:</strong> {{ item.correct_answer }}
-        </div>
-
-        {% if item.is_correct %}
-          <div class="result-status correct">Correct</div>
-        {% else %}
-          <div class="result-status incorrect">Incorrect</div>
-        {% endif %}
-      </div>
-    {% endfor %}
-
-    <div class="result-actions">
-      {% if classroom %}<a href="../" class="result-btn result-btn-secondary">Choose New Units</a>{% else %}<a href="{% url 'vocabulary_practice_quiz' %}" class="result-btn result-btn-secondary">Choose New Units</a>{% endif %}
-      {% if classroom %}<a href="{% url 'classroom_vocabulary' classroom.id %}" class="result-btn result-btn-primary">Back to Vocabulary</a>{% else %}<a href="{% url 'vocabulary' %}" class="result-btn result-btn-primary">Back to Vocabulary</a>{% endif %}
+  <section class="vocab-section">
+    <div class="vocab-summary-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="vocab-stat"><small>Duration</small><strong>{{ attempt.duration_seconds }}s</strong><span>Total quiz time</span></div>
+      <div class="vocab-stat"><small>Mastered now</small><strong>{{ summary.mastered_words }}</strong><span>Of {{ summary.total_words }}</span></div>
+      <div class="vocab-stat"><small>Recall accuracy</small><strong>{{ summary.accuracy_percent }}%</strong><span>All saved reviews</span></div>
+      <div class="vocab-stat"><small>Best quiz</small><strong>{{ summary.best_quiz_percent|default:"—" }}{% if summary.best_quiz_percent != None %}%{% endif %}</strong><span>Personal best</span></div>
     </div>
+  </section>
 
-  </div>
-</main>
+  <section class="vocab-section vocab-panel">
+    <div class="vocab-section-head"><div><h2>Answer review</h2><p>Correct answers are shown only after submission.</p></div></div>
+    <div class="vocab-result-list">
+      {% for result in results %}
+        <article class="vocab-result-card {% if result.is_correct %}correct{% else %}incorrect{% endif %}">
+          <h4>{{ forloop.counter }}. {{ result.question }}</h4>
+          <div class="vocab-answer-line"><strong>Your answer:</strong> {{ result.user_answer|default:"No answer" }}</div>
+          {% if not result.is_correct %}<div class="vocab-answer-line"><strong>Correct answer:</strong> {{ result.correct_answer }}</div>{% endif %}
+          <div class="vocab-answer-line"><small>{{ result.unit }} · {{ result.word }}</small></div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+</div>
 {% endblock content %}

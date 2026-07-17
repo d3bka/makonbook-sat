@@ -1,248 +1,111 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    {% load static %}
-    <meta charset="utf-8">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    {% load auth_extras %}
-    <title>Practice {{ test }}</title>
-    {% include 'base/theme_init.html' %}
-    <meta content="" name="description">
-    <meta content="" name="keywords">
-
-    <link href="{% static 'assets/img/favicon.png' %}" rel="icon">
-    <link href="{% static 'assets/img/apple-touch-icon.png' %}" rel="apple-touch-icon">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,600;1,700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Raleway:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
-        rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
-        rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600&family=Roboto&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif:wght@300;400&display=swap');
-        @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
-
-        html,
-        body,
-        #app {
-            position: relative;
-            width: 100%;
-            padding: 0;
-            margin: 0;
-            font-family: Roboto;
-            font-size: 1rem;
-        }
-
-        #app {
-            min-width: 680px;
-        }
-
-        #app .body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-        }
-
-        .ready-test {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            background-color: #f8f8f8;
-            align-items: center;
-        }
-
-        .title {
-            font-size: 2.2rem;
-            font-weight: 500;
-            margin-top: 40px;
-        }
-
-        .section {
-            font-size: 1.5rem;
-            font-weight: 500;
-        }
-
-        .description {
-            padding: 40px;
-            box-sizing: border-box;
-            box-shadow: #00000026 0 0 10px;
-            border-radius: 10px;
-            margin-top: 50px;
-            background-color: #fff;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-bottom: 80px;
-        }
-
-        .single-desc {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            margin-bottom: 10px;
-        }
-
-        .desc-title {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 15px;
-            font-size: 23px;
-            font-weight: 700;
-        }
-
-        .desc-cont {
-            margin-left: 55px;
-            line-height: 1.5em;
-        }
-
-        .desc-icon {
-            width: 40px;
-            height: 40px;
-            background-color: #ccc;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .desc-icon-img {
-            width: 30px;
-            height: 30px;
-        }
-
-        .footer {
-            position: sticky;
-            bottom: 0;
-            width: 100%;
-            height: 80px;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            background-color: #fff;
-            justify-content: flex-end;
-            padding: 30px;
-            gap: 15px;
-            box-sizing: border-box;
-            box-shadow: #0000001a 0 0 10px;
-        }
-
-        .btn {
-            padding: 0 26px;
-            background-color: #324dc6;
-            height: 48px;
-            border-radius: 23px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-weight: 700;
-            cursor: pointer;
-            user-select: none;
-            transition: all .2s 0s ease;
-        }
-
-        .footer a:hover {
-            color: #fff;
-        }
-
-        .footer a:active {
-            text-decoration: underline;
-        }
-    </style>
-    <link rel="stylesheet" href="{% static 'assets/css/makon-test-window.css' %}">
-    <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
-  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ test.name }} · Test overview</title>
+  <meta name="description" content="Review the test structure and timing before starting {{ test.name }}.">
+  <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
+  {% include 'base/theme_init.html' %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-start-v13.css' %}?v=13">
 </head>
+<body class="sat-start-page">
+  <div class="sat-start-bg" aria-hidden="true"></div>
+  <main class="sat-start-shell">
+    <header class="sat-start-topbar">
+      <a class="sat-start-brand" href="{% if classroom %}{% url 'classroom_practice_tests' classroom.id %}{% else %}{% url 'practice_tests' %}{% endif %}">
+        <img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="SAT Makon">
+        <span>SAT Makon</span>
+      </a>
+      <div class="sat-start-top-actions">
+        {% include 'base/theme_toggle.html' %}
+        <a class="sat-start-close" href="{% if classroom %}{% url 'classroom_practice_tests' classroom.id %}{% else %}{% url 'practice_tests' %}{% endif %}">
+          <i class="fa fa-times" aria-hidden="true"></i><span>Close</span>
+        </a>
+      </div>
+    </header>
 
-<body class="mk-test-window">
-    <script>
-        window.addEventListener('load', () => {
-            try {
-                const testName = '{{ test|safe }}'.trim();
-
-                if (!testName) {
-                    return;
-                }
-
-                const prefix = `${testName}_`;
-
-                for (let i = localStorage.length - 1; i >= 0; i--) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(prefix)) {
-                        localStorage.removeItem(key);
-                    }
-                }
-            } catch (error) {
-            }
-        });
-    </script>
-
-    <div class="ready-test">
-        <div class="ready-shell" data-test-reveal>
-            <div class="ready-badge"><i class="bi bi-lightning-charge-fill"></i><span>{% if has_active_attempt %}Resume practice{% else %}Ready to start{% endif %}</span></div>
-            <span class="title">Digital SAT® Practice {{ test }}</span>
-            <p class="ready-subtitle">Check the rules, timing, and score flow before opening the test window.</p>
+    <section class="sat-start-hero">
+      <div class="sat-start-copy">
+        <span class="sat-start-eyebrow"><i class="fa fa-bolt" aria-hidden="true"></i>{% if has_active_attempt %}Resume attempt{% else %}Test overview{% endif %}</span>
+        <h1>{{ test.name }}</h1>
+        <p>Review the module order, timing, autosave behavior, and submission rules before entering the timed test window.</p>
+        <div class="sat-start-summary" aria-label="Test summary">
+          <div><strong>{{ total_modules }}</strong><span>modules</span></div>
+          <div><strong>{{ total_questions }}</strong><span>questions</span></div>
+          <div><strong>≈ {{ total_duration_minutes }}</strong><span>minutes</span></div>
         </div>
-        <div class="description" data-test-reveal>
-            <div class="single-desc">
-                <div class="desc-title">
-                    <div class="desc-icon"><i class="bi bi-clock"></i></div>
-                    <span>Timing</span>
-                </div>
-                <span class="desc-cont">Full-length practice tests are timed like real exams. You can save and exit the test anytime and continue from where you left off. If you continue on a different device, you'll need to start over.</span>
-            </div>
-            <div class="single-desc">
-                <div class="desc-title">
-                    <div class="desc-icon"><i class="bi bi-list-check"></i></div>
-                    <span>Scores</span>
-                </div>
-                <span class="desc-cont">When you finish the practice test, go to <b>{{ test }}</b> to see your scores and
-                    get personalized study tips.</span>
-            </div>
-            <div class="single-desc">
-                <div class="desc-title">
-                    <div class="desc-icon"><i class="bi bi-universal-access"></i></div>
-                    <span>Assistive Technology</span>
-                </div>
-                <span class="desc-cont">If you use assistive technology, you should try it out on the practice test so
-                    you know what to expect on test day.</span>
-            </div>
-            <div class="single-desc">
-                <div class="desc-title">
-                    <div class="desc-icon"><i class="bi bi-unlock"></i></div>
-                    <span>No Lockdown Mode</span>
-                </div>
-                <span class="desc-cont">We don’t lock down practice tests. On test day, Bluebook prevents you from
-                    accessing other programs or apps.</span>
-            </div>
+      </div>
+
+      <aside class="sat-start-readiness">
+        <span class="sat-start-readiness-label">Before you begin</span>
+        <h2>Use one stable browser tab</h2>
+        <ul>
+          <li>Your answers and current question are saved to the server.</li>
+          <li>The timer continues after refresh, tab close, or device change.</li>
+          <li>Submitting a module is final; answers cannot be changed afterward.</li>
+        </ul>
+      </aside>
+    </section>
+
+    <section class="sat-start-layout">
+      <div class="sat-start-card sat-start-modules">
+        <div class="sat-start-section-heading">
+          <div><span>Test structure</span><h2>Modules in order</h2></div>
+          <small>{{ total_modules }} total</small>
         </div>
+        <div class="sat-module-list">
+          {% for row in module_rows %}
+            <article class="sat-module-row" style="--delay: {{ forloop.counter0 }}">
+              <div class="sat-module-index">{{ forloop.counter }}</div>
+              <div class="sat-module-copy">
+                <span>{{ row.section_label }}</span>
+                <strong>Module {{ row.module_number }}</strong>
+              </div>
+              <div class="sat-module-meta"><span>{{ row.question_count }} questions</span><span>{{ row.duration_minutes }} min</span></div>
+            </article>
+          {% empty %}
+            <div class="sat-start-empty">This test has no available modules.</div>
+          {% endfor %}
+        </div>
+      </div>
 
-        <footer class="footer">
-            {% if classroom %}
-                <a href="{% url 'classroom_practice_tests' classroom.id %}" class="btn btn-secondary">Back</a>
-            {% else %}
-                <a href="{% url 'practice_tests' %}" class="btn btn-secondary">Back</a>
-            {% endif %}
+      <div class="sat-start-card sat-start-rules">
+        <div class="sat-start-section-heading"><div><span>Important</span><h2>Test rules</h2></div></div>
+        <div class="sat-rule-list">
+          <article><i class="fa fa-cloud" aria-hidden="true"></i><div><strong>Server autosave</strong><p>Responses sync while you work and recover after refresh or browser restart.</p></div></article>
+          <article><i class="fa fa-clock-o" aria-hidden="true"></i><div><strong>Server-controlled timer</strong><p>Closing the page does not pause the module timer.</p></div></article>
+          <article><i class="fa fa-bookmark" aria-hidden="true"></i><div><strong>Review before submit</strong><p>Use Mark for Review and the question navigator to find unfinished work.</p></div></article>
+          <article><i class="fa fa-lock" aria-hidden="true"></i><div><strong>Final submission</strong><p>After a module is submitted, the platform moves forward and locks that module.</p></div></article>
+        </div>
+      </div>
+    </section>
+  </main>
 
-            {% if start_url %}
-                <a class="btn btn-primary" href="{{ start_url }}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
-            {% else %}
-                <a class="btn btn-primary" href="{% url 'test' test.name %}">{% if has_active_attempt %}Continue{% else %}Start{% endif %}</a>
-            {% endif %}
-        </footer>
+  <footer class="sat-start-footer">
+    <div class="sat-start-footer-inner">
+      <div class="sat-start-footer-note"><i class="fa fa-shield" aria-hidden="true"></i><span>Do not open the same attempt in multiple tabs.</span></div>
+      <div class="sat-start-footer-actions">
+        <a class="sat-start-button secondary" href="{% if classroom %}{% url 'classroom_practice_tests' classroom.id %}{% else %}{% url 'practice_tests' %}{% endif %}">Back</a>
+        {% if total_modules %}
+          {% if start_url %}
+            <a class="sat-start-button primary" data-start-test-link href="{{ start_url }}">{% if has_active_attempt %}Continue test{% else %}Start test{% endif %}<i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+          {% else %}
+            <a class="sat-start-button primary" data-start-test-link href="{% url 'test' test.name %}">{% if has_active_attempt %}Continue test{% else %}Start test{% endif %}<i class="fa fa-arrow-right" aria-hidden="true"></i></a>
+          {% endif %}
+        {% endif %}
+      </div>
     </div>
-</body>
+  </footer>
 
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  <script src="{% static 'assets/js/sat-test-start-v13.js' %}?v=13"></script>
+  {% include 'base/issue_report_widget.html' %}
+</body>
 </html>

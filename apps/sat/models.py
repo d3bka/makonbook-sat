@@ -17,6 +17,7 @@ from django.dispatch import receiver
 from .storages import PublicStorage, PrivateStorage
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 
 # Abstract base model for common fields
 class BaseModel(models.Model):
@@ -166,6 +167,11 @@ modules = [('module_1', "Module 1"), ('module_2', "Module 2")]
 
 # English questions
 class English_Question(BaseModel):
+    RESPONSE_TYPE_CHOICES = [
+        ("multiple_choice", "Multiple choice"),
+        ("open_text", "Open text (deterministic matching)"),
+    ]
+
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True)
     module = models.CharField(max_length=8, choices=modules, null=True)
     domain = models.ForeignKey(QuestionDomain, on_delete=models.SET_NULL, null=True, blank=True)
@@ -185,8 +191,25 @@ class English_Question(BaseModel):
     c = models.TextField('Choice C', blank=True, null=True)
     d = models.TextField('Choice D', blank=True, null=True)
     graph = models.BooleanField('Is there Graph or Table', default=False)
+    response_type = models.CharField(
+        max_length=24,
+        choices=RESPONSE_TYPE_CHOICES,
+        default="multiple_choice",
+    )
     answer = models.CharField('Answer', null=True, blank=True, max_length=400)
+    accepted_answers = models.TextField(
+        blank=True,
+        help_text="One accepted full answer per line. Matching ignores case, repeated spaces, and final punctuation.",
+    )
+    answer_patterns = models.TextField(
+        blank=True,
+        help_text="Optional regular expressions, one per line. Each pattern must match the entire normalized response.",
+    )
     explained = models.TextField('Explanation', blank=True, null=True)
+
+    @property
+    def is_open_text(self):
+        return self.response_type == "open_text"
 
     def graph_url(self):
         if self.graph and self.image:
@@ -390,6 +413,95 @@ class TestModule(BaseModel):
             models.Index(fields=['user', 'test', 'section', 'module', 'created'], name='sat_tm_u_t_sec_mod'),
         ]
 
+class TestModuleDraft(BaseModel):
+    """Server-side resumable state for an in-progress SAT module.
+
+    ``TestModule`` remains the immutable submitted module. This model stores only
+    drafts so a refresh, browser crash, or device change does not erase answers.
+    The row is deleted as soon as the module is submitted successfully.
+    """
+    test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name="module_drafts")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sat_module_drafts")
+    classroom = models.ForeignKey(
+        'Classroom',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='test_module_drafts',
+    )
+    attempt_id = models.UUIDField(editable=False)
+    section = models.CharField(max_length=8)
+    module = models.CharField(max_length=8)
+    answers = models.JSONField(default=list, blank=True)
+    time_spent = models.JSONField(default=list, blank=True)
+    eliminated_choices = models.JSONField(default=list, blank=True)
+    marked_for_review = models.JSONField(default=list, blank=True)
+    current_question_index = models.PositiveIntegerField(default=0)
+    deadline_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'test', 'attempt_id', 'section', 'module'],
+                name='sat_unique_module_draft',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['user', 'test', 'attempt_id'],
+                name='sat_tmd_u_t_att',
+            ),
+            models.Index(
+                fields=['deadline_at'],
+                name='sat_tmd_deadline',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user}>{self.test}_{self.section}_{self.module}_{self.attempt_id}'
+
+
+class MakeupTestModuleDraft(BaseModel):
+    """Server-side resumable state for an in-progress Makeup module."""
+    makeup_test = models.ForeignKey(
+        MakeupTest,
+        on_delete=models.CASCADE,
+        related_name="module_drafts",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="makeup_module_drafts",
+    )
+    attempt_id = models.UUIDField(editable=False)
+    section = models.CharField(max_length=8)
+    module = models.CharField(max_length=8)
+    answers = models.JSONField(default=list, blank=True)
+    time_spent = models.JSONField(default=list, blank=True)
+    eliminated_choices = models.JSONField(default=list, blank=True)
+    marked_for_review = models.JSONField(default=list, blank=True)
+    current_question_index = models.PositiveIntegerField(default=0)
+    deadline_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'makeup_test', 'attempt_id', 'section', 'module'],
+                name='sat_unique_makeup_module_draft',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['user', 'makeup_test', 'attempt_id'],
+                name='sat_mtd_u_t_att',
+            ),
+            models.Index(fields=['deadline_at'], name='sat_mtd_deadline'),
+        ]
+
+    def __str__(self):
+        return f'{self.user}>{self.makeup_test}_{self.section}_{self.module}_{self.attempt_id}'
+
+
 # Test review and scoring
 class TestReview(BaseModel):
     test = models.ForeignKey(Test, on_delete=models.SET_NULL, null=True, blank=True, related_name="test_reviews")
@@ -528,10 +640,17 @@ class TestStage(BaseModel):
             self.save(update_fields=['again'])
             return False
 
+        previous_attempt_id = self.attempt_id
         self.stage = 1
         self.retake_count += 1
         self.attempt_id = uuid.uuid4()
         self.save(update_fields=['stage', 'retake_count', 'attempt_id', 'updated_at'])
+        TestModuleDraft.objects.filter(
+            user=self.user,
+            test=self.test,
+            classroom_id=self.classroom_id,
+            attempt_id=previous_attempt_id,
+        ).delete()
         return True
 
     def resolve_section(self, section):
@@ -580,10 +699,17 @@ class TestStage(BaseModel):
             exclude_section=section,
         )
 
+        stale_attempt_id = self.attempt_id
         self.stage = start_stage
         self.retake_count += 1
         self.attempt_id = new_attempt_id
         self.save(update_fields=['stage', 'retake_count', 'attempt_id', 'updated_at'])
+        TestModuleDraft.objects.filter(
+            user=self.user,
+            test=self.test,
+            classroom_id=self.classroom_id,
+            attempt_id=stale_attempt_id,
+        ).delete()
         return True
 
     def get_retakes_remaining(self):
@@ -806,6 +932,137 @@ class VocabularyQuestion(models.Model):
             self.choice_c,
             self.choice_d,
         ]
+
+
+class VocabularyWordProgress(models.Model):
+    STATUS_NEW = 'new'
+    STATUS_LEARNING = 'learning'
+    STATUS_MASTERED = 'mastered'
+    STATUS_CHOICES = (
+        (STATUS_NEW, 'New'),
+        (STATUS_LEARNING, 'Learning'),
+        (STATUS_MASTERED, 'Mastered'),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vocabulary_word_progress',
+    )
+    classroom = models.ForeignKey(
+        'Classroom',
+        on_delete=models.CASCADE,
+        related_name='vocabulary_word_progress',
+        null=True,
+        blank=True,
+    )
+    word = models.ForeignKey(
+        VocabularyWord,
+        on_delete=models.CASCADE,
+        related_name='student_progress',
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_NEW)
+    times_seen = models.PositiveIntegerField(default=0)
+    correct_count = models.PositiveIntegerField(default=0)
+    incorrect_count = models.PositiveIntegerField(default=0)
+    consecutive_correct = models.PositiveIntegerField(default=0)
+    last_reviewed_at = models.DateTimeField(blank=True, null=True)
+    mastered_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['word__unit__order', 'word__id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'classroom', 'word'],
+                name='unique_vocab_progress_scope',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user', 'classroom', 'status'], name='vocab_prog_scope_status'),
+            models.Index(fields=['classroom', 'last_reviewed_at'], name='vocab_prog_class_last'),
+        ]
+
+    @property
+    def attempts_count(self):
+        return self.correct_count + self.incorrect_count
+
+    @property
+    def accuracy_percent(self):
+        total = self.attempts_count
+        return round((self.correct_count / total) * 100, 1) if total else 0
+
+    def __str__(self):
+        scope = self.classroom.name if self.classroom_id else 'Global'
+        return f"{self.user.username} · {scope} · {self.word.word} · {self.status}"
+
+
+class VocabularyQuizAttempt(models.Model):
+    MODE_WORD_TO_MEANING = 'word_to_meaning'
+    MODE_MEANING_TO_WORD = 'meaning_to_word'
+    MODE_MIXED = 'mixed'
+    MODE_CHOICES = (
+        (MODE_WORD_TO_MEANING, 'Word to meaning'),
+        (MODE_MEANING_TO_WORD, 'Meaning to word'),
+        (MODE_MIXED, 'Mixed'),
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vocabulary_quiz_attempts',
+    )
+    classroom = models.ForeignKey(
+        'Classroom',
+        on_delete=models.CASCADE,
+        related_name='vocabulary_quiz_attempts',
+        null=True,
+        blank=True,
+    )
+    mode = models.CharField(max_length=24, choices=MODE_CHOICES, default=MODE_MIXED)
+    selected_units = models.JSONField(default=list, blank=True)
+    score = models.PositiveIntegerField(default=0)
+    total_questions = models.PositiveIntegerField(default=0)
+    percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    duration_seconds = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(default=timezone.now)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-completed_at']
+        indexes = [
+            models.Index(fields=['user', 'classroom', 'completed_at'], name='vocab_quiz_scope_date'),
+        ]
+
+    def __str__(self):
+        scope = self.classroom.name if self.classroom_id else 'Global'
+        return f"{self.user.username} · {scope} · {self.score}/{self.total_questions}"
+
+
+class VocabularyQuizAnswer(models.Model):
+    attempt = models.ForeignKey(
+        VocabularyQuizAttempt,
+        on_delete=models.CASCADE,
+        related_name='answers',
+    )
+    word = models.ForeignKey(
+        VocabularyWord,
+        on_delete=models.SET_NULL,
+        related_name='quiz_answers',
+        null=True,
+        blank=True,
+    )
+    prompt = models.TextField()
+    selected_answer = models.TextField(blank=True)
+    correct_answer = models.TextField()
+    is_correct = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"Attempt {self.attempt_id} · {'Correct' if self.is_correct else 'Incorrect'}"
 
 
 
@@ -1268,6 +1525,13 @@ class GlobalEvent(models.Model):
             return self.math_duration_minutes or self.duration_minutes
         return self.duration_minutes
 
+    def clean(self):
+        super().clean()
+        if not self.always_live and self.start_at and self.end_at and self.end_at <= self.start_at:
+            raise ValidationError({"end_at": "Event end time must be later than its start time."})
+        if self.access_code:
+            self.access_code = self.access_code.strip()
+
     def __str__(self):
         return self.title
 
@@ -1350,6 +1614,48 @@ class GlobalEventAttempt(models.Model):
 
     def __str__(self):
         return f"{self.guest} - {self.event}"
+
+
+class GlobalEventModuleDraft(models.Model):
+    """Server-authoritative resumable state for a guest event module.
+
+    Guest answers were previously written directly to ``GlobalEventAnswer`` while
+    UI-only state (current question, eliminated choices, marks) lived only in the
+    browser.  This row mirrors the regular SAT ``TestModuleDraft`` flow so refresh,
+    another device, and an expired timer all resolve from one consistent snapshot.
+    The row is deleted after the module is submitted.
+    """
+    attempt = models.ForeignKey(
+        "sat.GlobalEventAttempt",
+        on_delete=models.CASCADE,
+        related_name="module_drafts",
+    )
+    section = models.CharField(max_length=8)
+    module = models.CharField(max_length=8)
+    answers = models.JSONField(default=list, blank=True)
+    time_spent = models.JSONField(default=list, blank=True)
+    eliminated_choices = models.JSONField(default=list, blank=True)
+    marked_for_review = models.JSONField(default=list, blank=True)
+    current_question_index = models.PositiveIntegerField(default=0)
+    deadline_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attempt", "section", "module"],
+                name="unique_guest_event_module_draft",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["attempt", "section", "module"], name="guest_draft_attempt_step"),
+            models.Index(fields=["deadline_at"], name="guest_draft_deadline"),
+        ]
+
+    def __str__(self):
+        return f"{self.attempt_id}:{self.section}:{self.module}"
+
 
 class GlobalEventAnswer(models.Model):
     SECTION_CHOICES = [

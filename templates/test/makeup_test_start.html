@@ -167,6 +167,7 @@
     <script defer src="{% static 'assets/js/makon-test-window.js' %}"></script>
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 
 <body class="mk-test-window">
@@ -217,6 +218,7 @@
         </footer>
     </div>
 
+  {% include 'base/issue_report_widget.html' %}
 </body>
 
 </html>

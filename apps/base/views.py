@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 
 def software(request):
     return render(request, 'software.html')
@@ -241,3 +242,58 @@ def activate(request, token):
     except EmailVerification.DoesNotExist:
         messages.error(request, "Invalid or expired activation link.")
     return redirect('login')
+
+@require_POST
+def submit_general_issue_report(request):
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from .models import GeneralIssueReport
+
+    # Lightweight per-session rate limit: at most 5 submissions in one hour.
+    now_ts = int(timezone.now().timestamp())
+    recent = [int(ts) for ts in request.session.get("issue_report_times", []) if now_ts - int(ts) < 3600]
+    if len(recent) >= 5:
+        return JsonResponse({"ok": False, "error": "Too many reports. Try again later."}, status=429)
+
+    # Honeypot field for basic bot filtering.
+    if (request.POST.get("website") or "").strip():
+        return JsonResponse({"ok": True})
+
+    message_text = (request.POST.get("message") or "").strip()
+    if len(message_text) < 10:
+        return JsonResponse({"ok": False, "error": "Describe the problem in at least 10 characters."}, status=400)
+
+    category = (request.POST.get("category") or "technical").strip()
+    valid_categories = {value for value, _ in GeneralIssueReport.CATEGORY_CHOICES}
+    if category not in valid_categories:
+        category = "other"
+
+    context_payload = {}
+    raw_context = (request.POST.get("context_json") or "")[:8000].strip()
+    if raw_context:
+        try:
+            import json
+            parsed_context = json.loads(raw_context)
+            if isinstance(parsed_context, dict):
+                # Keep only a small, non-secret snapshot useful for reproducing the issue.
+                context_payload = {}
+                for key, value in list(parsed_context.items())[:30]:
+                    if isinstance(value, (str, int, float, bool)) or value is None:
+                        context_payload[str(key)[:80]] = value[:2000] if isinstance(value, str) else value
+        except (TypeError, ValueError, json.JSONDecodeError):
+            context_payload = {}
+
+    report = GeneralIssueReport.objects.create(
+        reporter=request.user if request.user.is_authenticated else None,
+        reporter_name=(request.POST.get("reporter_name") or "")[:160].strip(),
+        reporter_email=(request.POST.get("reporter_email") or "")[:254].strip(),
+        category=category,
+        message=message_text[:4000],
+        page_url=(request.POST.get("page_url") or request.META.get("HTTP_REFERER") or "")[:1000],
+        page_title=(request.POST.get("page_title") or "")[:300],
+        user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:1000],
+        context_data=context_payload,
+    )
+    recent.append(now_ts)
+    request.session["issue_report_times"] = recent
+    return JsonResponse({"ok": True, "report_id": report.pk})

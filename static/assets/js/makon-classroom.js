@@ -42,6 +42,30 @@
     });
   }
 
+  function bindActionForms() {
+    document.addEventListener("submit", function (event) {
+      var form = event.target.closest("[data-classroom-action-form]");
+      if (!form) return;
+
+      var confirmation = form.getAttribute("data-confirm-message");
+      if (confirmation && !window.confirm(confirmation)) {
+        event.preventDefault();
+        return;
+      }
+
+      var button = form.querySelector('button[type="submit"]');
+      if (!button || button.disabled) {
+        if (button && button.disabled) event.preventDefault();
+        return;
+      }
+
+      button.disabled = true;
+      button.classList.add("is-loading");
+      var loadingLabel = button.getAttribute("data-action-label");
+      if (loadingLabel) button.textContent = loadingLabel;
+    });
+  }
+
   function bindCopyCode() {
     document.addEventListener("click", function (event) {
       var button = event.target.closest("[data-copy-classroom-code]");
@@ -72,5 +96,6 @@
 
   revealClassroomItems();
   bindPanels();
+  bindActionForms();
   bindCopyCode();
 })();

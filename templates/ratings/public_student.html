@@ -1,0 +1,79 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ entry.masked_name }} | Rating</title>
+  {% include 'base/theme_init.html' %}
+  <link rel="icon" href="{% static 'assets/img/icons/original-icon-nobg.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-mobile-nav-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-desktop-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-ratings.css' %}">
+</head>
+<body>
+  <div id="top" class="landing-shell rating-shell">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+    <div class="hero-noise rating-top-noise"></div>
+    <header class="site-header" data-header>
+      <div class="container nav-row">
+        <a href="/" class="brand"><img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="MakonBook logo"><span>SAT Makon</span></a>
+        <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span></button>
+        <nav class="site-nav" aria-label="Main navigation" data-nav>
+          <a href="/">Home</a>
+          <a href="{% url 'rating_home' %}" aria-current="page">Student Rating</a>
+          <div class="site-nav-mobile-actions"><a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a><a href="/" class="btn btn-primary">Landing page</a></div>
+        </nav>
+        <div class="nav-actions">
+          {% include 'base/theme_toggle.html' %}
+          <a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a>
+          <a href="/" class="btn btn-primary">Back to MakonBook</a>
+        </div>
+      </div>
+    </header>
+    <main>
+      <section class="hero-section rating-public-section">
+        <div class="container rating-page">
+          <a href="{% url 'rating_home' %}" class="btn btn-secondary btn-large" style="margin-bottom:18px">← Leaderboard</a>
+          <section class="rating-hero">
+            <h1>{{ entry.masked_name }}</h1>
+            <p>Public monthly rating summary. Detailed criterion scores remain private.</p>
+          </section>
+          <section class="rating-stat-grid">
+            <div class="rating-stat"><small>Rank</small><strong>#{{ entry.rank }}</strong></div>
+            <div class="rating-stat"><small>Rating</small><strong>{{ entry.rating }}</strong></div>
+            <div class="rating-stat"><small>Assessments</small><strong>{{ entry.assessment_count }}</strong></div>
+            <div class="rating-stat"><small>Streams</small><strong>{{ entry.streams|length }}</strong></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <div>
+          <strong>SAT Makon</strong>
+          <p>Digital SAT practice platform with tests, analytics, classrooms, and student rating.</p>
+        </div>
+        <div class="footer-links">
+          <a href="/">Home</a>
+          <a href="{% url 'rating_home' %}">Leaderboard</a>
+        </div>
+      </div>
+    </footer>
+    <a class="back-to-top" href="#top" aria-label="Back to top" data-back-to-top><span aria-hidden="true">↑</span></a>
+  </div>
+  <script src="{% static 'assets/js/landing.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
+</body>
+</html>

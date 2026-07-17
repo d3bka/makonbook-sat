@@ -6,133 +6,86 @@
 
 {% block style %}
 <link href="{% static 'assets/css/makon-classroom.css' %}" rel="stylesheet">
+<link href="{% static 'assets/css/makon-progress-dashboard-v2.css' %}" rel="stylesheet">
 {% endblock style %}
 
 {% block content %}
-<div class="mk-classroom">
-  <section class="mk-classroom-hero" data-classroom-reveal>
-    <div class="mk-classroom-hero-inner">
+<div class="progress-shell" data-progress-dashboard>
+  <section class="progress-hero">
+    <div class="progress-hero-top">
       <div>
         <div class="mk-eyebrow">Progress dashboard</div>
-        <h2 class="mk-classroom-title">Student progress without spreadsheet chaos.</h2>
-        <p class="mk-classroom-subtitle">
-          Review practice, vocabulary, and admissions completion for approved students. Refresh when you need the latest calculated state.
-        </p>
+        <h2>See who is progressing and who needs intervention.</h2>
+        <p>Vocabulary is calculated from saved flashcard reviews and quiz answers. Practice progress is refreshed on demand because it is more expensive to calculate.</p>
       </div>
       <div class="mk-hero-actions">
-        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="mk-btn mk-btn-secondary">
-          <i class="bi bi-arrow-left"></i>
-          Dashboard
-        </a>
-        <a href="?refresh=1" class="mk-btn">
-          <i class="bi bi-arrow-clockwise"></i>
-          Refresh data
-        </a>
+        <a href="{% url 'teacher_classroom_dashboard' classroom.id %}" class="mk-btn mk-btn-secondary"><i class="bi bi-arrow-left"></i> Dashboard</a>
+        <a href="?refresh=1" class="mk-btn"><i class="bi bi-arrow-clockwise"></i> Recalculate all</a>
       </div>
     </div>
-
-    <div class="mk-stats-strip">
-      <div class="mk-stat-pill">
-        <span class="mk-stat-value">{{ grouped_progress|length }}</span>
-        <span class="mk-stat-label">Students tracked</span>
-      </div>
-      <div class="mk-stat-pill">
-        <span class="mk-stat-value">3</span>
-        <span class="mk-stat-label">Tracked sections</span>
-      </div>
-      <div class="mk-stat-pill">
-        <span class="mk-stat-value">{% if refreshed %}Fresh{% else %}Saved{% endif %}</span>
-        <span class="mk-stat-label">Data status</span>
-      </div>
+    <div class="progress-summary">
+      <div class="progress-summary-card"><small>Students</small><strong>{{ dashboard_stats.student_count }}</strong></div>
+      <div class="progress-summary-card"><small>Average overall</small><strong>{{ dashboard_stats.average_overall }}%</strong></div>
+      <div class="progress-summary-card"><small>Vocabulary mastery</small><strong>{{ dashboard_stats.average_vocabulary }}%</strong></div>
+      <div class="progress-summary-card"><small>Active this week</small><strong>{{ dashboard_stats.active_count }}</strong></div>
+      <div class="progress-summary-card"><small>Need attention</small><strong>{{ dashboard_stats.attention_count }}</strong></div>
     </div>
   </section>
 
-  <section class="mk-panel" data-classroom-reveal>
-    <div class="mk-panel-head">
-      <div>
-        <h3 class="mk-panel-title">Approved students</h3>
-        <p class="mk-card-subtitle">Open a detail view when a number looks suspicious. A dashboard is useless if it hides the next action.</p>
-      </div>
-    </div>
+  <div class="progress-toolbar">
+    <input type="search" placeholder="Search student name or username..." data-progress-search>
+    <select data-progress-state><option value="all">All students</option><option value="active">Active this week</option><option value="attention">Needs attention</option><option value="idle">No recent activity</option></select>
+    <select data-progress-sort><option value="name">Sort by name</option><option value="overall">Highest overall</option><option value="vocabulary">Highest vocabulary</option><option value="recent">Most recent activity</option></select>
+  </div>
 
-    {% if grouped_progress %}
-      <div class="mk-progress-list">
-        {% for row in grouped_progress %}
-          <article class="mk-panel mk-progress-student" data-classroom-reveal>
-            <div class="mk-student-top">
-              <div class="mk-student-identity">
-                <div class="mk-avatar">{{ row.student.username|first|upper }}</div>
-                <div>
-                  <h4 class="mk-student-name">{{ row.student.get_full_name|default:row.student.username }}</h4>
-                  <div class="mk-student-meta">
-                    <span>@{{ row.student.username }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mk-progress-actions">
-                <a href="{% url 'classroom_student_practice_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Practice</a>
-                <a href="{% url 'classroom_student_vocab_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Vocabulary</a>
-                <a href="{% url 'classroom_student_admission_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Admissions</a>
-              </div>
+  <section class="progress-list">
+    {% for row in grouped_progress %}
+      <article class="progress-student"
+        data-progress-student
+        data-search="{{ row.student.get_full_name|default:row.student.username|lower }} {{ row.student.username|lower }}"
+        data-state="{% if row.is_active_recently %}active{% elif row.needs_attention %}attention{% else %}idle{% endif %}"
+        data-overall="{{ row.overall_percent }}"
+        data-vocabulary="{% if row.vocabulary %}{{ row.vocabulary.completion_percent }}{% else %}0{% endif %}"
+        data-last="{% if row.last_activity_at %}{{ row.last_activity_at|date:'U' }}{% else %}0{% endif %}">
+        <div class="progress-student-top">
+          <div class="progress-identity">
+            <div class="progress-avatar">{{ row.student.username|first|upper }}</div>
+            <div>
+              <h3 class="progress-name">{{ row.student.get_full_name|default:row.student.username }}</h3>
+              <div class="progress-meta"><span>@{{ row.student.username }}</span>{% if row.is_active_recently %}<span class="progress-state progress-state-active">Active</span>{% elif row.needs_attention %}<span class="progress-state progress-state-attention">Needs attention</span>{% else %}<span class="progress-state progress-state-idle">Idle</span>{% endif %}</div>
             </div>
+          </div>
+          <div class="progress-overall"><div><strong class="progress-overall-number">{{ row.overall_percent }}%</strong><small>Overall tracked progress</small></div></div>
+        </div>
 
-            <div class="mk-progress-bars">
-              <div class="mk-progress-metric">
-                <div class="mk-progress-metric-head">
-                  <h4>Practice Tests</h4>
-                  <span class="mk-progress-percent">{% if row.practice_tests %}{{ row.practice_tests.completion_percent }}%{% else %}0%{% endif %}</span>
-                </div>
-                <div class="mk-meter">
-                  <span style="width: {% if row.practice_tests %}{{ row.practice_tests.completion_percent }}{% else %}0{% endif %}%;"></span>
-                </div>
-                <div class="mk-progress-meta">
-                  Completed: {% if row.practice_tests %}{{ row.practice_tests.completed_items }} / {{ row.practice_tests.total_items }}{% else %}0 / 0{% endif %}<br>
-                  Activity: {% if row.practice_tests %}{{ row.practice_tests.activity_count }}{% else %}0{% endif %}<br>
-                  Last: {% if row.practice_tests and row.practice_tests.last_activity_at %}{{ row.practice_tests.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
-                </div>
-              </div>
+        <div class="progress-sections">
+          <div class="progress-section-card">
+            <div class="progress-section-head"><h4>Practice tests</h4><strong>{% if row.practice_tests %}{{ row.practice_tests.completion_percent }}%{% else %}0%{% endif %}</strong></div>
+            <div class="progress-meter"><span style="width:{% if row.practice_tests %}{{ row.practice_tests.completion_percent }}{% else %}0{% endif %}%"></span></div>
+            <div class="progress-section-meta">{% if row.access_map.practice_tests %}Access enabled{% else %}Access disabled{% endif %}<br>Completed {% if row.practice_tests %}{{ row.practice_tests.completed_items }}/{{ row.practice_tests.total_items }}{% else %}0/0{% endif %}<br>Last {% if row.practice_tests and row.practice_tests.last_activity_at %}{{ row.practice_tests.last_activity_at|date:"M d, H:i" }}{% else %}—{% endif %}</div>
+            <div class="progress-section-actions"><a href="{% url 'classroom_student_practice_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Open practice detail</a></div>
+          </div>
 
-              <div class="mk-progress-metric">
-                <div class="mk-progress-metric-head">
-                  <h4>Vocabulary</h4>
-                  <span class="mk-progress-percent">{% if row.vocabulary %}{{ row.vocabulary.completion_percent }}%{% else %}0%{% endif %}</span>
-                </div>
-                <div class="mk-meter">
-                  <span style="width: {% if row.vocabulary %}{{ row.vocabulary.completion_percent }}{% else %}0{% endif %}%;"></span>
-                </div>
-                <div class="mk-progress-meta">
-                  Completed: {% if row.vocabulary %}{{ row.vocabulary.completed_items }} / {{ row.vocabulary.total_items }}{% else %}0 / 0{% endif %}<br>
-                  Activity: {% if row.vocabulary %}{{ row.vocabulary.activity_count }}{% else %}0{% endif %}<br>
-                  Last: {% if row.vocabulary and row.vocabulary.last_activity_at %}{{ row.vocabulary.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
-                </div>
-              </div>
+          <div class="progress-section-card">
+            <div class="progress-section-head"><h4>Vocabulary</h4><strong>{% if row.vocabulary %}{{ row.vocabulary.completion_percent }}%{% else %}0%{% endif %}</strong></div>
+            <div class="progress-meter"><span style="width:{% if row.vocabulary %}{{ row.vocabulary.completion_percent }}{% else %}0{% endif %}%"></span></div>
+            <div class="progress-section-meta">{% if row.access_map.vocabulary %}Access enabled{% else %}Access disabled{% endif %}<br>Mastered {% if row.vocabulary %}{{ row.vocabulary.completed_items }}/{{ row.vocabulary.total_items }}{% else %}0/0{% endif %}<br>Activity {% if row.vocabulary %}{{ row.vocabulary.activity_count }}{% else %}0{% endif %} · Last {% if row.vocabulary and row.vocabulary.last_activity_at %}{{ row.vocabulary.last_activity_at|date:"M d, H:i" }}{% else %}—{% endif %}</div>
+            <div class="progress-section-actions"><a href="{% url 'classroom_student_vocab_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Open vocabulary detail</a></div>
+          </div>
 
-              <div class="mk-progress-metric">
-                <div class="mk-progress-metric-head">
-                  <h4>Admissions</h4>
-                  <span class="mk-progress-percent">{% if row.admissions %}{{ row.admissions.completion_percent }}%{% else %}0%{% endif %}</span>
-                </div>
-                <div class="mk-meter">
-                  <span style="width: {% if row.admissions %}{{ row.admissions.completion_percent }}{% else %}0{% endif %}%;"></span>
-                </div>
-                <div class="mk-progress-meta">
-                  Completed: {% if row.admissions %}{{ row.admissions.completed_items }} / {{ row.admissions.total_items }}{% else %}0 / 0{% endif %}<br>
-                  Activity: {% if row.admissions %}{{ row.admissions.activity_count }}{% else %}0{% endif %}<br>
-                  Last: {% if row.admissions and row.admissions.last_activity_at %}{{ row.admissions.last_activity_at|date:"M d, Y H:i" }}{% else %}—{% endif %}
-                </div>
-              </div>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="mk-empty-state" style="margin-top: 22px;">
-        No approved students have progress records yet. Approve students first, then refresh progress data.
-      </div>
-    {% endif %}
+          <div class="progress-section-card">
+            <div class="progress-section-head"><h4>Admissions</h4><strong>Not tracked</strong></div>
+            <div class="progress-meter"><span style="width:0"></span></div>
+            <div class="progress-section-meta">{% if row.access_map.admissions %}Access enabled{% else %}Access disabled{% endif %}<br>The current admissions module has no completion events yet. Showing 0% would be fake precision.</div>
+            <div class="progress-section-actions"><a href="{% url 'classroom_student_admission_progress' classroom.id row.student.id %}" class="mk-btn mk-btn-ghost mk-btn-sm">Open access detail</a></div>
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <div class="mk-empty-state">No approved students yet.</div>
+    {% endfor %}
+    <div class="mk-empty-state progress-empty-filter" data-progress-empty-filter>No students match the current search and filter.</div>
   </section>
 </div>
-
-<script src="{% static 'assets/js/makon-classroom.js' %}"></script>
+<script src="{% static 'assets/js/makon-progress-dashboard-v2.js' %}"></script>
 {% endblock content %}

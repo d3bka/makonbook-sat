@@ -11,6 +11,15 @@ from django.views.decorators.http import require_POST
 from django.conf import settings
 from satmakon.settings import BASE_DIR
 from .libs import calculator
+from .answer_matching import check_english_answer, reference_answer
+from .vocabulary_progress import (
+    build_unit_progress_rows,
+    get_vocabulary_summary,
+    get_weak_words,
+    record_word_review,
+    sync_vocabulary_review_progress,
+    sync_vocabulary_student_progress,
+)
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from datetime import timedelta, datetime
@@ -285,6 +294,27 @@ def _redirect_or_deny_classroom_section(request, section, route_name, denied_mes
     return redirect(route_name, classroom_id=membership.classroom_id)
 
 
+def _normalize_live_test_answer(question, section, value):
+    """Bound and normalize live answers before they are persisted.
+
+    Multiple-choice questions accept only A-D (or blank). Open responses keep the
+    student's text, but cap it so a forged request cannot store unbounded payloads.
+    """
+    if value is None:
+        return None
+
+    section = _normalize_test_section(section)
+    if section == 'english' and getattr(question, 'is_open_text', False):
+        text = str(value).replace('\x00', '').strip()
+        return text[:4000] or None
+    if section == 'math' and bool(getattr(question, 'written', False)):
+        text = str(value).replace('\x00', '').strip()
+        return text[:120] or None
+
+    choice = str(value).strip().upper()
+    return choice if choice in {'A', 'B', 'C', 'D'} else None
+
+
 def _validate_regular_module_answers(test_obj, section, module, answers):
     section = _normalize_test_section(section)
     module = _normalize_test_module(module)
@@ -294,12 +324,17 @@ def _validate_regular_module_answers(test_obj, section, module, answers):
         return False, 'Invalid section/module.', []
 
     question_model = English_Question if section == 'english' else Math_Question
-    expected_ids = set(
-        question_model.objects.filter(test=test_obj, module=module_db).values_list('id', flat=True)
-    )
+    question_map = question_model.objects.filter(
+        test=test_obj,
+        module=module_db,
+    ).in_bulk()
+    expected_ids = set(question_map)
 
     if not expected_ids:
         return False, 'No questions exist for this test module.', []
+
+    if not isinstance(answers, list):
+        return False, 'answers must be a list.', []
 
     submitted_ids = []
     canonical_answers = []
@@ -316,21 +351,26 @@ def _validate_regular_module_answers(test_obj, section, module, answers):
         except (TypeError, ValueError):
             return False, 'Invalid question ID.', []
 
+        question = question_map.get(question_id)
+        if question is None:
+            return False, 'One or more answers do not belong to this test module.', []
+
+        try:
+            time_spent = max(int(item.get('time_spent', 0) or 0), 0)
+        except (TypeError, ValueError):
+            time_spent = 0
+
         submitted_ids.append(question_id)
         canonical_answers.append({
             'questionID': question_id,
-            'answer': item.get('answer'),
-            'time_spent': item.get('time_spent', 0) or 0,
+            'answer': _normalize_live_test_answer(question, section, item.get('answer')),
+            'time_spent': min(time_spent, 24 * 60 * 60),
         })
 
     if len(submitted_ids) != len(set(submitted_ids)):
         return False, 'Duplicate question IDs are not allowed.', []
 
     submitted_id_set = set(submitted_ids)
-    invalid_ids = submitted_id_set - expected_ids
-    if invalid_ids:
-        return False, 'One or more answers do not belong to this test module.', []
-
     missing_ids = expected_ids - submitted_id_set
     if missing_ids:
         return False, 'Submitted answers do not cover every question in this test module.', []
@@ -338,8 +378,481 @@ def _validate_regular_module_answers(test_obj, section, module, answers):
     return True, '', canonical_answers
 
 
+def _validate_makeup_module_answers(makeup_test, section, module, answers):
+    """Validate a Makeup module against its explicit question membership."""
+    section = _normalize_test_section(section)
+    module = _normalize_test_module(module)
+    if section not in {'english', 'math'} or module not in {'m1', 'm2'}:
+        return False, 'Invalid section/module.', []
+    questions = makeup_test.get_module_questions(section, _module_db_name(module))
+    question_map = {question.id: question for question in (questions or [])}
+    if not question_map:
+        return False, 'No questions exist for this makeup module.', []
+    if not isinstance(answers, list):
+        return False, 'answers must be a list.', []
+    seen, canonical = set(), []
+    for item in answers:
+        if not isinstance(item, dict):
+            return False, 'Every answer must be an object.', []
+        raw_id = item.get('questionID') or item.get('question_id') or item.get('id')
+        try:
+            question_id = int(raw_id)
+        except (TypeError, ValueError):
+            return False, 'Invalid question ID.', []
+        question = question_map.get(question_id)
+        if question is None:
+            return False, 'One or more answers do not belong to this makeup module.', []
+        if question_id in seen:
+            return False, 'Duplicate question IDs are not allowed.', []
+        seen.add(question_id)
+        try:
+            time_spent = max(int(item.get('time_spent', 0) or 0), 0)
+        except (TypeError, ValueError):
+            time_spent = 0
+        canonical.append({
+            'questionID': question_id,
+            'answer': _normalize_live_test_answer(question, section, item.get('answer')),
+            'time_spent': min(time_spent, 24 * 60 * 60),
+        })
+    if set(seen) != set(question_map):
+        return False, 'Submitted answers do not cover every question in this makeup module.', []
+    return True, '', canonical
+
+
+def _question_model_for_section(section):
+    section = _normalize_test_section(section)
+    if section == 'english':
+        return English_Question
+    if section == 'math':
+        return Math_Question
+    return None
+
+
+def _module_questions_queryset(test_obj, section, module):
+    question_model = _question_model_for_section(section)
+    if question_model is None:
+        return None
+    return question_model.objects.filter(
+        test=test_obj,
+        module=_module_db_name(module),
+    ).order_by('number', 'id')
+
+
+def _module_duration_seconds(user, section):
+    section = _normalize_test_section(section)
+    default_seconds = 1920 if section == 'english' else 2100
+    if user.is_authenticated and user.groups.filter(name='OFFLINE').exists():
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if section == 'english':
+            return max(int(profile.get_english_time_seconds() or default_seconds), 1)
+        if section == 'math':
+            return max(int(profile.get_math_time_seconds() or default_seconds), 1)
+    return default_seconds
+
+
+def _safe_json_list(value, expected_length=None, default_factory=list):
+    if not isinstance(value, list):
+        value = default_factory()
+    if expected_length is not None:
+        value = list(value[:expected_length])
+        while len(value) < expected_length:
+            fallback = default_factory()
+            value.append(fallback[len(value)] if len(fallback) > len(value) else None)
+    return value
+
+
+def _canonical_partial_module_answers(test_obj, section, module, answers):
+    """Validate an autosave payload without requiring every question.
+
+    Final submission still uses ``_validate_regular_module_answers`` and requires
+    all question IDs. Drafts may be partial, but may never reference another test
+    or module.
+    """
+    section = _normalize_test_section(section)
+    module = _normalize_test_module(module)
+    question_model = _question_model_for_section(section)
+    if question_model is None or module not in {'m1', 'm2'}:
+        return False, 'Invalid section/module.', []
+
+    question_map = question_model.objects.filter(
+        test=test_obj,
+        module=_module_db_name(module),
+    ).in_bulk()
+    expected_ids = set(question_map)
+    if not expected_ids:
+        return False, 'No questions exist for this test module.', []
+
+    if not isinstance(answers, list):
+        return False, 'answers must be a list.', []
+
+    seen = set()
+    canonical = []
+    for item in answers:
+        if not isinstance(item, dict):
+            return False, 'Every answer must be an object.', []
+        question_id = item.get('questionID') or item.get('question_id') or item.get('id')
+        if question_id in [None, '']:
+            continue
+        try:
+            question_id = int(question_id)
+        except (TypeError, ValueError):
+            return False, 'Invalid question ID.', []
+        if question_id not in expected_ids:
+            return False, 'One or more answers do not belong to this test module.', []
+        if question_id in seen:
+            return False, 'Duplicate question IDs are not allowed.', []
+        seen.add(question_id)
+        try:
+            time_spent = max(int(item.get('time_spent', 0) or 0), 0)
+        except (TypeError, ValueError):
+            time_spent = 0
+        canonical.append({
+            'questionID': question_id,
+            'answer': _normalize_live_test_answer(question_map[question_id], section, item.get('answer')),
+            'time_spent': min(time_spent, 24 * 60 * 60),
+        })
+    return True, '', canonical
+
+
+def _canonical_partial_makeup_answers(makeup_test, section, module, answers):
+    section = _normalize_test_section(section)
+    module = _normalize_test_module(module)
+    if section not in {'english', 'math'} or module not in {'m1', 'm2'}:
+        return False, 'Invalid section/module.', []
+    questions = makeup_test.get_module_questions(section, _module_db_name(module))
+    question_map = {question.id: question for question in (questions or [])}
+    if not question_map:
+        return False, 'No questions exist for this makeup module.', []
+    if not isinstance(answers, list):
+        return False, 'answers must be a list.', []
+    seen, canonical = set(), []
+    for item in answers:
+        if not isinstance(item, dict):
+            return False, 'Every answer must be an object.', []
+        raw_id = item.get('questionID') or item.get('question_id') or item.get('id')
+        if raw_id in [None, '']:
+            continue
+        try:
+            question_id = int(raw_id)
+        except (TypeError, ValueError):
+            return False, 'Invalid question ID.', []
+        question = question_map.get(question_id)
+        if question is None:
+            return False, 'One or more answers do not belong to this makeup module.', []
+        if question_id in seen:
+            return False, 'Duplicate question IDs are not allowed.', []
+        seen.add(question_id)
+        try:
+            time_spent = max(int(item.get('time_spent', 0) or 0), 0)
+        except (TypeError, ValueError):
+            time_spent = 0
+        canonical.append({
+            'questionID': question_id,
+            'answer': _normalize_live_test_answer(question, section, item.get('answer')),
+            'time_spent': min(time_spent, 24 * 60 * 60),
+        })
+    return True, '', canonical
+
+
+def _ensure_makeup_module_draft(stage, section, module):
+    duration_seconds = _module_duration_seconds(stage.user, section)
+    draft, _ = MakeupTestModuleDraft.objects.get_or_create(
+        user=stage.user,
+        makeup_test=stage.makeup_test,
+        attempt_id=stage.attempt_id,
+        section=_normalize_test_section(section),
+        module=_normalize_test_module(module),
+        defaults={'deadline_at': timezone.now() + timedelta(seconds=duration_seconds)},
+    )
+    if not draft.deadline_at:
+        draft.deadline_at = timezone.now() + timedelta(seconds=duration_seconds)
+        draft.save(update_fields=['deadline_at', 'updated_at'])
+    return draft
+
+
+def _complete_makeup_answers_from_draft(makeup_test, section, module, draft):
+    questions = list(makeup_test.get_module_questions(section, _module_db_name(module)) or [])
+    lookup = {
+        int(item.get('questionID')): item
+        for item in (draft.answers or [])
+        if isinstance(item, dict) and str(item.get('questionID', '')).isdigit()
+    }
+    return [
+        {
+            'questionID': question.id,
+            'answer': lookup.get(question.id, {}).get('answer'),
+            'time_spent': max(int(lookup.get(question.id, {}).get('time_spent', 0) or 0), 0),
+        }
+        for question in questions
+    ]
+
+
+def _makeup_redirect_url(makeup_test, stage):
+    sequence = get_makeup_test_sequence(makeup_test)
+    if 1 <= stage.stage <= len(sequence):
+        return reverse('makeup_test_module', kwargs={'pk': makeup_test.name})
+    return reverse('dashboard')
+
+
+def _submit_makeup_module_locked(stage, section, module, canonical_answers):
+    existing = TestModule.objects.filter(
+        user=stage.user,
+        makeup_test=stage.makeup_test,
+        test_type='makeup',
+        section=section,
+        module=module,
+        attempt_id=stage.attempt_id,
+    ).first()
+    if existing:
+        return existing, False
+    module_obj = TestModule.objects.create(
+        user=stage.user,
+        makeup_test=stage.makeup_test,
+        test_type='makeup',
+        section=section,
+        module=module,
+        attempt_id=stage.attempt_id,
+        answers=json.dumps({'answers': canonical_answers}),
+    )
+    MakeupTestModuleDraft.objects.filter(
+        user=stage.user,
+        makeup_test=stage.makeup_test,
+        attempt_id=stage.attempt_id,
+        section=section,
+        module=module,
+    ).delete()
+    stage.stage += 1
+    stage.save(update_fields=['stage', 'updated_at'])
+    return module_obj, True
+
+
+def _makeup_module_runtime(stage, section, module, questions):
+    draft = _ensure_makeup_module_draft(stage, section, module)
+    if _draft_remaining_seconds(draft) > 0:
+        return {
+            'redirect_url': None,
+            'context': {
+                'attempt_id': stage.attempt_id,
+                'time_remaining_seconds': _draft_remaining_seconds(draft),
+                'test_session_state': _draft_state_payload(draft, list(questions)),
+                'draft_save_url': reverse('save_test_module_draft'),
+            },
+        }
+    with transaction.atomic():
+        locked = TestStage.objects.select_for_update().select_related('makeup_test').get(pk=stage.pk)
+        sequence = get_makeup_test_sequence(locked.makeup_test)
+        current = sequence[locked.stage - 1] if 1 <= locked.stage <= len(sequence) else None
+        if locked.attempt_id != stage.attempt_id or current != (section, module):
+            return {'redirect_url': _makeup_redirect_url(locked.makeup_test, locked), 'context': {}}
+        canonical = _complete_makeup_answers_from_draft(locked.makeup_test, section, module, draft)
+        _submit_makeup_module_locked(locked, section, module, canonical)
+        redirect_url = _makeup_redirect_url(locked.makeup_test, locked)
+    return {'redirect_url': redirect_url, 'context': {}}
+
+
+def _regular_module_redirect_url(test_obj, stage, classroom=None):
+    current_step = get_current_test_step(stage)
+    if current_step is None:
+        return _results_url_for_test(test_obj, classroom=classroom)
+    if classroom:
+        return reverse('classroom_test', kwargs={
+            'classroom_id': classroom.id,
+            'pk': test_obj.name,
+        })
+    return reverse('test', kwargs={'pk': test_obj.name})
+
+
+def _ensure_regular_module_draft(stage, section, module, classroom=None):
+    duration_seconds = _module_duration_seconds(stage.user, section)
+    draft, created = TestModuleDraft.objects.get_or_create(
+        user=stage.user,
+        test=stage.test,
+        classroom=classroom,
+        attempt_id=stage.attempt_id,
+        section=_normalize_test_section(section),
+        module=_normalize_test_module(module),
+        defaults={
+            'deadline_at': timezone.now() + timedelta(seconds=duration_seconds),
+        },
+    )
+    if not draft.deadline_at:
+        draft.deadline_at = timezone.now() + timedelta(seconds=duration_seconds)
+        draft.save(update_fields=['deadline_at', 'updated_at'])
+    return draft
+
+
+def _draft_remaining_seconds(draft):
+    return max(int((draft.deadline_at - timezone.now()).total_seconds()), 0)
+
+
+def _draft_state_payload(draft, questions):
+    question_ids = [question.id for question in questions]
+    answer_lookup = {
+        int(item.get('questionID')): item
+        for item in (draft.answers or [])
+        if isinstance(item, dict) and str(item.get('questionID', '')).isdigit()
+    }
+    answers = []
+    time_spent = []
+    for question_id in question_ids:
+        item = answer_lookup.get(question_id, {})
+        answers.append(item.get('answer'))
+        try:
+            time_spent.append(max(int(item.get('time_spent', 0) or 0), 0))
+        except (TypeError, ValueError):
+            time_spent.append(0)
+
+    def normalize_nested(value):
+        if not isinstance(value, list):
+            return [[] for _ in question_ids]
+        rows = []
+        for item in value[:len(question_ids)]:
+            rows.append(item if isinstance(item, list) else [])
+        rows.extend([[] for _ in range(len(question_ids) - len(rows))])
+        return rows
+
+    def normalize_flags(value):
+        if not isinstance(value, list):
+            return [False for _ in question_ids]
+        flags = [bool(item) for item in value[:len(question_ids)]]
+        flags.extend([False for _ in range(len(question_ids) - len(flags))])
+        return flags
+
+    return {
+        'answers': answers,
+        'timeSpent': time_spent,
+        'eliminatedChoices': normalize_nested(draft.eliminated_choices),
+        'markedForReview': normalize_flags(draft.marked_for_review),
+        'currentQuestionIndex': min(
+            max(int(draft.current_question_index or 0), 0),
+            max(len(question_ids) - 1, 0),
+        ),
+        'deadlineAt': int(draft.deadline_at.timestamp() * 1000),
+        'updatedAt': int((draft.updated_at or draft.created_at or timezone.now()).timestamp() * 1000),
+    }
+
+
+def _complete_answers_from_draft(test_obj, section, module, draft):
+    questions = list(_module_questions_queryset(test_obj, section, module) or [])
+    lookup = {
+        int(item.get('questionID')): item
+        for item in (draft.answers or [])
+        if isinstance(item, dict) and str(item.get('questionID', '')).isdigit()
+    }
+    completed = []
+    for question in questions:
+        item = lookup.get(question.id, {})
+        completed.append({
+            'questionID': question.id,
+            'answer': item.get('answer'),
+            'time_spent': max(int(item.get('time_spent', 0) or 0), 0),
+        })
+    return completed
+
+
+
+def _regular_module_runtime(stage, section, module, questions, classroom=None):
+    """Return render state or a redirect URL when the server timer expired."""
+    draft = _ensure_regular_module_draft(stage, section, module, classroom=classroom)
+    if _draft_remaining_seconds(draft) > 0:
+        return {
+            'draft': draft,
+            'redirect_url': None,
+            'context': {
+                'attempt_id': stage.attempt_id,
+                'time_remaining_seconds': _draft_remaining_seconds(draft),
+                'test_session_state': _draft_state_payload(draft, list(questions)),
+                'draft_save_url': reverse('save_test_module_draft'),
+            },
+        }
+
+    with transaction.atomic():
+        locked_stage = TestStage.objects.select_for_update().get(pk=stage.pk)
+        if locked_stage.attempt_id != stage.attempt_id or get_current_test_step(locked_stage) != (section, module):
+            return {
+                'draft': draft,
+                'redirect_url': _regular_module_redirect_url(locked_stage.test, locked_stage, classroom),
+                'context': {},
+            }
+        canonical_answers = _complete_answers_from_draft(
+            locked_stage.test, section, module, draft
+        )
+        _submit_regular_module_locked(
+            locked_stage,
+            locked_stage.test,
+            classroom,
+            section,
+            module,
+            canonical_answers,
+        )
+        redirect_url = _regular_module_redirect_url(locked_stage.test, locked_stage, classroom)
+
+    return {'draft': draft, 'redirect_url': redirect_url, 'context': {}}
+
+def _submit_regular_module_locked(stage, test_obj, classroom, section, module, canonical_answers):
+    """Idempotently submit a module while the caller holds a stage row lock."""
+    existing = TestModule.objects.filter(
+        user=stage.user,
+        test=test_obj,
+        classroom=classroom,
+        test_type='regular',
+        section=section,
+        module=module,
+        attempt_id=stage.attempt_id,
+    ).first()
+    if existing:
+        return existing, False
+
+    module_obj = TestModule.objects.create(
+        user=stage.user,
+        test=test_obj,
+        classroom=classroom,
+        test_type='regular',
+        section=section,
+        module=module,
+        attempt_id=stage.attempt_id,
+        answers=json.dumps({'answers': canonical_answers}),
+    )
+    TestModuleDraft.objects.filter(
+        user=stage.user,
+        test=test_obj,
+        attempt_id=stage.attempt_id,
+        section=section,
+        module=module,
+    ).delete()
+    advance_test_stage(stage)
+    return module_obj, True
+
+
 def _required_modules_for_test(test_obj):
     return get_test_sequence(test_obj)
+
+
+def _section_submission_status(required_modules, missing_modules):
+    """Return completion flags for only the modules a test actually contains.
+
+    Older result views hard-coded m1+m2 for both sections. That marked a legitimate
+    one-module test as incomplete even when every required module was submitted.
+    """
+    required = {
+        (_normalize_test_section(section), _normalize_test_module(module))
+        for section, module in (required_modules or [])
+    }
+    missing = {
+        tuple(str(item).split('_', 1))
+        for item in (missing_modules or [])
+        if '_' in str(item)
+    }
+
+    def complete(section):
+        slots = {slot for slot in required if slot[0] == section}
+        return bool(slots) and not any(slot in missing for slot in slots)
+
+    return {
+        'english': complete('english'),
+        'math': complete('math'),
+        'total': bool(required) and not missing,
+    }
 
 
 def _score_from_counts(test_mode, correct_counts):
@@ -684,7 +1197,7 @@ def _calculate_attempt_score(user, test_obj, attempt_id, classroom=None):
 
             if sec == 'english':
                 question = english_question_map.get(question_id)
-                is_correct = bool(question and answer.get('answer') == question.answer)
+                is_correct = bool(question and check_english_answer(question, answer.get('answer')))
             else:
                 question = math_question_map.get(question_id)
                 raw_answer = answer.get('answer')
@@ -929,40 +1442,176 @@ def _has_resumable_test_attempt(user, test_obj, classroom=None):
 
 
 def _split_tests_by_user_progress(user, tests, classroom=None):
-    """Return (active_tests, past_tests) for a user's practice-test list.
+    """Return decorated active/past practice-test lists without per-card queries.
 
-    Completed attempts belong in Past only. A test remains Active only when it
-    has no scored review yet or when the latest TestStage is a real unfinished
-    attempt. A completed TestStage must not make a solved test show a fake
-    Continue button.
+    The old implementation performed several database queries for every test card.
+    Besides being slow, it could not explain whether a card represented a fresh
+    start, a resumable attempt, or a completed attempt waiting for its result.
+    This version batches reviews, stages, submitted modules, and question counts,
+    then attaches template-only metadata to every ``Test`` object.
     """
     tests = list(tests)
     if not tests:
         return [], []
 
     test_ids = [test.pk for test in tests]
+    scope_filter = _classroom_scope_filter(classroom)
 
     reviews = TestReview.objects.filter(
         user=user,
         test_id__in=test_ids,
         score__isnull=False,
-        **_classroom_scope_filter(classroom),
-    ).order_by('test_id', '-created_at')
+        **scope_filter,
+    ).order_by('test_id', '-created_at', '-id')
     latest_reviews = _latest_by_test_id(reviews)
+
+    stages = TestStage.objects.filter(
+        user=user,
+        test_id__in=test_ids,
+        test_type='regular',
+        **scope_filter,
+    ).order_by('test_id', '-updated_at', '-created_at', '-id')
+    latest_stages = _latest_by_test_id(stages)
+
+    english_rows = list(
+        English_Question.objects.filter(test_id__in=test_ids)
+        .values('test_id', 'module')
+        .annotate(total=Count('id'))
+    )
+    math_rows = list(
+        Math_Question.objects.filter(test_id__in=test_ids)
+        .values('test_id', 'module')
+        .annotate(total=Count('id'))
+    )
+
+    question_counts = defaultdict(lambda: {'english': 0, 'math': 0})
+    required_slots = defaultdict(set)
+
+    for row in english_rows:
+        test_id = row['test_id']
+        question_counts[test_id]['english'] += row['total']
+        required_slots[test_id].add(('english', _normalize_test_module(row['module'])))
+
+    for row in math_rows:
+        test_id = row['test_id']
+        question_counts[test_id]['math'] += row['total']
+        required_slots[test_id].add(('math', _normalize_test_module(row['module'])))
+
+    stage_attempt_ids = [
+        stage.attempt_id for stage in latest_stages.values() if stage and stage.attempt_id
+    ]
+    reviewed_attempt_ids = set()
+    submitted_slots = defaultdict(set)
+
+    if stage_attempt_ids:
+        reviewed_attempt_ids = set(
+            TestReview.objects.filter(
+                user=user,
+                attempt_id__in=stage_attempt_ids,
+                score__isnull=False,
+                **scope_filter,
+            ).values_list('attempt_id', flat=True)
+        )
+
+        for test_id, attempt_id, section, module in TestModule.objects.filter(
+            user=user,
+            test_id__in=test_ids,
+            attempt_id__in=stage_attempt_ids,
+            test_type='regular',
+            **scope_filter,
+        ).values_list('test_id', 'attempt_id', 'section', 'module'):
+            submitted_slots[(test_id, attempt_id)].add((
+                _normalize_test_section(section),
+                _normalize_test_module(module),
+            ))
 
     active_tests = []
     past_tests = []
 
     for test in tests:
         review = latest_reviews.get(test.pk)
-        has_resumable_attempt = _has_resumable_test_attempt(user, test, classroom=classroom)
+        stage = latest_stages.get(test.pk)
+        required = required_slots.get(test.pk, set())
+        submitted = submitted_slots.get((test.pk, getattr(stage, 'attempt_id', None)), set())
+        total_modules = len(required)
+        completed_modules = len(required.intersection(submitted)) if required else 0
 
-        # Dynamic attributes are intentionally used by templates.
+        stage_complete = False
+        if stage and required:
+            stage_complete = (
+                stage.stage > total_modules
+                or required.issubset(submitted)
+            )
+
+        stage_has_review = bool(
+            stage and stage.attempt_id in reviewed_attempt_ids
+        )
+        has_resumable_attempt = bool(
+            stage and required and not stage_has_review and not stage_complete
+        )
+
+        # A stage may already have advanced even when a legacy module row is
+        # missing. Use the larger value only for visual progress, never for
+        # completion decisions.
+        if stage and total_modules:
+            completed_modules = max(
+                completed_modules,
+                min(max(stage.stage - 1, 0), total_modules),
+            )
+
+        english_total = question_counts[test.pk]['english']
+        math_total = question_counts[test.pk]['math']
+        question_total = english_total + math_total
+
+        if english_total and math_total:
+            mode_label = 'Full SAT'
+        elif english_total:
+            mode_label = 'Reading & Writing'
+        elif math_total:
+            mode_label = 'Math'
+        else:
+            mode_label = 'No questions'
+
+        progress_percent = (
+            round((completed_modules / total_modules) * 100)
+            if total_modules else 0
+        )
+
+        # Dynamic attributes are intentionally consumed only by templates.
         test.latest_review = review
         test.latest_review_key = review.key if review and review.key else ''
         test.latest_score = review.score if review else None
+        test.latest_review_date = review.created_at if review else None
         test.has_completed_attempt = bool(review)
         test.has_active_attempt = has_resumable_attempt
+        test.stage_complete_without_review = bool(stage and stage_complete and not review)
+        test.question_count = question_total
+        test.english_question_count = english_total
+        test.math_question_count = math_total
+        test.module_count = total_modules
+        test.completed_modules = completed_modules
+        test.progress_percent = progress_percent
+        test.mode_label = mode_label
+        test.current_module_number = (
+            min(max(stage.stage, 1), total_modules) if stage and total_modules else None
+        )
+
+        if not question_total:
+            test.card_state = 'unavailable'
+            test.action_label = 'Unavailable'
+            test.status_label = 'No questions'
+        elif has_resumable_attempt:
+            test.card_state = 'continue'
+            test.action_label = 'Continue test'
+            test.status_label = 'In progress'
+        elif stage and stage_complete and not review:
+            test.card_state = 'finalizing'
+            test.action_label = 'Open result'
+            test.status_label = 'Finishing'
+        else:
+            test.card_state = 'start'
+            test.action_label = 'Start test'
+            test.status_label = 'Ready'
 
         if review:
             past_tests.append(test)
@@ -1039,10 +1688,195 @@ def practice_tests(request):
     context = {
         'active_tests': active_tests,
         'past_tests': past_tests,
+        'practice_summary': {
+            'available': len(tests),
+            'active': len(active_tests),
+            'past': len(past_tests),
+            'resumable': sum(1 for test in active_tests if test.has_active_attempt),
+        },
+        'show_lessons': True,
     }
     context.update(lessons_context)
 
     return render(request, 'sat/practice_tests.html', context)
+
+@login_required(login_url='/login/')
+@require_POST
+def save_test_module_draft(request):
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+    test_name = payload.get('test')
+    section = _normalize_test_section(payload.get('section'))
+    module = _normalize_test_module(payload.get('module'))
+    attempt_id = payload.get('attempt_id') or payload.get('attemptId')
+    if not test_name or section not in {'english', 'math'} or module not in {'m1', 'm2'} or not attempt_id:
+        return JsonResponse({'ok': False, 'error': 'test, attempt_id, section, and module are required.'}, status=400)
+
+    try:
+        attempt_id = uuid.UUID(str(attempt_id))
+    except (TypeError, ValueError, AttributeError):
+        return JsonResponse({'ok': False, 'error': 'Invalid attempt_id.'}, status=400)
+
+    test_type = payload.get('test_type') or payload.get('testType') or 'regular'
+    if test_type == 'makeup':
+        makeup_test = get_object_or_404(MakeupTest, name=test_name)
+        if not makeup_test.groups.filter(id__in=request.user.groups.values_list('id', flat=True)).exists():
+            return JsonResponse({'ok': False, 'error': 'You do not have access to this makeup test.'}, status=403)
+        with transaction.atomic():
+            stage = TestStage.objects.select_for_update().filter(
+                user=request.user,
+                makeup_test=makeup_test,
+                test_type='makeup',
+            ).order_by('-updated_at', '-created_at', '-id').first()
+            if not stage or stage.attempt_id != attempt_id:
+                return JsonResponse({
+                    'ok': False,
+                    'error': 'This makeup-test tab belongs to an old attempt.',
+                    'redirect_url': reverse('makeup_test_module', kwargs={'pk': makeup_test.name}),
+                }, status=409)
+            sequence = get_makeup_test_sequence(makeup_test)
+            current_step = sequence[stage.stage - 1] if 1 <= stage.stage <= len(sequence) else None
+            if current_step != (section, module):
+                return JsonResponse({
+                    'ok': False,
+                    'error': 'This makeup module is no longer active.',
+                    'redirect_url': _makeup_redirect_url(makeup_test, stage),
+                }, status=409)
+            is_valid, error, canonical_answers = _canonical_partial_makeup_answers(
+                makeup_test, section, module, payload.get('answers') or []
+            )
+            if not is_valid:
+                return JsonResponse({'ok': False, 'error': error}, status=400)
+            draft = _ensure_makeup_module_draft(stage, section, module)
+            if _draft_remaining_seconds(draft) <= 0:
+                return JsonResponse({'ok': False, 'error': 'Time is over for this module.', 'time_over': True}, status=409)
+            questions = list(makeup_test.get_module_questions(section, _module_db_name(module)) or [])
+            expected_count = len(questions)
+            eliminated = payload.get('eliminated_choices', payload.get('eliminatedChoices'))
+            if not isinstance(eliminated, list):
+                eliminated = [[] for _ in range(expected_count)]
+            eliminated = [
+                [str(choice).upper() for choice in row if str(choice).upper() in {'A', 'B', 'C', 'D'}]
+                if isinstance(row, list) else []
+                for row in eliminated[:expected_count]
+            ]
+            eliminated.extend([[] for _ in range(expected_count - len(eliminated))])
+            marked = payload.get('marked_for_review', payload.get('markedForReview'))
+            marked = [bool(item) for item in marked[:expected_count]] if isinstance(marked, list) else []
+            marked.extend([False for _ in range(expected_count - len(marked))])
+            try:
+                current_index = int(payload.get('current_question_index', payload.get('currentQuestionIndex', 0)) or 0)
+            except (TypeError, ValueError):
+                current_index = 0
+            draft.answers = canonical_answers
+            draft.time_spent = [max(int(item.get('time_spent', 0) or 0), 0) for item in canonical_answers]
+            draft.eliminated_choices = eliminated
+            draft.marked_for_review = marked
+            draft.current_question_index = min(max(current_index, 0), max(expected_count - 1, 0))
+            draft.save(update_fields=[
+                'answers', 'time_spent', 'eliminated_choices', 'marked_for_review',
+                'current_question_index', 'updated_at',
+            ])
+        return JsonResponse({
+            'ok': True,
+            'saved': True,
+            'remaining_seconds': _draft_remaining_seconds(draft),
+            'deadline_at': int(draft.deadline_at.timestamp() * 1000),
+            'saved_at': int((draft.updated_at or timezone.now()).timestamp() * 1000),
+        })
+
+    test_obj = get_object_or_404(Test, name=test_name)
+    classroom = _get_classroom_context_from_id(
+        request.user,
+        payload.get('classroom_id') or payload.get('classroomId'),
+        test_obj=test_obj,
+    )
+    if classroom is None and not user_has_test_access(request.user, test_obj):
+        return JsonResponse({'ok': False, 'error': 'You do not have access to this test.'}, status=403)
+
+    with transaction.atomic():
+        stage = TestStage.objects.select_for_update().filter(
+            user=request.user,
+            test=test_obj,
+            classroom=classroom,
+            test_type='regular',
+        ).order_by('-updated_at', '-created_at', '-id').first()
+        if not stage or stage.attempt_id != attempt_id:
+            return JsonResponse({
+                'ok': False,
+                'error': 'This test tab belongs to an old attempt.',
+                'redirect_url': _regular_module_redirect_url(test_obj, stage, classroom) if stage else _results_url_for_test(test_obj, classroom=classroom),
+            }, status=409)
+
+        current_step = get_current_test_step(stage)
+        if current_step != (section, module):
+            return JsonResponse({
+                'ok': False,
+                'error': 'This module is no longer active.',
+                'redirect_url': _regular_module_redirect_url(test_obj, stage, classroom),
+            }, status=409)
+
+        is_valid, error, canonical_answers = _canonical_partial_module_answers(
+            test_obj, section, module, payload.get('answers') or []
+        )
+        if not is_valid:
+            return JsonResponse({'ok': False, 'error': error}, status=400)
+
+        draft = _ensure_regular_module_draft(stage, section, module, classroom=classroom)
+        if _draft_remaining_seconds(draft) <= 0:
+            return JsonResponse({
+                'ok': False,
+                'error': 'Time is over for this module.',
+                'time_over': True,
+            }, status=409)
+
+        question_queryset = _module_questions_queryset(test_obj, section, module)
+        expected_count = question_queryset.count() if question_queryset is not None else 0
+
+        def bounded_list(value, fallback, nested=False):
+            if not isinstance(value, list):
+                return fallback
+            result = value[:expected_count]
+            while len(result) < expected_count:
+                result.append([] if nested else False)
+            return result
+
+        try:
+            current_index = int(payload.get('current_question_index', payload.get('currentQuestionIndex', 0)) or 0)
+        except (TypeError, ValueError):
+            current_index = 0
+
+        draft.answers = canonical_answers
+        draft.time_spent = [
+            max(int(item.get('time_spent', 0) or 0), 0)
+            for item in canonical_answers
+        ]
+        draft.eliminated_choices = bounded_list(
+            payload.get('eliminated_choices', payload.get('eliminatedChoices')),
+            [[] for _ in range(expected_count)],
+            nested=True,
+        )
+        draft.marked_for_review = bounded_list(
+            payload.get('marked_for_review', payload.get('markedForReview')),
+            [False for _ in range(expected_count)],
+        )
+        draft.current_question_index = min(max(current_index, 0), max(expected_count - 1, 0))
+        draft.save(update_fields=[
+            'answers', 'time_spent', 'eliminated_choices', 'marked_for_review',
+            'current_question_index', 'updated_at',
+        ])
+
+    return JsonResponse({
+        'ok': True,
+        'saved': True,
+        'remaining_seconds': _draft_remaining_seconds(draft),
+        'deadline_at': int(draft.deadline_at.timestamp() * 1000),
+        'saved_at': int((draft.updated_at or timezone.now()).timestamp() * 1000),
+    })
+
 
 @login_required(login_url='/login/')
 def check_the_answers(request):
@@ -1081,31 +1915,95 @@ def check_the_answers(request):
         answers_payload = json.dumps({'answers': answers})
 
         if test_type == 'makeup':
-            try:
-                makeup_test_obj = MakeupTest.objects.get(name=test_name)
-            except MakeupTest.DoesNotExist:
+            makeup_test_obj = MakeupTest.objects.filter(name=test_name).first()
+            if not makeup_test_obj:
                 return JsonResponse({'ok': False, 'error': 'Makeup test not found.'}, status=404)
+            if not makeup_test_obj.groups.filter(id__in=request.user.groups.values_list('id', flat=True)).exists():
+                return JsonResponse({'ok': False, 'error': 'You do not have access to this makeup test.'}, status=403)
 
-            test_stage = TestStage.objects.filter(
-                user=request.user,
-                makeup_test=makeup_test_obj,
-                test_type='makeup'
-            ).order_by('-created_at').first()
-            attempt_id = test_stage.attempt_id if test_stage else uuid.uuid4()
+            section = _normalize_test_section(section)
+            module = _normalize_test_module(module)
+            payload_attempt_id = payload.get('attempt_id') or payload.get('attemptId')
+            try:
+                payload_attempt_id = uuid.UUID(str(payload_attempt_id))
+            except (TypeError, ValueError, AttributeError):
+                return JsonResponse({'ok': False, 'error': 'Valid attempt_id is required.'}, status=400)
 
-            module_obj, created = TestModule.objects.get_or_create(
-                user=request.user,
-                makeup_test=makeup_test_obj,
-                test_type='makeup',
-                section=section,
-                module=module,
-                attempt_id=attempt_id,
-                defaults={'answers': answers_payload}
+            is_valid, validation_error, canonical_answers = _validate_makeup_module_answers(
+                makeup_test_obj, section, module, answers
             )
+            if not is_valid:
+                return JsonResponse({'ok': False, 'error': validation_error}, status=400)
 
-            if not created:
-                module_obj.answers = answers_payload
-                module_obj.save(update_fields=['answers'])
+            with transaction.atomic():
+                test_stage = TestStage.objects.select_for_update().filter(
+                    user=request.user,
+                    makeup_test=makeup_test_obj,
+                    test_type='makeup',
+                ).order_by('-updated_at', '-created_at', '-id').first()
+                if not test_stage or test_stage.attempt_id != payload_attempt_id:
+                    return JsonResponse({
+                        'ok': False,
+                        'error': 'This makeup-test tab belongs to an old attempt.',
+                        'redirect_url': reverse('makeup_test_module', kwargs={'pk': makeup_test_obj.name}),
+                    }, status=409)
+
+                sequence = get_makeup_test_sequence(makeup_test_obj)
+                current_step = (
+                    sequence[test_stage.stage - 1]
+                    if 1 <= test_stage.stage <= len(sequence)
+                    else None
+                )
+                existing_module = TestModule.objects.filter(
+                    user=request.user,
+                    makeup_test=makeup_test_obj,
+                    test_type='makeup',
+                    section=section,
+                    module=module,
+                    attempt_id=test_stage.attempt_id,
+                ).first()
+                if existing_module:
+                    redirect_url = (
+                        reverse('makeup_test_module', kwargs={'pk': makeup_test_obj.name})
+                        if current_step is not None
+                        else reverse('dashboard')
+                    )
+                    return JsonResponse({
+                        'ok': True,
+                        'saved': True,
+                        'already_submitted': True,
+                        'redirect_url': redirect_url,
+                    })
+
+                if current_step != (section, module):
+                    return JsonResponse({
+                        'ok': False,
+                        'error': 'This makeup module is no longer active.',
+                        'redirect_url': reverse('makeup_test_module', kwargs={'pk': makeup_test_obj.name}),
+                    }, status=409)
+
+                active_draft = MakeupTestModuleDraft.objects.select_for_update().filter(
+                    user=request.user,
+                    makeup_test=makeup_test_obj,
+                    attempt_id=test_stage.attempt_id,
+                    section=section,
+                    module=module,
+                ).first()
+                if not active_draft:
+                    return JsonResponse({
+                        'ok': False,
+                        'error': 'Open the active makeup module before submitting it.',
+                        'redirect_url': reverse('makeup_test_module', kwargs={'pk': makeup_test_obj.name}),
+                    }, status=409)
+                submitted_after_deadline = active_draft.deadline_at <= timezone.now()
+                if submitted_after_deadline:
+                    canonical_answers = _complete_makeup_answers_from_draft(
+                        makeup_test_obj, section, module, active_draft
+                    )
+                _submit_makeup_module_locked(
+                    test_stage, section, module, canonical_answers
+                )
+                redirect_url = _makeup_redirect_url(makeup_test_obj, test_stage)
 
             return JsonResponse({
                 'ok': True,
@@ -1114,6 +2012,8 @@ def check_the_answers(request):
                 'module': module,
                 'test': test_name,
                 'test_type': 'makeup',
+                'redirect_url': redirect_url,
+                'submitted_after_deadline': submitted_after_deadline,
             })
 
         try:
@@ -1132,36 +2032,109 @@ def check_the_answers(request):
 
         section = _normalize_test_section(section)
         module = _normalize_test_module(module)
-
-        test_stage, _ = _get_or_create_regular_test_stage(request.user, test_obj, stage=1, classroom=classroom)
-        current_step = get_current_test_step(test_stage)
-        if current_step != (section, module):
-            expected = f"{current_step[0]} / {current_step[1]}" if current_step else 'finished'
-            return JsonResponse({'ok': False, 'error': f'Invalid module order. Expected {expected}.'}, status=403)
+        payload_attempt_id = payload.get('attempt_id') or payload.get('attemptId')
+        if not payload_attempt_id:
+            return JsonResponse({
+                'ok': False,
+                'error': 'attempt_id is required for a timed module submission.',
+            }, status=400)
+        try:
+            payload_attempt_id = uuid.UUID(str(payload_attempt_id))
+        except (TypeError, ValueError, AttributeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid attempt_id.'}, status=400)
 
         is_valid, validation_error, canonical_answers = _validate_regular_module_answers(test_obj, section, module, answers)
         if not is_valid:
             return JsonResponse({'ok': False, 'error': validation_error}, status=400)
 
-        answers_payload = json.dumps({'answers': canonical_answers})
-        attempt_id = test_stage.attempt_id or uuid.uuid4()
+        with transaction.atomic():
+            test_stage = TestStage.objects.select_for_update().filter(
+                user=request.user,
+                test=test_obj,
+                classroom=classroom,
+                test_type='regular',
+            ).order_by('-updated_at', '-created_at', '-id').first()
+            if not test_stage:
+                test_stage = TestStage.objects.create(
+                    user=request.user,
+                    test=test_obj,
+                    classroom=classroom,
+                    test_type='regular',
+                    stage=1,
+                )
 
-        module_obj, created = TestModule.objects.get_or_create(
-            user=request.user,
-            test=test_obj,
-            classroom=classroom,
-            test_type='regular',
-            section=section,
-            module=module,
-            attempt_id=attempt_id,
-            defaults={'answers': answers_payload}
-        )
+            if payload_attempt_id and test_stage.attempt_id != payload_attempt_id:
+                return JsonResponse({
+                    'ok': False,
+                    'error': 'This test tab belongs to an old attempt.',
+                    'redirect_url': _regular_module_redirect_url(test_obj, test_stage, classroom),
+                }, status=409)
 
-        if not created:
-            module_obj.answers = answers_payload
-            module_obj.save(update_fields=['answers'])
+            current_step = get_current_test_step(test_stage)
+            existing_module = TestModule.objects.filter(
+                user=request.user,
+                test=test_obj,
+                classroom=classroom,
+                test_type='regular',
+                section=section,
+                module=module,
+                attempt_id=test_stage.attempt_id,
+            ).first()
 
-        advance_test_stage(test_stage)
+            # Idempotency: a retry after a successful submit must never advance twice.
+            if existing_module:
+                redirect_url = _regular_module_redirect_url(test_obj, test_stage, classroom)
+                return JsonResponse({
+                    'ok': True,
+                    'saved': True,
+                    'already_submitted': True,
+                    'redirect_url': redirect_url,
+                })
+
+            if current_step != (section, module):
+                expected = f"{current_step[0]} / {current_step[1]}" if current_step else 'finished'
+                return JsonResponse({
+                    'ok': False,
+                    'error': f'Invalid module order. Expected {expected}.',
+                    'redirect_url': _regular_module_redirect_url(test_obj, test_stage, classroom),
+                }, status=409)
+
+            # A regular timed module must have been opened/saved first so the
+            # server has an authoritative start time. Without this check a forged
+            # direct POST could submit a module without ever starting its timer.
+            active_draft = TestModuleDraft.objects.filter(
+                user=request.user,
+                test=test_obj,
+                classroom=classroom,
+                attempt_id=test_stage.attempt_id,
+                section=section,
+                module=module,
+            ).first()
+            if not active_draft:
+                return JsonResponse({
+                    'ok': False,
+                    'error': 'Open the active module before submitting it.',
+                    'redirect_url': _regular_module_redirect_url(test_obj, test_stage, classroom),
+                }, status=409)
+
+            # The deadline is server-authoritative. A forged or delayed request may
+            # not change answers after time expires; in that case submit the last
+            # server draft exactly as it stood when time ran out.
+            submitted_after_deadline = active_draft.deadline_at <= timezone.now()
+            if submitted_after_deadline:
+                canonical_answers = _complete_answers_from_draft(
+                    test_obj, section, module, active_draft
+                )
+
+            _submit_regular_module_locked(
+                test_stage,
+                test_obj,
+                classroom,
+                section,
+                module,
+                canonical_answers,
+            )
+            redirect_url = _regular_module_redirect_url(test_obj, test_stage, classroom)
 
         return JsonResponse({
             'ok': True,
@@ -1171,9 +2144,19 @@ def check_the_answers(request):
             'test': test_name,
             'test_type': 'regular',
             'classroom_id': classroom.id if classroom else None,
+            'redirect_url': redirect_url,
+            'submitted_after_deadline': submitted_after_deadline,
         })
 
     # ---------- CASE 2: single answer check ----------
+    # Never reveal correctness during a live SAT attempt. The old endpoint made it
+    # possible to script-check every option before submitting a module.
+    if not (request.user.is_staff or request.user.is_superuser or is_member(request.user, ['Admin', 'Tester'])):
+        return JsonResponse({
+            'ok': False,
+            'error': 'Single-answer checking is disabled during SAT tests.',
+        }, status=403)
+
     question_id = payload.get('questionID') or payload.get('question_id') or payload.get('id')
     answer = payload.get('answer')
 
@@ -1199,11 +2182,7 @@ def check_the_answers(request):
         return JsonResponse({'ok': False, 'error': 'You do not have access to this question.'}, status=403)
 
     if section == 'english':
-        is_correct = (
-            str(answer).strip().upper() == str(question.answer).strip().upper()
-            if answer not in [None, ''] and question.answer not in [None, '']
-            else False
-        )
+        is_correct = check_english_answer(question, answer)
     else:
         is_correct = check_written(answer, question.answer)
 
@@ -1211,7 +2190,7 @@ def check_the_answers(request):
         'ok': True,
         'questionID': question_id,
         'is_correct': is_correct,
-        'correct_answer': question.answer,
+        'correct_answer': None,
         'your_answer': answer,
         'section': section,
     })
@@ -1271,7 +2250,13 @@ def results(request, test):
             missing_modules.append(key)
 
     if missing_modules:
-        return HttpResponse("You need to finish all required modules")
+        messages.warning(request, "Finish the active module before opening results.")
+        stage = _get_resumable_stage(user, test_obj, classroom=classroom)
+        if stage:
+            if classroom:
+                return redirect('classroom_test', classroom_id=classroom.id, pk=test_obj.name)
+            return redirect('test', pk=test_obj.name)
+        return HttpResponse("The attempt is incomplete and cannot be scored yet.", status=409)
 
     questions = {
         'english': {'m1': [], 'm2': []},
@@ -1313,7 +2298,7 @@ def results(request, test):
                 question_id = int(answer['questionID'])
                 if sec == 'english':
                     q_obj = english_question_map.get(question_id)
-                    is_correct = bool(q_obj and answer.get('answer') == q_obj.answer)
+                    is_correct = bool(q_obj and check_english_answer(q_obj, answer.get('answer')))
                 else:
                     q_obj = math_question_map.get(question_id)
                     raw_answer = answer.get('answer')
@@ -1421,7 +2406,38 @@ def results(request, test):
         'selected_review': selected_review,
         'review_key': review_key,
         'classroom': classroom,
+        'available_slots': {f'{section}_{module}' for section, module in required_modules},
+        'has_english_m1': ('english', 'm1') in required_modules,
+        'has_english_m2': ('english', 'm2') in required_modules,
+        'has_math_m1': ('math', 'm1') in required_modules,
+        'has_math_m2': ('math', 'm2') in required_modules,
     })
+
+def _build_test_start_overview(test_obj, user):
+    rows = []
+    total_questions = 0
+    total_seconds = 0
+    for section, module in get_test_sequence(test_obj):
+        queryset = _module_questions_queryset(test_obj, section, module)
+        question_count = queryset.count() if queryset is not None else 0
+        duration_seconds = _module_duration_seconds(user, section)
+        total_questions += question_count
+        total_seconds += duration_seconds
+        rows.append({
+            'section': section,
+            'section_label': 'Reading and Writing' if section == 'english' else 'Mathematics',
+            'module': module,
+            'module_number': 1 if module == 'm1' else 2,
+            'question_count': question_count,
+            'duration_minutes': max(round(duration_seconds / 60), 1),
+        })
+    return {
+        'module_rows': rows,
+        'total_questions': total_questions,
+        'total_modules': len(rows),
+        'total_duration_minutes': max(round(total_seconds / 60), 1) if rows else 0,
+    }
+
 
 @login_required(login_url='/login/')
 def start_Practise(request, pk):
@@ -1464,6 +2480,7 @@ def start_Practise(request, pk):
         {
             'test': test,
             'has_active_attempt': has_active_attempt,
+            **_build_test_start_overview(test, user),
         }
     )
 
@@ -1539,6 +2556,9 @@ def _review_question_payload(question, section):
         'c': _strip_review_choice_prefix(question.c or '', 'C'),
         'd': _strip_review_choice_prefix(question.d or '', 'D'),
         'graph': question.graph_url() or '',
+        'response_type': getattr(question, 'response_type', 'multiple_choice'),
+        'written': getattr(question, 'response_type', 'multiple_choice') == 'open_text',
+        'reference_answer': reference_answer(question),
     }
 
 
@@ -1659,6 +2679,8 @@ def question(request, key, section, module, id):
         if request.user == review.user and review.test:
             return redirect('test', pk=review.test.name)
         return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
+    if not _module_contains_question(module_obj, id):
+        raise Http404('This question is not part of the selected attempt module.')
 
     review_question_model = English_Question if section == 'english' else Math_Question if section == 'math' else None
     if review_question_model:
@@ -1692,9 +2714,10 @@ def question(request, key, section, module, id):
             'question': question,
             'question_payload': _review_question_payload(question, section),
             'review_choices': _review_choices_payload(question, section),
-            'answered_choice': _normalize_review_choice_letter(answer),
-            'correct_choice': _normalize_review_choice_letter(question.answer),
+            'answered_choice': '' if question.is_open_text else _normalize_review_choice_letter(answer),
+            'correct_choice': '' if question.is_open_text else _normalize_review_choice_letter(question.answer),
             'answered': answer,
+            'answer_is_correct': check_english_answer(question, answer),
             'prev': prev,
             'next': new,
             'test': review.test,
@@ -1716,6 +2739,7 @@ def question(request, key, section, module, id):
             'answered_choice': _normalize_review_choice_letter(answer),
             'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
+            'answer_is_correct': check_written(answer, question.answer),
             'prev': prev,
             'next': new,
             'test': review.test,
@@ -1816,17 +2840,25 @@ def makeup_test_module(request, pk):
     if section == 'english':
         questions = makeup_test.get_module_questions(section, module_name)
         if questions.exists():
-            return render(request, 'test/makeup_eng.html', {
+            runtime = _makeup_module_runtime(test_stage, section, module, questions)
+            if runtime['redirect_url']:
+                return redirect(runtime['redirect_url'])
+            context = {
                 'questions': questions,
                 'module': module,
                 'test': makeup_test,
                 'section': section,
-                'is_makeup': True
-            })
+                'is_makeup': True,
+            }
+            context.update(runtime['context'])
+            return render(request, 'test/makeup_eng.html', context)
 
     if section == 'math':
         questions = makeup_test.get_module_questions(section, module_name)
         if questions.exists():
+            runtime = _makeup_module_runtime(test_stage, section, module, questions)
+            if runtime['redirect_url']:
+                return redirect(runtime['redirect_url'])
             questions_data = []
             for q in questions:
                 questions_data.append({
@@ -1841,15 +2873,16 @@ def makeup_test_module(request, pk):
                     'type': str(q.written),
                     'graph': q.get_graph() if hasattr(q, 'get_graph') else '',
                 })
-
-            return render(request, 'test/test_math.html', {
+            context = {
                 'questions': questions,
                 'questions_data': questions_data,
                 'module': module,
                 'test': makeup_test,
                 'section': section,
-                'is_makeup': True
-            })
+                'is_makeup': True,
+            }
+            context.update(runtime['context'])
+            return render(request, 'test/test_math.html', context)
 
     return HttpResponse('No questions available for this module')
 
@@ -1901,7 +2934,7 @@ def module_test(request, pk):
         if finished:
             return redirect('results', test=test)
 
-        return module_test(request, pk=test.pk)
+        return module_test(request, pk=test.name)
 
     # кастомное время для OFFLINE режима
     custom_time_seconds = None
@@ -1931,16 +2964,20 @@ def module_test(request, pk):
             if finished:
                 return redirect('results', test=test)
 
-            return module_test(request, pk=test.pk)
+            return module_test(request, pk=test.name)
 
-        return render(request, 'test/test_eng.html', {
+        runtime = _regular_module_runtime(test_stage, section, module, questions, classroom=None)
+        if runtime['redirect_url']:
+            return redirect(runtime['redirect_url'])
+        context = {
             'questions': questions,
             'module': module,
             'test': test,
             'section': section,
             'custom_time_seconds': custom_time_seconds,
-            'attempt_id': test_stage.attempt_id
-        })
+        }
+        context.update(runtime['context'])
+        return render(request, 'test/test_eng.html', context)
 
     # MATH
     if section == 'math':
@@ -1957,7 +2994,11 @@ def module_test(request, pk):
             if finished:
                 return redirect('results', test=test)
 
-            return module_test(request, pk=test.pk)
+            return module_test(request, pk=test.name)
+
+        runtime = _regular_module_runtime(test_stage, section, module, questions, classroom=None)
+        if runtime['redirect_url']:
+            return redirect(runtime['redirect_url'])
 
         questions_data = []
 
@@ -1980,18 +3021,16 @@ def module_test(request, pk):
                 "graph": q.get_graph() if hasattr(q, "get_graph") else "",
             })
 
-        return render(request, 'test/test_math.html', {
-
+        context = {
             'questions': questions,
             'questions_data': questions_data,
-
             'module': module,
             'test': test,
             'section': section,
-
             'custom_time_seconds': custom_time_seconds,
-            'attempt_id': test_stage.attempt_id
-        })
+        }
+        context.update(runtime['context'])
+        return render(request, 'test/test_math.html', context)
 
     return HttpResponse("You dont have permission")
 
@@ -2059,12 +3098,7 @@ def results_by_user(request, test, username):
         if key not in latest_modules:
             missing_modules.append(key)
 
-    if not missing_modules:
-        status['total'] = True
-    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
-        status['english'] = True
-    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
-        status['math'] = True
+    status.update(_section_submission_status(required_modules, missing_modules))
 
     if missing_modules:
         return HttpResponse('You need to finish all required modules')
@@ -2095,7 +3129,7 @@ def results_by_user(request, test, username):
                 question_id = int(answer['questionID'])
                 if sec == 'english':
                     q_obj = english_question_map.get(question_id)
-                    is_correct = bool(q_obj and answer.get('answer') == q_obj.answer)
+                    is_correct = bool(q_obj and check_english_answer(q_obj, answer.get('answer')))
                     display_answer = answer.get('answer')
                 else:
                     q_obj = math_question_map.get(question_id)
@@ -2216,10 +3250,7 @@ def _generate_certificate_response(user, test_obj, testreview):
                 question_id = int(answer['questionID'])
                 if sec == 'english':
                     db_question = english_question_map.get(question_id)
-                    is_correct = bool(
-                        db_question and
-                        str(answer.get('answer', '')).strip().upper() == str(db_question.answer or '').strip().upper()
-                    )
+                    is_correct = bool(db_question and check_english_answer(db_question, answer.get('answer')))
                 else:
                     db_question = math_question_map.get(question_id)
                     raw_answer = answer.get('answer')
@@ -2434,50 +3465,141 @@ def vocabulary(request):
     if classroom_response:
         return classroom_response
 
-    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+    units = list(
+        VocabularyUnit.objects.filter(is_active=True)
+        .prefetch_related('words')
+        .order_by('order', 'id')
+    )
+    summary = get_vocabulary_summary(request.user)
+    unit_rows = build_unit_progress_rows(request.user, units=units)
+    recent_attempts = VocabularyQuizAttempt.objects.filter(
+        user=request.user,
+        classroom__isnull=True,
+    )[:5]
 
     return render(request, 'sat/vocabulary.html', {
-        'units': units
+        'units': units,
+        'summary': summary,
+        'unit_rows': unit_rows,
+        'recent_attempts': recent_attempts,
     })
 
 
 def _get_vocabulary_flashcards_context(request, classroom=None):
-    """Build context for Quizlet-style vocabulary flashcards."""
+    """Build a tracked, one-card-at-a-time vocabulary study deck."""
     units = list(
         VocabularyUnit.objects.filter(is_active=True)
         .prefetch_related('words')
         .order_by('order', 'id')
     )
 
-    for unit in units:
-        unit.active_flashcards_count = sum(1 for word in unit.words.all() if word.is_active)
-
     selected_unit = None
     selected_unit_id = request.GET.get('unit')
-
     if selected_unit_id and selected_unit_id.isdigit():
-        selected_unit_id = int(selected_unit_id)
-        selected_unit = next((unit for unit in units if unit.id == selected_unit_id), None)
+        selected_unit = next((unit for unit in units if unit.id == int(selected_unit_id)), None)
+    if selected_unit is None:
+        selected_unit = next(
+            (unit for unit in units if any(word.is_active for word in unit.words.all())),
+            None,
+        )
 
-    flashcard_words = []
-    if selected_unit:
-        flashcard_words = [
-            {
-                'id': word.id,
-                'word': word.word,
-                'meaning': word.meaning,
-                'example': word.example or '',
-            }
-            for word in selected_unit.words.all()
-            if word.is_active
-        ]
+    tracking_classroom = _resolve_vocabulary_tracking_classroom(request, classroom)
+    progress_rows = build_unit_progress_rows(
+        request.user,
+        classroom=tracking_classroom,
+        units=units,
+        include_words=True,
+    )
+    progress_by_unit = {row['unit'].id: row for row in progress_rows}
+    selected_row = progress_by_unit.get(selected_unit.id) if selected_unit else None
+    flashcard_words = selected_row['words'] if selected_row else []
+
+    if classroom:
+        mark_url = reverse('classroom_vocabulary_flashcard_mark', args=[classroom.id])
+    else:
+        mark_url = reverse('vocabulary_flashcard_mark')
 
     return {
         'units': units,
+        'unit_rows': progress_rows,
         'selected_unit': selected_unit,
+        'selected_unit_progress': selected_row,
         'flashcard_words': flashcard_words,
+        'summary': get_vocabulary_summary(request.user, classroom=tracking_classroom),
+        'mark_url': mark_url,
         'classroom': classroom,
     }
+
+
+def _resolve_vocabulary_tracking_classroom(request, classroom):
+    if not classroom:
+        return None
+    membership = ClassroomMembership.objects.filter(
+        classroom=classroom,
+        user=request.user,
+        role='student',
+        status='approved',
+    ).first()
+    return classroom if membership else None
+
+
+def _mark_vocabulary_flashcard(request, classroom=None):
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required.'}, status=405)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        payload = request.POST
+
+    word_id = payload.get('word_id')
+    outcome = str(payload.get('outcome') or '').strip().lower()
+    if outcome not in {'again', 'learning', 'known'}:
+        return JsonResponse({'ok': False, 'error': 'Invalid review outcome.'}, status=400)
+
+    word = get_object_or_404(
+        VocabularyWord.objects.select_related('unit'),
+        id=word_id,
+        is_active=True,
+        unit__is_active=True,
+    )
+    tracking_classroom = _resolve_vocabulary_tracking_classroom(request, classroom)
+    progress = record_word_review(
+        user=request.user,
+        word=word,
+        classroom=tracking_classroom,
+        outcome=outcome,
+    )
+    if tracking_classroom:
+        sync_vocabulary_review_progress(tracking_classroom, request.user, progress)
+
+    return JsonResponse({
+        'ok': True,
+        'tracked': True,
+        'word_id': word.id,
+        'status': progress.status,
+        'times_seen': progress.times_seen,
+        'accuracy_percent': progress.accuracy_percent,
+    })
+
+
+@login_required(login_url='/login/')
+@require_POST
+def vocabulary_flashcard_mark(request):
+    return _mark_vocabulary_flashcard(request)
+
+
+@login_required(login_url='/login/')
+@require_POST
+def classroom_vocabulary_flashcard_mark(request, classroom_id):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+    if redirect_response:
+        return JsonResponse({'ok': False, 'error': 'Classroom access denied.'}, status=403)
+    if role == 'student':
+        access_map = get_membership_section_access_map(membership)
+        if not access_map.get('vocabulary'):
+            return JsonResponse({'ok': False, 'error': 'Vocabulary access is disabled.'}, status=403)
+    return _mark_vocabulary_flashcard(request, classroom=classroom)
 
 
 ADMISSIONS_SECTIONS = {
@@ -2581,7 +3703,9 @@ def vocabulary_section(request, slug):
 
     if slug == 'word_lists':
         return render(request, 'sat/vocabulary_word_lists.html', {
-            'units': units
+            'units': units,
+            'unit_rows': build_unit_progress_rows(request.user, units=units, include_words=True),
+            'summary': get_vocabulary_summary(request.user),
         })
 
     if slug == 'flashcards':
@@ -2640,8 +3764,237 @@ def vocabulary_practice_quiz(request):
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
 
     return render(request, 'sat/vocabulary_practice_quiz.html', {
-        'units': units
+        'units': units,
+        'unit_rows': build_unit_progress_rows(request.user, units=units),
+        'summary': get_vocabulary_summary(request.user),
+        'recent_attempts': VocabularyQuizAttempt.objects.filter(user=request.user, classroom__isnull=True)[:5],
     })
+
+def _vocabulary_quiz_redirect(classroom=None):
+    if classroom:
+        return redirect('classroom_vocabulary_section', classroom_id=classroom.id, slug='practice-quiz')
+    return redirect('vocabulary_practice_quiz')
+
+
+def _generate_vocabulary_quiz_questions(selected_units, requested_count, mode):
+    selected_words = [
+        word
+        for unit in selected_units
+        for word in unit.words.all()
+        if word.is_active
+    ]
+    random.shuffle(selected_words)
+
+    meaning_pool = list(dict.fromkeys(word.meaning for word in selected_words))
+    word_pool = list(dict.fromkeys(word.word for word in selected_words))
+    questions = []
+
+    def build_for_direction(word_obj, direction):
+        if direction == VocabularyQuizAttempt.MODE_MEANING_TO_WORD:
+            answer = word_obj.word
+            pool = [value for value in word_pool if value != answer]
+            prompt = f'Which word matches this meaning? “{word_obj.meaning}”'
+        else:
+            answer = word_obj.meaning
+            pool = [value for value in meaning_pool if value != answer]
+            prompt = f"What is the meaning of '{word_obj.word}'?"
+
+        random.shuffle(pool)
+        wrong_answers = pool[:3]
+        if len(wrong_answers) < 3:
+            return None
+        choices = [answer, *wrong_answers]
+        random.shuffle(choices)
+        return {
+            'word_id': word_obj.id,
+            'unit_id': word_obj.unit_id,
+            'unit': word_obj.unit.title,
+            'question': prompt,
+            'choices': choices,
+            'answer': answer,
+            'word': word_obj.word,
+            'mode': direction,
+        }
+
+    for word_obj in selected_words:
+        if len(questions) >= requested_count:
+            break
+        direction = mode
+        if mode == VocabularyQuizAttempt.MODE_MIXED:
+            direction = random.choice([
+                VocabularyQuizAttempt.MODE_WORD_TO_MEANING,
+                VocabularyQuizAttempt.MODE_MEANING_TO_WORD,
+            ])
+        question = build_for_direction(word_obj, direction)
+        if question is None:
+            alternate = (
+                VocabularyQuizAttempt.MODE_MEANING_TO_WORD
+                if direction == VocabularyQuizAttempt.MODE_WORD_TO_MEANING
+                else VocabularyQuizAttempt.MODE_WORD_TO_MEANING
+            )
+            question = build_for_direction(word_obj, alternate)
+        if question:
+            questions.append(question)
+    return questions, len(selected_words)
+
+
+def _start_vocabulary_quiz(request, classroom=None):
+    if request.method != 'POST':
+        return _vocabulary_quiz_redirect(classroom)
+
+    selected_ids = [int(value) for value in request.POST.getlist('units') if value.isdigit()]
+    mode = request.POST.get('quiz_mode') or VocabularyQuizAttempt.MODE_MIXED
+    valid_modes = {choice[0] for choice in VocabularyQuizAttempt.MODE_CHOICES}
+    if mode not in valid_modes:
+        mode = VocabularyQuizAttempt.MODE_MIXED
+
+    if not selected_ids:
+        messages.error(request, 'Select at least one unit.')
+        return _vocabulary_quiz_redirect(classroom)
+
+    try:
+        requested_count = int(request.POST.get('question_count') or 0)
+    except (TypeError, ValueError):
+        requested_count = 0
+    if requested_count < 1:
+        messages.error(request, 'Question count must be at least 1.')
+        return _vocabulary_quiz_redirect(classroom)
+
+    selected_units = list(
+        VocabularyUnit.objects.filter(id__in=selected_ids, is_active=True)
+        .prefetch_related('words')
+        .order_by('order', 'id')
+    )
+    available_words = sum(
+        1 for unit in selected_units for word in unit.words.all() if word.is_active
+    )
+    if available_words < 4:
+        messages.error(request, 'You need at least 4 active words in the selected units.')
+        return _vocabulary_quiz_redirect(classroom)
+    if requested_count > available_words:
+        messages.error(request, f'Only {available_words} active words are available in the selected units.')
+        return _vocabulary_quiz_redirect(classroom)
+
+    questions, _ = _generate_vocabulary_quiz_questions(selected_units, requested_count, mode)
+    if not questions:
+        messages.error(request, 'Could not generate quiz questions. Add more distinct words and meanings.')
+        return _vocabulary_quiz_redirect(classroom)
+    if len(questions) < requested_count:
+        messages.info(request, f'Generated {len(questions)} valid questions from the available unique choices.')
+
+    request.session['vocab_quiz_questions'] = questions
+    request.session['vocab_quiz_units'] = [unit.title for unit in selected_units]
+    request.session['vocab_quiz_mode'] = mode
+    request.session['vocab_quiz_started_at'] = timezone.now().isoformat()
+    request.session['vocab_quiz_classroom_id'] = classroom.id if classroom else None
+
+    return render(request, 'sat/vocabulary_practice_quiz_test.html', {
+        'questions': questions,
+        'selected_units': selected_units,
+        'requested_count': len(questions),
+        'quiz_mode': mode,
+        'classroom': classroom,
+    })
+
+
+def _finish_vocabulary_quiz(request, classroom=None):
+    if request.method != 'POST':
+        return _vocabulary_quiz_redirect(classroom)
+
+    questions = request.session.get('vocab_quiz_questions') or []
+    if not questions:
+        messages.error(request, 'This quiz session expired. Start a new quiz.')
+        return _vocabulary_quiz_redirect(classroom)
+
+    selected_units = request.session.get('vocab_quiz_units') or []
+    quiz_mode = request.session.get('vocab_quiz_mode') or VocabularyQuizAttempt.MODE_MIXED
+    started_at_raw = request.session.get('vocab_quiz_started_at')
+    started_at = parse_datetime(started_at_raw) if started_at_raw else None
+    if started_at and timezone.is_naive(started_at):
+        started_at = timezone.make_aware(started_at)
+    started_at = started_at or timezone.now()
+    duration_seconds = max(int((timezone.now() - started_at).total_seconds()), 0)
+
+    score = 0
+    results = []
+    tracking_classroom = _resolve_vocabulary_tracking_classroom(request, classroom)
+
+    with transaction.atomic():
+        attempt = VocabularyQuizAttempt.objects.create(
+            user=request.user,
+            classroom=tracking_classroom,
+            mode=quiz_mode,
+            selected_units=selected_units,
+            total_questions=len(questions),
+            started_at=started_at,
+            duration_seconds=duration_seconds,
+        )
+
+        answer_rows = []
+        for index, question in enumerate(questions):
+            user_answer = request.POST.get(f'question_{index}', '')
+            is_correct = user_answer == question['answer']
+            if is_correct:
+                score += 1
+
+            word = VocabularyWord.objects.filter(id=question.get('word_id')).first()
+            if word:
+                record_word_review(
+                    user=request.user,
+                    word=word,
+                    classroom=tracking_classroom,
+                    outcome='correct' if is_correct else 'incorrect',
+                )
+
+            answer_rows.append(VocabularyQuizAnswer(
+                attempt=attempt,
+                word=word,
+                prompt=question['question'],
+                selected_answer=user_answer,
+                correct_answer=question['answer'],
+                is_correct=is_correct,
+            ))
+            results.append({
+                'question': question['question'],
+                'user_answer': user_answer,
+                'correct_answer': question['answer'],
+                'is_correct': is_correct,
+                'unit': question['unit'],
+                'word': question['word'],
+                'mode': question.get('mode', quiz_mode),
+            })
+
+        VocabularyQuizAnswer.objects.bulk_create(answer_rows)
+        percentage = round((score / len(questions)) * 100, 2) if questions else 0
+        attempt.score = score
+        attempt.percentage = percentage
+        attempt.save(update_fields=['score', 'percentage'])
+
+    if tracking_classroom:
+        sync_vocabulary_student_progress(tracking_classroom, request.user)
+    summary = get_vocabulary_summary(request.user, classroom=tracking_classroom)
+
+    for key in (
+        'vocab_quiz_questions',
+        'vocab_quiz_units',
+        'vocab_quiz_mode',
+        'vocab_quiz_started_at',
+        'vocab_quiz_classroom_id',
+    ):
+        request.session.pop(key, None)
+
+    return render(request, 'sat/vocabulary_practice_quiz_result.html', {
+        'results': results,
+        'score': score,
+        'total': len(questions),
+        'total_questions': len(questions),
+        'percentage': percentage,
+        'selected_units': selected_units,
+        'attempt': attempt,
+        'summary': summary,
+        'classroom': classroom,
+    })
+
 
 @login_required(login_url='/login/')
 def vocabulary_practice_quiz_start(request):
@@ -2653,88 +4006,7 @@ def vocabulary_practice_quiz_start(request):
     )
     if classroom_response:
         return classroom_response
-
-    if request.method != 'POST':
-        return redirect('vocabulary_practice_quiz')
-
-    selected_ids = request.POST.getlist('units')
-    selected_ids = [int(x) for x in selected_ids if x.isdigit()]
-    requested_count = request.POST.get('question_count')
-
-    if not selected_ids:
-        messages.error(request, "Select at least one unit.")
-        return redirect('vocabulary_practice_quiz')
-
-    try:
-        requested_count = int(requested_count)
-    except (TypeError, ValueError):
-        messages.error(request, "Enter a valid number of questions.")
-        return redirect('vocabulary_practice_quiz')
-
-    selected_units = VocabularyUnit.objects.filter(
-        id__in=selected_ids,
-        is_active=True
-    ).prefetch_related('words')
-
-    selected_words = []
-    for unit in selected_units:
-        for word in unit.words.filter(is_active=True):
-            selected_words.append(word)
-
-    if len(selected_words) < 4:
-        messages.error(request, "You need at least 4 words in the selected units to generate a quiz.")
-        return redirect('vocabulary_practice_quiz')
-
-    max_available = len(selected_words)
-
-    if requested_count < 1:
-        messages.error(request, "Question count must be at least 1.")
-        return redirect('vocabulary_practice_quiz')
-
-    if requested_count > max_available:
-        messages.error(request, f"You selected {requested_count} questions, but only {max_available} words are available.")
-        return redirect('vocabulary_practice_quiz')
-
-    random.shuffle(selected_words)
-    test_words = selected_words[:requested_count]
-
-    all_meanings_pool = [w.meaning for w in selected_words]
-
-    questions = []
-    for word_obj in test_words:
-        correct_answer = word_obj.meaning
-
-        wrong_answers = [m for m in all_meanings_pool if m != correct_answer]
-        wrong_answers = list(set(wrong_answers))
-        random.shuffle(wrong_answers)
-        wrong_answers = wrong_answers[:3]
-
-        if len(wrong_answers) < 3:
-            continue
-
-        choices = [correct_answer] + wrong_answers
-        random.shuffle(choices)
-
-        questions.append({
-            'unit': word_obj.unit.title,
-            'question': f"What is the meaning of '{word_obj.word}'?",
-            'choices': choices,
-            'answer': correct_answer,
-            'word': word_obj.word,
-        })
-
-    if not questions:
-        messages.error(request, "Could not generate quiz questions from selected words.")
-        return redirect('vocabulary_practice_quiz')
-
-    request.session['vocab_quiz_questions'] = questions
-    request.session['vocab_quiz_units'] = [u.title for u in selected_units]
-
-    return render(request, 'sat/vocabulary_practice_quiz_test.html', {
-        'questions': questions,
-        'selected_units': selected_units,
-        'requested_count': len(questions),
-    })
+    return _start_vocabulary_quiz(request)
 
 
 @login_required(login_url='/login/')
@@ -2747,46 +4019,8 @@ def vocabulary_practice_quiz_result(request):
     )
     if classroom_response:
         return classroom_response
+    return _finish_vocabulary_quiz(request)
 
-    if request.method != 'POST':
-        return redirect('vocabulary_practice_quiz')
-
-    questions = request.session.get('vocab_quiz_questions', [])
-    score = 0
-    total_questions = len(questions)
-    results = []
-
-    for i, q in enumerate(questions):
-        user_answer = request.POST.get(f'question_{i}')
-        is_correct = user_answer == q['answer']
-
-        if is_correct:
-            score += 1
-
-        results.append({
-            'unit': q['unit'],
-            'question': q['question'],
-            'correct_answer': q['answer'],
-            'user_answer': user_answer,
-            'is_correct': is_correct,
-            'word': q.get('word', ''),
-        })
-
-    percentage = (score / total_questions * 100) if total_questions > 0 else 0
-
-    # Clear session data
-    request.session.pop('vocab_quiz_questions', None)
-    request.session.pop('vocab_quiz_units', None)
-    request.session.pop('vocab_quiz_classroom_id', None)
-
-    return render(request, 'sat/vocabulary_practice_quiz_result.html', {
-        'results': results,
-        'score': score,
-        'total': total_questions,
-        'total_questions': total_questions,
-        'percentage': percentage,
-        'selected_units': request.session.get('vocab_quiz_units', []),
-    })
 
 @login_required(login_url='/login/')
 def vocabulary_flashcards(request):
@@ -3521,7 +4755,8 @@ def approve_join_request(request, classroom_id, membership_id):
         ClassroomMembership,
         id=membership_id,
         classroom=classroom,
-        role='student'
+        role='student',
+        status='pending'
     )
 
     membership.status = 'approved'
@@ -3557,7 +4792,8 @@ def reject_join_request(request, classroom_id, membership_id):
         ClassroomMembership,
         id=membership_id,
         classroom=classroom,
-        role='student'
+        role='student',
+        status='pending'
     )
 
     membership.status = 'rejected'
@@ -3776,11 +5012,14 @@ def classroom_vocabulary_section(request, classroom_id, slug):
             )
 
     units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+    tracking_classroom = classroom if role == 'student' else None
 
     if slug == 'word_lists':
         return render(request, 'sat/vocabulary_word_lists.html', {
             'units': units,
             'classroom': classroom,
+            'unit_rows': build_unit_progress_rows(request.user, classroom=tracking_classroom, units=units, include_words=True),
+            'summary': get_vocabulary_summary(request.user, classroom=tracking_classroom),
         })
 
     if slug == 'flashcards':
@@ -3790,6 +5029,9 @@ def classroom_vocabulary_section(request, classroom_id, slug):
         return render(request, 'sat/vocabulary_practice_quiz.html', {
             'units': units,
             'classroom': classroom,
+            'unit_rows': build_unit_progress_rows(request.user, classroom=tracking_classroom, units=units),
+            'summary': get_vocabulary_summary(request.user, classroom=tracking_classroom),
+            'recent_attempts': VocabularyQuizAttempt.objects.filter(user=request.user, classroom=tracking_classroom)[:5],
         })
 
     raise Http404("Vocabulary section not found")
@@ -3797,176 +5039,26 @@ def classroom_vocabulary_section(request, classroom_id, slug):
 
 @login_required(login_url='/login/')
 def classroom_vocabulary_practice_quiz_start(request, classroom_id):
-    """Classroom-aware vocabulary practice quiz start."""
     classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
-
     if redirect_response:
         return redirect_response
-
     if role is None:
-        return classroom_access_denied(
-            request,
-            classroom=classroom,
-            message="You do not have access to this classroom."
-        )
-
-    if role == 'student':
-        access_map = get_membership_section_access_map(membership)
-        if not access_map.get('vocabulary'):
-            return classroom_access_denied(
-                request,
-                classroom=classroom,
-                message="You do not have access to Vocabulary."
-            )
-
-    if request.method != 'POST':
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    selected_ids = request.POST.getlist('units')
-    selected_ids = [int(x) for x in selected_ids if x.isdigit()]
-    requested_count = request.POST.get('question_count')
-
-    if not selected_ids:
-        messages.error(request, "Select at least one unit.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    try:
-        requested_count = int(requested_count)
-    except (TypeError, ValueError):
-        messages.error(request, "Enter a valid number of questions.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    selected_units = VocabularyUnit.objects.filter(
-        id__in=selected_ids,
-        is_active=True
-    ).prefetch_related('words')
-
-    selected_words = []
-    for unit in selected_units:
-        for word in unit.words.filter(is_active=True):
-            selected_words.append(word)
-
-    if len(selected_words) < 4:
-        messages.error(request, "You need at least 4 words in the selected units to generate a quiz.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    max_available = len(selected_words)
-
-    if requested_count < 1:
-        messages.error(request, "Question count must be at least 1.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    if requested_count > max_available:
-        messages.error(request, f"You selected {requested_count} questions, but only {max_available} words are available.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    random.shuffle(selected_words)
-    test_words = selected_words[:requested_count]
-
-    all_meanings_pool = [w.meaning for w in selected_words]
-
-    questions = []
-    for word_obj in test_words:
-        correct_answer = word_obj.meaning
-
-        wrong_answers = [m for m in all_meanings_pool if m != correct_answer]
-        wrong_answers = list(set(wrong_answers))
-        random.shuffle(wrong_answers)
-        wrong_answers = wrong_answers[:3]
-
-        if len(wrong_answers) < 3:
-            continue
-
-        choices = [correct_answer] + wrong_answers
-        random.shuffle(choices)
-
-        questions.append({
-            'unit': word_obj.unit.title,
-            'question': f"What is the meaning of '{word_obj.word}'?",
-            'choices': choices,
-            'answer': correct_answer,
-            'word': word_obj.word,
-        })
-
-    if not questions:
-        messages.error(request, "Could not generate quiz questions from selected words.")
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    request.session['vocab_quiz_questions'] = questions
-    request.session['vocab_quiz_units'] = [u.title for u in selected_units]
-    request.session['vocab_quiz_classroom_id'] = classroom_id
-
-    return render(request, 'sat/vocabulary_practice_quiz_test.html', {
-        'questions': questions,
-        'selected_units': selected_units,
-        'requested_count': len(questions),
-        'classroom': classroom,
-    })
+        return classroom_access_denied(request, classroom=classroom, message='You do not have access to this classroom.')
+    if role == 'student' and not get_membership_section_access_map(membership).get('vocabulary'):
+        return classroom_access_denied(request, classroom=classroom, message='You do not have access to Vocabulary.')
+    return _start_vocabulary_quiz(request, classroom=classroom)
 
 
 @login_required(login_url='/login/')
 def classroom_vocabulary_practice_quiz_result(request, classroom_id):
-    """Classroom-aware vocabulary practice quiz result."""
     classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
-
     if redirect_response:
         return redirect_response
-
     if role is None:
-        return classroom_access_denied(
-            request,
-            classroom=classroom,
-            message="You do not have access to this classroom."
-        )
-
-    if role == 'student':
-        access_map = get_membership_section_access_map(membership)
-        if not access_map.get('vocabulary'):
-            return classroom_access_denied(
-                request,
-                classroom=classroom,
-                message="You do not have access to Vocabulary."
-            )
-
-    if request.method != 'POST':
-        return redirect('classroom_vocabulary_section', classroom_id=classroom_id, slug='practice-quiz')
-
-    questions = request.session.get('vocab_quiz_questions', [])
-    score = 0
-    total_questions = len(questions)
-    results = []
-
-    for i, question in enumerate(questions):
-        user_answer = request.POST.get(f'question_{i}')
-        is_correct = user_answer == question['answer']
-        if is_correct:
-            score += 1
-
-        results.append({
-            'question': question['question'],
-            'user_answer': user_answer,
-            'correct_answer': question['answer'],
-            'is_correct': is_correct,
-            'unit': question['unit'],
-            'word': question['word'],
-        })
-
-    percentage = (score / total_questions * 100) if total_questions > 0 else 0
-
-    # Clear session data
-    request.session.pop('vocab_quiz_questions', None)
-    request.session.pop('vocab_quiz_units', None)
-    request.session.pop('vocab_quiz_classroom_id', None)
-
-    return render(request, 'sat/vocabulary_practice_quiz_result.html', {
-        'results': results,
-        'score': score,
-        'total': total_questions,
-        'total_questions': total_questions,
-        'percentage': percentage,
-        'selected_units': request.session.get('vocab_quiz_units', []),
-        'classroom': classroom,
-    })
+        return classroom_access_denied(request, classroom=classroom, message='You do not have access to this classroom.')
+    if role == 'student' and not get_membership_section_access_map(membership).get('vocabulary'):
+        return classroom_access_denied(request, classroom=classroom, message='You do not have access to Vocabulary.')
+    return _finish_vocabulary_quiz(request, classroom=classroom)
 
 
 @login_required(login_url='/login/')
@@ -3984,7 +5076,8 @@ def remove_student_from_classroom(request, classroom_id, user_id):
         ClassroomMembership,
         classroom=classroom,
         user_id=user_id,
-        role='student'
+        role='student',
+        status='approved'
     )
 
     membership.status = 'removed'
@@ -4076,6 +5169,13 @@ def classroom_practice_tests(request, classroom_id):
         'role': role,
         'membership': membership,
         'user': request.user,
+        'show_lessons': False,
+        'practice_summary': {
+            'available': len(tests),
+            'active': len(active_tests),
+            'past': len(past_tests),
+            'resumable': sum(1 for test in active_tests if test.has_active_attempt),
+        },
     }
     return render(request, 'sat/practice_tests.html', context)
 
@@ -4103,11 +5203,15 @@ def classroom_vocabulary(request, classroom_id):
                 message="You do not have access to Vocabulary."
             )
 
-    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+    units = list(VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id'))
+    tracking_classroom = classroom if role == 'student' else None
 
     return render(request, 'sat/vocabulary.html', {
         'units': units,
         'classroom': classroom,
+        'summary': get_vocabulary_summary(request.user, classroom=tracking_classroom),
+        'unit_rows': build_unit_progress_rows(request.user, classroom=tracking_classroom, units=units),
+        'recent_attempts': VocabularyQuizAttempt.objects.filter(user=request.user, classroom=tracking_classroom)[:5],
     })
 
 
@@ -4331,12 +5435,7 @@ def _build_test_results_context_for_user(test_obj, user, review_key=None, classr
         if key not in latest_modules:
             missing_modules.append(key)
 
-    if not missing_modules:
-        status['total'] = True
-    if has_english and 'english_m1' not in missing_modules and 'english_m2' not in missing_modules:
-        status['english'] = True
-    if has_math and 'math_m1' not in missing_modules and 'math_m2' not in missing_modules:
-        status['math'] = True
+    status.update(_section_submission_status(required_modules, missing_modules))
 
     if missing_modules:
         return {
@@ -4352,6 +5451,11 @@ def _build_test_results_context_for_user(test_obj, user, review_key=None, classr
             'selected_review': selected_review,
             'selected_review_key': selected_review.key if selected_review else '',
             'review_key': review_key,
+            'available_slots': {f'{section}_{module}' for section, module in required_modules},
+            'has_english_m1': ('english', 'm1') in required_modules,
+            'has_english_m2': ('english', 'm2') in required_modules,
+            'has_math_m1': ('math', 'm1') in required_modules,
+            'has_math_m2': ('math', 'm2') in required_modules,
         }
 
     modules_to_process = []
@@ -4380,7 +5484,7 @@ def _build_test_results_context_for_user(test_obj, user, review_key=None, classr
                 question_id = int(answer['questionID'])
                 if sec == 'english':
                     q_obj = english_question_map.get(question_id)
-                    is_correct = bool(q_obj and answer.get('answer') == q_obj.answer)
+                    is_correct = bool(q_obj and check_english_answer(q_obj, answer.get('answer')))
                     display_answer = answer.get('answer')
                 else:
                     q_obj = math_question_map.get(question_id)
@@ -4447,6 +5551,11 @@ def _build_test_results_context_for_user(test_obj, user, review_key=None, classr
         'selected_review': selected_review,
         'selected_review_key': selected_review.key if selected_review else '',
         'review_key': review_key,
+        'available_slots': {f'{section}_{module}' for section, module in required_modules},
+        'has_english_m1': ('english', 'm1') in required_modules,
+        'has_english_m2': ('english', 'm2') in required_modules,
+        'has_math_m1': ('math', 'm1') in required_modules,
+        'has_math_m2': ('math', 'm2') in required_modules,
     }
 
 
@@ -4505,33 +5614,10 @@ def recalculate_vocabulary_progress(classroom, student):
         role='student',
         status='approved'
     ).first()
-
     if not membership:
-        return
+        return None
+    return sync_vocabulary_student_progress(classroom, student)
 
-    total_items = VocabularyUnit.objects.count()
-
-    # Временная логика: completed_items = 0, пока нет отдельной completion-модели
-    completed_items = 0
-    activity_count = 0
-    last_activity_at = None
-
-    completion_percent = 0
-    if total_items > 0:
-        completion_percent = round((completed_items / total_items) * 100, 2)
-
-    StudentProgress.objects.update_or_create(
-        classroom=classroom,
-        student=student,
-        section='vocabulary',
-        defaults={
-            'completion_percent': completion_percent,
-            'completed_items': completed_items,
-            'total_items': total_items,
-            'activity_count': activity_count,
-            'last_activity_at': last_activity_at,
-        }
-    )
 
 def recalculate_admissions_progress(classroom, student):
     membership = ClassroomMembership.objects.filter(
@@ -4574,42 +5660,105 @@ def recalculate_student_progress_for_classroom(classroom, student):
 @login_required(login_url='/login/')
 def classroom_progress_dashboard(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
+    if not _can_manage_classroom_progress(request.user, classroom):
+        return HttpResponseForbidden('You can manage only your own classrooms.')
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
-        return HttpResponseForbidden("You can manage only your own classrooms.")
-
-    student_memberships = ClassroomMembership.objects.filter(
-        classroom=classroom,
-        role='student',
-        status='approved'
-    ).select_related('user')
+    memberships = list(
+        ClassroomMembership.objects.filter(
+            classroom=classroom,
+            role='student',
+            status='approved',
+        )
+        .select_related('user')
+        .prefetch_related('section_access')
+        .order_by('user__first_name', 'user__last_name', 'user__username')
+    )
 
     should_refresh = request.GET.get('refresh') == '1'
-    if should_refresh:
-        for membership in student_memberships:
-            recalculate_student_progress_for_classroom(classroom, membership.user)
+    for membership in memberships:
+        # Vocabulary is cheap and activity-driven, so keep it live on every load.
+        recalculate_vocabulary_progress(classroom, membership.user)
+        existing_sections = set(
+            StudentProgress.objects.filter(
+                classroom=classroom,
+                student=membership.user,
+            ).values_list('section', flat=True)
+        )
+        if should_refresh or 'practice_tests' not in existing_sections:
+            recalculate_practice_tests_progress(classroom, membership.user)
+        if should_refresh or 'admissions' not in existing_sections:
+            recalculate_admissions_progress(classroom, membership.user)
 
-    progress_records = StudentProgress.objects.filter(
-        classroom=classroom
-    ).select_related('student').order_by('student__username', 'section')
+    records = StudentProgress.objects.filter(
+        classroom=classroom,
+        student_id__in=[membership.user_id for membership in memberships],
+    ).select_related('student')
+    records_by_student = defaultdict(dict)
+    for record in records:
+        records_by_student[record.student_id][record.section] = record
 
-    grouped_progress = {}
-    for record in progress_records:
-        student_id = record.student.id
-        if student_id not in grouped_progress:
-            grouped_progress[student_id] = {
-                'student': record.student,
-                'practice_tests': None,
-                'vocabulary': None,
-                'admissions': None,
-            }
-        grouped_progress[student_id][record.section] = record
+    now_value = timezone.now()
+    rows = []
+    for membership in memberships:
+        section_map = records_by_student.get(membership.user_id, {})
+        practice = section_map.get('practice_tests')
+        vocabulary = section_map.get('vocabulary')
+        admissions = section_map.get('admissions')
+        access_map = get_membership_section_access_map(membership)
+
+        trackable = [
+            record for record in (practice, vocabulary)
+            if record and record.total_items > 0
+        ]
+        overall_percent = round(
+            sum(float(record.completion_percent) for record in trackable) / len(trackable),
+            1,
+        ) if trackable else 0
+        last_activity = max(
+            (record.last_activity_at for record in (practice, vocabulary, admissions) if record and record.last_activity_at),
+            default=None,
+        )
+        is_active_recently = bool(last_activity and last_activity >= now_value - timedelta(days=7))
+        needs_attention = (
+            not last_activity
+            or last_activity < now_value - timedelta(days=14)
+            or overall_percent < 30
+        )
+        rows.append({
+            'student': membership.user,
+            'membership': membership,
+            'practice_tests': practice,
+            'vocabulary': vocabulary,
+            'admissions': admissions,
+            'access_map': access_map,
+            'overall_percent': overall_percent,
+            'last_activity_at': last_activity,
+            'is_active_recently': is_active_recently,
+            'needs_attention': needs_attention,
+        })
+
+    student_count = len(rows)
+    average_overall = round(sum(row['overall_percent'] for row in rows) / student_count, 1) if student_count else 0
+    average_vocabulary = round(
+        sum(float(row['vocabulary'].completion_percent) if row['vocabulary'] else 0 for row in rows) / student_count,
+        1,
+    ) if student_count else 0
+    active_count = sum(1 for row in rows if row['is_active_recently'])
+    attention_count = sum(1 for row in rows if row['needs_attention'])
 
     return render(request, 'sat/classroom_progress_dashboard.html', {
         'classroom': classroom,
-        'grouped_progress': grouped_progress.values(),
+        'grouped_progress': rows,
         'refreshed': should_refresh,
+        'dashboard_stats': {
+            'student_count': student_count,
+            'average_overall': average_overall,
+            'average_vocabulary': average_vocabulary,
+            'active_count': active_count,
+            'attention_count': attention_count,
+        },
     })
+
 
 @login_required(login_url='/login/')
 def classroom_student_practice_progress(request, classroom_id, student_id):
@@ -4645,21 +5794,28 @@ def classroom_student_practice_progress(request, classroom_id, student_id):
 @login_required(login_url='/login/')
 def classroom_student_vocab_progress(request, classroom_id, student_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
-
     if not _can_manage_classroom_progress(request.user, classroom):
-        return HttpResponseForbidden("You can manage only your own classrooms.")
+        return HttpResponseForbidden('You can manage only your own classrooms.')
 
     membership = _get_classroom_student_membership_or_404(classroom, student_id)
     student = membership.user
-
-    recalculate_student_progress_for_classroom(classroom, student)
-
+    summary = sync_vocabulary_student_progress(classroom, student)
     vocab_progress = StudentProgress.objects.filter(
         classroom=classroom,
         student=student,
-        section='vocabulary'
+        section='vocabulary',
     ).first()
-    units = VocabularyUnit.objects.filter(is_active=True).prefetch_related('words').order_by('order', 'id')
+    units = list(
+        VocabularyUnit.objects.filter(is_active=True)
+        .prefetch_related('words')
+        .order_by('order', 'id')
+    )
+    unit_rows = build_unit_progress_rows(student, classroom=classroom, units=units)
+    weak_words = get_weak_words(student, classroom=classroom, limit=15)
+    recent_attempts = VocabularyQuizAttempt.objects.filter(
+        user=student,
+        classroom=classroom,
+    )[:10]
 
     return render(request, 'sat/classroom_student_vocab_progress.html', {
         'classroom': classroom,
@@ -4667,8 +5823,12 @@ def classroom_student_vocab_progress(request, classroom_id, student_id):
         'student_obj': student,
         'access_map': get_membership_section_access_map(membership),
         'vocab_progress': vocab_progress,
+        'summary': summary,
         'units': units,
-        'total_words': sum(unit.words.filter(is_active=True).count() for unit in units),
+        'unit_rows': unit_rows,
+        'weak_words': weak_words,
+        'recent_attempts': recent_attempts,
+        'total_words': summary['total_words'],
     })
 
 
@@ -4762,6 +5922,8 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
 
     if not module_obj:
         return HttpResponse('Review for this section is unavailable because a retake is currently in progress.')
+    if not _module_contains_question(module_obj, id):
+        raise Http404('This question is not part of the selected attempt module.')
 
     review_question_model = English_Question if section == 'english' else Math_Question if section == 'math' else None
     if review_question_model:
@@ -4796,9 +5958,10 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             'question': question,
             'question_payload': _review_question_payload(question, section),
             'review_choices': _review_choices_payload(question, section),
-            'answered_choice': _normalize_review_choice_letter(answer),
-            'correct_choice': _normalize_review_choice_letter(question.answer),
+            'answered_choice': '' if question.is_open_text else _normalize_review_choice_letter(answer),
+            'correct_choice': '' if question.is_open_text else _normalize_review_choice_letter(question.answer),
             'answered': answer,
+            'answer_is_correct': check_english_answer(question, answer),
             'prev': prev,
             'next': new,
             'test': review.test,
@@ -4823,6 +5986,7 @@ def classroom_student_review_question(request, classroom_id, student_id, key, se
             'answered_choice': _normalize_review_choice_letter(answer),
             'correct_choice': _normalize_review_choice_letter(question.answer),
             'answered': answer,
+            'answer_is_correct': check_written(answer, question.answer),
             'prev': prev,
             'next': new,
             'test': review.test,
@@ -5523,56 +6687,51 @@ def get_test_mode(test):
 
 
 def get_test_sequence(test):
-    def normalize_module(module):
-        if module == 'module_1':
-            return 'm1'
-        if module == 'module_2':
-            return 'm2'
-        return module
+    """Return only supported SAT module slots that actually contain questions.
 
-    english_modules = sorted(
-        set(English_Question.objects.filter(test=test).values_list('module', flat=True)),
-        key=lambda m: ['module_1', 'module_2'].index(m) if m in ['module_1', 'module_2'] else 99
-    )
-    math_modules = sorted(
-        set(Math_Question.objects.filter(test=test).values_list('module', flat=True)),
-        key=lambda m: ['module_1', 'module_2'].index(m) if m in ['module_1', 'module_2'] else 99
-    )
-
+    Older code allowed NULL or arbitrary module values into the sequence.  The UI,
+    draft models, scoring, and guest completion logic support only module_1/m1 and
+    module_2/m2, so an invalid admin/import value could trap an attempt forever.
+    """
+    supported = [('module_1', 'm1'), ('module_2', 'm2')]
     sequence = []
-    for module in english_modules:
-        sequence.append(('english', normalize_module(module)))
-    for module in math_modules:
-        sequence.append(('math', normalize_module(module)))
+    english_modules = set(
+        English_Question.objects.filter(test=test, module__in=['module_1', 'module_2'])
+        .values_list('module', flat=True)
+    )
+    math_modules = set(
+        Math_Question.objects.filter(test=test, module__in=['module_1', 'module_2'])
+        .values_list('module', flat=True)
+    )
+    for db_module, runtime_module in supported:
+        if db_module in english_modules:
+            sequence.append(('english', runtime_module))
+    for db_module, runtime_module in supported:
+        if db_module in math_modules:
+            sequence.append(('math', runtime_module))
     return sequence
 
 
 def get_makeup_test_sequence(makeup_test):
-    def normalize_module(module):
-        if module == 'module_1':
-            return 'm1'
-        if module == 'module_2':
-            return 'm2'
-        return module
-
-    def module_sort_key(module):
-        return ['module_1', 'module_2'].index(module) if module in ['module_1', 'module_2'] else 99
-
-    english_modules = sorted(
-        set(makeup_test.english_questions.values_list('module', flat=True)),
-        key=module_sort_key
+    """Return only supported Module 1/2 steps in exam order."""
+    supported = [('module_1', 'm1'), ('module_2', 'm2')]
+    english_modules = set(
+        makeup_test.english_questions.filter(module__in=['module_1', 'module_2'])
+        .values_list('module', flat=True)
     )
-    math_modules = sorted(
-        set(makeup_test.math_questions.values_list('module', flat=True)),
-        key=module_sort_key
+    math_modules = set(
+        makeup_test.math_questions.filter(module__in=['module_1', 'module_2'])
+        .values_list('module', flat=True)
     )
-
     sequence = []
-    for module in english_modules:
-        sequence.append(('english', normalize_module(module)))
-    for module in math_modules:
-        sequence.append(('math', normalize_module(module)))
+    for db_module, runtime_module in supported:
+        if db_module in english_modules:
+            sequence.append(('english', runtime_module))
+    for db_module, runtime_module in supported:
+        if db_module in math_modules:
+            sequence.append(('math', runtime_module))
     return sequence
+
 
 def get_current_test_step(test_stage):
     sequence = get_test_sequence(test_stage.test)
@@ -5666,7 +6825,8 @@ def classroom_start_practise(request, classroom_id, pk):
         'start_url': reverse('classroom_test', kwargs={
             'classroom_id': classroom.id,
             'pk': test.name
-        })
+        }),
+        **_build_test_start_overview(test, request.user),
     })
 
 @login_required(login_url='/login/')
@@ -5747,15 +6907,19 @@ def classroom_module_test(request, classroom_id, pk):
                 return redirect(_results_url_for_test(test, classroom=classroom))
             return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
 
-        return render(request, 'test/test_eng.html', {
+        runtime = _regular_module_runtime(test_stage, section, module, questions, classroom=classroom)
+        if runtime['redirect_url']:
+            return redirect(runtime['redirect_url'])
+        context = {
             'questions': questions,
             'module': module,
             'test': test,
             'section': section,
             'custom_time_seconds': custom_time_seconds,
             'classroom': classroom,
-            'attempt_id': test_stage.attempt_id,
-        })
+        }
+        context.update(runtime['context'])
+        return render(request, 'test/test_eng.html', context)
 
     if section == 'math':
         questions = Math_Question.objects.filter(
@@ -5768,6 +6932,10 @@ def classroom_module_test(request, classroom_id, pk):
             if finished:
                 return redirect(_results_url_for_test(test, classroom=classroom))
             return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
+
+        runtime = _regular_module_runtime(test_stage, section, module, questions, classroom=classroom)
+        if runtime['redirect_url']:
+            return redirect(runtime['redirect_url'])
 
         questions_data = []
         for q in questions:
@@ -5783,7 +6951,7 @@ def classroom_module_test(request, classroom_id, pk):
                 "type": str(q.written),
                 "graph": q.get_graph() if hasattr(q, "get_graph") else "",
             })
-        return render(request, 'test/test_math.html', {
+        context = {
             'questions': questions,
             'questions_data': questions_data,
             'module': module,
@@ -5791,8 +6959,9 @@ def classroom_module_test(request, classroom_id, pk):
             'section': section,
             'custom_time_seconds': custom_time_seconds,
             'classroom': classroom,
-            'attempt_id': test_stage.attempt_id,
-        })
+        }
+        context.update(runtime['context'])
+        return render(request, 'test/test_math.html', context)
 
     return HttpResponse("You dont have permission")
 

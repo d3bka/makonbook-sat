@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="{% static 'assets/css/rankings.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body>
     <main>
@@ -38,5 +39,6 @@
             </div> -->
         </div>
     </main>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

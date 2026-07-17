@@ -1,141 +1,93 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Makon Book{% endblock title-main %}
-
+{% block title-main %}{% if classroom %}{{ classroom.name }}{% else %}MakonBook{% endif %}{% endblock title-main %}
 {% block title-subtitle %}<p class="page-title-subtitle">Vocabulary</p>{% endblock title-subtitle %}
-
 {% block title %}Vocabulary{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/makon-dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
-<style>
-  .vocab-section {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .vocab-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 22px;
-  }
-
-  .vocab-card {
-    background: #fff;
-    border-radius: 18px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e5e7eb;
-    padding: 28px 24px;
-    min-height: 280px;
-    display: flex;
-    flex-direction: column;
-    transition: transform .2s ease, box-shadow .2s ease;
-  }
-
-  .vocab-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(0,0,0,0.12);
-  }
-
-  .vocab-card-icon {
-    width: 68px;
-    height: 68px;
-    border-radius: 16px;
-    background: #eef2ff;
-    color: #7c3aed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 30px;
-    margin-bottom: 18px;
-  }
-
-  .vocab-card h3 {
-    font-size: 24px;
-    color: #7c3aed;
-    margin-bottom: 12px;
-    font-weight: 700;
-  }
-
-  .vocab-card p {
-    color: #4b5563;
-    font-size: 16px;
-    line-height: 1.6;
-    margin-bottom: 22px;
-  }
-
-  .vocab-button {
-    margin-top: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 150px;
-    height: 44px;
-    padding: 0 22px;
-    border-radius: 999px;
-    background: #7c3aed;
-    color: #fff !important;
-    text-decoration: none;
-    font-weight: 600;
-  }
-
-  .vocab-button:hover {
-    background: #7c3aed;
-  }
-
-  .unit-summary {
-    margin-top: 30px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    padding: 24px;
-  }
-</style>
+<link rel="stylesheet" href="{% static 'assets/css/makon-vocabulary-v2.css' %}">
 {% endblock style %}
 
 {% block content %}
-<main class="main-content mk-learning mk-vocabulary-page" data-learning-page="vocabulary">
-  <section class="tests-section vocab-section">
-    <div class="section-header">
-      <h2>Vocabulary Training</h2>
-    </div>
-
-    <div class="vocab-grid">
-      <div class="vocab-card">
-        <div class="vocab-card-icon"><i class="fa fa-book"></i></div>
-        <h3>Word Lists</h3>
-        <p>Browse all vocabulary units and see the words inside each unit.</p>
-        <a href="{% if classroom %}{{ request.path }}word_lists/{% else %}{% url 'vocabulary_section' 'word_lists' %}{% endif %}" class="vocab-button">Open Section</a>
+<div class="vocab-shell">
+  <section class="vocab-hero">
+    <div class="vocab-hero-grid">
+      <div>
+        <span class="vocab-eyebrow">Vocabulary workspace</span>
+        <h2 class="vocab-title">Learn words, prove recall, and see real progress.</h2>
+        <p class="vocab-copy">Word lists are for reference. Flashcards and quizzes are what move words from new to learning and finally mastered.</p>
+        <div class="vocab-actions">
+          {% if classroom %}
+            <a class="vocab-btn vocab-btn-primary" href="{% url 'classroom_vocabulary_section' classroom.id 'flashcards' %}">Study flashcards</a>
+            <a class="vocab-btn" href="{% url 'classroom_vocabulary_section' classroom.id 'practice-quiz' %}">Build a quiz</a>
+          {% else %}
+            <a class="vocab-btn vocab-btn-primary" href="{% url 'vocabulary_section' 'flashcards' %}">Study flashcards</a>
+            <a class="vocab-btn" href="{% url 'vocabulary_practice_quiz' %}">Build a quiz</a>
+          {% endif %}
+        </div>
       </div>
 
-      <div class="vocab-card">
-        <div class="vocab-card-icon"><i class="fa fa-clone"></i></div>
-        <h3>Flashcards</h3>
-        <p>Review vocabulary words as flashcards built automatically from each unit.</p>
-        <a href="{% if classroom %}{{ request.path }}flashcards/{% else %}{% url 'vocabulary_section' 'flashcards' %}{% endif %}" class="vocab-button">Open Section</a>
+      <div class="vocab-summary-grid">
+        <div class="vocab-stat"><small>Mastered</small><strong>{{ summary.mastered_words }}/{{ summary.total_words }}</strong><span>{{ summary.completion_percent }}% mastery</span></div>
+        <div class="vocab-stat"><small>Studied</small><strong>{{ summary.studied_words }}</strong><span>{{ summary.unseen_words }} unseen</span></div>
+        <div class="vocab-stat"><small>Recall accuracy</small><strong>{{ summary.accuracy_percent }}%</strong><span>{{ summary.review_count }} reviews</span></div>
+        <div class="vocab-stat"><small>Quiz attempts</small><strong>{{ summary.quiz_count }}</strong><span>{% if summary.best_quiz_percent != None %}Best {{ summary.best_quiz_percent }}%{% else %}No quiz yet{% endif %}</span></div>
       </div>
-
-      <div class="vocab-card">
-        <div class="vocab-card-icon"><i class="fa fa-pencil-square-o"></i></div>
-        <h3>Practice Quiz</h3>
-        <p>Create a custom vocabulary test by selecting units and question count.</p>
-        <a href="{% if classroom %}{{ request.path }}practice-quiz/{% else %}{% url 'vocabulary_practice_quiz' %}{% endif %}" class="vocab-button">Open Section</a>
-      </div>
-    </div>
-
-    <div class="unit-summary">
-      <h4>Available Units</h4>
-      <ul>
-        {% for unit in units %}
-          <li>{{ unit.title }} — {{ unit.words_count }} words</li>
-        {% empty %}
-          <li>No vocabulary units available yet.</li>
-        {% endfor %}
-      </ul>
     </div>
   </section>
-</main>
+
+  <section class="vocab-section">
+    <div class="vocab-section-head"><div><h2>Choose a study mode</h2><p>Each mode has a different job. Do not treat browsing as mastery.</p></div></div>
+    <div class="vocab-feature-grid">
+      {% if classroom %}
+        <a class="vocab-feature-card" href="{% url 'classroom_vocabulary_section' classroom.id 'word_lists' %}">
+      {% else %}
+        <a class="vocab-feature-card" href="{% url 'vocabulary_section' 'word_lists' %}">
+      {% endif %}
+          <span class="vocab-feature-icon"><i class="fa fa-book"></i></span><h3>Word lists</h3><p>Search definitions and examples across every active unit.</p><span class="vocab-feature-link">Browse words →</span>
+        </a>
+      {% if classroom %}
+        <a class="vocab-feature-card" href="{% url 'classroom_vocabulary_section' classroom.id 'flashcards' %}">
+      {% else %}
+        <a class="vocab-feature-card" href="{% url 'vocabulary_section' 'flashcards' %}">
+      {% endif %}
+          <span class="vocab-feature-icon"><i class="fa fa-clone"></i></span><h3>Flashcards</h3><p>Rate recall with Again, Learning, or Know it. Two strong recalls can master a word.</p><span class="vocab-feature-link">Start reviewing →</span>
+        </a>
+      {% if classroom %}
+        <a class="vocab-feature-card" href="{% url 'classroom_vocabulary_section' classroom.id 'practice-quiz' %}">
+      {% else %}
+        <a class="vocab-feature-card" href="{% url 'vocabulary_practice_quiz' %}">
+      {% endif %}
+          <span class="vocab-feature-icon"><i class="fa fa-check-square-o"></i></span><h3>Practice quiz</h3><p>Test word-to-meaning, meaning-to-word, or mixed recall and save every attempt.</p><span class="vocab-feature-link">Create a quiz →</span>
+        </a>
+    </div>
+  </section>
+
+  <section class="vocab-section">
+    <div class="vocab-section-head"><div><h2>Unit progress</h2><p>Mastery is based on recorded recall, not page visits.</p></div></div>
+    <div class="vocab-unit-grid">
+      {% for row in unit_rows %}
+        <article class="vocab-unit-card">
+          <div class="vocab-unit-top"><div><h3>{{ row.unit.title }}</h3><p>{{ row.unit.description|default:"Vocabulary unit" }}</p></div><span class="vocab-badge">{{ row.word_count }} words</span></div>
+          <div class="vocab-meter"><span style="width:{{ row.mastery_percent }}%"></span></div>
+          <div class="vocab-unit-meta"><span>{{ row.mastered_words }} mastered</span><span>{{ row.studied_words }} studied</span><span>{{ row.mastery_percent }}%</span></div>
+        </article>
+      {% empty %}
+        <div class="vocab-empty">No active vocabulary units yet.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if recent_attempts %}
+  <section class="vocab-section vocab-panel">
+    <div class="vocab-section-head"><div><h2>Recent quizzes</h2><p>Your latest saved attempts.</p></div></div>
+    <div class="vocab-recent-list">
+      {% for attempt in recent_attempts %}
+      <div class="vocab-attempt-row"><div><strong>{{ attempt.score }}/{{ attempt.total_questions }} correct</strong><small>{{ attempt.get_mode_display }} · {{ attempt.completed_at|date:"M d, Y H:i" }}</small></div><strong>{{ attempt.percentage }}%</strong></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
 {% endblock content %}

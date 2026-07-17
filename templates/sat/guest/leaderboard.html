@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="public-page">
   <div class="public-shell">
@@ -48,7 +49,7 @@
               {% for attempt in attempts %}
                 <tr>
                   <td>{{ forloop.counter }}</td>
-                  <td>{{ attempt.guest.display_name|default:attempt.guest.full_name }}</td>
+                  <td>{{ attempt.public_name }}</td>
                   {% if event.show_score_immediately %}
                     <td>{{ attempt.score|default:"-" }}</td>
                   {% else %}
@@ -72,5 +73,6 @@
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

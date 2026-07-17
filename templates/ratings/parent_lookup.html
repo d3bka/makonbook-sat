@@ -1,0 +1,118 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Parent Rating Access</title>
+  {% include 'base/theme_init.html' %}
+  <link rel="icon" href="{% static 'assets/img/icons/original-icon-nobg.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-mobile-nav-fix.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-desktop-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-ratings.css' %}">
+</head>
+<body>
+  <div id="top" class="landing-shell rating-shell">
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-three"></div>
+    <div class="hero-noise rating-top-noise"></div>
+    <header class="site-header" data-header>
+      <div class="container nav-row">
+        <a href="/" class="brand"><img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="MakonBook logo"><span>SAT Makon</span></a>
+        <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span></button>
+        <nav class="site-nav" aria-label="Main navigation" data-nav>
+          <a href="/">Home</a>
+          <a href="{% url 'rating_home' %}">Student Rating</a>
+          <a href="{% url 'rating_parent_lookup' %}" aria-current="page">Parent access</a>
+          <div class="site-nav-mobile-actions"><a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a><a href="/" class="btn btn-primary">Landing page</a></div>
+        </nav>
+        <div class="nav-actions">
+          {% include 'base/theme_toggle.html' %}
+          <a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a>
+          <a href="/" class="btn btn-primary">Back to MakonBook</a>
+        </div>
+      </div>
+    </header>
+    <main>
+      <section class="hero-section rating-public-section">
+        <div class="container rating-page">
+          <section class="rating-hero">
+            <h1>Parent access</h1>
+            <p>Enter the private code shown on the student's My Rating page. Search by full name stays disabled on purpose for privacy.</p>
+            <div class="rating-actions">
+              <a class="btn btn-secondary btn-large" href="{% url 'rating_home' %}">Public leaderboard</a>
+            </div>
+          </section>
+          <section class="rating-card" style="margin-top:18px">
+            <form method="post">
+              {% csrf_token %}
+              <div class="rating-field">
+                <label for="code">Student access code</label>
+                <input id="code" name="code" maxlength="16" required style="max-width:360px;text-transform:uppercase">
+              </div>
+              <button class="rating-btn" style="background:#6d28d9;color:white;margin-top:14px">Open rating</button>
+            </form>
+            {% for message in messages %}<p class="rating-help">{{ message }}</p>{% endfor %}
+          </section>
+          {% if profile %}
+            <section class="rating-card" style="margin-top:18px">
+              <h2>{{ profile.user.get_full_name|default:profile.user.username }}</h2>
+              <div class="rating-stat-grid">
+                <div class="rating-stat"><small>Rank</small><strong>{% if entry and entry.eligible %}#{{ entry.rank }}{% else %}—{% endif %}</strong></div>
+                <div class="rating-stat"><small>Rating</small><strong>{% if entry %}{{ entry.rating }}{% else %}—{% endif %}</strong></div>
+                <div class="rating-stat"><small>Assessments</small><strong>{% if entry %}{{ entry.assessment_count }}{% else %}0{% endif %}</strong></div>
+                <div class="rating-stat"><small>Classrooms</small><strong>{% if entry %}{{ entry.streams|length }}{% else %}0{% endif %}</strong></div>
+              </div>
+              <div class="rating-table-wrap" style="margin-top:20px">
+                <table class="rating-table">
+                  <thead><tr><th>Date</th><th>Classroom</th><th>Homework</th><th>Progress</th><th>Activity</th><th>Attendance</th><th>Behavior</th><th>Mean</th></tr></thead>
+                  <tbody>
+                    {% for item in history %}
+                      <tr>
+                        <td>{{ item.assessed_at|date:"d M" }}</td>
+                        <td>{{ item.classroom.name }}</td>
+                        <td>{{ item.homework }}</td>
+                        <td>{{ item.progress }}</td>
+                        <td>{{ item.activity }}</td>
+                        <td>{{ item.attendance }}</td>
+                        <td>{{ item.behavior }}</td>
+                        <td>{{ item.mean_score|floatformat:2 }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <div>
+          <strong>SAT Makon</strong>
+          <p>Digital SAT practice platform with tests, analytics, classrooms, and student rating.</p>
+        </div>
+        <div class="footer-links">
+          <a href="/">Home</a>
+          <a href="{% url 'rating_home' %}">Leaderboard</a>
+          <a href="{% url 'rating_parent_lookup' %}">Parent access</a>
+        </div>
+      </div>
+    </footer>
+    <a class="back-to-top" href="#top" aria-label="Back to top" data-back-to-top><span aria-hidden="true">↑</span></a>
+  </div>
+  <script src="{% static 'assets/js/landing.js' %}"></script>
+  <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
+</body>
+</html>

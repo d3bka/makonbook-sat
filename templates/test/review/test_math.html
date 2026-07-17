@@ -105,29 +105,44 @@
         .nav-button.secondary { background: rgba(255,255,255,0.05); color: var(--review-text); border: 1px solid var(--review-border); box-shadow: none; }
         .nav-button.disabled, .nav-button:disabled { opacity: 0.48; cursor: not-allowed; pointer-events: none; box-shadow: none; }
         .review-footer a { text-decoration: none; }
+        .review-attempt-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; padding:12px 16px; border:1px solid var(--review-border); border-radius:18px; background:var(--review-surface); box-shadow:var(--review-shadow); }
+        .review-attempt-bar label { color:var(--review-text-soft); font-size:13px; font-weight:800; }
+        .review-attempt-select { min-height:42px; max-width:min(100%,430px); border:1px solid var(--review-border); border-radius:12px; padding:0 12px; background:var(--review-surface-alt); color:var(--review-text); font-weight:700; }
+        .review-answer-box.is-correct { border-color:color-mix(in srgb,var(--review-correct) 45%,var(--review-border)); color:var(--review-correct); }
+        .review-answer-box.is-wrong { border-color:color-mix(in srgb,var(--review-wrong) 45%,var(--review-border)); color:var(--review-wrong); }
+        .review-keyboard-hint { color:var(--review-text-soft); font-size:12px; }
         @media (max-width: 1080px) { .review-header, .review-main { grid-template-columns: 1fr; } .question-container, .answers-container { min-height: auto; } }
         @media (max-width: 768px) { .review-shell { padding: 0 10px 10px; } .review-title-card, .review-status-card, .question-container, .answers-container, .review-footer { border-radius: 20px; } .review-title-card, .review-status-card, .question-container, .answers-container { padding: 14px; } .review-title-card { flex-direction: column; align-items: flex-start; } .review-status-card { grid-template-columns: 1fr; } .question-text { font-size: 17px; } #passage { font-size: 16px; } .choice-container { font-size: 16px; padding: 12px; } .review-footer { justify-content: center; } .footer-nav-group { width: 100%; justify-content: center; } }
     </style>
 
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="scroll-hide review-page">
     <div class="review-shell">
+        {% if attempt_options and attempt_options|length > 1 %}
+        <div class="review-attempt-bar">
+            <label for="review-attempt-select">Review attempt</label>
+            <select id="review-attempt-select" class="review-attempt-select" onchange="if(this.value){window.location.assign(this.value)}">
+                {% for option in attempt_options %}<option value="{{ option.url }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <header class="review-header">
             <div class="review-title-card">
                 <div>
                     <a class="review-title-link" href="{{ results_url|default:'/' }}"><h1>Question Review</h1></a>
-                    <div class="review-subtitle">Review the correct answer, the student answer, and the explanation.</div>
+                    <div class="review-subtitle">{% if is_guest_review %}Compare your answer with the correct answer and explanation.{% else %}Review the correct answer, the student answer, and the explanation.{% endif %}</div>
                 </div>
-                <div class="question-chip">Question <span id="question-number-header">{{ question_payload.number|default:question.number }}</span></div>
+                <div class="question-chip">Question <span id="question-number-header">{% if is_guest_review %}{{ guest_review_position }} of {{ guest_review_total }}{% else %}{{ question_payload.number|default:question.number }}{% endif %}</span></div>
             </div>
             <div class="review-status-card">
                 <div class="answer-stat correct-stat">
                     <span class="stat-label">Correct Answer</span>
                     <strong>{{ question.answer|default_if_none:"—"|default:"—" }}</strong>
                 </div>
-                <div class="answer-stat your-stat{% if answered_choice and answered_choice == correct_choice %} is-match{% elif answered %} is-wrong{% endif %}">
+                <div class="answer-stat your-stat{% if answer_is_correct %} is-match{% elif answered %} is-wrong{% endif %}">
                     <span class="stat-label">Your Answer</span>
                     <strong>{{ answered|default_if_none:"—"|default:"—" }}</strong>
                 </div>
@@ -165,7 +180,7 @@
                     <div class="answers" id="answers">
                         
                         {% if question_payload.written %}
-                            <div class="review-answer-box">{{ answered|default_if_none:"No answer"|default:"No answer" }}</div>
+                            <div class="review-answer-box{% if answer_is_correct %} is-correct{% elif answered %} is-wrong{% endif %}">{{ answered|default_if_none:"No answer"|default:"No answer" }}</div>
                         {% else %}
                             {% for choice in review_choices %}
                                 <div class="choice-container{% if choice.letter == correct_choice %} answer-correct{% elif answered_choice and choice.letter == answered_choice and answered_choice != correct_choice %} answered-incorrect{% endif %}" data-choice="{{ choice.letter }}">
@@ -193,14 +208,15 @@
         <footer class="review-footer">
             <div class="footer-nav-group">
                 {% if prev %}
-                    <a href="{{ prev }}"><button type="button" class="nav-button secondary">Back</button></a>
+                    <a href="{{ prev }}" class="nav-button secondary" data-review-prev>Back</a>
                 {% else %}
-                    <a href="{{ results_url|default:'/' }}"><button type="button" class="nav-button secondary">Back</button></a>
+                    <a href="{{ results_url|default:'/' }}" class="nav-button secondary" data-review-results>Results</a>
                 {% endif %}
             </div>
+            {% if is_guest_review and review_overview_url %}<a href="{{ review_overview_url }}" class="nav-button secondary">Overview</a>{% else %}<span class="review-keyboard-hint">← / → navigate · R results</span>{% endif %}
             <div class="footer-nav-group">
                 {% if next %}
-                    <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
+                    <a href="{{ next }}" class="nav-button" data-review-next>Next</a>
                 {% else %}
                     <button type="button" class="nav-button disabled" disabled>Next</button>
                 {% endif %}
@@ -231,5 +247,7 @@
         }
         window.addEventListener('load', renderReviewMath);
     </script>
+  <script src="{% static 'assets/js/sat-review-v13.js' %}?v=13"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

@@ -62,3 +62,23 @@ class UserProfileAdmin(admin.ModelAdmin):
 admin.site.register(Session, SessionAdmin)
 admin.site.register(EmailVerification)
 
+
+
+@admin.register(GeneralIssueReport)
+class GeneralIssueReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "category", "status", "reporter_display", "page_url_short", "created_at")
+    list_filter = ("status", "category", "created_at")
+    search_fields = ("message", "reporter__username", "reporter_name", "reporter_email", "page_url")
+    readonly_fields = ("reporter", "reporter_name", "reporter_email", "category", "message", "page_url", "page_title", "user_agent", "context_data", "created_at", "updated_at")
+    fieldsets = (
+        ("Report", {"fields": ("status", "admin_note")}),
+        ("Submitted data", {"fields": ("reporter", "reporter_name", "reporter_email", "category", "message", "page_url", "page_title", "user_agent", "context_data", "created_at", "updated_at")}),
+    )
+
+    @admin.display(description="Reporter")
+    def reporter_display(self, obj):
+        return obj.reporter or obj.reporter_name or obj.reporter_email or "Anonymous"
+
+    @admin.display(description="Page")
+    def page_url_short(self, obj):
+        return (obj.page_url[:70] + "...") if len(obj.page_url) > 70 else obj.page_url

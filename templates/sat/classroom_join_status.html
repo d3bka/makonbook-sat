@@ -2,76 +2,81 @@
 {% load static %}
 
 {% block title-main %}Classroom Status{% endblock title-main %}
-
-{% block breadcrumb_parent %}
-<li><a href="{% url 'sat_menu' %}">Menu</a></li>
-{% endblock breadcrumb_parent %}
-
-{% block title %}Classroom Status{% endblock title %}
+{% block breadcrumb_parent %}<li><a href="{% url 'sat_menu' %}">Menu</a></li>{% endblock breadcrumb_parent %}
+{% block title %}Membership status{% endblock title %}
 
 {% block style %}
-<style>
-  .status-wrap {
-    max-width: 900px;
-    margin: 0 auto;
-    display: grid;
-    gap: 20px;
-  }
-
-  .status-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 24px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-  }
-
-  .approved-links {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 14px;
-  }
-
-  .approved-links span {
-    display: inline-block;
-    padding: 10px 14px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #7c3aed;
-    font-weight: 700;
-  }
-</style>
+<link rel="stylesheet" href="{% static 'assets/css/makon-classroom-membership.css' %}">
 {% endblock style %}
 
 {% block content %}
-<div class="status-wrap">
-  {% if approved_classroom %}
-    <div class="status-card">
-      <h2>{{ approved_classroom.name }}</h2>
-      <p>You are approved and now part of this classroom.</p>
+<div class="classroom-membership-page">
+  <section class="membership-hero">
+    <div>
+      <span class="membership-eyebrow">Membership status</span>
+      <h2>Classroom access</h2>
+      <p>Approved classrooms appear here immediately after the teacher accepts your request.</p>
+    </div>
+  </section>
 
-      <div class="approved-links">
-        {% if access_map.practice_tests %}<span>Practice Tests</span>{% endif %}
-        {% if access_map.vocabulary %}<span>Vocabulary</span>{% endif %}
-        {% if access_map.admissions %}<span>Admissions</span>{% endif %}
+  {% if approved_memberships %}
+    <section class="membership-panel">
+      <div class="membership-panel-head"><div><h3>Approved classrooms</h3></div></div>
+      <div class="membership-grid">
+        {% for membership in approved_memberships %}
+          <article class="membership-card is-approved">
+            <div>
+              <span class="membership-status approved">Approved</span>
+              <h4>{{ membership.classroom.name }}</h4>
+              <p>Your membership is active.</p>
+            </div>
+            <div class="membership-actions">
+              <a href="{% url 'student_classroom_home' membership.classroom.id %}" class="membership-btn primary">Open classroom</a>
+            </div>
+          </article>
+        {% endfor %}
       </div>
-    </div>
+    </section>
   {% endif %}
 
-  {% if pending_membership %}
-    <div class="status-card">
-      <h2>Pending Request</h2>
-      <p>Your request to join <strong>{{ pending_membership.classroom.name }}</strong> is waiting for teacher approval.</p>
-    </div>
+  {% if pending_memberships %}
+    <section class="membership-panel" data-membership-status-watch data-refresh-ms="5000">
+      <div class="membership-panel-head"><div><h3>Pending requests</h3></div></div>
+      <div class="membership-grid">
+        {% for membership in pending_memberships %}
+          <article class="membership-card is-pending">
+            <div>
+              <span class="membership-status pending">Pending</span>
+              <h4>{{ membership.classroom.name }}</h4>
+              <p>Waiting for teacher approval.</p>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+      <div class="membership-waiting-note">Status updates automatically every few seconds.</div>
+    </section>
   {% endif %}
 
-  {% if rejected_membership %}
-    <div class="status-card">
-      <h2>Request Rejected</h2>
-      <p>Your request to join <strong>{{ rejected_membership.classroom.name }}</strong> was rejected.</p>
-      <p>You can try another valid classroom code.</p>
-    </div>
+  {% if rejected_memberships %}
+    <section class="membership-panel">
+      <div class="membership-panel-head"><div><h3>Rejected requests</h3></div></div>
+      <div class="membership-grid">
+        {% for membership in rejected_memberships %}
+          <article class="membership-card is-rejected">
+            <div>
+              <span class="membership-status rejected">Rejected</span>
+              <h4>{{ membership.classroom.name }}</h4>
+              <p>You can submit another request using an active code.</p>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if not approved_memberships and not pending_memberships and not rejected_memberships %}
+    <section class="membership-panel"><div class="membership-empty">No classroom requests were found.</div></section>
   {% endif %}
 </div>
+<script src="{% static 'assets/js/makon-classroom-membership.js' %}"></script>
 {% endblock content %}

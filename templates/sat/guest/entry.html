@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  {% include 'base/responsive_css.html' %}
 </head>
 <body class="auth-page auth-guest">
   <div class="auth-shell">
@@ -111,5 +112,6 @@
 
   <script src="{% static 'assets/js/login-main.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
+  {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

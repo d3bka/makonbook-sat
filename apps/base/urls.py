@@ -12,4 +12,5 @@ urlpatterns = [
     path('activate/<uuid:token>/', views.activate, name='activate'),
     path('edit-profile/', views.edit_profile, name='edit_profile'),  # Ensure this line exists
     path('software/', views.software, name='software'),
+    path('report-issue/', views.submit_general_issue_report, name='submit_general_issue_report'),
 ]
