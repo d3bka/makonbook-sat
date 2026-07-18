@@ -2,6 +2,7 @@
 {% if attempt %}
     {% url 'save_global_event_answer' guest_token=attempt.guest_token as form_action %}
     {% url 'submit_global_event' guest_token=attempt.guest_token as submit_url %}
+    {% url 'global_event_submit_status' guest_token=attempt.guest_token as submit_status_url %}
     {% url 'global_event_list' as home_url %}
 {% else %}
     {% url 'check_the_answers' as form_action %}
@@ -32,9 +33,9 @@
     <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=21">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=21">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=21">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=24">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=24">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=24">
   {% include 'base/responsive_css.html' %}
 </head>
 <body class="scroll-hide mk-test-window github-test-template-v20 github-test-math">
@@ -281,17 +282,18 @@
         "deadlineAt": {% if test_session_state.deadlineAt %}{{ test_session_state.deadlineAt }}{% else %}0{% endif %},
         "draftSaveUrl": "{{ draft_save_url|default_if_none:''|escapejs }}",
         "submitUrl": "{% if attempt %}{{ submit_url|escapejs }}{% endif %}",
+        "submitStatusUrl": "{% if attempt %}{{ submit_status_url|escapejs }}{% endif %}",
         "nextUrl": "{% if not attempt %}{{ next_url|escapejs }}{% endif %}",
         "storageScope": "{% if attempt %}guest-{{ attempt.guest_token }}{% else %}user-{{ request.user.id }}-{{ test.name|escapejs }}{% endif %}",
-        "submitTimeoutMs": 30000
+        "submitTimeoutMs": 180000
     }
     </script>
 
     {{ questions_data|json_script:"sat-test-questions" }}
     {% if test_session_state %}{{ test_session_state|json_script:"sat-test-session-state" }}{% else %}<script id="sat-test-session-state" type="application/json">{}</script>{% endif %}
-    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=21"></script>
-    <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=21"></script>
-    <script src="{% static 'assets/js/test-math.js' %}?v=21"></script>
+    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=24"></script>
+    <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=24"></script>
+    <script src="{% static 'assets/js/test-math.js' %}?v=24"></script>
   {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

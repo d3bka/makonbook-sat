@@ -736,7 +736,7 @@ class GuestModeV18Tests(TestCase):
         self.assertEqual(draft.answers[0]['answer'], 'A')
         self.assertEqual(draft.marked_for_review, [True])
         self.assertEqual(draft.eliminated_choices, [['C', 'D']])
-        self.assertEqual(GlobalEventAnswer.objects.get(attempt=attempt, question_id=self.english_q.pk).selected_answer, 'A')
+        self.assertFalse(GlobalEventAnswer.objects.filter(attempt=attempt, question_id=self.english_q.pk).exists())
 
     def test_guest_math_uses_shared_test_core(self):
         attempt = self.create_attempt(completed_modules=['english:m1'])
@@ -810,6 +810,55 @@ class GuestModeV18Tests(TestCase):
         answer = GlobalEventAnswer.objects.get(attempt=attempt, question_id=self.english_q.pk)
         self.assertEqual(answer.selected_answer, 'A')
         self.assertTrue(response.json()['submitted_after_deadline'])
+
+    def test_expired_guest_module_accepts_frozen_deadline_snapshot_within_grace(self):
+        attempt = self.create_attempt()
+        self.client.get(reverse('global_event_attempt', args=[attempt.guest_token]))
+        draft = GlobalEventModuleDraft.objects.get(attempt=attempt, section='english', module='m1')
+        draft.answers = [{'questionID': self.english_q.pk, 'answer': 'A', 'time_spent': 4}]
+        draft.deadline_at = timezone.now() - timedelta(seconds=2)
+        draft.save(update_fields=['answers', 'deadline_at', 'updated_at'])
+        response = self.client.post(
+            reverse('submit_global_event', args=[attempt.guest_token]),
+            json.dumps({
+                'section': 'english',
+                'module': 'm1',
+                'answers': [{'questionID': self.english_q.pk, 'answer': 'B', 'time_spent': 11}],
+                'deadline_reached': True,
+                'client_deadline_at': int(draft.deadline_at.timestamp() * 1000),
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['submitted_after_deadline'])
+        self.assertTrue(response.json()['recovered_deadline_snapshot'])
+        answer = GlobalEventAnswer.objects.get(attempt=attempt, question_id=self.english_q.pk)
+        self.assertEqual(answer.selected_answer, 'B')
+        self.assertEqual(answer.time_spent, 11)
+
+    def test_guest_submit_status_reports_pending_then_completed(self):
+        attempt = self.create_attempt()
+        self.client.get(reverse('global_event_attempt', args=[attempt.guest_token]))
+        status_url = reverse('global_event_submit_status', args=[attempt.guest_token])
+        pending = self.client.get(status_url, {'section': 'english', 'module': 'm1'})
+        self.assertEqual(pending.status_code, 200)
+        self.assertEqual(pending.json()['state'], 'pending')
+
+        payload = {
+            'section': 'english',
+            'module': 'm1',
+            'answers': [{'questionID': self.english_q.pk, 'answer': 'A'}],
+        }
+        submitted = self.client.post(
+            reverse('submit_global_event', args=[attempt.guest_token]),
+            json.dumps(payload),
+            content_type='application/json',
+        )
+        self.assertEqual(submitted.status_code, 200)
+        completed = self.client.get(status_url, {'section': 'english', 'module': 'm1'})
+        self.assertEqual(completed.status_code, 200)
+        self.assertEqual(completed.json()['state'], 'completed')
+        self.assertTrue(completed.json()['redirect_url'])
 
     def test_always_live_event_with_past_calendar_end_gets_future_attempt_expiry(self):
         self.event.always_live = True

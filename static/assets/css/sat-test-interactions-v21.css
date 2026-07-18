@@ -680,3 +680,53 @@ body.github-test-template-v20 .calculator-retry-btn {
     transition-duration: .001ms !important;
   }
 }
+
+/* v24 resilient submission */
+body.github-test-template-v20.test-time-expired .container {
+  user-select: none;
+}
+body.github-test-template-v20.test-time-expired main,
+body.github-test-template-v20.test-time-expired footer,
+body.github-test-template-v20.test-time-expired header .header-tools,
+body.github-test-template-v20.test-time-expired header > a {
+  pointer-events: none !important;
+}
+body.github-test-template-v20 .test-submit-safety-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(134,239,172,.2);
+  border-radius: 14px;
+  background: rgba(34,197,94,.08);
+  color: #bbf7d0;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.5;
+}
+body.github-test-template-v20 .test-submit-safety-note i { margin-top: 2px; }
+body.github-test-template-v20 .test-submit-progress[data-state="offline"] .test-submit-spinner,
+body.github-test-template-v20 .test-submit-progress[data-state="pending"] .test-submit-spinner {
+  border-top-color: #fbbf24;
+  animation-duration: 1.15s;
+}
+body.github-test-template-v20 .test-submit-progress[data-state="checking"] .test-submit-progress-line span,
+body.github-test-template-v20 .test-submit-progress[data-state="slow"] .test-submit-progress-line span,
+body.github-test-template-v20 .test-submit-progress[data-state="pending"] .test-submit-progress-line span {
+  width: 62%;
+  animation-duration: 1.8s;
+}
+body.github-test-template-v20 .test-submit-progress[data-state="offline"] .test-submit-progress-line span {
+  width: 100%;
+  transform: none;
+  animation: none;
+  background: linear-gradient(90deg,#f59e0b,#fbbf24);
+}
+@media (max-width: 640px) {
+  body.github-test-template-v20 .test-submit-progress-card {
+    padding: 28px 20px;
+    border-radius: 22px;
+  }
+  body.github-test-template-v20 .test-submit-progress-card h2 { font-size: 25px; }
+}

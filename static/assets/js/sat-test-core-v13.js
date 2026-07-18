@@ -75,6 +75,9 @@
         this.config.moduleName || 'module',
       ].join(':');
       this.tabLockKey = `${this.storageKey}:active-tab`;
+      this.submissionRecoveryKey = `${this.storageKey}:pending-submit`;
+      this.timeExpired = false;
+      this.submitRetryCount = 0;
 
       this.state = this.loadInitialState();
       this.deadlineAt = this.resolveDeadline();
@@ -307,11 +310,13 @@
       }
       if (remaining <= 0 && !this.submitInProgress && Date.now() >= this.nextForcedSubmitAt) {
         this.nextForcedSubmitAt = Date.now() + 15000;
-        this.submitModule(true);
+        this.lockForDeadline();
+        this.submitModule(true, { deadlineReached: true });
       }
     }
 
     setAnswer(value) {
+      if (this.timeExpired || this.submitInProgress) return;
       this.answers[this.currentQuestionIndex] = value;
       this.updateNavigator();
       this.options.paintAnswer?.(this);
@@ -331,6 +336,7 @@
     }
 
     toggleEliminated(choice) {
+      if (this.timeExpired || this.submitInProgress) return;
       const normalized = normalizeChoice(choice);
       if (!normalized) return;
       const row = this.eliminatedChoices[this.currentQuestionIndex] || [];
@@ -348,6 +354,7 @@
     }
 
     toggleMarked() {
+      if (this.timeExpired || this.submitInProgress) return;
       this.markedForReview[this.currentQuestionIndex] = !this.markedForReview[this.currentQuestionIndex];
       this.updateNavigator();
       this.scheduleAutosave();
@@ -521,102 +528,283 @@
       modal.hidden = true;
     }
 
-    setSubmitProgress(open) {
+    setSubmitProgress(open, state = 'sending', title = '', message = '') {
       const overlay = document.getElementById('submitProgressOverlay');
       if (overlay) {
         overlay.hidden = !open;
         overlay.classList.toggle('is-open', open);
+        overlay.dataset.state = state;
         overlay.setAttribute('aria-hidden', String(!open));
+        const titleNode = overlay.querySelector('[data-submit-progress-title]');
+        const messageNode = overlay.querySelector('[data-submit-progress-message]');
+        if (titleNode && title) titleNode.textContent = title;
+        if (messageNode && message) messageNode.textContent = message;
       }
       const label = document.querySelector('[data-submit-button-label]');
       if (label) label.textContent = open ? 'Submitting…' : 'Submit module';
     }
 
-    async fetchWithRetry(url, payload, attempts = 3) {
-      let lastError;
-      for (let index = 0; index < attempts; index += 1) {
-        try {
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken(),
-              'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: JSON.stringify(payload),
-            signal: timeoutSignal(Number(this.config.submitTimeoutMs || 30000)),
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || data.ok === false) {
-            const error = new Error(data.error || `Server error (${response.status})`);
-            error.data = data;
-            throw error;
-          }
-          return data;
-        } catch (error) {
-          lastError = error;
-          if (error?.data?.redirect_url) throw error;
-          if (index < attempts - 1) await sleep(700 * Math.pow(2, index));
-        }
-      }
-      throw lastError || new Error('The module could not be submitted.');
+    lockForDeadline() {
+      if (this.timeExpired) return;
+      this.timeExpired = true;
+      this.saveLocal();
+      document.body.classList.add('test-time-expired');
+      document.querySelectorAll(
+        '#backButton, #nextButton, #finishButton, .bookmark, .crossing-options, #pen-button, #clear-button, #answers input, #answers textarea, #answers button',
+      ).forEach((node) => {
+        if ('disabled' in node) node.disabled = true;
+        node.setAttribute('aria-disabled', 'true');
+      });
     }
 
-    async submitModule(force = false) {
+    makeSubmissionPayload(deadlineReached = false) {
+      let submissionId = '';
+      try {
+        const existing = JSON.parse(localStorage.getItem(this.submissionRecoveryKey) || '{}');
+        submissionId = String(existing?.payload?.submission_id || '');
+      } catch (error) {
+        submissionId = '';
+      }
+      if (!submissionId) {
+        submissionId = (window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString();
+      }
+      return {
+        ...this.fullStatePayload(),
+        submission_id: submissionId,
+        deadline_reached: Boolean(deadlineReached),
+        client_deadline_at: Number(this.deadlineAt || 0),
+        client_submitted_at: Date.now(),
+      };
+    }
+
+    persistPendingSubmission(payload) {
+      try {
+        localStorage.setItem(this.submissionRecoveryKey, JSON.stringify({
+          payload,
+          section: this.config.sectionName,
+          module: this.config.moduleName,
+          createdAt: Date.now(),
+        }));
+      } catch (error) {
+        console.warn('Pending submission could not be stored:', error);
+      }
+    }
+
+    readPendingSubmission() {
+      try {
+        const value = JSON.parse(localStorage.getItem(this.submissionRecoveryKey) || 'null');
+        if (!value || !value.payload) return null;
+        if (value.section !== this.config.sectionName || value.module !== this.config.moduleName) return null;
+        return value;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    clearPendingSubmission() {
+      try {
+        localStorage.removeItem(this.submissionRecoveryKey);
+      } catch (error) {
+        // localStorage failure must not prevent navigation after a confirmed submit.
+      }
+    }
+
+    async postSubmissionOnce(url, payload, timeoutMs) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(payload),
+        signal: timeoutSignal(timeoutMs),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) {
+        const error = new Error(data.error || `Server error (${response.status})`);
+        error.data = data;
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    async readGuestSubmitStatus() {
+      if (!this.config.submitStatusUrl) return null;
+      const url = new URL(this.config.submitStatusUrl, window.location.origin);
+      url.searchParams.set('section', this.config.sectionName);
+      url.searchParams.set('module', this.config.moduleName);
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        cache: 'no-store',
+        signal: timeoutSignal(10000),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) return null;
+      return data;
+    }
+
+    async waitForGuestSubmission(maxWaitMs = 90000) {
+      const startedAt = Date.now();
+      while (this.submitInProgress && Date.now() - startedAt < maxWaitMs) {
+        if (!navigator.onLine) {
+          this.setSubmitProgress(
+            true,
+            'offline',
+            'Waiting for connection…',
+            'Your final answers are safely stored on this device. They will be sent automatically when the connection returns.',
+          );
+          await sleep(2500);
+          continue;
+        }
+        try {
+          const status = await this.readGuestSubmitStatus();
+          if (status?.redirect_url && ['completed', 'moved'].includes(status.state)) return status;
+          this.setSubmitProgress(
+            true,
+            'checking',
+            'Confirming submission…',
+            'The server is still processing the module. Do not refresh or close this tab; no second click is needed.',
+          );
+        } catch (error) {
+          // A failed status check is treated as temporary; the frozen snapshot stays local.
+        }
+        await sleep(2500);
+      }
+      return null;
+    }
+
+    navigateAfterSubmit(redirectUrl) {
+      if (!redirectUrl) throw new Error('The server did not provide the next test page.');
+      this.clearPendingSubmission();
+      this.clearLocal();
+      this.navigatingAway = true;
+      window.location.assign(redirectUrl);
+    }
+
+    async submitGuestResilient(payload) {
+      const timeoutMs = Math.max(Number(this.config.submitTimeoutMs || 180000), 60000);
+      while (this.submitInProgress && !this.navigatingAway) {
+        if (!navigator.onLine) {
+          await this.waitForGuestSubmission(30000);
+          continue;
+        }
+
+        this.submitRetryCount += 1;
+        this.setSubmitProgress(
+          true,
+          this.submitRetryCount > 1 ? 'retrying' : 'sending',
+          this.submitRetryCount > 1 ? 'Finishing submission…' : 'Submitting your module…',
+          this.submitRetryCount > 1
+            ? 'The first confirmation was delayed. MakonBook is checking the same frozen answer snapshot automatically.'
+            : 'Your timer is stopped on this screen. Keep this tab open while the server stores the final snapshot.',
+        );
+
+        let slowTimer = window.setTimeout(() => {
+          this.setSubmitProgress(
+            true,
+            'slow',
+            'Still saving securely…',
+            'This is taking longer than usual, but your answers are frozen and stored on this device. Please keep the tab open.',
+          );
+        }, 12000);
+
+        try {
+          const result = await this.postSubmissionOnce(this.config.submitUrl, payload, timeoutMs);
+          window.clearTimeout(slowTimer);
+          return result;
+        } catch (error) {
+          window.clearTimeout(slowTimer);
+          if (error?.data?.redirect_url) return error.data;
+          if (error?.status && error.status >= 400 && error.status < 500 && error.status !== 409) {
+            throw error;
+          }
+
+          // A timed-out fetch can still be running on Django. Poll first instead
+          // of sending duplicate POSTs that queue behind the same database lock.
+          const confirmed = await this.waitForGuestSubmission(90000);
+          if (confirmed?.redirect_url) return confirmed;
+
+          this.setSubmitProgress(
+            true,
+            navigator.onLine ? 'pending' : 'offline',
+            navigator.onLine ? 'Submission is pending…' : 'Waiting for connection…',
+            navigator.onLine
+              ? 'MakonBook will retry the same frozen snapshot automatically. You do not need to press Submit again.'
+              : 'Your final answers remain on this device and will upload automatically after reconnection.',
+          );
+          await sleep(navigator.onLine ? 8000 : 3000);
+        }
+      }
+      return null;
+    }
+
+    async submitModule(force = false, options = {}) {
       if (this.submitInProgress || this.tabBlocked) return;
       if (!force) {
         this.showFinishSummary();
         return;
       }
 
+      const deadlineReached = Boolean(options.deadlineReached || this.remainingSeconds() <= 0);
+      if (deadlineReached) this.lockForDeadline();
       this.closeFinishSummary();
       this.submitInProgress = true;
+      this.submitRetryCount = 0;
       this.flushActiveTime();
+      window.clearTimeout(this.autosaveTimer);
+      this.autosaveQueued = false;
       this.setSaveState('saving', 'Submitting…');
       document.body.classList.add('is-submitting-test');
-      this.setSubmitProgress(true);
+      this.setSubmitProgress(true, 'sending', 'Submitting your module…', 'Freezing and saving your latest answers.');
       document.querySelectorAll('#finishButton, [data-confirm-submit]').forEach((button) => {
         button.disabled = true;
       });
 
-      try {
-        const payload = this.fullStatePayload();
-        let redirectUrl = this.config.nextUrl || '';
+      const recovered = options.payload || this.readPendingSubmission()?.payload;
+      const payload = recovered || this.makeSubmissionPayload(deadlineReached);
+      if (deadlineReached) {
+        payload.deadline_reached = true;
+        payload.client_deadline_at = Number(this.deadlineAt || payload.client_deadline_at || 0);
+      }
+      this.persistPendingSubmission(payload);
 
+      try {
+        let redirectUrl = this.config.nextUrl || '';
         if (this.isGuest) {
-          // Guest submission is one atomic request. The old two-request flow could
-          // save successfully and then fail before marking the module complete (or
-          // complete a module after the final save failed).
-          const result = await this.fetchWithRetry(this.config.submitUrl, payload, 3);
+          const result = await this.submitGuestResilient(payload);
+          if (!result) return;
           if (result.deadline_at) this.deadlineAt = Number(result.deadline_at);
           redirectUrl = result.redirect_url || redirectUrl;
         } else {
-          const result = await this.fetchWithRetry(this.form.action, payload, 3);
+          const result = await this.postSubmissionOnce(
+            this.form.action,
+            payload,
+            Math.max(Number(this.config.submitTimeoutMs || 180000), 60000),
+          );
           redirectUrl = result.redirect_url || redirectUrl;
         }
-
-        if (!redirectUrl) throw new Error('The server did not provide the next test page.');
-        this.clearLocal();
-        this.navigatingAway = true;
-        window.location.assign(redirectUrl);
+        this.navigateAfterSubmit(redirectUrl);
       } catch (error) {
         console.error('Module submit failed:', error);
         if (error?.data?.redirect_url) {
-          this.clearLocal();
-          this.navigatingAway = true;
-          window.location.assign(error.data.redirect_url);
+          this.navigateAfterSubmit(error.data.redirect_url);
           return;
         }
         this.nextForcedSubmitAt = Date.now() + 15000;
-        this.showToast(error?.message || 'The module was not submitted. Your answers remain saved.', 'error');
-        this.setSaveState('offline', navigator.onLine ? 'Submit failed' : 'Offline · submit pending');
+        this.showToast(error?.message || 'The server rejected the submission. Your answers remain stored on this device.', 'error');
+        this.setSaveState('offline', navigator.onLine ? 'Submission not confirmed' : 'Offline · submit pending');
       } finally {
         if (!this.navigatingAway) {
+          // Guest network/server delays remain in the resilient loop. Reaching
+          // this block means a permanent validation error or a standard test error.
           this.submitInProgress = false;
           document.body.classList.remove('is-submitting-test');
           this.setSubmitProgress(false);
           document.querySelectorAll('#finishButton, [data-confirm-submit]').forEach((button) => {
-            button.disabled = false;
+            button.disabled = this.timeExpired;
           });
         }
       }
@@ -775,7 +963,7 @@
       window.addEventListener('beforeunload', (event) => {
         this.saveLocal();
         this.options.beforeUnload?.(this);
-        if (!this.navigatingAway && !this.submitInProgress) {
+        if (!this.navigatingAway) {
           event.preventDefault();
           event.returnValue = '';
         }
@@ -793,7 +981,7 @@
       window.addEventListener('offline', () => this.setSaveState('offline', 'Offline · saved on device'));
       window.addEventListener('online', () => {
         this.setSaveState('saving', 'Reconnecting…');
-        this.autosave(true);
+        if (!this.submitInProgress) this.autosave(true);
       });
     }
 
@@ -843,6 +1031,13 @@
       this.setSaveState(navigator.onLine ? 'saved' : 'offline', navigator.onLine ? (this.lastSavedAt ? 'Saved' : 'Ready') : 'Offline · saved on device');
       document.body.classList.add('test-flow-ready');
       this.options.afterBoot?.(this);
+      const pending = this.isGuest ? this.readPendingSubmission() : null;
+      if (pending) {
+        window.setTimeout(() => this.submitModule(true, {
+          deadlineReached: Boolean(pending.payload?.deadline_reached),
+          payload: pending.payload,
+        }), 0);
+      }
     }
   }
 

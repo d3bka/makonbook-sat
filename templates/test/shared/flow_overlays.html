@@ -59,9 +59,13 @@
   <div class="test-submit-progress-card">
     <div class="test-submit-spinner" aria-hidden="true"></div>
     <span class="test-flow-modal-kicker">Secure submission</span>
-    <h2>Submitting your module…</h2>
-    <p>Your latest answers are being checked and saved. Keep this tab open for a moment.</p>
-    <div class="test-submit-progress-line"><span></span></div>
+    <h2 data-submit-progress-title>Submitting your module…</h2>
+    <p data-submit-progress-message>Your latest answers are being frozen and saved. Keep this tab open.</p>
+    <div class="test-submit-progress-line" aria-hidden="true"><span></span></div>
+    <div class="test-submit-safety-note">
+      <i class="fa fa-shield" aria-hidden="true"></i>
+      <span>No second click is needed. If the connection drops, MakonBook retries the same final snapshot automatically.</span>
+    </div>
   </div>
 </div>
 

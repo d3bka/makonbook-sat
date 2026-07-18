@@ -47,6 +47,7 @@ except Exception:  # pragma: no cover
 
 VALID_SECTIONS = {"english", "math"}
 VALID_MODULES = {"m1", "m2"}
+GUEST_SUBMIT_GRACE_SECONDS = 300
 
 
 def get_client_ip(request):
@@ -256,6 +257,28 @@ def _draft_remaining_seconds(draft):
     return max(int((draft.deadline_at - timezone.now()).total_seconds()), 0)
 
 
+def _guest_submit_recovery_allowed(draft, payload, now=None):
+    """Allow the browser's frozen deadline snapshot during a short grace window.
+
+    At 0:00 the UI is locked immediately and the final snapshot is stored in
+    localStorage before the request is sent.  A slow connection may deliver that
+    request just after ``deadline_at``.  The grace window prevents data loss while
+    still refusing arbitrary late edits: the request must explicitly be the
+    deadline snapshot and its declared deadline must match the server deadline.
+    """
+    now = now or timezone.now()
+    if now > draft.deadline_at + timedelta(seconds=GUEST_SUBMIT_GRACE_SECONDS):
+        return False
+    if not bool(payload.get("deadline_reached")):
+        return False
+    try:
+        client_deadline = int(payload.get("client_deadline_at") or 0)
+    except (TypeError, ValueError):
+        return False
+    server_deadline = int(draft.deadline_at.timestamp() * 1000)
+    return abs(client_deadline - server_deadline) <= 5000
+
+
 def _seed_guest_draft_answers(attempt, section, module, questions):
     saved = {
         answer.question_id: answer
@@ -353,17 +376,58 @@ def _merge_answer_items(existing, incoming):
 
 
 def _sync_guest_answer_rows(attempt, section, module, answers):
-    for item in answers:
-        GlobalEventAnswer.objects.update_or_create(
-            attempt=attempt,
-            section=section,
-            module=module,
-            question_id=item["questionID"],
-            defaults={
-                "selected_answer": item.get("answer"),
-                "time_spent": min(max(int(item.get("time_spent", 0) or 0), 0), 24 * 60 * 60),
-            },
-        )
+    """Persist one module in bulk.
+
+    Autosave intentionally writes only ``GlobalEventModuleDraft``.  The durable
+    answer rows are materialized once when a module is submitted (or when an
+    attempt is force-finalized).  This avoids one ``UPDATE OR CREATE`` query per
+    question on every autosave and keeps the attempt row lock short.
+    """
+    canonical = {}
+    for item in answers or []:
+        if not isinstance(item, dict) or not str(item.get("questionID", "")).isdigit():
+            continue
+        question_id = int(item["questionID"])
+        try:
+            spent = min(max(int(item.get("time_spent", 0) or 0), 0), 24 * 60 * 60)
+        except (TypeError, ValueError):
+            spent = 0
+        canonical[question_id] = {
+            "selected_answer": item.get("answer"),
+            "time_spent": spent,
+        }
+
+    if canonical:
+        existing = {
+            row.question_id: row
+            for row in GlobalEventAnswer.objects.filter(
+                attempt=attempt,
+                section=section,
+                module=module,
+                question_id__in=canonical.keys(),
+            )
+        }
+        to_create, to_update = [], []
+        for question_id, values in canonical.items():
+            row = existing.get(question_id)
+            if row is None:
+                to_create.append(GlobalEventAnswer(
+                    attempt=attempt,
+                    section=section,
+                    module=module,
+                    question_id=question_id,
+                    selected_answer=values["selected_answer"],
+                    time_spent=values["time_spent"],
+                ))
+            else:
+                row.selected_answer = values["selected_answer"]
+                row.time_spent = values["time_spent"]
+                to_update.append(row)
+        if to_create:
+            GlobalEventAnswer.objects.bulk_create(to_create, ignore_conflicts=True)
+        if to_update:
+            GlobalEventAnswer.objects.bulk_update(to_update, ["selected_answer", "time_spent"])
+
     attempt.answered_questions = (
         attempt.answers.exclude(selected_answer__isnull=True).exclude(selected_answer="").count()
     )
@@ -412,7 +476,6 @@ def _persist_guest_draft_payload(attempt, draft, payload, *, require_complete=Fa
         "answers", "time_spent", "eliminated_choices", "marked_for_review",
         "current_question_index", "updated_at",
     ])
-    _sync_guest_answer_rows(attempt, section, module, draft.answers)
     return True, ""
 
 
@@ -1293,13 +1356,82 @@ def submit_global_event_view(request, guest_token):
             return JsonResponse({"ok": False, "error": "Open the active module before submitting it.", "redirect_url": reverse("global_event_attempt", kwargs={"guest_token": attempt.guest_token})}, status=409)
 
         submitted_after_deadline = _draft_remaining_seconds(draft) <= 0
-        if not submitted_after_deadline and "answers" in payload:
-            ok, error = _persist_guest_draft_payload(attempt, draft, payload, require_complete=True)
-            if not ok:
-                return JsonResponse({"ok": False, "error": error}, status=400)
+        recovered_deadline_snapshot = False
+        if "answers" in payload:
+            may_persist = not submitted_after_deadline
+            if submitted_after_deadline and _guest_submit_recovery_allowed(draft, payload):
+                may_persist = True
+                recovered_deadline_snapshot = True
+            if may_persist:
+                ok, error = _persist_guest_draft_payload(attempt, draft, payload, require_complete=True)
+                if not ok:
+                    return JsonResponse({"ok": False, "error": error}, status=400)
         redirect_url = _complete_guest_module_locked(attempt, section, module)
 
-    return JsonResponse({"ok": True, "redirect_url": redirect_url, "submitted_after_deadline": submitted_after_deadline})
+    return JsonResponse({
+        "ok": True,
+        "redirect_url": redirect_url,
+        "submitted_after_deadline": submitted_after_deadline,
+        "recovered_deadline_snapshot": recovered_deadline_snapshot,
+    })
+
+
+@guest_required
+def global_event_submit_status_view(request, guest_token):
+    """Return an idempotent, read-only submission status for browser recovery.
+
+    A browser timeout does not necessarily stop Django/PostgreSQL from finishing
+    the original POST.  The client polls this endpoint instead of blindly sending
+    duplicate submit requests that queue behind the same row lock.
+    """
+    if request.method != "GET":
+        return JsonResponse({"ok": False, "error": "GET method required."}, status=405)
+    guest = get_guest_from_session(request)
+    attempt = get_object_or_404(
+        GlobalEventAttempt.objects.select_related("event", "event__test"),
+        guest_token=guest_token,
+    )
+    if not guest or attempt.guest_id != guest.id:
+        return JsonResponse({"ok": False, "error": "Forbidden"}, status=403)
+
+    section = str(request.GET.get("section") or "").strip().lower()
+    module = normalize_module_name(request.GET.get("module"))
+    if section not in VALID_SECTIONS or module not in VALID_MODULES:
+        return JsonResponse({"ok": False, "error": "Invalid module."}, status=400)
+
+    result_url = reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
+    if attempt.status == "submitted":
+        return JsonResponse({"ok": True, "state": "completed", "redirect_url": result_url})
+
+    completed = _completed_guest_module_pairs(attempt)
+    if (section, module) in completed:
+        current = get_guest_current_step(attempt)
+        if current is None:
+            redirect_url = result_url
+        else:
+            base = reverse("global_event_attempt", kwargs={"guest_token": attempt.guest_token})
+            redirect_url = f"{base}?section={current[0]}&module={module_query_name(current[1])}"
+        return JsonResponse({"ok": True, "state": "completed", "redirect_url": redirect_url})
+
+    current = get_guest_current_step(attempt)
+    if current == (section, module):
+        draft = GlobalEventModuleDraft.objects.filter(
+            attempt=attempt,
+            section=section,
+            module=module,
+        ).only("deadline_at", "updated_at").first()
+        return JsonResponse({
+            "ok": True,
+            "state": "pending",
+            "remaining_seconds": _draft_remaining_seconds(draft) if draft else 0,
+            "server_time": int(timezone.now().timestamp() * 1000),
+        })
+
+    return JsonResponse({
+        "ok": True,
+        "state": "moved",
+        "redirect_url": reverse("global_event_attempt", kwargs={"guest_token": attempt.guest_token}),
+    })
 
 
 @guest_required
