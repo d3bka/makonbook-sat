@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.utils.crypto import get_random_string
 from django.urls import reverse
 from .forms import UserRegistrationForm, EditProfileForm, ForgotPasswordRequestForm, PasswordResetCodeForm
@@ -17,6 +17,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
+from django.template.loader import render_to_string
 
 def software(request):
     return render(request, 'software.html')
@@ -139,18 +140,32 @@ def forgot_password(request):
                     expires_at=timezone.now() + timedelta(minutes=10),
                 )
 
-                subject = "Your MakonBook password reset code"
-                message = (
-                    f"Hi {user.username},\n\n"
-                    f"Your password reset code is: {code}\n\n"
-                    "This code expires in 10 minutes. "
-                    "If you did not request a password reset, ignore this email.\n\n"
-                    "MakonBook Team"
-                )
+                subject = "Reset your MakonBook password"
                 from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None) or getattr(settings, "EMAIL_HOST_USER", "")
+                support_email = getattr(settings, "EMAIL_HOST_USER", "") or "support@makonbook.uz"
+                reset_url = request.build_absolute_uri(reverse("password_reset_confirm"))
+                display_name = (user.get_full_name() or user.get_username()).strip()
+                email_context = {
+                    "display_name": display_name,
+                    "code": code,
+                    "expires_minutes": 10,
+                    "reset_url": reset_url,
+                    "support_email": support_email,
+                    "current_year": timezone.localdate().year,
+                }
+                text_body = render_to_string("emails/password_reset_code.txt", email_context)
+                html_body = render_to_string("emails/password_reset_code.html", email_context)
 
                 try:
-                    send_mail(subject, message, from_email, [user.email], fail_silently=False)
+                    email_message = EmailMultiAlternatives(
+                        subject=subject,
+                        body=text_body,
+                        from_email=from_email,
+                        to=[user.email],
+                        reply_to=[support_email] if support_email else None,
+                    )
+                    email_message.attach_alternative(html_body, "text/html")
+                    email_message.send(fail_silently=False)
                 except Exception as exc:
                     reset_code.delete()
                     if settings.DEBUG:
