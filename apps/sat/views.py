@@ -51,7 +51,7 @@ except Exception:  # keeps SAT views import-safe if AP app is unavailable
 def home(request):
 
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return redirect('sat_menu')
 
     return render(request, "landing/home.html")
 
@@ -60,7 +60,7 @@ def home(request):
 def loginPage(request):
 
     if request.user.is_authenticated:
-        return redirect('dashboard')
+        return redirect('sat_menu')
 
     if request.method == "POST":
 
@@ -73,16 +73,11 @@ def loginPage(request):
 
             login(request, user)
 
-            return redirect("dashboard")
+            return redirect("sat_menu")
 
     return render(request, "login.html")
 
 
-
-@login_required(login_url='/login/')
-def dashboard(request):
-
-    return render(request, "dashboard.html")
 
 
 
@@ -591,7 +586,7 @@ def _makeup_redirect_url(makeup_test, stage):
     sequence = get_makeup_test_sequence(makeup_test)
     if 1 <= stage.stage <= len(sequence):
         return reverse('makeup_test_module', kwargs={'pk': makeup_test.name})
-    return reverse('dashboard')
+    return reverse('sat_menu')
 
 
 def _submit_makeup_module_locked(stage, section, module, canonical_answers):
@@ -1966,7 +1961,7 @@ def check_the_answers(request):
                     redirect_url = (
                         reverse('makeup_test_module', kwargs={'pk': makeup_test_obj.name})
                         if current_step is not None
-                        else reverse('dashboard')
+                        else reverse('sat_menu')
                     )
                     return JsonResponse({
                         'ok': True,
@@ -2815,7 +2810,7 @@ def makeup_test_module(request, pk):
         test_stage.save(update_fields=['stage', 'updated_at'])
 
     if test_stage.stage > len(sequence):
-        return redirect('dashboard')
+        return redirect('sat_menu')
 
     section, module = sequence[test_stage.stage - 1]
 
@@ -2830,7 +2825,7 @@ def makeup_test_module(request, pk):
 
     if existing_module.exists():
         if test_stage.stage >= len(sequence):
-            return redirect('dashboard')
+            return redirect('sat_menu')
         test_stage.stage += 1
         test_stage.save(update_fields=['stage', 'updated_at'])
         return redirect('makeup_test_module', pk=makeup_test.name)
@@ -3390,7 +3385,7 @@ def enter_secret_code(request):
                     return redirect('practise', pk=secret_code.test.name)  # Redirect to start_test if test exists
                 elif secret_code.makeup_test:
                     return redirect('start_makeup_test', pk=secret_code.makeup_test.name)  # Existing makeup_test redirection
-                return redirect('dashboard')  # Default redirection if no test or makeup_test
+                return redirect('sat_menu')  # Return to the canonical classroom entry page
             except SecretCode.DoesNotExist:
                 ap_event = None
                 if APExamEvent is not None:
@@ -4039,6 +4034,41 @@ def _support_teacher_admin_allowed(user):
     )
 
 
+def _user_can_access_support_classes(user):
+    """Support Classes are available only inside the classroom ecosystem.
+
+    Approved students can browse/book support teachers. Teachers, support
+    teachers, staff, and admins may browse the module for operational work.
+    A newly registered student with no approved active classroom is denied,
+    including on direct URLs.
+    """
+    if not user.is_authenticated:
+        return False
+    if _support_teacher_admin_allowed(user) or is_teacher(user):
+        return True
+    if hasattr(user, 'support_teacher_profile'):
+        return True
+    return ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='approved',
+        classroom__is_active=True,
+    ).exists()
+
+
+def _support_class_access_guard(request):
+    if _user_can_access_support_classes(request.user):
+        return None
+    return classroom_access_denied(
+        request,
+        message=(
+            "Book Support Classes becomes available after you join an active "
+            "classroom and your teacher approves the request."
+        ),
+        status_code=403,
+    )
+
+
 def _normalize_time_for_compare(value):
     if not value:
         return value
@@ -4139,6 +4169,10 @@ def _sync_support_booking_completion(booking):
 
 @login_required(login_url='/login/')
 def support_teacher_list(request):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     teachers = SupportTeacherProfile.objects.filter(is_active=True).select_related('user').prefetch_related('availabilities')
     teacher_cards = []
     for teacher in teachers:
@@ -4163,6 +4197,10 @@ def support_teacher_list(request):
 
 @login_required(login_url='/login/')
 def support_teacher_detail(request, teacher_id):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     teacher = get_object_or_404(
         SupportTeacherProfile.objects.select_related('user').prefetch_related('availabilities'),
         id=teacher_id,
@@ -4190,6 +4228,10 @@ def support_teacher_detail(request, teacher_id):
 @login_required(login_url='/login/')
 @require_POST
 def book_support_lesson(request, teacher_id):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id, is_active=True)
 
     if request.user == teacher.user:
@@ -4245,6 +4287,10 @@ def book_support_lesson(request, teacher_id):
 
 @login_required(login_url='/login/')
 def my_support_lessons(request):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     bookings = list(SupportLessonBooking.objects.filter(
         student=request.user,
     ).select_related('teacher', 'teacher__user').order_by('start_at'))
@@ -4271,6 +4317,10 @@ def my_support_lessons(request):
 @login_required(login_url='/login/')
 @require_POST
 def cancel_support_lesson(request, booking_id):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     booking = get_object_or_404(
         SupportLessonBooking,
         id=booking_id,
@@ -4292,6 +4342,10 @@ def cancel_support_lesson(request, booking_id):
 @login_required(login_url='/login/')
 @require_POST
 def leave_support_lesson_feedback(request, booking_id):
+    denied = _support_class_access_guard(request)
+    if denied:
+        return denied
+
     booking = get_object_or_404(
         SupportLessonBooking.objects.select_related('teacher', 'teacher__user'),
         id=booking_id,
@@ -4515,15 +4569,12 @@ def teacher_classroom_dashboard(request, classroom_id):
     })
 
 @login_required(login_url='/login/')
+@require_POST
 def generate_classroom_join_code(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
     if classroom.teacher != request.user and not request.user.is_superuser:
         return HttpResponseForbidden("You can manage only your own classrooms.")
-
-    if request.method != 'POST':
-        messages.error(request, "Generating a join code requires POST.")
-        return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     old_code = ClassroomJoinCode.objects.filter(classroom=classroom).first()
     if old_code:
@@ -4600,6 +4651,12 @@ def register_join_code_attempt(request):
 def classroom_entry(request):
     if is_teacher(request.user):
         return redirect('teacher_classroom_list')
+
+    # Support teachers use their planner as the operational home page.
+    # This keeps /sat/ as the single authenticated entry point after the
+    # legacy /sat/dashboard/ route was removed.
+    if hasattr(request.user, 'support_teacher_profile'):
+        return redirect('support_teacher_planner')
 
     approved_memberships = ClassroomMembership.objects.filter(
         user=request.user,
@@ -4805,11 +4862,16 @@ def reject_join_request(request, classroom_id, membership_id):
     messages.info(request, f"{membership.user.username}'s request was rejected.")
     return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-def classroom_access_denied(request, classroom=None, message="You do not have access to this classroom."):
+def classroom_access_denied(
+    request,
+    classroom=None,
+    message="You do not have access to this classroom.",
+    status_code=403,
+):
     return render(request, 'sat/classroom_access_denied.html', {
         'classroom': classroom,
         'message': message,
-    }, status=403)
+    }, status=status_code)
 
 @login_required(login_url='/login/')
 def student_classroom_home(request, classroom_id):

@@ -171,6 +171,17 @@
     let enabled = false;
     let drawing = false;
 
+    const setEnabled = (nextEnabled) => {
+      enabled = Boolean(nextEnabled);
+      drawing = false;
+      canvas.classList.toggle('active', enabled);
+      document.body.classList.toggle('pen-mode', enabled);
+      pen.classList.toggle('active', enabled);
+      pen.setAttribute('aria-pressed', String(enabled));
+      pen.setAttribute('aria-label', enabled ? 'Turn off highlighter' : 'Turn on highlighter');
+      pen.title = enabled ? 'Turn off highlighter' : 'Turn on highlighter';
+    };
+
     const resize = () => {
       const ratio = window.devicePixelRatio || 1;
       canvas.width = Math.floor(window.innerWidth * ratio);
@@ -211,14 +222,11 @@
     canvas.addEventListener('pointerup', stop);
     canvas.addEventListener('pointercancel', stop);
 
-    pen.setAttribute('aria-pressed', 'false');
-    pen.addEventListener('click', () => {
-      enabled = !enabled;
-      canvas.classList.toggle('active', enabled);
-      document.body.classList.toggle('pen-mode', enabled);
-      pen.classList.toggle('active', enabled);
-      pen.setAttribute('aria-pressed', String(enabled));
-      pen.title = enabled ? 'Turn off highlighter' : 'Turn on highlighter';
+    setEnabled(false);
+    pen.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setEnabled(!enabled);
     });
     clear.addEventListener('click', () => {
       context.save();
@@ -228,6 +236,22 @@
       clear.classList.add('is-cleared');
       window.setTimeout(() => clear.classList.remove('is-cleared'), 280);
     });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && enabled) {
+        event.preventDefault();
+        setEnabled(false);
+        pen.focus({ preventScroll: true });
+      }
+    });
+
+    // Expose a small, stable API for modal/submit flows and regression tests.
+    window.SATHighlighter = {
+      disable: () => setEnabled(false),
+      enable: () => setEnabled(true),
+      toggle: () => setEnabled(!enabled),
+      isEnabled: () => enabled,
+    };
   }
 
   document.addEventListener('DOMContentLoaded', () => {

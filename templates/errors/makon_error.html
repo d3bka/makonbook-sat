@@ -178,8 +178,8 @@
         <h1>{{ error_headline }}</h1>
         <p>{{ error_message }}</p>
         <div class="error-actions">
-          <a class="error-btn" href="/sat/">Go to dashboard</a>
-          <a class="error-btn secondary" href="javascript:history.back()">Go back</a>
+          <a class="error-btn" href="{{ error_primary_url|default:'/sat/' }}">{{ error_primary_label|default:'Open classrooms' }}</a>
+          <a class="error-btn secondary" href="{{ error_back_url|default:'/sat/' }}">Go back</a>
         </div>
       </div>
       <div class="error-visual" aria-hidden="true">{{ status_code }}</div>

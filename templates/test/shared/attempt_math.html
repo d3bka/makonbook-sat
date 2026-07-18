@@ -33,9 +33,9 @@
     <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=24">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=24">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=24">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=25">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=25">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=25">
   {% include 'base/responsive_css.html' %}
 </head>
 <body class="scroll-hide mk-test-window github-test-template-v20 github-test-math">
@@ -291,9 +291,9 @@
 
     {{ questions_data|json_script:"sat-test-questions" }}
     {% if test_session_state %}{{ test_session_state|json_script:"sat-test-session-state" }}{% else %}<script id="sat-test-session-state" type="application/json">{}</script>{% endif %}
-    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=24"></script>
-    <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=24"></script>
-    <script src="{% static 'assets/js/test-math.js' %}?v=24"></script>
+    <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=25"></script>
+    <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=25"></script>
+    <script src="{% static 'assets/js/test-math.js' %}?v=25"></script>
   {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

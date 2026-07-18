@@ -1,4 +1,8 @@
+from urllib.parse import urlsplit
+
 from django.shortcuts import render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 ERROR_MESSAGES = {
@@ -30,8 +34,58 @@ ERROR_MESSAGES = {
 }
 
 
+LEGACY_DASHBOARD_PATHS = {
+    "/dashboard",
+    "/dashboard/",
+    "/sat/dashboard",
+    "/sat/dashboard/",
+}
+
+
+def build_error_navigation(request):
+    """Return safe, role-neutral navigation links for custom error pages.
+
+    The old template used ``javascript:history.back()``. That made the button
+    unpredictable after redirects and often sent users back to the legacy
+    ``/dashboard`` route. We now use a validated same-site referrer and fall
+    back to the canonical classroom entry page.
+    """
+    if request.user.is_authenticated:
+        primary_url = reverse("sat_menu")
+        primary_label = "Open classrooms"
+    else:
+        primary_url = "/"
+        primary_label = "Go home"
+
+    back_url = ""
+    referer = (request.META.get("HTTP_REFERER") or "").strip()
+    if referer and url_has_allowed_host_and_scheme(
+        referer,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        parsed = urlsplit(referer)
+        candidate = parsed.path or "/"
+        if parsed.query:
+            candidate = f"{candidate}?{parsed.query}"
+
+        current_path = request.get_full_path()
+        if (
+            candidate != current_path
+            and parsed.path not in LEGACY_DASHBOARD_PATHS
+        ):
+            back_url = candidate
+
+    return {
+        "error_primary_url": primary_url,
+        "error_primary_label": primary_label,
+        "error_back_url": back_url or primary_url,
+    }
+
+
 def makon_error_page(request, exception=None, status_code=404, **kwargs):
     details = ERROR_MESSAGES.get(status_code, ERROR_MESSAGES[404]).copy()
+    navigation = build_error_navigation(request)
     return render(
         request,
         "errors/makon_error.html",
@@ -41,6 +95,7 @@ def makon_error_page(request, exception=None, status_code=404, **kwargs):
             "error_headline": details["headline"],
             "error_message": details["message"],
             "exception": exception,
+            **navigation,
         },
         status=status_code,
     )

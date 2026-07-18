@@ -49,9 +49,10 @@ class MakonErrorPageMiddleware:
         if getattr(response, "streaming", False):
             return response
 
-        from apps.base.error_views import ERROR_MESSAGES
+        from apps.base.error_views import ERROR_MESSAGES, build_error_navigation
 
         details = ERROR_MESSAGES.get(response.status_code, ERROR_MESSAGES[404])
+        navigation = build_error_navigation(request)
         # Important: return a fully rendered HttpResponse, not TemplateResponse.
         # Otherwise django.middleware.common.CommonMiddleware can access
         # response.content before render() and raise ContentNotRenderedError.
@@ -63,6 +64,7 @@ class MakonErrorPageMiddleware:
                 "error_title": details["title"],
                 "error_headline": details["headline"],
                 "error_message": details["message"],
+                **navigation,
             },
             status=response.status_code,
         )

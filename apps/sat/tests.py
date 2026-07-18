@@ -1019,12 +1019,12 @@ class MakeupTestFlowV18Tests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('do not belong', response.json()['error'])
 
-    def test_makeup_final_module_redirects_to_dashboard(self):
+    def test_makeup_final_module_redirects_to_classroom_entry(self):
         first = self.submit('english', 'm1', self.english_q, 'A')
         self.assertEqual(first.status_code, 200)
         second = self.submit('math', 'm1', self.math_q, 'B')
         self.assertEqual(second.status_code, 200)
-        self.assertEqual(second.json()['redirect_url'], reverse('dashboard'))
+        self.assertEqual(second.json()['redirect_url'], reverse('sat_menu'))
         self.stage.refresh_from_db()
         self.assertEqual(self.stage.stage, 3)
 

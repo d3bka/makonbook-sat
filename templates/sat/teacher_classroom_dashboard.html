@@ -80,10 +80,13 @@
       {% endif %}
 
       <div class="mk-actions-row" style="margin-top: 18px;">
-        <a href="{% url 'generate_classroom_join_code' classroom.id %}" class="mk-btn">
-          <i class="bi bi-shuffle"></i>
-          Generate new code
-        </a>
+        <form method="post" action="{% url 'generate_classroom_join_code' classroom.id %}" class="mk-inline-action-form" data-classroom-action-form>
+          {% csrf_token %}
+          <button type="submit" class="mk-btn" data-action-label="Generating...">
+            <i class="bi bi-shuffle"></i>
+            Generate new code
+          </button>
+        </form>
       </div>
     </div>
 
