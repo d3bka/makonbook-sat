@@ -101,12 +101,44 @@ class SupportTeacherProfileForm(forms.ModelForm):
 
     class Meta:
         model = SupportTeacherProfile
-        fields = ['user', 'display_name', 'telegram_username', 'subjects', 'bio', 'sort_order', 'is_active']
+        fields = [
+            'user',
+            'display_name',
+            'headline',
+            'telegram_username',
+            'subjects',
+            'bio',
+            'education',
+            'languages',
+            'years_experience',
+            'sat_total_score',
+            'sat_math_score',
+            'sat_reading_writing_score',
+            'scores_verified',
+            'meeting_link',
+            'booking_instructions',
+            'min_booking_notice_hours',
+            'cancellation_notice_hours',
+            'sort_order',
+            'is_active',
+        ]
         widgets = {
             'display_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Public name shown to students'}),
+            'headline': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'SAT Math specialist and strategy coach'}),
             'telegram_username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'username without @'}),
             'subjects': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'SAT Math, Reading, Writing'}),
             'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Short public description'}),
+            'education': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'University, degree, or certification'}),
+            'languages': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'English, Uzbek, Russian'}),
+            'years_experience': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 50}),
+            'sat_total_score': forms.NumberInput(attrs={'class': 'form-control', 'min': 400, 'max': 1600}),
+            'sat_math_score': forms.NumberInput(attrs={'class': 'form-control', 'min': 200, 'max': 800}),
+            'sat_reading_writing_score': forms.NumberInput(attrs={'class': 'form-control', 'min': 200, 'max': 800}),
+            'scores_verified': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'meeting_link': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://meet.google.com/...'}),
+            'booking_instructions': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Example: Send your question screenshots before the lesson'}),
+            'min_booking_notice_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 168}),
+            'cancellation_notice_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 168}),
             'sort_order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -119,11 +151,21 @@ class SupportTeacherProfileForm(forms.ModelForm):
 class SupportTeacherAvailabilityForm(forms.ModelForm):
     class Meta:
         model = SupportTeacherAvailability
-        fields = ['day_of_week', 'start_time', 'end_time', 'note', 'is_active']
+        fields = [
+            'day_of_week',
+            'start_time',
+            'end_time',
+            'slot_duration_minutes',
+            'buffer_minutes',
+            'note',
+            'is_active',
+        ]
         widgets = {
             'day_of_week': forms.Select(attrs={'class': 'form-control'}),
             'start_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'end_time': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
+            'slot_duration_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': 15, 'max': 180, 'step': 15}),
+            'buffer_minutes': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 60, 'step': 5}),
             'note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional note'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }

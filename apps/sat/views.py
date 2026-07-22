@@ -7,7 +7,9 @@ from django.http import HttpResponse, HttpResponseForbidden, FileResponse, HttpR
 from apps.base.decorators import allowed_users
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 from django.conf import settings
 from satmakon.settings import BASE_DIR
 from .libs import calculator
@@ -28,8 +30,9 @@ from math import floor, ceil
 from django.contrib import messages  # Added for user feedback
 from apps.base.models import UserProfile
 from django.core.cache import cache
-from django.db.models import Q
+from django.db.models import Q, Avg, Prefetch, Max
 import json
+import logging
 import random
 import re
 import uuid
@@ -39,8 +42,17 @@ from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from collections import defaultdict
 from django.urls import reverse
+from django.templatetags.static import static as static_url
 from django.db import close_old_connections
 from django.contrib.auth import authenticate, login, logout
+from urllib.parse import urlparse
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.core.exceptions import ValidationError
+from .support_forms import SupportTeacherSelfAvailabilityForm, SupportTeacherSelfProfileForm
+from .student_goal_forms import StudentGoalProfileForm
+
+logger = logging.getLogger(__name__)
+
 
 try:
     from apps.apclasses.models import APExamEvent
@@ -1587,6 +1599,7 @@ def _split_tests_by_user_progress(user, tests, classroom=None):
         test.completed_modules = completed_modules
         test.progress_percent = progress_percent
         test.mode_label = mode_label
+        test.card_image = _resolve_test_card_image(test)
         test.current_module_number = (
             min(max(stage.stage, 1), total_modules) if stage and total_modules else None
         )
@@ -1615,6 +1628,34 @@ def _split_tests_by_user_progress(user, tests, classroom=None):
             active_tests.append(test)
 
     return active_tests, past_tests
+
+
+DEFAULT_TEST_CARD_IMAGE = 'assets/img/tests/minion.jpg'
+
+
+def _resolve_test_card_image(test):
+    """Pick the numbered card image for a test, falling back to the default.
+
+    Under ManifestStaticFilesStorage an unknown path raises ValueError, so the
+    lookup has to happen here rather than in the template.
+    """
+    if getattr(test, 'icon', None):
+        try:
+            return test.icon.url
+        except ValueError:
+            pass
+
+    name = str(test.name or '')
+    for token in ('Day', 'DAY', 'day', ' '):
+        name = name.replace(token, '')
+
+    if name.isdigit() and len(name) <= 2:
+        try:
+            return static_url('assets/img/tests/%s.png' % name)
+        except ValueError:
+            pass
+
+    return static_url(DEFAULT_TEST_CARD_IMAGE)
 
 
 # Create your views here.
@@ -4023,7 +4064,9 @@ def vocabulary_flashcards(request):
 
 
 
-SUPPORT_LESSON_LOOKAHEAD_DAYS = 21
+SUPPORT_LESSON_LOOKAHEAD_DAYS = 28
+SUPPORT_LESSON_LIST_LOOKAHEAD_DAYS = 14
+SUPPORT_NOTE_MAX_LENGTH = 1200
 
 
 def _support_teacher_admin_allowed(user):
@@ -4035,19 +4078,33 @@ def _support_teacher_admin_allowed(user):
 
 
 def _user_can_access_support_classes(user):
-    """Support Classes are available only inside the classroom ecosystem.
-
-    Approved students can browse/book support teachers. Teachers, support
-    teachers, staff, and admins may browse the module for operational work.
-    A newly registered student with no approved active classroom is denied,
-    including on direct URLs.
-    """
+    """Return whether a user belongs to the support-class ecosystem."""
     if not user.is_authenticated:
         return False
     if _support_teacher_admin_allowed(user) or is_teacher(user):
         return True
     if hasattr(user, 'support_teacher_profile'):
         return True
+    return ClassroomMembership.objects.filter(
+        user=user,
+        role='student',
+        status='approved',
+        classroom__is_active=True,
+    ).exists()
+
+
+def _user_can_book_support_lessons(user):
+    """Only approved students may create bookings.
+
+    Teachers, support teachers and admins can browse the module for operational
+    work, but cannot accidentally create student bookings from their accounts.
+    """
+    if not user.is_authenticated:
+        return False
+    if _support_teacher_admin_allowed(user) or is_teacher(user):
+        return False
+    if hasattr(user, 'support_teacher_profile'):
+        return False
     return ClassroomMembership.objects.filter(
         user=user,
         role='student',
@@ -4069,6 +4126,17 @@ def _support_class_access_guard(request):
     )
 
 
+def _support_booking_student_guard(request):
+    if _user_can_book_support_lessons(request.user):
+        return None
+    messages.error(request, "Only approved classroom students can book support lessons.")
+    return classroom_access_denied(
+        request,
+        message="Only approved classroom students can book support lessons.",
+        status_code=403,
+    )
+
+
 def _normalize_time_for_compare(value):
     if not value:
         return value
@@ -4083,22 +4151,69 @@ def _make_local_datetime(day, time_value):
     return naive_value
 
 
-def _build_support_teacher_slots(teacher, days=SUPPORT_LESSON_LOOKAHEAD_DAYS, include_booked=False):
-    """Build concrete bookable slots from a support teacher's weekly availability."""
+def _support_booking_overlap_q(start_at, end_at):
+    return Q(start_at__lt=end_at, end_at__gt=start_at)
+
+
+def _sync_support_booking_completion_queryset(queryset=None):
+    # Completion is explicit in v28. Kept as a compatibility helper for older
+    # call sites without mutating records.
+    return 0
+
+
+def _sync_support_booking_completion(booking):
+    booking.mark_completed_if_past()
+    return booking
+
+
+def _availability_slot_datetimes(day, availability):
+    """Yield concrete slots from one recurring weekly availability window."""
+    window_start = _make_local_datetime(day, availability.start_time)
+    window_end = _make_local_datetime(day, availability.end_time)
+    total_minutes = max(0, int((window_end - window_start).total_seconds() // 60))
+    if total_minutes <= 0:
+        return
+
+    requested_duration = max(15, int(availability.slot_duration_minutes or total_minutes))
+    duration_minutes = min(requested_duration, total_minutes)
+    buffer_minutes = max(0, int(availability.buffer_minutes or 0))
+    cursor = window_start
+    duration_delta = timedelta(minutes=duration_minutes)
+    step_delta = timedelta(minutes=duration_minutes + buffer_minutes)
+
+    while cursor + duration_delta <= window_end:
+        yield cursor, cursor + duration_delta
+        cursor += step_delta
+
+
+def _build_support_teacher_slots(
+    teacher,
+    days=SUPPORT_LESSON_LOOKAHEAD_DAYS,
+    include_unavailable=False,
+):
+    """Build bookable slots from weekly windows with overlap protection.
+
+    ``include_unavailable`` is used by the teacher planner to show booked and
+    too-soon slots. Student pages receive only slots that are currently safe to
+    book.
+    """
     now_value = timezone.now()
     start_date = timezone.localdate()
     end_date = start_date + timedelta(days=days)
+    notice_cutoff = now_value + timedelta(hours=teacher.min_booking_notice_hours or 0)
 
     availability_by_day = defaultdict(list)
     for item in teacher.availabilities.filter(is_active=True).order_by('day_of_week', 'start_time'):
         availability_by_day[item.day_of_week].append(item)
 
-    booked_pairs = set(
+    range_start = _make_local_datetime(start_date, datetime.min.time())
+    range_end = _make_local_datetime(end_date + timedelta(days=1), datetime.min.time())
+    booked_ranges = list(
         SupportLessonBooking.objects.filter(
             teacher=teacher,
             status=SupportLessonBooking.STATUS_SCHEDULED,
-            start_at__date__gte=start_date,
-            start_at__date__lte=end_date,
+            start_at__lt=range_end,
+            end_at__gt=range_start,
         ).values_list('start_at', 'end_at')
     )
 
@@ -4106,25 +4221,66 @@ def _build_support_teacher_slots(teacher, days=SUPPORT_LESSON_LOOKAHEAD_DAYS, in
     for offset in range(days + 1):
         day = start_date + timedelta(days=offset)
         for availability in availability_by_day.get(day.weekday(), []):
-            start_at = _make_local_datetime(day, availability.start_time)
-            end_at = _make_local_datetime(day, availability.end_time)
-            if end_at <= now_value:
-                continue
+            for start_at, end_at in _availability_slot_datetimes(day, availability):
+                is_past = end_at <= now_value
+                is_too_soon = start_at < notice_cutoff
+                is_booked = any(
+                    booked_start < end_at and booked_end > start_at
+                    for booked_start, booked_end in booked_ranges
+                )
+                is_available = not is_past and not is_too_soon and not is_booked
 
-            is_booked = (start_at, end_at) in booked_pairs
-            if is_booked and not include_booked:
-                continue
+                if not include_unavailable and not is_available:
+                    continue
 
-            slots.append({
-                'availability': availability,
-                'start_at': start_at,
-                'end_at': end_at,
-                'is_booked': is_booked,
-                'value': f"{start_at.isoformat()}|{end_at.isoformat()}",
-                'date_label': timezone.localtime(start_at).strftime('%d %b %Y'),
-                'time_label': f"{timezone.localtime(start_at).strftime('%H:%M')} - {timezone.localtime(end_at).strftime('%H:%M')}",
-            })
-    return slots
+                local_start = timezone.localtime(start_at)
+                local_end = timezone.localtime(end_at)
+                if is_booked:
+                    state = 'booked'
+                elif is_past:
+                    state = 'past'
+                elif is_too_soon:
+                    state = 'too_soon'
+                else:
+                    state = 'available'
+
+                slots.append({
+                    'availability': availability,
+                    'start_at': start_at,
+                    'end_at': end_at,
+                    'is_booked': is_booked,
+                    'is_too_soon': is_too_soon,
+                    'is_past': is_past,
+                    'is_available': is_available,
+                    'state': state,
+                    'value': f"{start_at.isoformat()}|{end_at.isoformat()}",
+                    'date_key': local_start.date().isoformat(),
+                    'date_label': local_start.strftime('%d %b %Y'),
+                    'day_label': local_start.strftime('%A'),
+                    'short_day_label': local_start.strftime('%a'),
+                    'time_label': f"{local_start.strftime('%H:%M')} - {local_end.strftime('%H:%M')}",
+                    'duration_minutes': max(0, int((end_at - start_at).total_seconds() // 60)),
+                    'note': availability.note,
+                })
+
+    return sorted(slots, key=lambda item: item['start_at'])
+
+
+def _group_support_slots(slots):
+    grouped = []
+    by_date = defaultdict(list)
+    for slot in slots:
+        by_date[slot['date_key']].append(slot)
+    for date_key, rows in by_date.items():
+        grouped.append({
+            'date_key': date_key,
+            'date_label': rows[0]['date_label'],
+            'day_label': rows[0]['day_label'],
+            'short_day_label': rows[0]['short_day_label'],
+            'slots': rows,
+            'available_count': sum(1 for row in rows if row['is_available']),
+        })
+    return grouped
 
 
 def _parse_support_lesson_slot(slot_value):
@@ -4145,26 +4301,51 @@ def _parse_support_lesson_slot(slot_value):
     return start_at, end_at
 
 
-def _slot_matches_support_teacher_availability(teacher, start_at, end_at):
+def _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=True):
     if not start_at or not end_at or end_at <= start_at:
-        return False
-
+        return None
     local_start = timezone.localtime(start_at)
-    local_end = timezone.localtime(end_at)
-    if local_start.date() != local_end.date():
-        return False
+    day_offset = (local_start.date() - timezone.localdate()).days
+    if day_offset < 0 or day_offset > SUPPORT_LESSON_LOOKAHEAD_DAYS:
+        return None
+    slots = _build_support_teacher_slots(
+        teacher,
+        days=max(day_offset, 0),
+        include_unavailable=include_unavailable,
+    )
+    for slot in slots:
+        if slot['start_at'] == start_at and slot['end_at'] == end_at:
+            return slot
+    return None
 
-    return teacher.availabilities.filter(
-        is_active=True,
-        day_of_week=local_start.weekday(),
-        start_time=_normalize_time_for_compare(local_start.time()),
-        end_time=_normalize_time_for_compare(local_end.time()),
-    ).exists()
+
+def _support_subject_tokens(subjects):
+    return [
+        value.strip()
+        for value in re.split(r'[,/|]+', subjects or '')
+        if value.strip()
+    ]
 
 
-def _sync_support_booking_completion(booking):
-    booking.mark_completed_if_past()
-    return booking
+def _validated_support_url(value):
+    value = (value or '').strip()
+    if not value:
+        return ''
+    parsed = urlparse(value)
+    if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        return None
+    return value[:500]
+
+
+def _support_safe_next_url(request, fallback='support_teacher_planner'):
+    next_url = request.POST.get('next', '').strip()
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return reverse(fallback)
 
 
 @login_required(login_url='/login/')
@@ -4173,25 +4354,106 @@ def support_teacher_list(request):
     if denied:
         return denied
 
-    teachers = SupportTeacherProfile.objects.filter(is_active=True).select_related('user').prefetch_related('availabilities')
+    _sync_support_booking_completion_queryset(
+        SupportLessonBooking.objects.filter(student=request.user)
+    )
+
+    query = request.GET.get('q', '').strip()
+    selected_subject = request.GET.get('subject', '').strip()
+    availability_filter = request.GET.get('availability', '').strip()
+
+    public_review_queryset = (
+        SupportTeacherReview.objects.filter(
+            booking__status=SupportLessonBooking.STATUS_COMPLETED,
+        )
+        .select_related('student', 'booking')
+        .order_by('-created_at')
+    )
+    teachers = (
+        SupportTeacherProfile.objects.filter(is_active=True)
+        .select_related('user')
+        .prefetch_related(
+            'availabilities',
+            Prefetch('reviews', queryset=public_review_queryset, to_attr='public_reviews'),
+        )
+        .annotate(
+            display_avg_rating=Avg(
+                'reviews__rating',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+            ),
+            display_reviews_count=Count(
+                'reviews',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+                distinct=True,
+            ),
+            display_completed_lessons=Count(
+                'bookings',
+                filter=Q(bookings__status=SupportLessonBooking.STATUS_COMPLETED),
+                distinct=True,
+            ),
+        )
+    )
+    if query:
+        teachers = teachers.filter(
+            Q(display_name__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__username__icontains=query)
+            | Q(subjects__icontains=query)
+            | Q(bio__icontains=query)
+        )
+    if selected_subject:
+        teachers = teachers.filter(subjects__icontains=selected_subject)
+
     teacher_cards = []
+    subject_choices = set()
     for teacher in teachers:
-        free_slots = _build_support_teacher_slots(teacher, days=7, include_booked=False)
+        teacher.display_rating = round(float(teacher.display_avg_rating), 1) if teacher.display_avg_rating else None
+        for token in _support_subject_tokens(teacher.subjects):
+            subject_choices.add(token)
+        free_slots = _build_support_teacher_slots(
+            teacher,
+            days=SUPPORT_LESSON_LIST_LOOKAHEAD_DAYS,
+            include_unavailable=False,
+        )
+        if availability_filter == 'available' and not free_slots:
+            continue
         teacher_cards.append({
             'teacher': teacher,
-            'next_slots': free_slots[:3],
+            'subjects': _support_subject_tokens(teacher.subjects),
+            'next_slots': free_slots[:4],
+            'next_slot': free_slots[0] if free_slots else None,
             'free_slots_count': len(free_slots),
+            'recent_reviews': list(getattr(teacher, 'public_reviews', []))[:2],
         })
 
-    my_upcoming_bookings = SupportLessonBooking.objects.filter(
-        student=request.user,
-        status=SupportLessonBooking.STATUS_SCHEDULED,
-        end_at__gte=timezone.now(),
-    ).select_related('teacher', 'teacher__user').order_by('start_at')[:5]
+    teacher_cards.sort(
+        key=lambda item: (
+            item['next_slot'] is None,
+            item['next_slot']['start_at'] if item['next_slot'] else timezone.now() + timedelta(days=3650),
+            item['teacher'].sort_order,
+            item['teacher'].name.lower(),
+        )
+    )
+
+    my_upcoming_bookings = list(
+        SupportLessonBooking.objects.filter(
+            student=request.user,
+            status=SupportLessonBooking.STATUS_SCHEDULED,
+            end_at__gte=timezone.now(),
+        ).select_related('teacher', 'teacher__user').order_by('start_at')[:5]
+    )
 
     return render(request, 'sat/support_teacher_list.html', {
         'teacher_cards': teacher_cards,
         'my_upcoming_bookings': my_upcoming_bookings,
+        'next_booking': my_upcoming_bookings[0] if my_upcoming_bookings else None,
+        'query': query,
+        'selected_subject': selected_subject,
+        'availability_filter': availability_filter,
+        'subject_choices': sorted(subject_choices, key=str.lower),
+        'can_book': _user_can_book_support_lessons(request.user),
+        'timezone_name': str(timezone.get_current_timezone()),
     })
 
 
@@ -4202,27 +4464,128 @@ def support_teacher_detail(request, teacher_id):
         return denied
 
     teacher = get_object_or_404(
-        SupportTeacherProfile.objects.select_related('user').prefetch_related('availabilities'),
+        SupportTeacherProfile.objects.select_related('user')
+        .prefetch_related('availabilities')
+        .annotate(
+            display_avg_rating=Avg(
+                'reviews__rating',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+            ),
+            display_reviews_count=Count(
+                'reviews',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+                distinct=True,
+            ),
+            display_completed_lessons=Count(
+                'bookings',
+                filter=Q(bookings__status=SupportLessonBooking.STATUS_COMPLETED),
+                distinct=True,
+            ),
+        ),
         id=teacher_id,
         is_active=True,
     )
-    slots = _build_support_teacher_slots(teacher, include_booked=True)
-    reviews = teacher.reviews.select_related('student').order_by('-created_at')[:30]
-    my_bookings = SupportLessonBooking.objects.filter(
-        teacher=teacher,
-        student=request.user,
-    ).select_related('teacher', 'teacher__user').order_by('-start_at')[:10]
+    _sync_support_booking_completion_queryset(
+        SupportLessonBooking.objects.filter(student=request.user, teacher=teacher)
+    )
 
-    for booking in my_bookings:
-        _sync_support_booking_completion(booking)
+    available_slots = _build_support_teacher_slots(teacher, include_unavailable=False)
+    public_reviews_qs = teacher.reviews.filter(
+        booking__status=SupportLessonBooking.STATUS_COMPLETED,
+    ).select_related('student', 'booking').order_by('-created_at')
+    reviews = list(public_reviews_qs[:30])
+    rating_counts = {value: 0 for value in range(1, 6)}
+    for row in public_reviews_qs.values('rating').annotate(total=Count('id')):
+        rating_counts[row['rating']] = row['total']
+    total_reviews = sum(rating_counts.values())
+    rating_distribution = [
+        {
+            'rating': rating,
+            'count': rating_counts[rating],
+            'percent': round((rating_counts[rating] / total_reviews) * 100) if total_reviews else 0,
+        }
+        for rating in range(5, 0, -1)
+    ]
+    my_bookings = list(
+        SupportLessonBooking.objects.filter(
+            teacher=teacher,
+            student=request.user,
+        ).select_related('teacher', 'teacher__user').order_by('-start_at')[:10]
+    )
 
     return render(request, 'sat/support_teacher_detail.html', {
         'teacher': teacher,
-        'slots': slots,
-        'available_slots': [slot for slot in slots if not slot['is_booked']],
+        'subjects': _support_subject_tokens(teacher.subjects),
+        'slot_groups': _group_support_slots(available_slots),
+        'available_slots': available_slots,
         'reviews': reviews,
+        'recent_reviews': reviews[:3],
+        'rating_distribution': rating_distribution,
         'my_bookings': my_bookings,
+        'topic_choices': SupportLessonBooking.TOPIC_CHOICES,
+        'can_book': _user_can_book_support_lessons(request.user),
+        'timezone_name': str(timezone.get_current_timezone()),
+        'is_profile_owner': request.user == teacher.user,
     })
+
+
+@login_required(login_url='/login/')
+def support_teacher_profile_edit(request):
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    if not profile:
+        return HttpResponseForbidden('Only support teachers can edit a support profile.')
+
+    if request.method == 'POST':
+        form = SupportTeacherSelfProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your public support teacher profile was updated.')
+            return redirect('support_teacher_profile_edit')
+    else:
+        form = SupportTeacherSelfProfileForm(instance=profile)
+
+    return render(request, 'sat/support_teacher_profile_edit.html', {
+        'teacher': profile,
+        'form': form,
+        'subjects': _support_subject_tokens(profile.subjects),
+        'timezone_name': str(timezone.get_current_timezone()),
+    })
+
+
+@login_required(login_url='/login/')
+@require_POST
+def support_teacher_availability_add(request):
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    if not profile:
+        return HttpResponseForbidden('Only support teachers can manage availability.')
+
+    form = SupportTeacherSelfAvailabilityForm(request.POST)
+    if form.is_valid():
+        availability = form.save(commit=False)
+        availability.teacher = profile
+        try:
+            availability.full_clean()
+            availability.save()
+            messages.success(request, 'Availability window added.')
+        except ValidationError as exc:
+            messages.error(request, ' '.join(exc.messages))
+    else:
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+    return redirect('support_teacher_planner')
+
+
+@login_required(login_url='/login/')
+@require_POST
+def support_teacher_availability_delete(request, availability_id):
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    if not profile:
+        return HttpResponseForbidden('Only support teachers can manage availability.')
+    availability = get_object_or_404(SupportTeacherAvailability, id=availability_id, teacher=profile)
+    availability.delete()
+    messages.success(request, 'Availability window removed.')
+    return redirect('support_teacher_planner')
 
 
 @login_required(login_url='/login/')
@@ -4231,57 +4594,76 @@ def book_support_lesson(request, teacher_id):
     denied = _support_class_access_guard(request)
     if denied:
         return denied
+    booking_denied = _support_booking_student_guard(request)
+    if booking_denied:
+        return booking_denied
 
     teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id, is_active=True)
-
-    if request.user == teacher.user:
-        messages.error(request, "You cannot book a lesson with yourself.")
-        return redirect('support_teacher_detail', teacher_id=teacher.id)
-
     slot_value = request.POST.get('slot', '')
     start_at, end_at = _parse_support_lesson_slot(slot_value)
     student_note = request.POST.get('student_note', '').strip()
+    topic = request.POST.get('topic', SupportLessonBooking.TOPIC_GENERAL).strip()
+    topic_values = {value for value, _label in SupportLessonBooking.TOPIC_CHOICES}
 
-    if not _slot_matches_support_teacher_availability(teacher, start_at, end_at):
-        messages.error(request, "Choose a valid available slot from the teacher planner.")
+    if topic not in topic_values:
+        topic = SupportLessonBooking.TOPIC_GENERAL
+    if len(student_note) > SUPPORT_NOTE_MAX_LENGTH:
+        messages.error(request, f"Your lesson goal must be {SUPPORT_NOTE_MAX_LENGTH} characters or fewer.")
         return redirect('support_teacher_detail', teacher_id=teacher.id)
 
-    if start_at <= timezone.now():
-        messages.error(request, "You cannot book a lesson in the past.")
-        return redirect('support_teacher_detail', teacher_id=teacher.id)
-
-    if SupportLessonBooking.objects.filter(
-        student=request.user,
-        status=SupportLessonBooking.STATUS_SCHEDULED,
-        start_at=start_at,
-        end_at=end_at,
-    ).exists():
-        messages.error(request, "You already have a support lesson at this time.")
+    slot = _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=True)
+    if not slot or not slot['is_available']:
+        messages.error(request, "That time is no longer available. Please choose another slot.")
         return redirect('support_teacher_detail', teacher_id=teacher.id)
 
     try:
         with transaction.atomic():
-            if SupportLessonBooking.objects.select_for_update().filter(
-                teacher=teacher,
+            locked_teacher = SupportTeacherProfile.objects.select_for_update().get(pk=teacher.pk)
+            User.objects.select_for_update().get(pk=request.user.pk)
+
+            # Rebuild the slot after obtaining locks so two simultaneous clicks
+            # cannot reserve the same time.
+            locked_slot = _find_support_teacher_slot(
+                locked_teacher,
+                start_at,
+                end_at,
+                include_unavailable=True,
+            )
+            if not locked_slot or not locked_slot['is_available']:
+                raise IntegrityError("slot unavailable")
+
+            teacher_conflict = SupportLessonBooking.objects.filter(
+                teacher=locked_teacher,
                 status=SupportLessonBooking.STATUS_SCHEDULED,
-                start_at=start_at,
-                end_at=end_at,
-            ).exists():
-                messages.error(request, "This slot was already booked. Pick another one.")
+            ).filter(_support_booking_overlap_q(start_at, end_at)).exists()
+            student_conflict = SupportLessonBooking.objects.filter(
+                student=request.user,
+                status=SupportLessonBooking.STATUS_SCHEDULED,
+            ).filter(_support_booking_overlap_q(start_at, end_at)).exists()
+
+            if teacher_conflict:
+                raise IntegrityError("teacher conflict")
+            if student_conflict:
+                messages.error(request, "You already have another support lesson during this time.")
                 return redirect('support_teacher_detail', teacher_id=teacher.id)
 
-            SupportLessonBooking.objects.create(
-                teacher=teacher,
+            booking = SupportLessonBooking.objects.create(
+                teacher=locked_teacher,
                 student=request.user,
                 start_at=start_at,
                 end_at=end_at,
+                topic=topic,
                 student_note=student_note,
+                meeting_link=locked_teacher.meeting_link,
             )
     except IntegrityError:
-        messages.error(request, "This slot was already booked. Pick another one.")
+        messages.error(request, "This slot was just booked by another student. Please choose another time.")
         return redirect('support_teacher_detail', teacher_id=teacher.id)
 
-    messages.success(request, f"Support lesson booked with {teacher.name}.")
+    messages.success(
+        request,
+        f"Lesson booked with {teacher.name} for {timezone.localtime(booking.start_at):%d %b, %H:%M}.",
+    )
     return redirect('my_support_lessons')
 
 
@@ -4291,18 +4673,23 @@ def my_support_lessons(request):
     if denied:
         return denied
 
-    bookings = list(SupportLessonBooking.objects.filter(
-        student=request.user,
-    ).select_related('teacher', 'teacher__user').order_by('start_at'))
-
-    for booking in bookings:
-        _sync_support_booking_completion(booking)
+    _sync_support_booking_completion_queryset(
+        SupportLessonBooking.objects.filter(student=request.user)
+    )
+    bookings = list(
+        SupportLessonBooking.objects.filter(student=request.user)
+        .select_related('teacher', 'teacher__user')
+        .order_by('-start_at')
+    )
 
     now_value = timezone.now()
-    upcoming_bookings = [
-        booking for booking in bookings
-        if booking.status == SupportLessonBooking.STATUS_SCHEDULED and booking.end_at >= now_value
-    ]
+    upcoming_bookings = sorted(
+        [
+            booking for booking in bookings
+            if booking.status == SupportLessonBooking.STATUS_SCHEDULED and booking.end_at >= now_value
+        ],
+        key=lambda booking: booking.start_at,
+    )
     history_bookings = [
         booking for booking in bookings
         if booking.status != SupportLessonBooking.STATUS_SCHEDULED or booking.end_at < now_value
@@ -4311,6 +4698,9 @@ def my_support_lessons(request):
     return render(request, 'sat/my_support_lessons.html', {
         'upcoming_bookings': upcoming_bookings,
         'history_bookings': history_bookings,
+        'next_booking': upcoming_bookings[0] if upcoming_bookings else None,
+        'completed_count': sum(1 for booking in history_bookings if booking.status == SupportLessonBooking.STATUS_COMPLETED),
+        'timezone_name': str(timezone.get_current_timezone()),
     })
 
 
@@ -4322,20 +4712,28 @@ def cancel_support_lesson(request, booking_id):
         return denied
 
     booking = get_object_or_404(
-        SupportLessonBooking,
+        SupportLessonBooking.objects.select_related('teacher'),
         id=booking_id,
         student=request.user,
         status=SupportLessonBooking.STATUS_SCHEDULED,
     )
 
-    if booking.start_at <= timezone.now():
-        messages.error(request, "You cannot cancel a support lesson after it has already started.")
+    if not booking.student_can_cancel:
+        notice = booking.teacher.cancellation_notice_hours
+        messages.error(
+            request,
+            f"Online cancellation closes {notice} hour{'s' if notice != 1 else ''} before the lesson. Contact the teacher if you need help.",
+        )
         return redirect('my_support_lessons')
 
     booking.status = SupportLessonBooking.STATUS_CANCELLED
-    booking.cancellation_reason = request.POST.get('reason', '').strip()
-    booking.save(update_fields=['status', 'cancellation_reason', 'updated_at'])
-    messages.success(request, "Support lesson cancelled.")
+    booking.cancellation_reason = request.POST.get('reason', '').strip()[:500]
+    booking.cancelled_by = SupportLessonBooking.CANCELLED_BY_STUDENT
+    booking.cancelled_at = timezone.now()
+    booking.save(update_fields=[
+        'status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'
+    ])
+    messages.success(request, "Support lesson cancelled. The slot is available again.")
     return redirect('my_support_lessons')
 
 
@@ -4351,10 +4749,8 @@ def leave_support_lesson_feedback(request, booking_id):
         id=booking_id,
         student=request.user,
     )
-    booking.mark_completed_if_past()
-
     if not booking.can_receive_feedback:
-        messages.error(request, "Feedback is available only after the planned lesson is finished and only once.")
+        messages.error(request, "Feedback is available once after a completed lesson.")
         return redirect('my_support_lessons')
 
     try:
@@ -4366,51 +4762,177 @@ def leave_support_lesson_feedback(request, booking_id):
         messages.error(request, "Rating must be between 1 and 5.")
         return redirect('my_support_lessons')
 
-    SupportTeacherReview.objects.create(
-        booking=booking,
-        teacher=booking.teacher,
-        student=request.user,
-        rating=rating,
-        feedback=request.POST.get('feedback', '').strip(),
-    )
-    booking.status = SupportLessonBooking.STATUS_COMPLETED
-    booking.marked_completed_at = booking.marked_completed_at or timezone.now()
-    booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+    feedback = request.POST.get('feedback', '').strip()
+    if len(feedback) > 1200:
+        messages.error(request, 'Your review comment must be 1,200 characters or fewer.')
+        return redirect('my_support_lessons')
+    try:
+        SupportTeacherReview.objects.create(
+            booking=booking,
+            teacher=booking.teacher,
+            student=request.user,
+            rating=rating,
+            feedback=feedback,
+        )
+    except IntegrityError:
+        messages.info(request, "Feedback for this lesson has already been submitted.")
+        return redirect('my_support_lessons')
 
-    messages.success(request, "Thanks. Your support teacher feedback was saved.")
+    messages.success(request, "Thank you. Your feedback was saved.")
     return redirect('my_support_lessons')
+
+
+def _support_booking_manager_profile(user, booking):
+    if _support_teacher_admin_allowed(user):
+        return booking.teacher
+    profile = getattr(user, 'support_teacher_profile', None)
+    if profile and profile.pk == booking.teacher_id:
+        return profile
+    return None
+
+
+@login_required(login_url='/login/')
+@require_POST
+def manage_support_lesson(request, booking_id):
+    booking = get_object_or_404(
+        SupportLessonBooking.objects.select_related('teacher', 'student', 'teacher__user'),
+        id=booking_id,
+    )
+    profile = _support_booking_manager_profile(request.user, booking)
+    if not profile:
+        return HttpResponseForbidden("You cannot manage this support lesson.")
+
+    action = request.POST.get('action', '').strip()
+    now_value = timezone.now()
+
+    if action == 'update':
+        meeting_link = _validated_support_url(request.POST.get('meeting_link', ''))
+        if meeting_link is None:
+            messages.error(request, "Enter a valid http:// or https:// meeting link.")
+            return redirect(_support_safe_next_url(request))
+        booking.meeting_link = meeting_link
+        booking.teacher_note = request.POST.get('teacher_note', '').strip()[:1200]
+        booking.save(update_fields=['meeting_link', 'teacher_note', 'updated_at'])
+        messages.success(request, "Lesson details updated.")
+    elif action == 'complete':
+        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
+            messages.error(request, "Only scheduled lessons can be completed.")
+        elif now_value < booking.start_at and not _support_teacher_admin_allowed(request.user):
+            messages.error(request, "The lesson cannot be completed before it starts.")
+        else:
+            booking.status = SupportLessonBooking.STATUS_COMPLETED
+            booking.marked_completed_at = now_value
+            booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+            messages.success(request, "Lesson marked as completed.")
+    elif action == 'no_show':
+        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
+            messages.error(request, "Only scheduled lessons can be marked as no-show.")
+        elif now_value < booking.start_at and not _support_teacher_admin_allowed(request.user):
+            messages.error(request, "A future lesson cannot be marked as no-show.")
+        else:
+            booking.status = SupportLessonBooking.STATUS_NO_SHOW
+            booking.marked_completed_at = now_value
+            booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+            messages.success(request, "Lesson marked as no-show.")
+    elif action == 'cancel':
+        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
+            messages.error(request, "Only scheduled lessons can be cancelled.")
+        else:
+            booking.status = SupportLessonBooking.STATUS_CANCELLED
+            booking.cancellation_reason = request.POST.get('cancellation_reason', '').strip()[:500]
+            booking.cancelled_by = (
+                SupportLessonBooking.CANCELLED_BY_ADMIN
+                if _support_teacher_admin_allowed(request.user)
+                else SupportLessonBooking.CANCELLED_BY_TEACHER
+            )
+            booking.cancelled_at = now_value
+            booking.save(update_fields=[
+                'status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'
+            ])
+            messages.success(request, "Lesson cancelled and the slot was released.")
+    else:
+        messages.error(request, "Unknown lesson action.")
+
+    return redirect(_support_safe_next_url(request))
 
 
 @login_required(login_url='/login/')
 def support_teacher_planner(request):
     profile = getattr(request.user, 'support_teacher_profile', None)
-    if not profile and not _support_teacher_admin_allowed(request.user):
+    is_admin = _support_teacher_admin_allowed(request.user)
+    if not profile and not is_admin:
         return HttpResponseForbidden("Only support teachers can view this planner.")
 
     teacher_id = request.GET.get('teacher')
-    if _support_teacher_admin_allowed(request.user) and teacher_id:
+    if is_admin and teacher_id:
         profile = get_object_or_404(SupportTeacherProfile, id=teacher_id)
 
     if not profile:
-        first_profile = SupportTeacherProfile.objects.select_related('user').first()
-        if not first_profile:
+        profile = SupportTeacherProfile.objects.select_related('user').first()
+        if not profile:
             return HttpResponseForbidden("No support teacher profile exists yet.")
-        profile = first_profile
 
-    bookings = SupportLessonBooking.objects.filter(
-        teacher=profile,
-    ).select_related('student').order_by('start_at')
+    _sync_support_booking_completion_queryset(
+        SupportLessonBooking.objects.filter(teacher=profile)
+    )
+    now_value = timezone.now()
+    today = timezone.localdate()
+    action_window_start = _make_local_datetime(today - timedelta(days=7), datetime.min.time())
+    week_end = today + timedelta(days=7)
+    range_end = _make_local_datetime(week_end + timedelta(days=1), datetime.min.time())
 
-    for booking in bookings:
-        _sync_support_booking_completion(booking)
+    upcoming_bookings = list(
+        SupportLessonBooking.objects.filter(
+            teacher=profile,
+            status=SupportLessonBooking.STATUS_SCHEDULED,
+            start_at__gte=action_window_start,
+            start_at__lt=range_end,
+        ).select_related('student').order_by('start_at')
+    )
+    schedule_by_date = defaultdict(list)
+    for booking in upcoming_bookings:
+        schedule_by_date[timezone.localtime(booking.start_at).date()].append(booking)
+    schedule_days = [
+        {
+            'date': day,
+            'date_label': day.strftime('%d %b %Y'),
+            'day_label': day.strftime('%A'),
+            'bookings': rows,
+        }
+        for day, rows in sorted(schedule_by_date.items())
+    ]
+
+    history_bookings = list(
+        SupportLessonBooking.objects.filter(teacher=profile)
+        .exclude(status=SupportLessonBooking.STATUS_SCHEDULED)
+        .select_related('student')
+        .order_by('-start_at')[:40]
+    )
+    all_slots = _build_support_teacher_slots(profile, days=14, include_unavailable=True)
 
     return render(request, 'sat/support_teacher_planner.html', {
         'teacher': profile,
-        'slots': _build_support_teacher_slots(profile, include_booked=True),
-        'upcoming_bookings': bookings.filter(status=SupportLessonBooking.STATUS_SCHEDULED, end_at__gte=timezone.now()),
-        'history_bookings': bookings.exclude(status=SupportLessonBooking.STATUS_SCHEDULED)[:30],
-        'reviews': profile.reviews.select_related('student').order_by('-created_at')[:30],
+        'slot_groups': _group_support_slots(all_slots),
+        'schedule_days': schedule_days,
+        'upcoming_bookings': upcoming_bookings,
+        'history_bookings': history_bookings,
+        'reviews': profile.reviews.select_related('student').order_by('-created_at')[:20],
+        'today_booking_count': sum(1 for booking in upcoming_bookings if timezone.localdate(booking.start_at) == today),
+        'week_booking_count': sum(1 for booking in upcoming_bookings if booking.end_at >= now_value),
+        'action_required_count': sum(1 for booking in upcoming_bookings if booking.awaiting_confirmation),
+        'completed_count': SupportLessonBooking.objects.filter(
+            teacher=profile,
+            status=SupportLessonBooking.STATUS_COMPLETED,
+        ).count(),
+        'average_rating': profile.average_rating,
+        'is_admin': is_admin,
+        'is_own_profile': request.user == profile.user,
+        'availabilities': profile.availabilities.order_by('day_of_week', 'start_time'),
+        'availability_form': SupportTeacherSelfAvailabilityForm(initial={'is_active': True}) if request.user == profile.user else None,
+        'teacher_choices': SupportTeacherProfile.objects.select_related('user').order_by('sort_order', 'display_name') if is_admin else [],
+        'timezone_name': str(timezone.get_current_timezone()),
     })
+
 
 def is_teacher(user):
     return (
@@ -4647,7 +5169,114 @@ def register_join_code_attempt(request):
     attempts = cache.get(key, 0)
     cache.set(key, attempts + 1, timeout=600)  # 10 minutes
 
+def _student_goal_form_context(user, *, form=None, next_url=None):
+    goal, _ = StudentGoalProfile.objects.select_related('dream_university').get_or_create(user=user)
+    form = form or StudentGoalProfileForm(instance=goal)
+    university_filter = Q(is_active=True)
+    if goal.dream_university_id:
+        university_filter |= Q(pk=goal.dream_university_id)
+    universities = [
+        {
+            'value': f'{StudentGoalProfileForm.UNIVERSITY_PREFIX}{university.pk}',
+            'id': university.pk,
+            'name': university.name,
+            'country': university.country,
+            'city': university.city,
+            'average_sat_score': university.average_sat_score,
+            'qs_rank': university.qs_rank,
+            'ranking_source': university.ranking_source,
+            'ranking_year': university.ranking_year,
+            'score_note': university.score_note,
+            'website': university.website,
+        }
+        for university in DreamUniversity.objects.filter(university_filter)
+        .distinct()
+        .order_by('sort_order', 'name')
+    ]
+    return {
+        'goal': goal,
+        'goal_form': form,
+        'goal_universities': universities,
+        'goal_form_next': next_url or reverse('sat_menu'),
+    }
+
+
+def _student_global_goal_context(user):
+    goal, _ = StudentGoalProfile.objects.select_related('dream_university').get_or_create(user=user)
+    scored_reviews = TestReview.objects.filter(
+        user=user,
+        score__gte=400,
+        score__lte=1600,
+    )
+    latest_review = scored_reviews.order_by('-created_at').first()
+    best_score = scored_reviews.aggregate(best=Max('score')).get('best')
+    current_score = latest_review.score if latest_review else None
+    target_score = goal.target_sat_score or goal.average_sat_score or 1400
+    score_gap = max(0, target_score - current_score) if current_score is not None else None
+
+    if current_score is None or target_score <= 400:
+        goal_progress_percent = 0
+    else:
+        goal_progress_percent = round(
+            max(0, min(100, ((current_score - 400) / (target_score - 400)) * 100))
+        )
+
+    now = timezone.now()
+    seven_days_ago = now - timedelta(days=7)
+    recent_tests = scored_reviews.filter(created_at__gte=seven_days_ago).count()
+    recent_vocab_reviews = VocabularyWordProgress.objects.filter(
+        user=user,
+        last_reviewed_at__gte=seven_days_ago,
+    ).count()
+    weekly_momentum = recent_tests + recent_vocab_reviews
+
+    destination = goal.university_name or 'your dream university'
+    motivation_messages = [
+        f'One focused session today moves you closer to {destination}.',
+        'Consistency wins: protect your study block before the day gets busy.',
+        'Reviewing one mistake deeply is worth more than rushing through ten questions.',
+        f'Your target is {target_score}. Build it one accurate answer at a time.',
+        'Small daily progress becomes a major score increase when repeated every week.',
+        'Start with the hardest task while your attention is fresh.',
+    ]
+    if goal.days_remaining is not None:
+        motivation_messages.insert(1, f'{goal.days_remaining} days remain. Today is part of the result.')
+    if score_gap is not None and score_gap > 0:
+        motivation_messages.insert(2, f'Your next mission: close the {score_gap}-point gap with targeted practice.')
+    elif score_gap == 0:
+        motivation_messages.insert(2, 'You reached your target range. Now protect consistency and accuracy.')
+
+    if goal.days_remaining is None:
+        pace_label = 'Set exam date'
+        pace_tone = 'setup'
+    elif goal.days_remaining <= 14:
+        pace_label = 'Final sprint'
+        pace_tone = 'urgent'
+    elif goal.days_remaining <= 45:
+        pace_label = 'Focused phase'
+        pace_tone = 'focused'
+    else:
+        pace_label = 'Steady build'
+        pace_tone = 'steady'
+
+    return {
+        'goal': goal,
+        'goal_is_configured': goal.is_configured,
+        'latest_review': latest_review,
+        'current_score': current_score,
+        'best_score': best_score,
+        'target_score': target_score,
+        'score_gap': score_gap,
+        'goal_progress_percent': goal_progress_percent,
+        'weekly_momentum': weekly_momentum,
+        'motivation_messages': motivation_messages,
+        'pace_label': pace_label,
+        'pace_tone': pace_tone,
+    }
+
+
 @login_required(login_url='/login/')
+@ensure_csrf_cookie
 def classroom_entry(request):
     if is_teacher(request.user):
         return redirect('teacher_classroom_list')
@@ -4677,14 +5306,23 @@ def classroom_entry(request):
         status='rejected'
     ).select_related('classroom').order_by('-requested_at')
 
-    return render(request, 'sat/classroom_join.html', {
+    context = {
         'approved_memberships': approved_memberships,
         'pending_memberships': pending_memberships,
         'rejected_memberships': rejected_memberships,
         # Backward compatibility for any old template includes.
         'pending_membership': pending_memberships.first(),
         'rejected_membership': rejected_memberships.first(),
-    })
+    }
+    context.update(_student_global_goal_context(request.user))
+    context.update(_student_goal_form_context(
+        request.user,
+        next_url=request.get_full_path(),
+    ))
+    # Never hard-lock the dashboard behind this modal. Students can open it
+    # explicitly, and ?goal=1 is used by edit/setup buttons.
+    context['open_goal_modal'] = request.GET.get('goal') == '1'
+    return render(request, 'sat/classroom_join.html', context)
 
 @login_required(login_url='/login/')
 def submit_classroom_join_request(request):
@@ -4873,7 +5511,139 @@ def classroom_access_denied(
         'message': message,
     }, status=status_code)
 
+def _student_goal_context(user, classroom, access_map):
+    goal, _ = StudentGoalProfile.objects.select_related('dream_university').get_or_create(user=user)
+
+    scored_reviews = TestReview.objects.filter(
+        user=user,
+        score__gte=400,
+        score__lte=1600,
+    ).filter(
+        Q(classroom=classroom) | Q(classroom__isnull=True)
+    )
+    latest_review = scored_reviews.order_by('-created_at').first()
+    best_score = scored_reviews.aggregate(best=Max('score')).get('best')
+    current_score = latest_review.score if latest_review else None
+
+    target_score = goal.target_sat_score or goal.average_sat_score or 1400
+    score_gap = max(0, target_score - current_score) if current_score is not None else None
+    if current_score is None or target_score <= 400:
+        goal_progress_percent = 0
+    else:
+        goal_progress_percent = round(max(0, min(100, ((current_score - 400) / (target_score - 400)) * 100)))
+
+    progress_records = {
+        row.section: row
+        for row in StudentProgress.objects.filter(classroom=classroom, student=user)
+    }
+    practice_progress = progress_records.get('practice_tests')
+    vocabulary_progress = progress_records.get('vocabulary')
+    admissions_progress = progress_records.get('admissions')
+
+    now = timezone.now()
+    next_support_lesson = SupportLessonBooking.objects.filter(
+        student=user,
+        status=SupportLessonBooking.STATUS_SCHEDULED,
+        start_at__gte=now,
+    ).select_related('teacher', 'teacher__user').order_by('start_at').first()
+
+    seven_days_ago = now - timedelta(days=7)
+    recent_tests = scored_reviews.filter(created_at__gte=seven_days_ago).count()
+    recent_vocab_reviews = VocabularyWordProgress.objects.filter(
+        user=user,
+        classroom=classroom,
+        last_reviewed_at__gte=seven_days_ago,
+    ).count()
+    weekly_momentum = recent_tests + recent_vocab_reviews
+
+    destination = goal.university_name or 'your dream university'
+    messages_pool = [
+        f"One focused session today moves you closer to {destination}.",
+        "Consistency wins: protect your study block before the day gets busy.",
+        "Reviewing one mistake deeply is worth more than rushing through ten questions.",
+        f"Your target is {target_score}. Build it one accurate answer at a time.",
+        "Small daily progress becomes a major score increase when repeated every week.",
+        "Start with the hardest task while your attention is fresh.",
+    ]
+    if goal.days_remaining is not None:
+        messages_pool.insert(1, f"{goal.days_remaining} days remain. Today is part of the result.")
+    if score_gap is not None and score_gap > 0:
+        messages_pool.insert(2, f"Your next mission: close the {score_gap}-point gap with targeted practice.")
+    elif score_gap == 0:
+        messages_pool.insert(2, "You reached your target range. Now protect consistency and accuracy.")
+
+    focus_cards = []
+    if next_support_lesson:
+        focus_cards.append({
+            'icon': 'bi-person-video3',
+            'title': 'Prepare for support class',
+            'text': f"Write down three questions before your lesson with {next_support_lesson.teacher.name}.",
+            'url': reverse('my_support_lessons'),
+            'label': 'Open lesson',
+        })
+    if access_map.get('practice_tests'):
+        focus_cards.append({
+            'icon': 'bi-stopwatch',
+            'title': 'Complete focused practice',
+            'text': 'Finish one timed module, then review every mistake before starting another.',
+            'url': reverse('classroom_practice_tests', args=[classroom.id]),
+            'label': 'Practice now',
+        })
+    if access_map.get('vocabulary'):
+        focus_cards.append({
+            'icon': 'bi-journal-text',
+            'title': 'Strengthen vocabulary',
+            'text': 'Review a short word set and revisit the terms marked as weak.',
+            'url': reverse('classroom_vocabulary', args=[classroom.id]),
+            'label': 'Study words',
+        })
+    if access_map.get('admissions') and len(focus_cards) < 3:
+        focus_cards.append({
+            'icon': 'bi-mortarboard',
+            'title': 'Connect score to admissions',
+            'text': 'Review the next admissions task for your dream-university plan.',
+            'url': reverse('classroom_admissions', args=[classroom.id]),
+            'label': 'Open admissions',
+        })
+
+    if goal.days_remaining is None:
+        pace_label = 'Set exam date'
+        pace_tone = 'setup'
+    elif goal.days_remaining <= 14:
+        pace_label = 'Final sprint'
+        pace_tone = 'urgent'
+    elif goal.days_remaining <= 45:
+        pace_label = 'Focused phase'
+        pace_tone = 'focused'
+    else:
+        pace_label = 'Steady build'
+        pace_tone = 'steady'
+
+    return {
+        'goal': goal,
+        'goal_is_configured': goal.is_configured,
+        'latest_review': latest_review,
+        'current_score': current_score,
+        'best_score': best_score,
+        'target_score': target_score,
+        'score_gap': score_gap,
+        'goal_progress_percent': goal_progress_percent,
+        'practice_progress': practice_progress,
+        'vocabulary_progress': vocabulary_progress,
+        'admissions_progress': admissions_progress,
+        'next_support_lesson': next_support_lesson,
+        'weekly_momentum': weekly_momentum,
+        'recent_tests': recent_tests,
+        'recent_vocab_reviews': recent_vocab_reviews,
+        'motivation_messages': messages_pool,
+        'focus_cards': focus_cards[:3],
+        'pace_label': pace_label,
+        'pace_tone': pace_tone,
+    }
+
+
 @login_required(login_url='/login/')
+@ensure_csrf_cookie
 def student_classroom_home(request, classroom_id):
     classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
 
@@ -4895,12 +5665,159 @@ def student_classroom_home(request, classroom_id):
         return redirect('sat_menu')
 
     access_map = get_membership_section_access_map(membership)
-
-    return render(request, 'sat/student_classroom_home.html', {
+    context = {
         'classroom': classroom,
         'membership': membership,
         'access_map': access_map,
+    }
+    context.update(_student_goal_context(request.user, classroom, access_map))
+    context.update(_student_goal_form_context(
+        request.user,
+        next_url=request.get_full_path(),
+    ))
+    # Never hard-lock the dashboard behind this modal. Students can open it
+    # explicitly, and ?goal=1 is used by edit/setup buttons.
+    context['open_goal_modal'] = request.GET.get('goal') == '1'
+
+    return render(request, 'sat/student_classroom_home.html', context)
+
+
+def _student_goal_redirect_url(request):
+    candidate = (request.POST.get('next') or '').strip()
+    if candidate and url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return reverse('sat_menu')
+
+
+@login_required(login_url='/login/')
+@require_GET
+@ensure_csrf_cookie
+def student_goal_csrf(request):
+    """Return a fresh CSRF token for the goal modal.
+
+    The dashboard may remain open across login/token rotation or be restored
+    from the browser back-forward cache. Refreshing the token immediately
+    before the AJAX POST keeps the cookie and submitted token synchronized.
+    """
+    response = JsonResponse({
+        'ok': True,
+        'csrfToken': get_token(request),
     })
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    return response
+
+
+@login_required(login_url='/login/')
+def student_goal_settings(request):
+    # A user can legitimately have more than one classroom role. For example,
+    # a student may own a test classroom while still having an approved student
+    # membership elsewhere. The old check rejected every classroom owner before
+    # considering the student's memberships, which produced the misleading 403
+    # page after pressing "Save my SAT goal".
+    has_student_membership = ClassroomMembership.objects.filter(
+        user=request.user,
+        role='student',
+    ).exists()
+    has_teacher_only_identity = (
+        is_teacher(request.user)
+        or Classroom.objects.filter(teacher=request.user).exists()
+        or hasattr(request.user, 'support_teacher_profile')
+    )
+    if has_teacher_only_identity and not has_student_membership:
+        return HttpResponseForbidden('Only students can manage SAT goals.')
+
+    if request.method != 'POST':
+        return redirect(f"{reverse('sat_menu')}?goal=1")
+
+    goal, _ = StudentGoalProfile.objects.select_related('dream_university').get_or_create(
+        user=request.user
+    )
+    form = StudentGoalProfileForm(request.POST, instance=goal)
+    redirect_url = _student_goal_redirect_url(request)
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                form.save()
+        except (ValidationError, IntegrityError) as exc:
+            logger.warning('Student goal save validation failed for user %s: %s', request.user.pk, exc)
+            if is_ajax:
+                return JsonResponse({
+                    'ok': False,
+                    'errors': {'__all__': ['The goal could not be saved. Please review the selected values.']},
+                }, status=400)
+            messages.error(request, 'The goal could not be saved. Please review the selected values.')
+            return redirect(f"{reverse('sat_menu')}?goal=1")
+        except Exception:
+            logger.exception('Unexpected student goal save failure for user %s', request.user.pk)
+            if is_ajax:
+                return JsonResponse({
+                    'ok': False,
+                    'errors': {'__all__': ['A server error prevented saving. Please try again.']},
+                }, status=500)
+            messages.error(request, 'A server error prevented saving. Please try again.')
+            return redirect(f"{reverse('sat_menu')}?goal=1")
+
+        if is_ajax:
+            return JsonResponse({
+                'ok': True,
+                'redirect_url': redirect_url,
+            })
+        messages.success(request, 'Your SAT goal has been updated.')
+        return redirect(redirect_url)
+
+    if is_ajax:
+        return JsonResponse({
+            'ok': False,
+            'errors': {
+                field: [str(message) for message in field_errors]
+                for field, field_errors in form.errors.items()
+            },
+        }, status=400)
+
+    fallback_context = _student_goal_form_context(
+        request.user,
+        form=form,
+        next_url=redirect_url,
+    )
+    fallback_context.update({
+        'form': form,
+        'open_goal_modal': True,
+    })
+    return render(request, 'sat/student_goal_settings.html', fallback_context)
+
+
+@login_required(login_url='/login/')
+def student_goal_settings_legacy(request, classroom_id):
+    classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)
+    if redirect_response:
+        return redirect_response
+    if role != 'student':
+        return classroom_access_denied(
+            request,
+            classroom=classroom,
+            message='Only approved students can manage SAT goals.',
+        )
+    if request.method == 'POST':
+        request.POST = request.POST.copy()
+        if not request.POST.get('university_choice'):
+            legacy_university_id = (request.POST.get('dream_university') or '').strip()
+            if legacy_university_id:
+                request.POST['university_choice'] = (
+                    f'{StudentGoalProfileForm.UNIVERSITY_PREFIX}{legacy_university_id}'
+                )
+            elif (request.POST.get('custom_university_name') or '').strip():
+                request.POST['university_choice'] = StudentGoalProfileForm.OTHER_VALUE
+        if not request.POST.get('next'):
+            request.POST['next'] = reverse('student_classroom_home', args=[classroom.id])
+        return student_goal_settings(request)
+    return redirect(f"{reverse('student_classroom_home', args=[classroom.id])}?goal=1")
 
 def get_membership_section_access_map(membership):
     result = {

@@ -33,12 +33,16 @@ urlpatterns = [
 
     # Support teacher planning
     path('support-teachers/', views.support_teacher_list, name='support_teacher_list'),
+    path('support-teachers/me/profile/', views.support_teacher_profile_edit, name='support_teacher_profile_edit'),
+    path('support-teachers/me/availability/add/', views.support_teacher_availability_add, name='support_teacher_availability_add'),
+    path('support-teachers/me/availability/<int:availability_id>/delete/', views.support_teacher_availability_delete, name='support_teacher_availability_delete'),
     path('support-teachers/me/planner/', views.support_teacher_planner, name='support_teacher_planner'),
     path('support-teachers/<int:teacher_id>/', views.support_teacher_detail, name='support_teacher_detail'),
     path('support-teachers/<int:teacher_id>/book/', views.book_support_lesson, name='book_support_lesson'),
     path('support-lessons/', views.my_support_lessons, name='my_support_lessons'),
     path('support-lessons/<int:booking_id>/cancel/', views.cancel_support_lesson, name='cancel_support_lesson'),
     path('support-lessons/<int:booking_id>/feedback/', views.leave_support_lesson_feedback, name='leave_support_lesson_feedback'),
+    path('support-lessons/<int:booking_id>/manage/', views.manage_support_lesson, name='manage_support_lesson'),
 
     path('vocabulary/practice-quiz/', views.vocabulary_practice_quiz, name='vocabulary_practice_quiz'),
     path('vocabulary/practice-quiz/start/', views.vocabulary_practice_quiz_start, name='vocabulary_practice_quiz_start'),
@@ -55,7 +59,10 @@ urlpatterns = [
 
     path('join/', views.submit_classroom_join_request, name='submit_classroom_join_request'),
     path('join/status/', views.classroom_join_status, name='classroom_join_status'),
+    path('student/goals/csrf/', views.student_goal_csrf, name='student_goal_csrf'),
+    path('student/goals/', views.student_goal_settings, name='student_goal_settings'),
     path('classroom/<int:classroom_id>/', views.student_classroom_home, name='student_classroom_home'),
+    path('classroom/<int:classroom_id>/goals/', views.student_goal_settings_legacy, name='student_goal_settings_legacy'),
     path('classroom/<int:classroom_id>/leave/', views.leave_classroom, name='leave_classroom'),
 
     path('teacher/classrooms/<int:classroom_id>/requests/', views.classroom_join_requests, name='classroom_join_requests'),

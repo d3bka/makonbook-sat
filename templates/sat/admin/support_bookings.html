@@ -1,0 +1,96 @@
+{% extends 'sat/admin/base_admin.html' %}
+
+{% block admin_content %}
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:15px;">
+  <h2 style="margin:0;"><i class="fa fa-clock-o"></i> Support Bookings</h2>
+  <a href="{% url 'admin_support_teachers' %}" class="btn-admin btn-secondary"><i class="fa fa-users"></i> Support Teachers</a>
+</div>
+
+<div class="stat-cards">
+  <div class="stat-card"><h3>{{ summary.total|default:0 }}</h3><p>Total bookings</p></div>
+  <div class="stat-card"><h3>{{ summary.scheduled|default:0 }}</h3><p>Scheduled</p></div>
+  <div class="stat-card"><h3>{{ summary.completed|default:0 }}</h3><p>Completed</p></div>
+  <div class="stat-card"><h3>{{ summary.cancelled|default:0 }}</h3><p>Cancelled</p></div>
+  <div class="stat-card"><h3>{{ summary.no_show|default:0 }}</h3><p>No-show</p></div>
+</div>
+
+<div class="admin-card">
+  <form method="get" style="display:grid; grid-template-columns:2fr 1fr 1.2fr 1fr 1fr auto; gap:10px; align-items:end;">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Search</label>
+      <input class="form-control" type="search" name="q" value="{{ query }}" placeholder="student, teacher, or note">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Status</label>
+      <select class="form-control" name="status">
+        <option value="">All statuses</option>
+        {% for value, label in status_choices %}<option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Teacher</label>
+      <select class="form-control" name="teacher">
+        <option value="">All teachers</option>
+        {% for teacher in teachers %}<option value="{{ teacher.id }}" {% if teacher_id == teacher.id|stringformat:'s' %}selected{% endif %}>{{ teacher.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>From</label>
+      <input class="form-control" type="date" name="date_from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}">
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>To</label>
+      <input class="form-control" type="date" name="date_to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}">
+    </div>
+    <button class="btn-admin btn-primary" type="submit">Filter</button>
+  </form>
+</div>
+
+<div class="admin-card" style="overflow:auto;">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>Date & time</th>
+        <th>Teacher</th>
+        <th>Student</th>
+        <th>Topic</th>
+        <th>Status</th>
+        <th>Booked</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for booking in bookings %}
+      <tr>
+        <td style="white-space:nowrap;"><strong>{{ booking.start_at|date:'d M Y' }}</strong><br>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</td>
+        <td>{{ booking.teacher.name }}</td>
+        <td>{{ booking.student.get_full_name|default:booking.student.username }}<br><small>{{ booking.student.username }}</small></td>
+        <td>{{ booking.get_topic_display }}{% if booking.student_note %}<br><small>{{ booking.student_note|truncatewords:10 }}</small>{% endif %}</td>
+        <td>
+          {% if booking.awaiting_confirmation %}<span class="badge badge-warning">Awaiting confirmation</span>
+          {% elif booking.status == 'scheduled' %}<span class="badge badge-info">Scheduled</span>
+          {% elif booking.status == 'completed' %}<span class="badge badge-success">Completed</span>
+          {% elif booking.status == 'cancelled' %}<span class="badge badge-danger">Cancelled</span>
+          {% else %}<span class="badge badge-warning">No-show</span>{% endif %}
+        </td>
+        <td>{{ booking.created_at|date:'d M Y H:i' }}</td>
+        <td style="white-space:nowrap;">
+          <a class="btn-admin btn-sm btn-primary" href="{% url 'support_teacher_planner' %}?teacher={{ booking.teacher_id }}">Planner</a>
+          <a class="btn-admin btn-sm btn-secondary" href="{% url 'admin_support_teacher_edit' booking.teacher_id %}">Teacher</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:30px;">No support bookings match these filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if bookings.paginator.num_pages > 1 %}
+  <div class="pagination-bar">
+    {% if bookings.has_previous %}<a href="?page={{ bookings.previous_page_number }}&q={{ query }}&status={{ status }}&teacher={{ teacher_id }}">Previous</a>{% endif %}
+    <span class="current">{{ bookings.number }} / {{ bookings.paginator.num_pages }}</span>
+    {% if bookings.has_next %}<a href="?page={{ bookings.next_page_number }}&q={{ query }}&status={{ status }}&teacher={{ teacher_id }}">Next</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock admin_content %}

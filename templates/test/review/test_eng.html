@@ -115,6 +115,8 @@
         @media (max-width: 768px) { .review-shell { padding: 0 10px 10px; } .review-title-card, .review-status-card, .question-container, .answers-container, .review-footer { border-radius: 20px; } .review-title-card, .review-status-card, .question-container, .answers-container { padding: 14px; } .review-title-card { flex-direction: column; align-items: flex-start; } .review-status-card { grid-template-columns: 1fr; } .question-text { font-size: 17px; } #passage { font-size: 16px; } .choice-container { font-size: 16px; padding: 12px; } .review-footer { justify-content: center; } .footer-nav-group { width: 100%; justify-content: center; } }
     </style>
 
+  <link rel="stylesheet" href="{% static 'assets/css/sat-review-controls-v38.css' %}?v=38">
+  <script>try{if(localStorage.getItem('makonbook.review.answersHidden')==='1'){document.documentElement.classList.add('review-answers-hidden')}}catch(e){}</script>
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
   {% include 'base/responsive_css.html' %}
@@ -135,12 +137,18 @@
                     <a class="review-title-link" href="{{ results_url|default:'/' }}"><h1>Question Review</h1></a>
                     <div class="review-subtitle">{% if is_guest_review %}Compare your answer with the correct answer and explanation.{% else %}Review the correct answer, the student answer, and the explanation.{% endif %}</div>
                 </div>
-                <div class="question-chip">Question <span id="question-number-header">{% if is_guest_review %}{{ guest_review_position }} of {{ guest_review_total }}{% else %}{{ question_payload.number|default:question.number }}{% endif %}</span></div>
+                <div class="review-title-actions">
+                    <button type="button" class="review-answer-toggle" data-review-answer-toggle aria-pressed="false">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.2 12s3.5-6 9.8-6 9.8 6 9.8 6-3.5 6-9.8 6S2.2 12 2.2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                        <span data-review-answer-toggle-label>Hide answers</span>
+                    </button>
+                    <div class="question-chip">Question <span id="question-number-header">{% if is_guest_review %}{{ guest_review_position }} of {{ guest_review_total }}{% elif question_payload %}{{ question_payload.number|default:"—" }}{% elif question %}{{ question.number|default:"—" }}{% else %}—{% endif %}</span></div>
+                </div>
             </div>
             <div class="review-status-card">
                 <div class="answer-stat correct-stat">
                     <span class="stat-label">Correct Answer</span>
-                    <strong>{% if question_payload.written %}{{ question_payload.reference_answer|default:"See accepted answers" }}{% else %}{{ question.answer|default_if_none:"—"|default:"—" }}{% endif %}</strong>
+                    <strong>{% if question_payload.written %}{{ question_payload.reference_answer|default:"See accepted answers" }}{% elif question %}{{ question.answer|default_if_none:"—"|default:"—" }}{% else %}—{% endif %}</strong>
                 </div>
                 <div class="answer-stat your-stat{% if answer_is_correct %} is-match{% elif answered %} is-wrong{% endif %}">
                     <span class="stat-label">Your Answer</span>
@@ -163,7 +171,7 @@
                     <h3><span class="meta-label">Domain:</span> {{ question.domain|default:"—" }}</h3>
                     <h3><span class="meta-label">Type:</span> {{ question.type|default:"—" }}</h3>
                     <p><span class="meta-label">Explanation:</span></p>
-                    <div id="explanation">{{ question.explained|default_if_none:""|safe }}</div>
+                    <div id="explanation"><div class="review-explanation-content">{{ question.explained|default_if_none:""|safe }}</div><div class="review-answer-hidden-message">Explanation hidden. Solve the question again before revealing it.</div></div>
                 </div>
             </section>
 
@@ -171,7 +179,7 @@
                 <div class="question-panel-top">
                     <div class="question-number-pill">
                         <span class="label">Question</span>
-                        <span class="value" id="question-number">{{ question_payload.number|default:question.number }}</span>
+                        <span class="value" id="question-number">{% if question_payload %}{{ question_payload.number|default:"—" }}{% elif question %}{{ question.number|default:"—" }}{% else %}—{% endif %}</span>
                     </div>
                 </div>
 
@@ -180,10 +188,13 @@
                     <div class="answers" id="answers">
                         
                         {% if question_payload.written %}
-                            <div class="review-answer-box">
-                                <div class="choice-note {% if answer_is_correct %}correct-note{% else %}user-note{% endif %}">{% if answer_is_correct %}Accepted{% else %}Not accepted{% endif %}</div>
-                                <p><strong>Your answer:</strong> {{ answered|default_if_none:"No answer"|default:"No answer" }}</p>
-                                <p><strong>Reference answer:</strong> {{ question_payload.reference_answer|default:"Ask the teacher" }}</p>
+                            <div class="review-answer-box review-sensitive-box">
+                                <div class="review-sensitive-content">
+                                    <div class="choice-note {% if answer_is_correct %}correct-note{% else %}user-note{% endif %}">{% if answer_is_correct %}Accepted{% else %}Not accepted{% endif %}</div>
+                                    <p><strong>Your answer:</strong> {{ answered|default_if_none:"No answer"|default:"No answer" }}</p>
+                                    <p><strong>Reference answer:</strong> {{ question_payload.reference_answer|default:"Ask the teacher" }}</p>
+                                </div>
+                                <div class="review-answer-hidden-message">Written answers are hidden.</div>
                             </div>
                         {% else %}
                             {% for choice in review_choices %}
@@ -217,7 +228,7 @@
                     <a href="{{ results_url|default:'/' }}" class="nav-button secondary" data-review-results>Results</a>
                 {% endif %}
             </div>
-            {% if is_guest_review and review_overview_url %}<a href="{{ review_overview_url }}" class="nav-button secondary">Overview</a>{% else %}<span class="review-keyboard-hint">← / → navigate · R results</span>{% endif %}
+            {% if is_guest_review and review_overview_url %}<a href="{{ review_overview_url }}" class="nav-button secondary">Overview</a>{% else %}<span class="review-keyboard-hint">← / → navigate · H hide/show answers · R results</span>{% endif %}
             <div class="footer-nav-group">
                 {% if next %}
                     <a href="{{ next }}" class="nav-button" data-review-next>Next</a>
@@ -251,7 +262,7 @@
         }
         window.addEventListener('load', renderReviewMath);
     </script>
-  <script src="{% static 'assets/js/sat-review-v13.js' %}?v=13"></script>
+  <script src="{% static 'assets/js/sat-review-v13.js' %}?v=38"></script>
   {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

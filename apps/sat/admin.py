@@ -973,14 +973,14 @@ class MakeupTestModuleDraftAdmin(admin.ModelAdmin):
 class SupportTeacherAvailabilityInline(admin.TabularInline):
     model = SupportTeacherAvailability
     extra = 1
-    fields = ('day_of_week', 'start_time', 'end_time', 'note', 'is_active')
+    fields = ('day_of_week', 'start_time', 'end_time', 'slot_duration_minutes', 'buffer_minutes', 'note', 'is_active')
 
 
 @admin.register(SupportTeacherProfile)
 class SupportTeacherProfileAdmin(admin.ModelAdmin):
-    list_display = ('name', 'user', 'telegram_username', 'subjects', 'average_rating_display', 'reviews_count', 'is_active', 'sort_order')
-    list_filter = ('is_active',)
-    search_fields = ('display_name', 'user__username', 'user__first_name', 'user__last_name', 'telegram_username', 'subjects')
+    list_display = ('name', 'user', 'sat_total_score', 'scores_verified', 'average_rating_display', 'reviews_count', 'completed_lessons_count', 'is_active', 'sort_order')
+    list_filter = ('is_active', 'scores_verified')
+    search_fields = ('display_name', 'headline', 'user__username', 'user__first_name', 'user__last_name', 'telegram_username', 'subjects', 'education', 'languages')
     list_editable = ('is_active', 'sort_order')
     inlines = [SupportTeacherAvailabilityInline]
 
@@ -991,7 +991,7 @@ class SupportTeacherProfileAdmin(admin.ModelAdmin):
 
 @admin.register(SupportLessonBooking)
 class SupportLessonBookingAdmin(admin.ModelAdmin):
-    list_display = ('student', 'teacher', 'start_at', 'end_at', 'status', 'created_at')
+    list_display = ('student', 'teacher', 'topic', 'start_at', 'end_at', 'status', 'created_at')
     list_filter = ('status', 'teacher', 'start_at')
     search_fields = ('student__username', 'student__first_name', 'student__last_name', 'teacher__display_name', 'teacher__user__username')
     autocomplete_fields = ('student', 'teacher')
@@ -1003,3 +1003,59 @@ class SupportTeacherReviewAdmin(admin.ModelAdmin):
     list_filter = ('rating', 'teacher', 'created_at')
     search_fields = ('teacher__display_name', 'teacher__user__username', 'student__username', 'feedback')
     readonly_fields = ('booking', 'teacher', 'student')
+
+
+@admin.register(DreamUniversity)
+class DreamUniversityAdmin(admin.ModelAdmin):
+    list_display = [
+        'qs_rank',
+        'name',
+        'country',
+        'city',
+        'ranking_year',
+        'average_sat_score',
+        'is_active',
+        'sort_order',
+        'updated_at',
+    ]
+    list_filter = ['is_active', 'ranking_year', 'ranking_source', 'country']
+    search_fields = ['name', 'country', 'city']
+    ordering = ['sort_order', 'name']
+    list_editable = ['average_sat_score', 'is_active', 'sort_order']
+    list_per_page = 50
+
+
+@admin.register(StudentGoalProfile)
+class StudentGoalProfileAdmin(admin.ModelAdmin):
+    list_display = [
+        'user',
+        'destination',
+        'reference_score',
+        'target_sat_score',
+        'exam_date',
+        'days_left',
+        'updated_at',
+    ]
+    list_filter = ['exam_date', 'dream_university']
+    search_fields = [
+        'user__username',
+        'user__first_name',
+        'user__last_name',
+        'dream_university__name',
+        'custom_university_name',
+    ]
+    autocomplete_fields = ['user', 'dream_university']
+    readonly_fields = ['created_at', 'updated_at']
+
+    @admin.display(description='University')
+    def destination(self, obj):
+        return obj.university_name or '—'
+
+    @admin.display(description='Average SAT')
+    def reference_score(self, obj):
+        return obj.average_sat_score or '—'
+
+    @admin.display(description='Days left')
+    def days_left(self, obj):
+        value = obj.days_remaining
+        return value if value is not None else '—'

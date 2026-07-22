@@ -166,14 +166,62 @@
     const canvas = document.getElementById('drawing-canvas');
     const pen = document.getElementById('pen-button');
     const clear = document.getElementById('clear-button');
-    if (!canvas || !pen || !clear) return;
+    const drawSurface = document.querySelector('#quiz-form main') || document.querySelector('main');
+    if (!canvas || !pen || !clear || !drawSurface) return;
+
     const context = canvas.getContext('2d');
+    const committedCanvas = document.createElement('canvas');
+    const committedContext = committedCanvas.getContext('2d');
+    const strokeCanvas = document.createElement('canvas');
+    const strokeContext = strokeCanvas.getContext('2d');
+    const HIGHLIGHT_ALPHA = 0.18;
+
     let enabled = false;
     let drawing = false;
+    let moved = false;
+    let activePointerId = null;
+    let ratio = window.devicePixelRatio || 1;
+
+    const clearPhysicalCanvas = (targetContext, targetCanvas) => {
+      targetContext.save();
+      targetContext.setTransform(1, 0, 0, 1, 0, 0);
+      targetContext.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      targetContext.restore();
+    };
+
+    const render = () => {
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.globalAlpha = 1;
+      context.drawImage(committedCanvas, 0, 0);
+      if (drawing) {
+        // The current gesture is composited once at a fixed alpha. The path can
+        // contain many pointer samples without becoming darker in sections.
+        context.globalAlpha = HIGHLIGHT_ALPHA;
+        context.drawImage(strokeCanvas, 0, 0);
+      }
+      context.restore();
+    };
+
+    const commitCurrentStroke = () => {
+      committedContext.save();
+      committedContext.setTransform(1, 0, 0, 1, 0, 0);
+      committedContext.globalAlpha = HIGHLIGHT_ALPHA;
+      committedContext.drawImage(strokeCanvas, 0, 0);
+      committedContext.restore();
+      clearPhysicalCanvas(strokeContext, strokeCanvas);
+      render();
+    };
 
     const setEnabled = (nextEnabled) => {
       enabled = Boolean(nextEnabled);
+      if (drawing) {
+        commitCurrentStroke();
+      }
       drawing = false;
+      moved = false;
+      activePointerId = null;
       canvas.classList.toggle('active', enabled);
       document.body.classList.toggle('pen-mode', enabled);
       pen.classList.toggle('active', enabled);
@@ -182,45 +230,111 @@
       pen.title = enabled ? 'Turn off highlighter' : 'Turn on highlighter';
     };
 
+    const configureStrokeContext = () => {
+      strokeContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+      strokeContext.globalAlpha = 1;
+      strokeContext.globalCompositeOperation = 'source-over';
+      strokeContext.lineCap = 'round';
+      strokeContext.lineJoin = 'round';
+      strokeContext.lineWidth = 11;
+      // Draw the gesture opaquely in its private buffer. Transparency is
+      // applied only once when the complete gesture is composited.
+      strokeContext.strokeStyle = '#facc15';
+      strokeContext.fillStyle = '#facc15';
+    };
+
     const resize = () => {
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(window.innerWidth * ratio);
-      canvas.height = Math.floor(window.innerHeight * ratio);
+      const oldCommitted = document.createElement('canvas');
+      oldCommitted.width = committedCanvas.width;
+      oldCommitted.height = committedCanvas.height;
+      if (committedCanvas.width && committedCanvas.height) {
+        oldCommitted.getContext('2d').drawImage(committedCanvas, 0, 0);
+      }
+
+      ratio = window.devicePixelRatio || 1;
+      const width = Math.floor(window.innerWidth * ratio);
+      const height = Math.floor(window.innerHeight * ratio);
+
+      canvas.width = width;
+      canvas.height = height;
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      context.lineWidth = 9;
-      context.strokeStyle = 'rgba(250, 204, 21, .38)';
+      committedCanvas.width = width;
+      committedCanvas.height = height;
+      strokeCanvas.width = width;
+      strokeCanvas.height = height;
+
+      configureStrokeContext();
+
+      if (oldCommitted.width && oldCommitted.height) {
+        committedContext.save();
+        committedContext.setTransform(1, 0, 0, 1, 0, 0);
+        committedContext.drawImage(oldCommitted, 0, 0, width, height);
+        committedContext.restore();
+      }
+      render();
     };
     resize();
     window.addEventListener('resize', resize);
 
-    const point = (event) => {
-      const source = event.touches ? event.touches[0] : event;
-      return { x: source.clientX, y: source.clientY };
-    };
+    const point = (event) => ({ x: event.clientX, y: event.clientY });
+    const isDrawableTarget = (target) => Boolean(
+      target && target.closest && target.closest('.question-container, .answers-container')
+    );
+
     const start = (event) => {
-      if (!enabled) return;
+      if (!enabled || event.button !== 0 || !isDrawableTarget(event.target)) return;
       drawing = true;
+      moved = false;
+      activePointerId = event.pointerId;
+      clearPhysicalCanvas(strokeContext, strokeCanvas);
+      configureStrokeContext();
       const p = point(event);
-      context.beginPath();
-      context.moveTo(p.x, p.y);
+      strokeContext.beginPath();
+      strokeContext.moveTo(p.x, p.y);
+      render();
       event.preventDefault();
+      event.stopPropagation();
     };
+
     const move = (event) => {
-      if (!enabled || !drawing) return;
+      if (!enabled || !drawing || event.pointerId !== activePointerId) return;
       const p = point(event);
-      context.lineTo(p.x, p.y);
-      context.stroke();
+      moved = true;
+      strokeContext.lineTo(p.x, p.y);
+      strokeContext.stroke();
+      render();
       event.preventDefault();
+      event.stopPropagation();
     };
-    const stop = () => { drawing = false; };
-    canvas.addEventListener('pointerdown', start);
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerup', stop);
-    canvas.addEventListener('pointercancel', stop);
+
+    const stop = (event) => {
+      if (!drawing || (activePointerId !== null && event.pointerId !== activePointerId)) return;
+      if (!moved) {
+        const p = point(event);
+        strokeContext.beginPath();
+        strokeContext.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
+        strokeContext.fill();
+      }
+      commitCurrentStroke();
+      drawing = false;
+      moved = false;
+      activePointerId = null;
+      if (enabled) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    drawSurface.addEventListener('pointerdown', start, { capture: true, passive: false });
+    document.addEventListener('pointermove', move, { capture: true, passive: false });
+    document.addEventListener('pointerup', stop, { capture: true, passive: false });
+    document.addEventListener('pointercancel', stop, { capture: true, passive: false });
+    drawSurface.addEventListener('click', (event) => {
+      if (!enabled || !isDrawableTarget(event.target)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
 
     setEnabled(false);
     pen.addEventListener('click', (event) => {
@@ -228,11 +342,15 @@
       event.stopPropagation();
       setEnabled(!enabled);
     });
-    clear.addEventListener('click', () => {
-      context.save();
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.restore();
+
+    clear.addEventListener('click', (event) => {
+      event.preventDefault();
+      clearPhysicalCanvas(committedContext, committedCanvas);
+      clearPhysicalCanvas(strokeContext, strokeCanvas);
+      drawing = false;
+      moved = false;
+      activePointerId = null;
+      render();
       clear.classList.add('is-cleared');
       window.setTimeout(() => clear.classList.remove('is-cleared'), 280);
     });
@@ -245,7 +363,6 @@
       }
     });
 
-    // Expose a small, stable API for modal/submit flows and regression tests.
     window.SATHighlighter = {
       disable: () => setEnabled(false),
       enable: () => setEnabled(true),

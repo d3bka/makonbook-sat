@@ -1,0 +1,142 @@
+<div
+  class="student-goal-dashboard sg-goal-modal{% if open_goal_modal %} is-open{% endif %}"
+  data-goal-modal
+  data-auto-open="{% if open_goal_modal %}1{% else %}0{% endif %}"
+  aria-hidden="{% if open_goal_modal %}false{% else %}true{% endif %}"
+>
+  <button class="sg-goal-modal-backdrop" type="button" data-goal-modal-close aria-label="Close goal settings"></button>
+  <section class="sg-goal-modal-panel" role="dialog" aria-modal="true" aria-labelledby="studentGoalModalTitle">
+    <div class="sg-goal-modal-head">
+      <div>
+        <span class="sg-eyebrow">Personal SAT plan</span>
+        <h2 id="studentGoalModalTitle">Set your dream university</h2>
+        <p>Choose a university from the catalogue. MakonBook fills the verified location and ranking automatically. Choose Others only when it is not listed.</p>
+      </div>
+      <button class="sg-goal-modal-close" type="button" data-goal-modal-close aria-label="Close">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <form method="post" action="{% url 'student_goal_settings' %}" class="sg-goal-modal-form" data-goal-form novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ goal_form_next }}">
+
+      <div class="sg-goal-modal-body">
+      <div class="sg-goal-form-alert" data-goal-form-alert hidden></div>
+      <div class="sg-error" data-field-error="__all__">{% for error in goal_form.non_field_errors %}{{ error }}{% endfor %}</div>
+
+      <section class="sg-form-section">
+        <div class="sg-form-section-title">
+          <span>1</span>
+          <div>
+            <h3>University</h3>
+            <p>Search the QS 2027 top-200 catalogue, then select one university.</p>
+          </div>
+        </div>
+
+        <div class="sg-field sg-field-full">
+          <label for="studentUniversitySearch">Search university</label>
+          <input id="studentUniversitySearch" class="sg-input" type="search" placeholder="Type MIT, Oxford, KAIST, Purdue..." data-university-search autocomplete="off">
+          <div class="sg-help" data-university-search-result>200 universities available.</div>
+        </div>
+
+        <div class="sg-field sg-field-full">
+          <label for="{{ goal_form.university_choice.id_for_label }}">{{ goal_form.university_choice.label }}</label>
+          {{ goal_form.university_choice }}
+          <div class="sg-error" data-field-error="university_choice">{% for error in goal_form.university_choice.errors %}{{ error }}{% endfor %}</div>
+        </div>
+
+        <article class="sg-university-preview is-hidden" data-university-preview aria-live="polite">
+          <div class="sg-university-preview-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V8.5L12 4v17H4Zm8 0V7l8 3.5V21h-8Z" fill="currentColor"/><path d="M7 11h2v2H7v-2Zm0 4h2v2H7v-2Zm7-4h2v2h-2v-2Zm3 0h1v2h-1v-2Zm-3 4h2v2h-2v-2Zm3 0h1v2h-1v-2Z" fill="white" opacity=".85"/></svg></div>
+          <div class="sg-university-preview-main">
+            <small>Selected university</small>
+            <strong data-university-name>—</strong>
+            <span data-university-location>—</span>
+          </div>
+          <div class="sg-university-preview-score">
+            <small data-university-score-label>QS rank</small>
+            <strong data-university-rank>—</strong>
+            <span data-university-score></span>
+            <span data-university-note></span>
+          </div>
+        </article>
+
+        <div class="sg-custom-university is-hidden" data-custom-university-fields aria-hidden="true">
+          <div class="sg-field">
+            <label for="{{ goal_form.custom_university_name.id_for_label }}">{{ goal_form.custom_university_name.label }}</label>
+            {{ goal_form.custom_university_name }}
+            <div class="sg-error" data-field-error="custom_university_name">{% for error in goal_form.custom_university_name.errors %}{{ error }}{% endfor %}</div>
+          </div>
+          <div class="sg-field">
+            <label for="{{ goal_form.custom_university_country.id_for_label }}">{{ goal_form.custom_university_country.label }}</label>
+            {{ goal_form.custom_university_country }}
+            <div class="sg-error" data-field-error="custom_university_country">{% for error in goal_form.custom_university_country.errors %}{{ error }}{% endfor %}</div>
+          </div>
+          <div class="sg-field sg-field-full">
+            <label for="{{ goal_form.custom_average_sat_score.id_for_label }}">{{ goal_form.custom_average_sat_score.label }}</label>
+            {{ goal_form.custom_average_sat_score }}
+            {% if goal_form.custom_average_sat_score.help_text %}<div class="sg-help">{{ goal_form.custom_average_sat_score.help_text }}</div>{% endif %}
+            <div class="sg-error" data-field-error="custom_average_sat_score">{% for error in goal_form.custom_average_sat_score.errors %}{{ error }}{% endfor %}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-form-section">
+        <div class="sg-form-section-title">
+          <span>2</span>
+          <div>
+            <h3>Score and exam date</h3>
+            <p>Enter your own target score and choose a nearby official SAT date from the list.</p>
+          </div>
+        </div>
+        <div class="sg-form-grid">
+          <div class="sg-field">
+            <label for="{{ goal_form.target_sat_score.id_for_label }}">{{ goal_form.target_sat_score.label }}</label>
+            {{ goal_form.target_sat_score }}
+            {% if goal_form.target_sat_score.help_text %}<div class="sg-help">{{ goal_form.target_sat_score.help_text }}</div>{% endif %}
+            <div class="sg-error" data-field-error="target_sat_score">{% for error in goal_form.target_sat_score.errors %}{{ error }}{% endfor %}</div>
+          </div>
+          <div class="sg-field">
+            <label for="{{ goal_form.exam_date.id_for_label }}">{{ goal_form.exam_date.label }}</label>
+            {{ goal_form.exam_date }}
+            {% if goal_form.exam_date.help_text %}<div class="sg-help">{{ goal_form.exam_date.help_text }}</div>{% endif %}
+            <div class="sg-error" data-field-error="exam_date">{% for error in goal_form.exam_date.errors %}{{ error }}{% endfor %}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-form-section">
+        <div class="sg-form-section-title">
+          <span>3</span>
+          <div>
+            <h3>Study pace</h3>
+            <p>Keep the pace realistic enough to repeat every week.</p>
+          </div>
+        </div>
+        <div class="sg-form-grid">
+          <div class="sg-field">
+            <label for="{{ goal_form.daily_study_minutes_goal.id_for_label }}">{{ goal_form.daily_study_minutes_goal.label }}</label>
+            {{ goal_form.daily_study_minutes_goal }}
+            <div class="sg-error" data-field-error="daily_study_minutes_goal">{% for error in goal_form.daily_study_minutes_goal.errors %}{{ error }}{% endfor %}</div>
+          </div>
+          <div class="sg-field">
+            <label for="{{ goal_form.weekly_study_days_goal.id_for_label }}">{{ goal_form.weekly_study_days_goal.label }}</label>
+            {{ goal_form.weekly_study_days_goal }}
+            <div class="sg-error" data-field-error="weekly_study_days_goal">{% for error in goal_form.weekly_study_days_goal.errors %}{{ error }}{% endfor %}</div>
+          </div>
+        </div>
+      </section>
+
+      </div>
+
+      <div class="sg-goal-modal-actions">
+        <button type="button" class="sg-btn sg-btn-secondary" data-goal-modal-close>Cancel</button>
+        <button type="submit" class="sg-btn" data-goal-submit>
+          <i class="bi bi-check2-circle"></i>
+          Save my SAT goal
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+{{ goal_universities|json_script:"student-goal-universities" }}

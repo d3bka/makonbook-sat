@@ -1081,7 +1081,64 @@ class SupportTeacherProfile(BaseModel):
         help_text="Telegram username without @."
     )
     subjects = models.CharField(max_length=255, blank=True, help_text="Example: SAT Math, Reading, Writing")
+    headline = models.CharField(
+        max_length=180,
+        blank=True,
+        help_text="Short public headline, for example: SAT Math specialist.",
+    )
     bio = models.TextField(blank=True)
+    education = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="University, degree, certification, or other public credential.",
+    )
+    languages = models.CharField(
+        max_length=180,
+        blank=True,
+        help_text="Languages used during support lessons.",
+    )
+    years_experience = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(50)],
+    )
+    sat_total_score = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(400), MaxValueValidator(1600)],
+    )
+    sat_math_score = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(200), MaxValueValidator(800)],
+    )
+    sat_reading_writing_score = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(200), MaxValueValidator(800)],
+    )
+    scores_verified = models.BooleanField(
+        default=False,
+        help_text="Admin verification flag for publicly displayed SAT scores.",
+    )
+    meeting_link = models.URLField(
+        blank=True,
+        help_text="Default Google Meet, Zoom, or other lesson link shown for scheduled lessons.",
+    )
+    booking_instructions = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Short instruction shown before a student confirms a booking.",
+    )
+    min_booking_notice_hours = models.PositiveSmallIntegerField(
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(168)],
+        help_text="Minimum notice required before a lesson can be booked.",
+    )
+    cancellation_notice_hours = models.PositiveSmallIntegerField(
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(168)],
+        help_text="Students cannot cancel inside this notice window.",
+    )
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
@@ -1099,6 +1156,15 @@ class SupportTeacherProfile(BaseModel):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.sat_math_score and self.sat_reading_writing_score and self.sat_total_score:
+            expected_total = self.sat_math_score + self.sat_reading_writing_score
+            if self.sat_total_score != expected_total:
+                raise ValidationError({
+                    'sat_total_score': f'Total SAT score must equal Math + Reading & Writing ({expected_total}).'
+                })
 
     @property
     def name(self):
@@ -1118,12 +1184,52 @@ class SupportTeacherProfile(BaseModel):
 
     @property
     def average_rating(self):
-        value = self.reviews.aggregate(avg=models.Avg('rating')).get('avg')
+        annotated = getattr(self, 'display_avg_rating', None)
+        if annotated is not None:
+            return round(float(annotated), 1)
+        value = self.reviews.filter(booking__status='completed').aggregate(avg=models.Avg('rating')).get('avg')
         return round(value, 1) if value is not None else None
 
     @property
     def reviews_count(self):
-        return self.reviews.count()
+        annotated = getattr(self, 'display_reviews_count', None)
+        if annotated is not None:
+            return int(annotated)
+        return self.reviews.filter(booking__status='completed').count()
+
+    @property
+    def completed_lessons_count(self):
+        annotated = getattr(self, 'display_completed_lessons', None)
+        if annotated is not None:
+            return int(annotated)
+        return self.bookings.filter(status='completed').count()
+
+    @property
+    def score_summary(self):
+        rows = []
+        if self.sat_total_score:
+            rows.append(('SAT', self.sat_total_score))
+        if self.sat_math_score:
+            rows.append(('Math', self.sat_math_score))
+        if self.sat_reading_writing_score:
+            rows.append(('Reading & Writing', self.sat_reading_writing_score))
+        return rows
+
+    @property
+    def profile_completion_percent(self):
+        values = [
+            self.display_name,
+            self.headline,
+            self.subjects,
+            self.bio,
+            self.education,
+            self.languages,
+            self.telegram_username,
+        ]
+        filled = sum(bool((value or '').strip()) for value in values)
+        if self.sat_total_score or self.sat_math_score or self.sat_reading_writing_score:
+            filled += 1
+        return round((filled / 8) * 100)
 
 
 class SupportTeacherAvailability(BaseModel):
@@ -1152,6 +1258,16 @@ class SupportTeacherAvailability(BaseModel):
     day_of_week = models.PositiveSmallIntegerField(choices=DAY_CHOICES)
     start_time = models.TimeField()
     end_time = models.TimeField()
+    slot_duration_minutes = models.PositiveSmallIntegerField(
+        default=60,
+        validators=[MinValueValidator(15), MaxValueValidator(180)],
+        help_text="Length of each bookable lesson generated inside this weekly window.",
+    )
+    buffer_minutes = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(60)],
+        help_text="Optional break between generated lesson slots.",
+    )
     is_active = models.BooleanField(default=True)
     note = models.CharField(max_length=255, blank=True)
 
@@ -1167,18 +1283,63 @@ class SupportTeacherAvailability(BaseModel):
     def clean(self):
         super().clean()
         if self.start_time and self.end_time and self.end_time <= self.start_time:
-            from django.core.exceptions import ValidationError
             raise ValidationError("End time must be later than start time.")
+
+        if self.start_time and self.end_time and self.slot_duration_minutes:
+            start_minutes = self.start_time.hour * 60 + self.start_time.minute
+            end_minutes = self.end_time.hour * 60 + self.end_time.minute
+            if end_minutes - start_minutes < 15:
+                raise ValidationError("Availability windows must be at least 15 minutes long.")
+
+        if self.teacher_id and self.day_of_week is not None and self.start_time and self.end_time:
+            overlap = SupportTeacherAvailability.objects.filter(
+                teacher_id=self.teacher_id,
+                day_of_week=self.day_of_week,
+                start_time__lt=self.end_time,
+                end_time__gt=self.start_time,
+            )
+            if self.is_active:
+                overlap = overlap.filter(is_active=True)
+            if self.pk:
+                overlap = overlap.exclude(pk=self.pk)
+            if overlap.exists():
+                raise ValidationError("This availability window overlaps another window for the same day.")
 
 
 class SupportLessonBooking(BaseModel):
     STATUS_SCHEDULED = 'scheduled'
     STATUS_COMPLETED = 'completed'
     STATUS_CANCELLED = 'cancelled'
+    STATUS_NO_SHOW = 'no_show'
     STATUS_CHOICES = [
         (STATUS_SCHEDULED, 'Scheduled'),
         (STATUS_COMPLETED, 'Completed'),
         (STATUS_CANCELLED, 'Cancelled'),
+        (STATUS_NO_SHOW, 'No-show'),
+    ]
+
+    TOPIC_GENERAL = 'general'
+    TOPIC_MATH = 'math'
+    TOPIC_READING_WRITING = 'reading_writing'
+    TOPIC_TEST_STRATEGY = 'test_strategy'
+    TOPIC_REVIEW = 'review'
+    TOPIC_OTHER = 'other'
+    TOPIC_CHOICES = [
+        (TOPIC_GENERAL, 'General SAT support'),
+        (TOPIC_MATH, 'SAT Math'),
+        (TOPIC_READING_WRITING, 'Reading & Writing'),
+        (TOPIC_TEST_STRATEGY, 'Test strategy'),
+        (TOPIC_REVIEW, 'Review mistakes'),
+        (TOPIC_OTHER, 'Other'),
+    ]
+
+    CANCELLED_BY_STUDENT = 'student'
+    CANCELLED_BY_TEACHER = 'teacher'
+    CANCELLED_BY_ADMIN = 'admin'
+    CANCELLED_BY_CHOICES = [
+        (CANCELLED_BY_STUDENT, 'Student'),
+        (CANCELLED_BY_TEACHER, 'Support teacher'),
+        (CANCELLED_BY_ADMIN, 'Administrator'),
     ]
 
     teacher = models.ForeignKey(
@@ -1194,8 +1355,13 @@ class SupportLessonBooking(BaseModel):
     start_at = models.DateTimeField(db_index=True)
     end_at = models.DateTimeField(db_index=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SCHEDULED, db_index=True)
+    topic = models.CharField(max_length=32, choices=TOPIC_CHOICES, default=TOPIC_GENERAL)
     student_note = models.TextField(blank=True)
+    teacher_note = models.TextField(blank=True)
+    meeting_link = models.URLField(blank=True)
     cancellation_reason = models.TextField(blank=True)
+    cancelled_by = models.CharField(max_length=20, choices=CANCELLED_BY_CHOICES, blank=True)
+    cancelled_at = models.DateTimeField(blank=True, null=True)
     marked_completed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
@@ -1222,19 +1388,50 @@ class SupportLessonBooking(BaseModel):
         return timezone.now() >= self.end_at
 
     @property
+    def is_live(self):
+        current = timezone.now()
+        return self.status == self.STATUS_SCHEDULED and self.start_at <= current < self.end_at
+
+    @property
+    def awaiting_confirmation(self):
+        return self.status == self.STATUS_SCHEDULED and timezone.now() >= self.end_at
+
+    @property
+    def duration_minutes(self):
+        if not self.start_at or not self.end_at:
+            return 0
+        return max(0, int((self.end_at - self.start_at).total_seconds() // 60))
+
+    @property
+    def student_can_cancel(self):
+        if self.status != self.STATUS_SCHEDULED:
+            return False
+        notice_hours = self.teacher.cancellation_notice_hours if self.teacher_id else 0
+        cutoff = self.start_at - timedelta(hours=notice_hours)
+        return timezone.now() < cutoff
+
+    @property
+    def effective_meeting_link(self):
+        return (self.meeting_link or self.teacher.meeting_link or '').strip()
+
+    @property
     def can_receive_feedback(self):
-        return self.is_past and self.status != self.STATUS_CANCELLED and not hasattr(self, 'review')
+        return (
+            self.is_past
+            and self.status == self.STATUS_COMPLETED
+            and not hasattr(self, 'review')
+        )
 
     def mark_completed_if_past(self):
-        if self.status == self.STATUS_SCHEDULED and self.is_past:
-            self.status = self.STATUS_COMPLETED
-            self.marked_completed_at = timezone.now()
-            self.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+        # v28: completion is an explicit teacher/admin action. A past lesson
+        # stays scheduled ("awaiting confirmation") until it is marked
+        # completed or no-show, preventing students from reviewing sessions
+        # that may not have actually taken place.
+        return False
 
     def clean(self):
         super().clean()
         if self.start_at and self.end_at and self.end_at <= self.start_at:
-            from django.core.exceptions import ValidationError
             raise ValidationError("End time must be later than start time.")
 
 
@@ -1265,11 +1462,149 @@ class SupportTeacherReview(BaseModel):
     def __str__(self):
         return f"{self.teacher.name} · {self.rating}/5 by {self.student.username}"
 
+    @property
+    def public_student_name(self):
+        first_name = (self.student.first_name or '').strip()
+        last_name = (self.student.last_name or '').strip()
+        if first_name:
+            return f"{first_name} {last_name[:1] + '.' if last_name else ''}".strip()
+        username = (self.student.username or 'Student').strip()
+        if len(username) <= 3:
+            return username[:1] + '***'
+        return username[:2] + '***' + username[-1:]
+
     def save(self, *args, **kwargs):
         if self.booking_id:
             self.teacher = self.booking.teacher
             self.student = self.booking.student
         super().save(*args, **kwargs)
+
+class DreamUniversity(BaseModel):
+    """Admin-managed university options shown in the student goal dashboard.
+
+    SAT ranges change over time, so MakonBook stores the value as an editable
+    planning reference instead of hard-coding admissions data in the UI.
+    """
+    name = models.CharField(max_length=180)
+    country = models.CharField(max_length=120, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    average_sat_score = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(400), MaxValueValidator(1600)],
+        help_text="Optional published or internally verified SAT reference. Do not invent values.",
+    )
+    qs_rank = models.PositiveSmallIntegerField(null=True, blank=True)
+    ranking_source = models.CharField(max_length=120, blank=True, default='QS World University Rankings')
+    ranking_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    score_note = models.CharField(
+        max_length=180,
+        blank=True,
+        help_text="Optional context, for example: typical admitted-student range or internal target.",
+    )
+    website = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Dream University'
+        verbose_name_plural = 'Dream Universities'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['name', 'country'],
+                name='sat_unique_dream_university_country',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.country})" if self.country else self.name
+
+
+class StudentGoalProfile(BaseModel):
+    """A student's SAT destination, exam date, and sustainable study target."""
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='sat_goal_profile',
+    )
+    dream_university = models.ForeignKey(
+        DreamUniversity,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='student_goals',
+    )
+    custom_university_name = models.CharField(max_length=180, blank=True)
+    custom_university_country = models.CharField(max_length=120, blank=True)
+    custom_average_sat_score = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(400), MaxValueValidator(1600)],
+    )
+    target_sat_score = models.PositiveSmallIntegerField(
+        default=1400,
+        validators=[MinValueValidator(400), MaxValueValidator(1600)],
+    )
+    exam_date = models.DateField(null=True, blank=True)
+    daily_study_minutes_goal = models.PositiveSmallIntegerField(
+        default=45,
+        validators=[MinValueValidator(15), MaxValueValidator(360)],
+    )
+    weekly_study_days_goal = models.PositiveSmallIntegerField(
+        default=5,
+        validators=[MinValueValidator(1), MaxValueValidator(7)],
+    )
+
+    class Meta:
+        verbose_name = 'Student SAT Goal'
+        verbose_name_plural = 'Student SAT Goals'
+
+    def __str__(self):
+        destination = self.university_name or 'Goal not configured'
+        return f"{self.user.username} → {destination}"
+
+    def clean(self):
+        super().clean()
+        if self.exam_date and self.exam_date < timezone.localdate():
+            raise ValidationError({'exam_date': 'Exam date cannot be in the past.'})
+        if self.custom_university_name and not self.custom_average_sat_score and not self.dream_university_id:
+            raise ValidationError({
+                'custom_average_sat_score': 'Add an average SAT score for the custom university.'
+            })
+
+    @property
+    def university_name(self):
+        custom = (self.custom_university_name or '').strip()
+        if custom:
+            return custom
+        return self.dream_university.name if self.dream_university_id else ''
+
+    @property
+    def university_country(self):
+        custom = (self.custom_university_country or '').strip()
+        if custom:
+            return custom
+        return self.dream_university.country if self.dream_university_id else ''
+
+    @property
+    def average_sat_score(self):
+        if self.custom_university_name and self.custom_average_sat_score:
+            return self.custom_average_sat_score
+        if self.dream_university_id:
+            return self.dream_university.average_sat_score
+        return self.custom_average_sat_score
+
+    @property
+    def days_remaining(self):
+        if not self.exam_date:
+            return None
+        return max(0, (self.exam_date - timezone.localdate()).days)
+
+    @property
+    def is_configured(self):
+        return bool(self.university_name and self.exam_date and self.target_sat_score)
+
 
 class Classroom(models.Model):
     CLASSROOM_TYPE_SAT = 'sat'

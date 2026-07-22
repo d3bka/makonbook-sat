@@ -3,7 +3,10 @@
 {% block admin_content %}
 <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:15px;">
   <h2 style="margin:0;"><i class="fa fa-calendar-check-o"></i> Support Teachers</h2>
-  <a href="{% url 'admin_support_teacher_create' %}" class="btn-admin btn-success"><i class="fa fa-plus"></i> Add Support Teacher</a>
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <a href="{% url 'admin_support_bookings' %}" class="btn-admin btn-secondary"><i class="fa fa-clock-o"></i> All Bookings</a>
+    <a href="{% url 'admin_support_teacher_create' %}" class="btn-admin btn-success"><i class="fa fa-plus"></i> Add Support Teacher</a>
+  </div>
 </div>
 
 <div class="admin-card">
@@ -34,6 +37,7 @@
         <th>Subjects</th>
         <th>Rating</th>
         <th>Availability</th>
+        <th>Upcoming</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
@@ -45,8 +49,9 @@
         <td>{{ teacher.user.username }}</td>
         <td>{% if teacher.clean_telegram_username %}@{{ teacher.clean_telegram_username }}{% else %}-{% endif %}</td>
         <td>{{ teacher.subjects|default:'-' }}</td>
-        <td>{% if teacher.average_rating %}★ {{ teacher.average_rating }}{% else %}-{% endif %}</td>
-        <td>{{ teacher.availabilities.count }}</td>
+        <td>{% if teacher.admin_avg_rating %}★ {{ teacher.admin_avg_rating|floatformat:1 }} <small>({{ teacher.admin_reviews_count }})</small>{% else %}-{% endif %}</td>
+        <td>{{ teacher.availabilities.count }} window{{ teacher.availabilities.count|pluralize }}</td>
+        <td><span class="badge badge-info">{{ teacher.upcoming_count }}</span></td>
         <td>
           {% if teacher.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Inactive</span>{% endif %}
         </td>
@@ -61,7 +66,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="8" style="text-align:center; color:#94a3b8;">No support teachers found.</td></tr>
+      <tr><td colspan="9" style="text-align:center; color:#94a3b8;">No support teachers found.</td></tr>
       {% endfor %}
     </tbody>
   </table>

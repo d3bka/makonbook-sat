@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-test-start-v13.css' %}?v=13">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-start-v13.css' %}?v=39">
 </head>
 <body class="sat-start-page">
   <div class="sat-start-bg" aria-hidden="true"></div>
@@ -105,7 +105,20 @@
   </footer>
 
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
-  <script src="{% static 'assets/js/sat-test-start-v13.js' %}?v=13"></script>
+  <script src="{% static 'assets/js/sat-test-start-v13.js' %}?v=39"></script>
   {% include 'base/issue_report_widget.html' %}
+  <script>
+    (function () {
+      var reportButton = document.querySelector('.issue-report-fab');
+      var footerActions = document.querySelector('.sat-start-footer-actions');
+      var startButton = footerActions && footerActions.querySelector('[data-start-test-link]');
+      if (!reportButton || !footerActions) return;
+      if (startButton) {
+        footerActions.insertBefore(reportButton, startButton);
+      } else {
+        footerActions.appendChild(reportButton);
+      }
+    })();
+  </script>
 </body>
 </html>

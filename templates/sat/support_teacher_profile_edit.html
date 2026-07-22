@@ -1,0 +1,120 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Edit Support Teacher Profile{% endblock title-main %}
+{% block title-subtitle %}<span>Control what students see before they book</span>{% endblock title-subtitle %}
+{% block title %}Public Profile{% endblock title %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
+{% endblock style %}
+
+{% block content %}
+<div class="support-shell support-stack">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>
+    {% endfor %}
+  {% endif %}
+
+  <section class="support-card support-hero">
+    <div class="support-hero-content">
+      <div>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Support Teacher Profile</div>
+        <h1>Build a profile students can trust.</h1>
+        <p>Update your public details, teaching experience, SAT scores, lesson links, and booking rules. Score changes remove the verified badge until an administrator checks them again.</p>
+        <div class="support-hero-actions">
+          <a class="support-btn support-btn-light" href="{% url 'support_teacher_planner' %}"><i class="bi bi-layout-text-window-reverse"></i> Back to planner</a>
+          <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_detail' teacher.id %}"><i class="bi bi-eye"></i> Preview public profile</a>
+        </div>
+      </div>
+      <aside class="support-next-card">
+        <small>Profile completeness</small>
+        <strong>{{ teacher.profile_completion_percent }}%</strong>
+        <span>{{ teacher.reviews_count }} public review{{ teacher.reviews_count|pluralize }} · {{ teacher.completed_lessons_count }} completed lesson{{ teacher.completed_lessons_count|pluralize }}</span>
+        <div class="support-profile-progress"><span style="width:{{ teacher.profile_completion_percent }}%"></span></div>
+      </aside>
+    </div>
+  </section>
+
+  <form method="post" class="support-profile-form" data-support-lock-submit>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="support-alert error">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="support-page-grid support-profile-edit-grid">
+      <div class="support-stack">
+        <section class="support-card support-card-pad">
+          <div class="support-section-head"><div><h2>Public identity</h2><p>These details appear in the teacher catalog and booking page.</p></div></div>
+          <div class="support-form-grid-2">
+            <div class="support-field"><label for="{{ form.first_name.id_for_label }}">First name</label>{{ form.first_name }}{{ form.first_name.errors }}</div>
+            <div class="support-field"><label for="{{ form.last_name.id_for_label }}">Last name</label>{{ form.last_name }}{{ form.last_name.errors }}</div>
+            <div class="support-field"><label for="{{ form.display_name.id_for_label }}">Public display name</label>{{ form.display_name }}{{ form.display_name.errors }}</div>
+            <div class="support-field"><label for="{{ form.email.id_for_label }}">Account email</label>{{ form.email }}{{ form.email.errors }}</div>
+          </div>
+          <div class="support-field" style="margin-top:14px;"><label for="{{ form.headline.id_for_label }}">Professional headline</label>{{ form.headline }}{{ form.headline.errors }}</div>
+          <div class="support-field" style="margin-top:14px;"><label for="{{ form.subjects.id_for_label }}">Subjects and specialties</label>{{ form.subjects }}{{ form.subjects.errors }}</div>
+          <div class="support-field" style="margin-top:14px;"><label for="{{ form.bio.id_for_label }}">About you</label>{{ form.bio }}{{ form.bio.errors }}</div>
+        </section>
+
+        <section class="support-card support-card-pad">
+          <div class="support-section-head"><div><h2>Experience and credentials</h2><p>Help students understand your background before booking.</p></div></div>
+          <div class="support-form-grid-2">
+            <div class="support-field"><label for="{{ form.education.id_for_label }}">Education / certification</label>{{ form.education }}{{ form.education.errors }}</div>
+            <div class="support-field"><label for="{{ form.languages.id_for_label }}">Teaching languages</label>{{ form.languages }}{{ form.languages.errors }}</div>
+            <div class="support-field"><label for="{{ form.years_experience.id_for_label }}">Years of experience</label>{{ form.years_experience }}{{ form.years_experience.errors }}</div>
+            <div class="support-field"><label for="{{ form.telegram_username.id_for_label }}">Telegram username</label>{{ form.telegram_username }}{{ form.telegram_username.errors }}</div>
+          </div>
+        </section>
+
+        <section class="support-card support-card-pad">
+          <div class="support-section-head">
+            <div><h2>SAT score profile</h2><p>Scores are public. After you change them, an administrator must verify them again.</p></div>
+            {% if teacher.scores_verified %}<span class="support-verified-badge"><i class="bi bi-patch-check-fill"></i> Verified</span>{% else %}<span class="support-status support-status-no_show">Not verified</span>{% endif %}
+          </div>
+          <div class="support-form-grid-3">
+            <div class="support-field"><label for="{{ form.sat_total_score.id_for_label }}">Total SAT</label>{{ form.sat_total_score }}{{ form.sat_total_score.errors }}</div>
+            <div class="support-field"><label for="{{ form.sat_math_score.id_for_label }}">Math</label>{{ form.sat_math_score }}{{ form.sat_math_score.errors }}</div>
+            <div class="support-field"><label for="{{ form.sat_reading_writing_score.id_for_label }}">Reading & Writing</label>{{ form.sat_reading_writing_score }}{{ form.sat_reading_writing_score.errors }}</div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="support-stack">
+        <section class="support-card support-card-pad">
+          <div class="support-section-head"><div><h2>Lesson delivery</h2><p>These settings apply to new bookings.</p></div></div>
+          <div class="support-field"><label for="{{ form.meeting_link.id_for_label }}">Default meeting link</label>{{ form.meeting_link }}{{ form.meeting_link.errors }}</div>
+          <div class="support-field" style="margin-top:14px;"><label for="{{ form.booking_instructions.id_for_label }}">Instructions before booking</label>{{ form.booking_instructions }}{{ form.booking_instructions.errors }}</div>
+          <div class="support-form-grid-2" style="margin-top:14px;">
+            <div class="support-field"><label for="{{ form.min_booking_notice_hours.id_for_label }}">Minimum booking notice (hours)</label>{{ form.min_booking_notice_hours }}{{ form.min_booking_notice_hours.errors }}</div>
+            <div class="support-field"><label for="{{ form.cancellation_notice_hours.id_for_label }}">Cancellation notice (hours)</label>{{ form.cancellation_notice_hours }}{{ form.cancellation_notice_hours.errors }}</div>
+          </div>
+        </section>
+
+        <section class="support-card support-profile-preview-card">
+          <small>Live preview</small>
+          <div class="support-profile-row" style="margin-top:14px;">
+            <div class="support-avatar support-avatar-lg">{{ teacher.name|first|upper }}</div>
+            <div class="support-profile-copy"><h2>{{ teacher.name }}</h2><p>{{ teacher.headline|default:'MakonBook support teacher' }}</p></div>
+          </div>
+          <div class="support-tags">{% for subject in subjects %}<span class="support-tag">{{ subject }}</span>{% empty %}<span class="support-tag">General SAT</span>{% endfor %}</div>
+          <div class="support-score-mini-grid">
+            {% if teacher.sat_total_score %}<div><span>Total SAT</span><strong>{{ teacher.sat_total_score }}</strong></div>{% endif %}
+            {% if teacher.sat_math_score %}<div><span>Math</span><strong>{{ teacher.sat_math_score }}</strong></div>{% endif %}
+            {% if teacher.sat_reading_writing_score %}<div><span>R&W</span><strong>{{ teacher.sat_reading_writing_score }}</strong></div>{% endif %}
+          </div>
+          <div class="support-profile-meta">
+            <div class="support-meta-row"><span>Experience</span><strong>{{ teacher.years_experience }} year{{ teacher.years_experience|pluralize }}</strong></div>
+            <div class="support-meta-row"><span>Rating</span><strong>{% if teacher.average_rating %}★ {{ teacher.average_rating }}{% else %}New teacher{% endif %}</strong></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="support-sticky-save">
+      <span>Changes become visible to students immediately.</span>
+      <button class="support-btn support-btn-primary" type="submit" data-loading-label="Saving profile…"><i class="bi bi-save"></i> Save profile</button>
+    </div>
+  </form>
+</div>
+<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
+{% endblock content %}

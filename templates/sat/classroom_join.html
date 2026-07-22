@@ -1,21 +1,150 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Classrooms{% endblock title-main %}
-{% block breadcrumb_parent %}<li><a href="{% url 'sat_menu' %}">Menu</a></li>{% endblock breadcrumb_parent %}
-{% block title %}Student classrooms{% endblock title %}
+{% block title-main %}Student Dashboard{% endblock title-main %}
+{% block breadcrumb_parent %}<li><a href="{% url 'sat_menu' %}">Dashboard</a></li>{% endblock breadcrumb_parent %}
+{% block title %}Student Dashboard{% endblock title %}
 
 {% block style %}
 <link rel="stylesheet" href="{% static 'assets/css/makon-classroom-membership.css' %}">
+<link rel="stylesheet" href="{% static 'assets/css/student-goal-dashboard-v30.css' %}?v=37">
 {% endblock style %}
 
 {% block content %}
-<div class="classroom-membership-page">
+<div class="student-goal-dashboard sg-global-dashboard" id="studentGoalDashboard">
+  <section class="sg-hero sg-global-hero" data-sg-reveal>
+    <div class="sg-hero-copy">
+      <div class="sg-eyebrow">Student dashboard</div>
+      <h1 class="sg-title">
+        Your SAT plan starts with a
+        <span class="sg-title-gradient">clear destination.</span>
+      </h1>
+      <p class="sg-subtitle">
+        Welcome, {{ request.user.first_name|default:request.user.username }}. Manage your dream university,
+        target score, exam countdown, and classrooms from one dashboard.
+      </p>
+
+      <div class="sg-destination">
+        <span class="sg-destination-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 9.5 12 4l9.5 5.5L12 15 2.5 9.5Z" fill="currentColor"/><path d="M6.5 12.1V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-3.9L12 15l-5.5-2.9Z" fill="currentColor" opacity=".82"/><path d="M21.5 10v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <div>
+          {% if goal.university_name %}
+            <strong>{{ goal.university_name }}</strong>
+            <span>
+              {% if goal.university_country %}{{ goal.university_country }}{% endif %}{% if goal.dream_university.qs_rank %}{% if goal.university_country %} · {% endif %}QS {{ goal.dream_university.ranking_year|default:"2027" }} #{{ goal.dream_university.qs_rank }}{% endif %}{% if goal.average_sat_score %} · SAT reference: {{ goal.average_sat_score }}{% else %} · SAT average not published{% endif %}
+            </span>
+          {% else %}
+            <strong>Choose your dream university</strong>
+            <span>Select a university once and MakonBook will fill its reference information automatically.</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="sg-actions">
+        <button type="button" class="sg-btn" data-goal-modal-open>
+          <svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>
+          {% if goal_is_configured %}Update SAT goal{% else %}Set my SAT goal{% endif %}
+        </button>
+        {% if approved_memberships %}
+          <a href="#studentClassrooms" class="sg-btn sg-btn-secondary">
+            <i class="bi bi-grid"></i>
+            Open classrooms
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="sg-motivation">
+        <div class="sg-motivation-timer" data-motivation-timer data-rotation-seconds="15">
+          <span data-motivation-seconds-left>15</span>
+        </div>
+        <div class="sg-motivation-copy">
+          <small>Live motivation</small>
+          <strong data-motivation-text>One focused session today moves you closer to your goal.</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="sg-hero-side">
+      <article class="sg-countdown-card" {% if goal.exam_date %}data-exam-countdown data-exam-date="{{ goal.exam_date|date:'Y-m-d' }}"{% endif %}>
+        <div class="sg-card-kicker">
+          <span><i class="bi bi-calendar-event"></i> SAT exam countdown</span>
+          <span class="sg-status-chip" data-tone="{{ pace_tone }}">{{ pace_label }}</span>
+        </div>
+        {% if goal.exam_date %}
+          <div class="sg-countdown-grid">
+            <div class="sg-countdown-unit"><strong data-countdown-days>{{ goal.days_remaining }}</strong><span>Days</span></div>
+            <div class="sg-countdown-unit"><strong data-countdown-hours>00</strong><span>Hours</span></div>
+            <div class="sg-countdown-unit"><strong data-countdown-minutes>00</strong><span>Minutes</span></div>
+            <div class="sg-countdown-unit"><strong data-countdown-seconds>00</strong><span>Seconds</span></div>
+          </div>
+          <div class="sg-progress-mini">
+            <div class="sg-progress-mini-head">
+              <span>Exam date</span>
+              <strong>{{ goal.exam_date|date:"F j, Y" }}</strong>
+            </div>
+          </div>
+        {% else %}
+          <div class="sg-empty sg-dashboard-empty">
+            Choose your exam date to activate the live countdown.
+          </div>
+        {% endif %}
+      </article>
+
+      <article class="sg-score-card">
+        <div class="sg-card-kicker">
+          <span><i class="bi bi-graph-up-arrow"></i> Score journey</span>
+          <span class="sg-status-chip">Target {{ target_score }}</span>
+        </div>
+        <div class="sg-score-row">
+          <div class="sg-progress-ring" style="--progress: {{ goal_progress_percent }}%;">
+            <strong>{{ goal_progress_percent }}%</strong>
+          </div>
+          <div class="sg-score-copy">
+            <strong>{% if current_score is not None %}{{ current_score }}{% else %}—{% endif %}</strong>
+            <span>
+              {% if current_score is not None %}
+                Latest SAT score · {% if score_gap %}{{ score_gap }} points to target{% else %}target range reached{% endif %}
+              {% else %}
+                Your scored practice tests will appear here automatically.
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  {{ motivation_messages|json_script:"student-motivation-messages" }}
+
+  <section class="sg-metrics" data-sg-reveal>
+    <article class="sg-metric-card">
+      <div class="sg-metric-top"><span class="sg-metric-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 2.5 5.8 13h5.1l-.4 8.5L18.2 11h-5.1l.3-8.5Z" fill="currentColor" stroke="currentColor" stroke-linejoin="round"/></svg></span></div>
+      <strong>{% if current_score is not None %}{{ current_score }}{% else %}—{% endif %}</strong>
+      <span>Latest score{% if latest_review %} · {{ latest_review.created_at|date:"M j" }}{% endif %}{% if best_score %} · best {{ best_score }}{% endif %}</span>
+    </article>
+    <article class="sg-metric-card">
+      <div class="sg-metric-top"><span class="sg-metric-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg></span></div>
+      <strong>{{ target_score }}</strong>
+      <span>Your manually entered SAT target</span>
+    </article>
+    <article class="sg-metric-card">
+      <div class="sg-metric-top"><span class="sg-metric-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17 10 12l3.2 3.2L20 8.4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.8 8.4H20v5.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <strong>{% if score_gap is not None %}{{ score_gap }}{% else %}—{% endif %}</strong>
+      <span>{% if score_gap == 0 %}Target gap closed{% else %}Points remaining to target{% endif %}</span>
+    </article>
+    <article class="sg-metric-card">
+      <div class="sg-metric-top"><span class="sg-metric-icon"><svg class="sg-icon-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.1 2.8c.8 4-2.6 5.1-2.6 8 0 1.2.7 2 1.7 2.5-.1-2 .9-3.2 2.2-4.4 2.1 1.9 3.6 4 3.6 6.6 0 3.3-2.7 5.8-6 5.8s-6-2.5-6-5.8c0-4.4 3.2-7.2 7.1-12.7Z" fill="currentColor"/></svg></span></div>
+      <strong>{{ weekly_momentum }}</strong>
+      <span>Learning actions completed in the last 7 days</span>
+    </article>
+  </section>
+</div>
+
+<div class="classroom-membership-page sg-classroom-list" id="studentClassrooms">
   <section class="membership-hero">
     <div>
       <span class="membership-eyebrow">Student classrooms</span>
       <h2>Your classrooms</h2>
-      <p>Open approved classrooms or enter a new six-digit code shared by your teacher.</p>
+      <p>Every classroom opens through its own command center, so your goal and next actions stay visible before you start studying.</p>
     </div>
     {% if approved_memberships %}
       <span class="membership-status approved">{{ approved_memberships|length }} approved</span>
@@ -27,7 +156,7 @@
       <div class="membership-panel-head">
         <div>
           <h3>Approved classrooms</h3>
-          <p>You are enrolled. Open a classroom to view chat and the sections enabled by its teacher.</p>
+          <p>Open a classroom to see the tools, chat, progress, and study actions enabled by your teacher.</p>
         </div>
       </div>
       <div class="membership-grid">
@@ -101,5 +230,8 @@
     </section>
   {% endif %}
 </div>
+
+{% include 'sat/_student_goal_modal.html' %}
 <script src="{% static 'assets/js/makon-classroom-membership.js' %}"></script>
+<script src="{% static 'assets/js/student-goal-dashboard-v30.js' %}?v=37"></script>
 {% endblock content %}

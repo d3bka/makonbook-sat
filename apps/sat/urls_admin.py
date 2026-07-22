@@ -23,6 +23,7 @@ urlpatterns = [
 
     # Support Teachers
     path('support-teachers/', views_admin.admin_support_teachers, name='admin_support_teachers'),
+    path('support-bookings/', views_admin.admin_support_bookings, name='admin_support_bookings'),
     path('support-teachers/create/', views_admin.admin_support_teacher_create, name='admin_support_teacher_create'),
     path('support-teachers/<int:teacher_id>/edit/', views_admin.admin_support_teacher_edit, name='admin_support_teacher_edit'),
     path('support-teachers/<int:teacher_id>/toggle/', views_admin.admin_support_teacher_toggle, name='admin_support_teacher_toggle'),

@@ -1,102 +1,219 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Support Teachers{% endblock title-main %}
+{% block title-main %}Book Support Classes{% endblock title-main %}
+{% block title-subtitle %}<span>Expert SAT help when you need it</span>{% endblock title-subtitle %}
 {% block title %}Support Teachers{% endblock title %}
 
 {% block style %}
-<style>
-  .support-page { max-width: 1120px; margin: 0 auto; display: grid; gap: 22px; }
-  .support-card, .support-panel { background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:22px; box-shadow:0 10px 24px rgba(0,0,0,.07); }
-  .support-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
-  .support-card h3 { margin:0 0 8px; color:#1f2937; }
-  .muted { color:#64748b; }
-  .rating { color:#92400e; font-weight:800; }
-  .badge-soft { display:inline-block; padding:5px 10px; border-radius:999px; background:#eef2ff; color:#3730a3; font-weight:700; font-size:.82rem; margin:2px 4px 2px 0; }
-  .slot-list { display:grid; gap:8px; margin:14px 0; }
-  .slot { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; font-size:.92rem; }
-  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
-  .btn-support { display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:999px; padding:10px 16px; font-weight:800; text-decoration:none; cursor:pointer; }
-  .btn-primary-support { background:#7c3aed; color:#fff; }
-  .btn-secondary-support { background:#f1f5f9; color:#334155; }
-  .booking-row { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #e5e7eb; padding:10px 0; }
-  .booking-row:last-child { border-bottom:0; }
-</style>
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
 {% endblock style %}
 
 {% block content %}
-<div class="support-page">
+<div class="support-shell support-stack">
   {% if messages %}
     {% for message in messages %}
-      <div class="support-panel"><strong>{{ message }}</strong></div>
+      <div class="support-alert {{ message.tags|default:'info' }}">
+        <i class="bi bi-info-circle"></i>
+        <span>{{ message }}</span>
+      </div>
     {% endfor %}
   {% endif %}
 
-  <div class="support-panel">
-    <h2>Book a support lesson</h2>
-    <p class="muted">Choose a support teacher, check their Telegram username, rating, and next available planner slots.</p>
-    <div class="actions">
-      <a class="btn-support btn-secondary-support" href="{% url 'my_support_lessons' %}">My support lessons</a>
+  <section class="support-card support-hero">
+    <div class="support-hero-content">
+      <div>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> SAT Support Booking</div>
+        <h1>Book focused help with a SAT support teacher.</h1>
+        <p>Choose the right specialist, reserve a verified free slot, and keep every upcoming lesson in one clear schedule. All times are shown in {{ timezone_name }}.</p>
+        <div class="support-hero-actions">
+          <a class="support-btn support-btn-light" href="{% url 'my_support_lessons' %}">
+            <i class="bi bi-calendar2-check"></i> My lessons
+          </a>
+          {% if request.user.support_teacher_profile %}
+            <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_planner' %}">
+              <i class="bi bi-layout-text-window-reverse"></i> Teacher planner
+            </a>
+            <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_profile_edit' %}">
+              <i class="bi bi-person-gear"></i> Edit profile
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <aside class="support-next-card">
+        {% if next_booking %}
+          <small>Next booked lesson</small>
+          <strong>{{ next_booking.teacher.name }}</strong>
+          <span>{{ next_booking.start_at|date:'D, d M · H:i' }}–{{ next_booking.end_at|date:'H:i' }}</span>
+          <div style="margin-top:13px;">
+            <span class="support-countdown" data-support-countdown="{{ next_booking.start_at|date:'c' }}">
+              <i class="bi bi-clock"></i> Upcoming
+            </span>
+          </div>
+        {% else %}
+          <small>Your schedule</small>
+          <strong>No upcoming lesson</strong>
+          <span>Find an available teacher and reserve a time below.</span>
+        {% endif %}
+      </aside>
     </div>
-  </div>
+  </section>
+
+  <form class="support-filter-bar" method="get">
+    <div class="support-field">
+      <label for="support-search">Search teacher</label>
+      <input id="support-search" class="support-input" type="search" name="q" value="{{ query }}" placeholder="Name, subject, or skill">
+    </div>
+    <div class="support-field">
+      <label for="support-subject">Subject</label>
+      <select id="support-subject" class="support-select" name="subject">
+        <option value="">All subjects</option>
+        {% for subject in subject_choices %}
+          <option value="{{ subject }}" {% if selected_subject == subject %}selected{% endif %}>{{ subject }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="support-field">
+      <label for="support-availability">Availability</label>
+      <select id="support-availability" class="support-select" name="availability">
+        <option value="">All teachers</option>
+        <option value="available" {% if availability_filter == 'available' %}selected{% endif %}>Has free slots</option>
+      </select>
+    </div>
+    <button class="support-btn support-btn-primary" type="submit">
+      <i class="bi bi-search"></i> Find teacher
+    </button>
+  </form>
 
   {% if my_upcoming_bookings %}
-  <div class="support-panel">
-    <h3>My upcoming support lessons</h3>
-    {% for booking in my_upcoming_bookings %}
-      <div class="booking-row">
-        <div>
-          <strong>{{ booking.teacher.name }}</strong><br>
-          <span class="muted">{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</span>
-        </div>
-        <a href="{% url 'my_support_lessons' %}" class="btn-support btn-secondary-support">Open</a>
+  <section class="support-card support-card-pad">
+    <div class="support-section-head">
+      <div>
+        <h2>Your upcoming schedule</h2>
+        <p>Open your lesson dashboard for meeting links, notes, and cancellation options.</p>
       </div>
-    {% endfor %}
-  </div>
+      <a class="support-btn support-btn-secondary" href="{% url 'my_support_lessons' %}">View all</a>
+    </div>
+    <div class="support-lesson-list">
+      {% for booking in my_upcoming_bookings %}
+        <article class="support-lesson-card {% if forloop.first %}is-next{% endif %}">
+          <div class="support-lesson-head">
+            <div class="support-lesson-title">
+              <div class="support-avatar">{{ booking.teacher.name|first|upper }}</div>
+              <div>
+                <h3>{{ booking.teacher.name }}</h3>
+                <p>{{ booking.get_topic_display }}</p>
+              </div>
+            </div>
+            <div class="support-time-block">
+              <strong>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</strong>
+              <span>{{ booking.start_at|date:'D, d M' }}</span>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
   {% endif %}
 
-  <div class="support-grid">
-    {% for item in teacher_cards %}
-      {% with teacher=item.teacher %}
-      <div class="support-card">
-        <h3>{{ teacher.name }}</h3>
-        {% if teacher.subjects %}<div class="badge-soft">{{ teacher.subjects }}</div>{% endif %}
-        <p class="muted">
-          Telegram:
-          {% if teacher.clean_telegram_username %}
-            <a href="{{ teacher.telegram_url }}" target="_blank" rel="noopener">@{{ teacher.clean_telegram_username }}</a>
-          {% else %}
-            —
-          {% endif %}
-        </p>
-        <p>
-          <span class="rating">★ {{ teacher.average_rating|default:'No rating yet' }}</span>
-          <span class="muted">({{ teacher.reviews_count }} review{{ teacher.reviews_count|pluralize }})</span>
-        </p>
-        {% if teacher.bio %}<p class="muted">{{ teacher.bio|truncatewords:24 }}</p>{% endif %}
-
-        <div class="slot-list">
-          {% for slot in item.next_slots %}
-            <div class="slot"><strong>{{ slot.date_label }}</strong> · {{ slot.time_label }}</div>
-          {% empty %}
-            <div class="slot muted">No free slots in the next 7 days.</div>
-          {% endfor %}
-        </div>
-
-        <div class="actions">
-          <a class="btn-support btn-primary-support" href="{% url 'support_teacher_detail' teacher.id %}">Open planner</a>
-          {% if teacher.clean_telegram_username %}
-            <a class="btn-support btn-secondary-support" href="{{ teacher.telegram_url }}" target="_blank" rel="noopener">Telegram</a>
-          {% endif %}
-        </div>
+  <section>
+    <div class="support-section-head">
+      <div>
+        <h2>Available support teachers</h2>
+        <p>{{ teacher_cards|length }} teacher{{ teacher_cards|length|pluralize }} matched your filters.</p>
       </div>
-      {% endwith %}
-    {% empty %}
-      <div class="support-panel">
-        <h3>No active support teachers yet.</h3>
-        <p class="muted">Admin must add and activate support teachers first.</p>
+      {% if not can_book %}
+        <span class="support-status support-status-scheduled">View-only access</span>
+      {% endif %}
+    </div>
+
+    {% if teacher_cards %}
+      <div class="support-teacher-grid">
+        {% for item in teacher_cards %}
+          {% with teacher=item.teacher %}
+          <article class="support-teacher-card">
+            <div class="support-profile-row">
+              <div class="support-avatar">{{ teacher.name|first|upper }}</div>
+              <div class="support-profile-copy">
+                <h3>{{ teacher.name }}</h3>
+                {% if teacher.headline %}<div class="support-teacher-headline">{{ teacher.headline }}</div>{% endif %}
+                <p>
+                  {% if teacher.display_rating %}
+                    <span class="support-rating"><i class="bi bi-star-fill"></i> {{ teacher.display_rating }}</span>
+                    · {{ teacher.display_reviews_count }} review{{ teacher.display_reviews_count|pluralize }}
+                  {% else %}
+                    New support teacher
+                  {% endif %}
+                </p>
+              </div>
+            </div>
+
+            <div class="support-tags">
+              {% for subject in item.subjects %}<span class="support-tag">{{ subject }}</span>{% endfor %}
+              {% if not item.subjects %}<span class="support-tag">General SAT</span>{% endif %}
+            </div>
+
+            <div class="support-trust-grid">
+              <div><span>SAT score</span><strong>{% if teacher.sat_total_score %}{{ teacher.sat_total_score }}{% else %}—{% endif %}</strong>{% if teacher.scores_verified and teacher.sat_total_score %}<i class="bi bi-patch-check-fill" title="Verified by MakonBook"></i>{% endif %}</div>
+              <div><span>Experience</span><strong>{{ teacher.years_experience }}y</strong></div>
+              <div><span>Lessons</span><strong>{{ teacher.completed_lessons_count }}</strong></div>
+            </div>
+
+            {% if teacher.bio %}
+              <p class="support-bio">{{ teacher.bio|truncatewords:28 }}</p>
+            {% else %}
+              <p class="support-bio">Personalized support for SAT preparation, question review, and study strategy.</p>
+            {% endif %}
+
+            <div class="support-slot-preview">
+              {% for slot in item.next_slots %}
+                <div class="support-slot-preview-item">
+                  <span>{{ slot.short_day_label }}, {{ slot.date_label }}</span>
+                  <strong>{{ slot.time_label }}</strong>
+                </div>
+              {% empty %}
+                <div class="support-slot-preview-item">
+                  <span>No free slots in the next 14 days</span>
+                  <strong>Check later</strong>
+                </div>
+              {% endfor %}
+            </div>
+
+            {% if item.recent_reviews %}
+              <div class="support-review-preview-list">
+                {% for review in item.recent_reviews %}
+                  <div class="support-review-preview">
+                    <div><strong>{{ review.public_student_name }}</strong><span>★ {{ review.rating }}/5</span></div>
+                    {% if review.feedback %}<p>“{{ review.feedback|truncatewords:16 }}”</p>{% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="support-card-footer">
+              <a class="support-btn support-btn-primary" href="{% url 'support_teacher_detail' teacher.id %}">
+                <i class="bi bi-calendar-plus"></i> View schedule
+              </a>
+              {% if teacher.clean_telegram_username %}
+                <a class="support-btn support-btn-secondary" href="{{ teacher.telegram_url }}" target="_blank" rel="noopener" aria-label="Open Telegram">
+                  <i class="bi bi-telegram"></i>
+                </a>
+              {% endif %}
+            </div>
+          </article>
+          {% endwith %}
+        {% endfor %}
       </div>
-    {% endfor %}
-  </div>
+    {% else %}
+      <div class="support-card support-empty">
+        <div class="support-empty-icon"><i class="bi bi-calendar-x"></i></div>
+        <h3>No teachers match these filters</h3>
+        <p>Clear the search or choose another subject.</p>
+        <a class="support-btn support-btn-secondary" href="{% url 'support_teacher_list' %}">Reset filters</a>
+      </div>
+    {% endif %}
+  </section>
 </div>
+<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
 {% endblock content %}

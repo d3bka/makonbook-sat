@@ -24,6 +24,11 @@
         {% for error in form.display_name.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
       </div>
       <div class="form-group">
+        <label>Professional headline</label>
+        {{ form.headline }}
+        {% for error in form.headline.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
         <label>Telegram username</label>
         {{ form.telegram_username }}
         {% for error in form.telegram_username.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
@@ -38,12 +43,50 @@
         {{ form.sort_order }}
         {% for error in form.sort_order.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
       </div>
+      <div class="form-group">
+        <label>Minimum booking notice (hours)</label>
+        {{ form.min_booking_notice_hours }}
+        {% for error in form.min_booking_notice_hours.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
+        <label>Cancellation notice (hours)</label>
+        {{ form.cancellation_notice_hours }}
+        {% for error in form.cancellation_notice_hours.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
     </div>
 
     <div class="form-group">
       <label>Bio</label>
       {{ form.bio }}
       {% for error in form.bio.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:15px;">
+      <div class="form-group"><label>Education / certification</label>{{ form.education }}{% for error in form.education.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+      <div class="form-group"><label>Languages</label>{{ form.languages }}{% for error in form.languages.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+      <div class="form-group"><label>Years of experience</label>{{ form.years_experience }}{% for error in form.years_experience.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px;">
+      <div class="form-group"><label>Total SAT score</label>{{ form.sat_total_score }}{% for error in form.sat_total_score.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+      <div class="form-group"><label>Math score</label>{{ form.sat_math_score }}{% for error in form.sat_math_score.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+      <div class="form-group"><label>Reading & Writing score</label>{{ form.sat_reading_writing_score }}{% for error in form.sat_reading_writing_score.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}</div>
+      <div class="form-group"><label style="display:flex; align-items:center; gap:8px; margin-top:28px;">{{ form.scores_verified }} Scores verified</label><small style="color:#64748b;">Enable only after checking evidence.</small></div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:15px;">
+      <div class="form-group">
+        <label>Default meeting link</label>
+        {{ form.meeting_link }}
+        <small style="color:#64748b;">Used as the initial link for new bookings. It can be changed per lesson.</small>
+        {% for error in form.meeting_link.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
+      <div class="form-group">
+        <label>Booking instructions</label>
+        {{ form.booking_instructions }}
+        <small style="color:#64748b;">Shown to students before they confirm a lesson.</small>
+        {% for error in form.booking_instructions.errors %}<small style="color:#dc3545;">{{ error }}</small>{% endfor %}
+      </div>
     </div>
 
     <div class="form-group">
@@ -58,7 +101,8 @@
 {% if teacher %}
 <div class="admin-card">
   <h4>Availability planner</h4>
-  <form method="post" action="{% url 'admin_support_teacher_availability_add' teacher.id %}" style="display:grid; grid-template-columns:1fr 1fr 1fr 2fr auto auto; gap:10px; align-items:end;">
+  <p style="color:#64748b; margin-top:-4px;">Create a weekly availability window. MakonBook automatically divides it into bookable lesson slots using the duration and buffer below.</p>
+  <form method="post" action="{% url 'admin_support_teacher_availability_add' teacher.id %}" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1.6fr auto auto; gap:10px; align-items:end;">
     {% csrf_token %}
     <div class="form-group" style="margin-bottom:0;">
       <label>Day</label>
@@ -73,6 +117,14 @@
       {{ availability_form.end_time }}
     </div>
     <div class="form-group" style="margin-bottom:0;">
+      <label>Lesson min.</label>
+      {{ availability_form.slot_duration_minutes }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Buffer min.</label>
+      {{ availability_form.buffer_minutes }}
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
       <label>Note</label>
       {{ availability_form.note }}
     </div>
@@ -85,13 +137,14 @@
 
   <table class="admin-table" style="margin-top:18px;">
     <thead>
-      <tr><th>Day</th><th>Time</th><th>Note</th><th>Status</th><th>Actions</th></tr>
+      <tr><th>Day</th><th>Window</th><th>Lesson / buffer</th><th>Note</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody>
       {% for slot in availabilities %}
       <tr>
         <td>{{ slot.get_day_of_week_display }}</td>
         <td>{{ slot.start_time|time:'H:i' }} — {{ slot.end_time|time:'H:i' }}</td>
+        <td>{{ slot.slot_duration_minutes }} min / {{ slot.buffer_minutes }} min</td>
         <td>{{ slot.note|default:'-' }}</td>
         <td>{% if slot.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Inactive</span>{% endif %}</td>
         <td>
@@ -102,7 +155,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="5" style="text-align:center; color:#94a3b8;">No availability slots yet.</td></tr>
+      <tr><td colspan="6" style="text-align:center; color:#94a3b8;">No availability windows yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -112,18 +165,19 @@
   <h4>Recent support bookings</h4>
   <table class="admin-table">
     <thead>
-      <tr><th>Student</th><th>Time</th><th>Status</th><th>Note</th></tr>
+      <tr><th>Student</th><th>Time</th><th>Topic</th><th>Status</th><th>Note</th></tr>
     </thead>
     <tbody>
       {% for booking in recent_bookings %}
       <tr>
         <td>{{ booking.student.username }}</td>
         <td>{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</td>
+        <td>{{ booking.get_topic_display }}</td>
         <td>{{ booking.get_status_display }}</td>
         <td>{{ booking.student_note|default:'-'|truncatewords:10 }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="4" style="text-align:center; color:#94a3b8;">No bookings yet.</td></tr>
+      <tr><td colspan="5" style="text-align:center; color:#94a3b8;">No bookings yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

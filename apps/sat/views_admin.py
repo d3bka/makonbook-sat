@@ -7,7 +7,9 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import Group, User
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Avg
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.core.paginator import Paginator
 from .models import Test, TestReview, Mock, SecretCode, SupportTeacherProfile, SupportTeacherAvailability, SupportLessonBooking
 from .forms_admin import UserFilterForm, UserGroupEditForm, GroupCreateForm, MockCreateForm, GroupAssignedTestsForm, SupportTeacherProfileForm, SupportTeacherAvailabilityForm
@@ -502,7 +504,21 @@ def admin_mock_delete(request, mock_id):
 @login_required
 @admin_panel_required
 def admin_support_teachers(request):
-    teachers = SupportTeacherProfile.objects.select_related('user').prefetch_related('availabilities').order_by('sort_order', 'display_name', 'user__username')
+    now_value = timezone.now()
+    teachers = (
+        SupportTeacherProfile.objects.select_related('user')
+        .prefetch_related('availabilities')
+        .annotate(
+            upcoming_count=Count(
+                'bookings',
+                filter=Q(bookings__status=SupportLessonBooking.STATUS_SCHEDULED, bookings__end_at__gte=now_value),
+                distinct=True,
+            ),
+            admin_avg_rating=Avg('reviews__rating'),
+            admin_reviews_count=Count('reviews', distinct=True),
+        )
+        .order_by('sort_order', 'display_name', 'user__username')
+    )
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '').strip()
 
@@ -530,6 +546,61 @@ def admin_support_teachers(request):
         'status': status,
         'page_title': 'Support Teachers',
         'active_page': 'support_teachers',
+    })
+
+
+@login_required
+@admin_panel_required
+def admin_support_bookings(request):
+    bookings = SupportLessonBooking.objects.select_related(
+        'teacher', 'teacher__user', 'student'
+    ).order_by('-start_at')
+    query = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+    teacher_id = request.GET.get('teacher', '').strip()
+    date_from = parse_date(request.GET.get('date_from', '').strip())
+    date_to = parse_date(request.GET.get('date_to', '').strip())
+
+    if query:
+        bookings = bookings.filter(
+            Q(student__username__icontains=query)
+            | Q(student__first_name__icontains=query)
+            | Q(student__last_name__icontains=query)
+            | Q(teacher__display_name__icontains=query)
+            | Q(teacher__user__username__icontains=query)
+            | Q(student_note__icontains=query)
+        )
+    if status in dict(SupportLessonBooking.STATUS_CHOICES):
+        bookings = bookings.filter(status=status)
+    if teacher_id.isdigit():
+        bookings = bookings.filter(teacher_id=int(teacher_id))
+    if date_from:
+        bookings = bookings.filter(start_at__date__gte=date_from)
+    if date_to:
+        bookings = bookings.filter(start_at__date__lte=date_to)
+
+    summary = SupportLessonBooking.objects.aggregate(
+        total=Count('id'),
+        scheduled=Count('id', filter=Q(status=SupportLessonBooking.STATUS_SCHEDULED)),
+        completed=Count('id', filter=Q(status=SupportLessonBooking.STATUS_COMPLETED)),
+        cancelled=Count('id', filter=Q(status=SupportLessonBooking.STATUS_CANCELLED)),
+        no_show=Count('id', filter=Q(status=SupportLessonBooking.STATUS_NO_SHOW)),
+    )
+    paginator = Paginator(bookings, 40)
+    bookings_page = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'sat/admin/support_bookings.html', {
+        'bookings': bookings_page,
+        'teachers': SupportTeacherProfile.objects.select_related('user').order_by('sort_order', 'display_name'),
+        'summary': summary,
+        'query': query,
+        'status': status,
+        'teacher_id': teacher_id,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': SupportLessonBooking.STATUS_CHOICES,
+        'page_title': 'Support Bookings',
+        'active_page': 'support_bookings',
     })
 
 

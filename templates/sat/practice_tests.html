@@ -117,17 +117,7 @@
               style="--card-index:{{ forloop.counter0 }}"
             >
               <div class="practice-card-media">
-                {% if test.icon %}
-                  <img src="{{ test.icon.url }}" alt="{{ test.name }}" loading="lazy">
-                {% else %}
-                  {% with test_num=test.name|cut:"Day"|cut:"DAY"|cut:"day"|cut:" " %}
-                    {% if test_num and test_num|length <= 2 %}
-                      <img src="{% static 'assets/img/tests/'|add:test_num|add:'.png' %}" alt="{{ test.name }}" loading="lazy" onerror="this.onerror=null;this.src='{% static 'assets/img/tests/minion.jpg' %}'">
-                    {% else %}
-                      <img src="{% static 'assets/img/tests/minion.jpg' %}" alt="{{ test.name }}" loading="lazy">
-                    {% endif %}
-                  {% endwith %}
-                {% endif %}
+                <img src="{{ test.card_image }}" alt="{{ test.name }}" loading="lazy" onerror="this.onerror=null;this.src='{% static 'assets/img/tests/minion.jpg' %}'">
                 <span class="practice-state-pill">{{ test.status_label }}</span>
                 <div class="practice-card-media-shade"></div>
               </div>

@@ -34,15 +34,30 @@ if not SECRET_KEY:
 
 DEBUG = env_bool("DEBUG", False)
 
-ALLOWED_HOSTS = env_list(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost,makonbook.satmakon.com"
-)
+# Keep the canonical production hosts available even when an older .env is
+# accidentally mounted during deployment. A stale host/origin list causes
+# valid authenticated POST requests to fail before they reach the view.
+_CANONICAL_ALLOWED_HOSTS = [
+    "makonbook.uz",
+    "www.makonbook.uz",
+    "makonbook.satmakon.com",
+    "makonbook-sat.ondigitalocean.app",
+    "127.0.0.1",
+    "localhost",
+]
+ALLOWED_HOSTS = list(dict.fromkeys(
+    env_list("ALLOWED_HOSTS") + _CANONICAL_ALLOWED_HOSTS
+))
 
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS",
-    "https://makonbook.satmakon.com"
-)
+_CANONICAL_CSRF_ORIGINS = [
+    "https://makonbook.uz",
+    "https://www.makonbook.uz",
+    "https://makonbook.satmakon.com",
+    "https://makonbook-sat.ondigitalocean.app",
+]
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
+    env_list("CSRF_TRUSTED_ORIGINS") + _CANONICAL_CSRF_ORIGINS
+))
 
 
 INSTALLED_APPS = [
@@ -260,6 +275,17 @@ USE_X_FORWARDED_HOST = True
 
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+
+# v35 deliberately uses a new cookie name. Browsers can retain an old host-only
+# and an old domain-wide ``csrftoken`` at the same time; Django may then receive
+# the wrong value and reject an otherwise valid form. A versioned name starts
+# with one unambiguous cookie without weakening CSRF protection.
+CSRF_COOKIE_NAME = env_str("CSRF_COOKIE_NAME", "makonbook_csrftoken_v35")
+CSRF_COOKIE_PATH = "/"
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = env_str("CSRF_COOKIE_SAMESITE", "Lax")
+SESSION_COOKIE_SAMESITE = env_str("SESSION_COOKIE_SAMESITE", "Lax")
+
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
 
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))

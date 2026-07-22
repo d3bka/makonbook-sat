@@ -737,3 +737,36 @@ body.github-test-template-v20 .test-submit-progress[data-state="offline"] .test-
   }
   body.github-test-template-v20 .test-submit-progress-card h2 { font-size: 25px; }
 }
+
+
+/* v41 highlighter interaction fix.
+   The transparent drawing surface is visual-only; pointer input is captured
+   from the question panes so the active toolbar button can always be clicked
+   again to disable the tool. */
+body.github-test-template-v20 #drawing-canvas,
+body.github-test-template-v20 #drawing-canvas.active,
+body.github-test-template-v20.pen-mode #drawing-canvas {
+  pointer-events: none !important;
+  mix-blend-mode: normal !important;
+}
+
+body.github-test-template-v20.pen-mode .question-container,
+body.github-test-template-v20.pen-mode .answers-container {
+  cursor: crosshair !important;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.github-test-template-v20 #pen-button.active {
+  background: rgba(250, 204, 21, .20) !important;
+  color: #8a5a00 !important;
+  border-color: rgba(202, 138, 4, .38) !important;
+  box-shadow: 0 0 0 4px rgba(250, 204, 21, .10) !important;
+}
+
+html[data-theme="dark"] body.github-test-template-v20 #pen-button.active {
+  color: #fde68a !important;
+  background: rgba(250, 204, 21, .14) !important;
+  border-color: rgba(253, 224, 71, .30) !important;
+}

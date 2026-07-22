@@ -1,0 +1,27 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}SAT Goal Settings{% endblock title-main %}
+{% block title %}SAT Goal Settings{% endblock title %}
+
+{% block style %}
+<link href="{% static 'assets/css/student-goal-dashboard-v30.css' %}?v=37" rel="stylesheet">
+{% endblock style %}
+
+{% block content %}
+<div class="student-goal-dashboard sg-settings-fallback" id="studentGoalSettings">
+  <section class="sg-panel">
+    <div class="sg-panel-head">
+      <div>
+        <span class="sg-eyebrow">Student dashboard</span>
+        <h1 class="sg-panel-title">Complete your SAT goal</h1>
+        <p class="sg-panel-subtitle">The popup could not submit the form. Correct the highlighted fields below.</p>
+      </div>
+      <a href="{% url 'sat_menu' %}" class="sg-btn sg-btn-secondary"><i class="bi bi-arrow-left"></i> Dashboard</a>
+    </div>
+  </section>
+</div>
+
+{% include 'sat/_student_goal_modal.html' %}
+<script src="{% static 'assets/js/student-goal-dashboard-v30.js' %}?v=37"></script>
+{% endblock content %}
