@@ -658,30 +658,42 @@ def section_has_two_modules(totals, section):
 
 
 def get_event_scoring_type(test):
-    """
-    SAT-style scoring is safe only for sections that have two modules.
-    If a Global Event has one-module/short sections, use the Level Check scale.
+    """Return the Guest Mode SAT scoring strategy for *test*.
 
-    Important: question counts do not have to be exactly 27/27 or 22/22 for
-    two-module events. In that case we normalize by module percentage before
-    calling the same calculator used by regular SAT practice tests.
+    A complete two-module section can use the same adaptive SAT-style calculator
+    as regular practice tests.  Short/imported Guest tests often contain only
+    one module (or a non-standard number of questions).  Those tests still need
+    the normal SAT score range, so we estimate the missing module from the
+    student's percentage on the available module instead of falling back to the
+    old 200-600 Level Check scale.
+
+    This distinction is important: ``sat_estimated`` is an SAT-style normalized
+    estimate, not an official College Board equated score.
     """
     totals = get_event_question_totals(test)
     test_mode = get_test_mode(test)
 
     if test_mode == "full":
+        if not (totals["english"]["m1"] or totals["english"]["m2"]):
+            return "empty"
+        if not (totals["math"]["m1"] or totals["math"]["m2"]):
+            return "empty"
         return "sat_standard" if (
             section_has_two_modules(totals, "english")
             and section_has_two_modules(totals, "math")
-        ) else "level_check"
+        ) else "sat_estimated"
 
     if test_mode == "ebrw_only":
-        return "sat_standard" if section_has_two_modules(totals, "english") else "level_check"
+        if not (totals["english"]["m1"] or totals["english"]["m2"]):
+            return "empty"
+        return "sat_standard" if section_has_two_modules(totals, "english") else "sat_estimated"
 
     if test_mode == "math_only":
-        return "sat_standard" if section_has_two_modules(totals, "math") else "level_check"
+        if not (totals["math"]["m1"] or totals["math"]["m2"]):
+            return "empty"
+        return "sat_standard" if section_has_two_modules(totals, "math") else "sat_estimated"
 
-    return "level_check"
+    return "empty"
 
 
 def is_standard_sat_question_count(test):
@@ -710,9 +722,12 @@ def get_event_scoring_label(test):
             return f"SAT-style{normalized} 400–1600"
         return f"SAT-style{normalized} 200–800"
 
-    if test_mode == "full":
-        return "Level Check scaled 400–1200"
-    return "Level Check scaled 200–600"
+    if scoring_type == "sat_estimated":
+        if test_mode == "full":
+            return "SAT-style normalized estimate 400–1600"
+        return "SAT-style normalized estimate 200–800"
+
+    return "Score unavailable"
 
 
 def scale_correct_to_calculator_total(correct, actual_total, expected_total):
@@ -721,32 +736,49 @@ def scale_correct_to_calculator_total(correct, actual_total, expected_total):
     return (correct / actual_total) * expected_total
 
 
+def _normalize_section_counts_for_regular_calculator(section, correct_counts, totals):
+    """Normalize one Guest section to the calculator's expected module sizes.
+
+    If both modules exist, each module is normalized independently.  If only one
+    module exists, its accuracy is projected to both calculator modules.  That
+    keeps the section on the SAT 200-800 range without pretending that a missing
+    module was answered incorrectly.
+    """
+    config = calculator.SECTION_CONFIG[section]
+    actual_m1 = totals[section]["m1"]
+    actual_m2 = totals[section]["m2"]
+    expected_m1 = config["m1_total"]
+    expected_m2 = config["m2_total"]
+
+    if actual_m1 and actual_m2:
+        return {
+            "m1": scale_correct_to_calculator_total(
+                correct_counts[section]["m1"], actual_m1, expected_m1
+            ),
+            "m2": scale_correct_to_calculator_total(
+                correct_counts[section]["m2"], actual_m2, expected_m2
+            ),
+        }
+
+    if actual_m1:
+        ratio = max(0.0, min(correct_counts[section]["m1"] / actual_m1, 1.0))
+        return {"m1": ratio * expected_m1, "m2": ratio * expected_m2}
+
+    if actual_m2:
+        ratio = max(0.0, min(correct_counts[section]["m2"] / actual_m2, 1.0))
+        return {"m1": ratio * expected_m1, "m2": ratio * expected_m2}
+
+    return {"m1": 0, "m2": 0}
+
+
 def normalize_counts_for_regular_calculator(correct_counts, totals):
     return {
-        "english": {
-            "m1": scale_correct_to_calculator_total(
-                correct_counts["english"]["m1"],
-                totals["english"]["m1"],
-                calculator.SECTION_CONFIG["english"]["m1_total"],
-            ),
-            "m2": scale_correct_to_calculator_total(
-                correct_counts["english"]["m2"],
-                totals["english"]["m2"],
-                calculator.SECTION_CONFIG["english"]["m2_total"],
-            ),
-        },
-        "math": {
-            "m1": scale_correct_to_calculator_total(
-                correct_counts["math"]["m1"],
-                totals["math"]["m1"],
-                calculator.SECTION_CONFIG["math"]["m1_total"],
-            ),
-            "m2": scale_correct_to_calculator_total(
-                correct_counts["math"]["m2"],
-                totals["math"]["m2"],
-                calculator.SECTION_CONFIG["math"]["m2_total"],
-            ),
-        },
+        "english": _normalize_section_counts_for_regular_calculator(
+            "english", correct_counts, totals
+        ),
+        "math": _normalize_section_counts_for_regular_calculator(
+            "math", correct_counts, totals
+        ),
     }
 
 
@@ -915,7 +947,7 @@ def calculate_attempt_breakdown(attempt):
     if not placement_total_questions:
         placement_total_questions = attempt.total_questions or 0
 
-    if scoring_type == "sat_standard":
+    if scoring_type in {"sat_standard", "sat_estimated"}:
         score_result = regular_score_from_counts(test_mode, correct_counts, totals)
         english_section = score_result["sections"].get("english")
         math_section = score_result["sections"].get("math")
@@ -925,15 +957,17 @@ def calculate_attempt_breakdown(attempt):
         total_score = score_result["total"]
         range_total = score_result.get("range_total")
     else:
-        ebrw_score = level_check_score(ebrw_raw, english_total) if test_mode in ["full", "ebrw_only"] else None
-        math_score = level_check_score(math_raw, math_total) if test_mode in ["full", "math_only"] else None
-        total_score = (ebrw_score or 0) + (math_score or 0)
+        ebrw_score = None
+        math_score = None
+        total_score = 0
         range_total = None
 
     total_raw = ebrw_raw + math_raw
+    # Preserve the existing Level 1-5 placement insight for short Guest tests,
+    # but do not use its old 200-600 score scale for the SAT score itself.
     placement = (
         get_level_check_placement(total_raw, placement_total_questions)
-        if scoring_type == "level_check"
+        if scoring_type == "sat_estimated"
         else None
     )
 

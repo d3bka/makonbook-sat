@@ -34,13 +34,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/landing.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-auth-header-hotfix.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-mobile-nav-fix.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-desktop-restore.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-header-final-restore.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-faq-animation.css' %}">
-  <link rel="stylesheet" href="{% static 'assets/css/makon-landing-light-polish.css' %}">
   {% include 'base/responsive_css.html' %}
 </head>
 <body>
@@ -71,14 +65,14 @@
 
           <div class="site-nav-mobile-actions" aria-label="Mobile account actions">
             <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
-            <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
+            <a href="{% url 'guest_entry' %}" class="btn btn-primary">Start now</a>
           </div>
         </nav>
 
         <div class="nav-actions">
           {% include 'base/theme_toggle.html' %}
           <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
-          <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
+          <a href="{% url 'guest_entry' %}" class="btn btn-primary">Start now</a>
         </div>
       </div>
     </header>
@@ -95,7 +89,7 @@
             </p>
 
             <div class="hero-actions reveal-up delay-3">
-              <a href="{% url 'register' %}" class="btn btn-primary btn-large magnetic">Start practice</a>
+              <a href="{% url 'guest_entry' %}" class="btn btn-primary btn-large magnetic">Start practice</a>
               <a href="#features" class="btn btn-secondary btn-large">See features</a>
               <a href="{% url 'rating_parent_lookup' %}" class="btn btn-secondary btn-large">Parent access</a>
             </div>
@@ -166,7 +160,7 @@
                   <strong>Problem Solving & Data Analysis</strong>
                   <p>12 targeted questions before the next full test.</p>
                 </div>
-                <a href="{% url 'register' %}">Start</a>
+                <a href="{% url 'guest_entry' %}">Start</a>
               </div>
 
               <div class="preview-bottom-grid" data-stagger>
@@ -345,8 +339,8 @@
               <strong>Classroom workflow</strong>
             </article>
             <article class="quote-card" data-reveal>
-              <p>“The page now has motion, hierarchy, and a stronger product feel.”</p>
-              <strong>Brand experience</strong>
+              <p>“Full-length practice tests plus a real teacher dashboard means nothing falls through the cracks before test day.”</p>
+              <strong>Classroom prep</strong>
             </article>
           </div>
         </div>
@@ -387,7 +381,7 @@
             <h2>Practice smarter, review faster, and track real progress.</h2>
             <p>Use SAT Makon for Digital SAT tests, vocabulary, analytics, and classroom control.</p>
             <div class="hero-actions centered">
-              <a href="{% url 'register' %}" class="btn btn-primary btn-large magnetic">Create account</a>
+              <a href="{% url 'guest_entry' %}" class="btn btn-primary btn-large magnetic">Create account</a>
               <a href="{% url 'login' %}" class="btn btn-secondary btn-large">Go to login</a>
             </div>
           </div>
@@ -406,7 +400,7 @@
           <a href="#results">Analytics</a>
           <a href="#faq">FAQ</a>
           <a href="{% url 'login' %}">Login</a>
-          <a href="{% url 'register' %}">Register</a>
+          <a href="{% url 'guest_entry' %}">Guest access</a>
         </div>
       </div>
     </footer>
