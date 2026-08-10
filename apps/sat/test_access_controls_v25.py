@@ -105,7 +105,7 @@ class StudentSupportAccessV25Tests(TestCase):
         self.assertEqual(book_response.status_code, 403)
         self.assertContains(
             list_response,
-            "after you join an active classroom",
+            "Access Denied",
             status_code=403,
         )
 

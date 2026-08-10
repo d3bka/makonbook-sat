@@ -1,0 +1,77 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ classroom.name }}{% endblock title-main %}
+{% block title-subtitle %}<span>Manager · Classroom students</span>{% endblock title-subtitle %}
+{% block title %}Classroom Overview{% endblock title %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33.2">
+{% endblock style %}
+
+{% block content %}
+<div class="support-shell support-stack">
+  <div class="manager-breadcrumbs">
+    <a href="{% url 'manager_dashboard' %}">Manager overview</a><span>/</span>
+    <a href="{% url 'manager_teacher_detail' teacher.id %}">{{ teacher.get_full_name|default:teacher.username }}</a><span>/</span>
+    <strong>{{ classroom.name }}</strong>
+  </div>
+
+  <section class="support-card support-card-pad manager-classroom-hero">
+    <div class="manager-teacher-heading">
+      <div>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> {{ classroom.get_classroom_type_display }}</div>
+        <h1>{{ classroom.name }}</h1>
+        <p>Teacher: <strong>{{ teacher.get_full_name|default:teacher.username }}</strong> · @{{ teacher.username }}</p>
+        {% if classroom.description %}<p class="manager-classroom-description">{{ classroom.description }}</p>{% endif %}
+      </div>
+      <span class="support-status {% if classroom.is_active %}support-status-completed{% endif %}">{% if classroom.is_active %}Active{% else %}Inactive{% endif %}</span>
+    </div>
+  </section>
+
+  <div class="support-stats support-stats-3">
+    <div class="support-stat"><span>Approved students</span><strong>{{ approved_students_count }}</strong></div>
+    <div class="support-stat"><span>Pending joins</span><strong>{{ pending_students_count }}</strong></div>
+    <div class="support-stat"><span>Created</span><strong class="manager-stat-date">{{ classroom.created_at|date:'d M Y' }}</strong></div>
+  </div>
+
+  <section class="support-card support-card-pad">
+    <div class="support-section-head">
+      <div><h2>Approved students</h2><p>Students currently studying in this classroom.</p></div>
+      <span class="support-status support-status-scheduled"><i class="bi bi-lock"></i> Read only</span>
+    </div>
+
+    <div class="manager-students-table-wrap">
+      <table class="manager-table manager-students-table">
+        <thead><tr><th>Student</th><th>Username</th><th>Approved</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for membership in approved_students %}
+            <tr>
+              <td><div class="manager-person"><span class="support-avatar support-avatar-xs">{{ membership.user.username|first|upper }}</span><div><strong>{{ membership.user.get_full_name|default:membership.user.username }}</strong></div></div></td>
+              <td><span class="manager-username">@{{ membership.user.username }}</span></td>
+              <td>{% if membership.approved_at %}{{ membership.approved_at|date:'d M Y · H:i' }}{% else %}—{% endif %}</td>
+              <td><span class="support-status support-status-completed">Approved</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="manager-empty-cell">No approved students in this classroom.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if pending_students %}
+    <section class="support-card support-card-pad">
+      <div class="support-section-head"><div><h2>Pending join requests</h2><p>Visible for awareness only. Manager cannot approve or reject requests.</p></div></div>
+      <div class="manager-pending-list">
+        {% for membership in pending_students %}
+          <div class="manager-pending-item">
+            <div class="manager-person"><span class="support-avatar support-avatar-xs">{{ membership.user.username|first|upper }}</span><div><strong>{{ membership.user.get_full_name|default:membership.user.username }}</strong><small>@{{ membership.user.username }}</small></div></div>
+            <div><span class="support-status">Pending</span><small>Requested {{ membership.requested_at|date:'d M Y · H:i' }}</small></div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+</div>
+{% endblock content %}

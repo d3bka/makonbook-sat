@@ -168,7 +168,7 @@
         <small>Next support class</small>
         <h3>{{ next_support_lesson.teacher.name }}</h3>
         <p>
-          {{ next_support_lesson.get_topic_display }}<br>
+          {{ next_support_lesson.display_topic }}<br>
           {{ next_support_lesson.start_at|date:"D, M j · H:i" }} · {{ next_support_lesson.duration_minutes }} minutes
         </p>
         <a href="{% url 'my_support_lessons' %}" class="sg-btn sg-btn-sm">
@@ -177,7 +177,7 @@
       {% else %}
         <small>Personal support</small>
         <h3>Book a focused SAT lesson</h3>
-        <p>Choose a verified support teacher, compare ratings, and reserve a time for your weak area.</p>
+        <p>Choose a support teacher, select a title and topic, and let the teacher plan the best grouped class time.</p>
         <a href="{% url 'support_teacher_list' %}" class="sg-btn sg-btn-sm">
           Find a teacher <i class="bi bi-arrow-right"></i>
         </a>
@@ -267,7 +267,7 @@
       </a>
 
       <a href="{% url 'support_teacher_list' %}" class="sg-section-card">
-        <div><span class="sg-section-icon"><i class="bi bi-person-video3"></i></span><h3>Book Support Classes</h3><p>Compare teacher profiles, SAT scores, ratings, comments, and available times.</p></div>
+        <div><span class="sg-section-icon"><i class="bi bi-person-video3"></i></span><h3>Book Support Classes</h3><p>Choose a teacher and exact topic. Matching topic requests are grouped, and the support teacher plans the time.</p></div>
         <span class="sg-section-cta">Book a lesson <i class="bi bi-arrow-right"></i></span>
       </a>
     </div>

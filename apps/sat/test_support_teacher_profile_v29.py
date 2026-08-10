@@ -147,7 +147,7 @@ class SupportTeacherProfileV29Tests(TestCase):
         self.assertRedirects(response, reverse('support_teacher_planner'))
         self.assertFalse(SupportTeacherAvailability.objects.filter(pk=availability.pk).exists())
 
-    def test_completed_lesson_review_is_public_before_booking(self):
+    def test_completed_lesson_review_is_private_from_students(self):
         booking = SupportLessonBooking.objects.create(
             teacher=self.profile,
             student=self.student,
@@ -164,14 +164,18 @@ class SupportTeacherProfileV29Tests(TestCase):
         self.assertRedirects(response, reverse('my_support_lessons'))
         review = SupportTeacherReview.objects.get(booking=booking)
         self.assertEqual(review.rating, 5)
-        self.assertEqual(review.public_student_name, 'Aziz K.')
 
         response = self.client.get(reverse('support_teacher_list'))
-        self.assertContains(response, 'Clear explanations and useful strategies')
+        self.assertNotContains(response, 'Clear explanations and useful strategies')
         self.assertContains(response, '1500')
         response = self.client.get(reverse('support_teacher_detail', args=[self.profile.pk]))
-        self.assertContains(response, 'Rating and student comments')
-        self.assertContains(response, 'Aziz K.')
+        self.assertNotContains(response, 'Aziz K.')
+        self.assertNotContains(response, 'Clear explanations and useful strategies')
+
+        self.client.force_login(self.support_user)
+        response = self.client.get(reverse('support_teacher_detail', args=[self.profile.pk]))
+        self.assertContains(response, 'Private lesson feedback')
+        self.assertContains(response, 'Aziz Karimov')
         self.assertContains(response, 'Clear explanations and useful strategies')
 
     def test_review_not_allowed_before_teacher_completion(self):

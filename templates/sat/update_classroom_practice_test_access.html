@@ -12,14 +12,15 @@
     <div class="access-hero">
       <h2>Manage Practice Tests</h2>
       <p>
-        Classroom: <strong>{{ classroom.name }}</strong>. Control which practice tests approved students can open.
+        Classroom: <strong>{{ classroom.name }}</strong>. This is a persistent classroom rule: current students are updated now, and students approved later inherit the same test access automatically.
       </p>
     </div>
 
     <div class="access-stat">
       <p style="margin: 0;">
         Approved students: <strong>{{ total_students_count }}</strong><br>
-        Eligible for bulk update: <strong>{{ eligible_count }}</strong>
+        Eligible current students: <strong>{{ eligible_count }}</strong><br>
+        Future approved students: <strong>inherit automatically</strong>
       </p>
     </div>
 

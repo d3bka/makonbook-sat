@@ -17,6 +17,211 @@ from .forms import RatingAssessmentForm
 from .models import RatingAssessment, RatingConfig, RatingProfile
 
 
+PARENT_LANGUAGE_CHOICES = ("en", "ru", "uz")
+
+PARENT_TRANSLATIONS = {
+    "en": {
+        "page_title": "Parent Rating Access",
+        "open_menu": "Open menu",
+        "main_navigation": "Main navigation",
+        "home": "Home",
+        "student_rating": "Student Rating",
+        "parent_access": "Parent access",
+        "leaderboard": "Leaderboard",
+        "landing_page": "Landing page",
+        "back_to_makonbook": "Back to MakonBook",
+        "parent_title": "Parent access",
+        "parent_intro": "Enter the private code shown on the student's My Rating page. Search by full name stays disabled on purpose for privacy.",
+        "public_leaderboard": "Public leaderboard",
+        "student_access_code": "Student access code",
+        "code_placeholder": "Enter access code",
+        "open_rating": "Open rating",
+        "rank": "Rank",
+        "rating": "Rating",
+        "assessments": "Assessments",
+        "classrooms": "Classrooms",
+        "date": "Date",
+        "classroom": "Classroom",
+        "homework": "Homework",
+        "progress": "Progress",
+        "activity": "Activity",
+        "attendance": "Attendance",
+        "behavior": "Behavior",
+        "mean": "Mean",
+        "no_history": "No rating history is available yet.",
+        "footer_text": "Digital SAT practice platform with tests, analytics, classrooms, and student rating.",
+        "back_to_top": "Back to top",
+        "language": "Language",
+        "report_issue": "Report issue",
+        "report_problem": "Report a problem",
+        "close": "Close",
+        "report_description": "Describe what happened and what you expected. This is one general platform report, not an automatic request to change an answer key.",
+        "category": "Category",
+        "technical_problem": "Technical problem",
+        "content_problem": "Question or content problem",
+        "account_problem": "Account or access problem",
+        "rating_problem": "Rating problem",
+        "suggestion": "Suggestion",
+        "other": "Other",
+        "name_optional": "Name (optional)",
+        "email_optional": "Email (optional)",
+        "comment": "Comment",
+        "comment_placeholder": "Example: I could not open my child's rating page after entering the code...",
+        "send_report": "Send report",
+        "sending": "Sending...",
+        "report_sent": "Report sent. Thank you.",
+        "report_failed": "Could not send report.",
+        "too_many_attempts": "Too many code attempts. Try again later.",
+        "code_not_found": "Code not found. Check the code shown in the student's My Rating page.",
+    },
+    "ru": {
+        "page_title": "Рейтинг ученика — доступ для родителей",
+        "open_menu": "Открыть меню",
+        "main_navigation": "Главная навигация",
+        "home": "Главная",
+        "student_rating": "Рейтинг учеников",
+        "parent_access": "Для родителей",
+        "leaderboard": "Рейтинг",
+        "landing_page": "Главная страница",
+        "back_to_makonbook": "Вернуться в MakonBook",
+        "parent_title": "Доступ для родителей",
+        "parent_intro": "Введите личный код, который указан на странице «Мой рейтинг» у ученика. Поиск по полному имени специально отключён для защиты персональных данных.",
+        "public_leaderboard": "Общий рейтинг",
+        "student_access_code": "Код доступа ученика",
+        "code_placeholder": "Введите код доступа",
+        "open_rating": "Открыть рейтинг",
+        "rank": "Место",
+        "rating": "Рейтинг",
+        "assessments": "Оценивания",
+        "classrooms": "Классы",
+        "date": "Дата",
+        "classroom": "Класс",
+        "homework": "Домашняя работа",
+        "progress": "Прогресс",
+        "activity": "Активность",
+        "attendance": "Посещаемость",
+        "behavior": "Поведение",
+        "mean": "Среднее",
+        "no_history": "Истории оценивания пока нет.",
+        "footer_text": "Платформа подготовки к Digital SAT: тесты, аналитика, классы и рейтинг учеников.",
+        "back_to_top": "Наверх",
+        "language": "Язык",
+        "report_issue": "Сообщить о проблеме",
+        "report_problem": "Сообщить о проблеме",
+        "close": "Закрыть",
+        "report_description": "Опишите, что произошло и какой результат вы ожидали. Это общее сообщение о проблеме платформы.",
+        "category": "Категория",
+        "technical_problem": "Техническая проблема",
+        "content_problem": "Проблема с вопросом или содержанием",
+        "account_problem": "Проблема с аккаунтом или доступом",
+        "rating_problem": "Проблема с рейтингом",
+        "suggestion": "Предложение",
+        "other": "Другое",
+        "name_optional": "Имя (необязательно)",
+        "email_optional": "Email (необязательно)",
+        "comment": "Комментарий",
+        "comment_placeholder": "Например: после ввода кода я не смог открыть рейтинг ребёнка...",
+        "send_report": "Отправить",
+        "sending": "Отправка...",
+        "report_sent": "Сообщение отправлено. Спасибо.",
+        "report_failed": "Не удалось отправить сообщение.",
+        "too_many_attempts": "Слишком много попыток ввода кода. Попробуйте позже.",
+        "code_not_found": "Код не найден. Проверьте код на странице «Мой рейтинг» у ученика.",
+    },
+    "uz": {
+        "page_title": "O‘quvchi reytingi — ota-onalar uchun kirish",
+        "open_menu": "Menyuni ochish",
+        "main_navigation": "Asosiy navigatsiya",
+        "home": "Bosh sahifa",
+        "student_rating": "O‘quvchilar reytingi",
+        "parent_access": "Ota-onalar uchun",
+        "leaderboard": "Reyting",
+        "landing_page": "Bosh sahifa",
+        "back_to_makonbook": "MakonBook’ga qaytish",
+        "parent_title": "Ota-onalar uchun kirish",
+        "parent_intro": "O‘quvchining «Mening reytingim» sahifasida ko‘rsatilgan shaxsiy kodni kiriting. Maxfiylikni himoya qilish uchun to‘liq ism bo‘yicha qidiruv ataylab o‘chirilgan.",
+        "public_leaderboard": "Umumiy reyting",
+        "student_access_code": "O‘quvchining kirish kodi",
+        "code_placeholder": "Kirish kodini kiriting",
+        "open_rating": "Reytingni ochish",
+        "rank": "O‘rin",
+        "rating": "Reyting",
+        "assessments": "Baholashlar",
+        "classrooms": "Sinflar",
+        "date": "Sana",
+        "classroom": "Sinf",
+        "homework": "Uy vazifasi",
+        "progress": "O‘sish",
+        "activity": "Faollik",
+        "attendance": "Davomat",
+        "behavior": "Xulq-atvor",
+        "mean": "O‘rtacha",
+        "no_history": "Hozircha baholash tarixi mavjud emas.",
+        "footer_text": "Digital SAT tayyorgarlik platformasi: testlar, tahlil, sinflar va o‘quvchilar reytingi.",
+        "back_to_top": "Yuqoriga",
+        "language": "Til",
+        "report_issue": "Muammo haqida xabar berish",
+        "report_problem": "Muammo haqida xabar berish",
+        "close": "Yopish",
+        "report_description": "Nima sodir bo‘lganini va qanday natija kutganingizni yozing. Bu platformadagi umumiy muammo haqida xabar.",
+        "category": "Toifa",
+        "technical_problem": "Texnik muammo",
+        "content_problem": "Savol yoki kontent bilan bog‘liq muammo",
+        "account_problem": "Hisob yoki kirish bilan bog‘liq muammo",
+        "rating_problem": "Reyting bilan bog‘liq muammo",
+        "suggestion": "Taklif",
+        "other": "Boshqa",
+        "name_optional": "Ism (ixtiyoriy)",
+        "email_optional": "Email (ixtiyoriy)",
+        "comment": "Izoh",
+        "comment_placeholder": "Masalan: kodni kiritganimdan keyin farzandimning reytingini ocha olmadim...",
+        "send_report": "Yuborish",
+        "sending": "Yuborilmoqda...",
+        "report_sent": "Xabar yuborildi. Rahmat.",
+        "report_failed": "Xabarni yuborib bo‘lmadi.",
+        "too_many_attempts": "Kod kiritish urinishlari juda ko‘p. Keyinroq qayta urinib ko‘ring.",
+        "code_not_found": "Kod topilmadi. O‘quvchining «Mening reytingim» sahifasidagi kodni tekshiring.",
+    },
+}
+
+
+def _parent_language(request):
+    requested = (request.GET.get("lang") or request.POST.get("lang") or "").strip().lower()
+    if requested in PARENT_LANGUAGE_CHOICES:
+        request.session["rating_parent_language"] = requested
+        return requested
+
+    saved = (request.session.get("rating_parent_language") or "").strip().lower()
+    if saved in PARENT_LANGUAGE_CHOICES:
+        return saved
+
+    browser_language = (request.META.get("HTTP_ACCEPT_LANGUAGE") or "").lower()
+    for token in browser_language.split(","):
+        code = token.split(";", 1)[0].strip().split("-", 1)[0]
+        if code in PARENT_LANGUAGE_CHOICES:
+            request.session["rating_parent_language"] = code
+            return code
+
+    request.session["rating_parent_language"] = "en"
+    return "en"
+
+
+def _parent_context(request, **extra):
+    language = _parent_language(request)
+    context = {
+        "parent_lang": language,
+        "parent_t": PARENT_TRANSLATIONS[language],
+        "parent_languages": (
+            ("en", "English"),
+            ("ru", "Русский"),
+            ("uz", "O‘zbekcha"),
+        ),
+        "issue_report_t": PARENT_TRANSLATIONS[language],
+    }
+    context.update(extra)
+    return context
+
+
 def _is_teacher_for(user, classroom):
     return bool(user.is_authenticated and (user.pk == classroom.teacher_id or user.is_staff or user.is_superuser))
 
@@ -48,6 +253,8 @@ def public_student(request, student_id):
 
 
 def parent_lookup(request):
+    language = _parent_language(request)
+    translations = PARENT_TRANSLATIONS[language]
     profile = None
     entry = None
     history = []
@@ -58,19 +265,28 @@ def parent_lookup(request):
             if now_ts - int(ts) < 3600
         ]
         if len(attempts) >= 10:
-            messages.error(request, "Too many code attempts. Try again later.")
-            return render(request, "ratings/parent_lookup.html", {"profile": None, "entry": None, "history": []}, status=429)
+            messages.error(request, translations["too_many_attempts"])
+            return render(
+                request,
+                "ratings/parent_lookup.html",
+                _parent_context(request, profile=None, entry=None, history=[]),
+                status=429,
+            )
 
         code = (request.POST.get("code") or "").strip().upper()[:16]
         attempts.append(now_ts)
         request.session["rating_parent_lookup_times"] = attempts
         profile = RatingProfile.objects.select_related("user").filter(parent_access_code=code).first()
         if not profile:
-            messages.error(request, "Code not found. Check the code shown in the student's My Rating page.")
+            messages.error(request, translations["code_not_found"])
         else:
             entry = student_rating(profile.user)
             history = RatingAssessment.objects.filter(student=profile.user).select_related("classroom", "teacher")[:50]
-    return render(request, "ratings/parent_lookup.html", {"profile": profile, "entry": entry, "history": history})
+    return render(
+        request,
+        "ratings/parent_lookup.html",
+        _parent_context(request, profile=profile, entry=entry, history=history),
+    )
 
 
 @login_required

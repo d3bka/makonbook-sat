@@ -6,4 +6,5 @@ class SatConfig(AppConfig):
     name = 'apps.sat'
 
     def ready(self):
-        from . import additional
+        from . import additional  # noqa: F401
+        from . import signals  # noqa: F401

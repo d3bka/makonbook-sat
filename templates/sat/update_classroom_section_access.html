@@ -173,56 +173,35 @@
 
   <h2>Manage Section Access</h2>
   <p class="access-subtitle">
-    These settings apply to <strong>all {{ student_count }} approved student{{ student_count|pluralize }}</strong> in <strong>{{ classroom.name }}</strong> at once.
+    Set the default access policy for <strong>{{ classroom.name }}</strong>. It applies to all current approved students and is inherited automatically by every student approved later.
   </p>
 
-  {% if student_count == 0 %}
-    <div class="warning-note">
-      ⚠ There are no approved students in this classroom yet. Add and approve students first.
-    </div>
-  {% endif %}
+  <div class="warning-note" style="background:var(--mk-accent-soft); border-color:var(--mk-accent); color:var(--mk-text);">
+    ✓ Persistent classroom rule: you do not need to grant these sections again when a new student joins.
+  </div>
 
   <form method="post">
     {% csrf_token %}
 
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Practice Tests</span>
-        <span class="section-count">{{ section_counts.practice_tests }} of {{ student_count }} students currently have access</span>
+    {% for row in section_rows %}
+      <div class="section-row">
+        <div class="section-label">
+          <span class="section-name">{{ row.label }}</span>
+          <span class="section-count">
+            {{ row.count }} of {{ student_count }} current student{{ student_count|pluralize }} have access
+            {% if row.checked %} · Default for new students: ON{% else %} · Default for new students: OFF{% endif %}
+          </span>
+        </div>
+        <label class="toggle-wrap">
+          <input type="checkbox" name="sections" value="{{ row.key }}" {% if row.checked %}checked{% endif %}>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </label>
       </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="practice_tests" {% if majority_access.practice_tests %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
+    {% endfor %}
 
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Vocabulary</span>
-        <span class="section-count">{{ section_counts.vocabulary }} of {{ student_count }} students currently have access</span>
-      </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="vocabulary" {% if majority_access.vocabulary %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
-
-    <div class="section-row">
-      <div class="section-label">
-        <span class="section-name">Admissions</span>
-        <span class="section-count">{{ section_counts.admissions }} of {{ student_count }} students currently have access</span>
-      </div>
-      <label class="toggle-wrap">
-        <input type="checkbox" name="sections" value="admissions" {% if majority_access.admissions %}checked{% endif %}>
-        <span class="toggle-track"></span>
-        <span class="toggle-thumb"></span>
-      </label>
-    </div>
-
-    <button type="submit" class="btn-save" {% if student_count == 0 %}disabled{% endif %}>
-      Apply to All Students
+    <button type="submit" class="btn-save">
+      Save Classroom Access Policy
     </button>
   </form>
 </div>

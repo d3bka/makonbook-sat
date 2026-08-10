@@ -2,57 +2,67 @@
 {% load static %}
 
 {% block title-main %}My Support Lessons{% endblock title-main %}
-{% block title-subtitle %}<span>Your complete support schedule</span>{% endblock title-subtitle %}
-{% block breadcrumb_parent %}<li><a href="{% url 'support_teacher_list' %}">Support Teachers</a></li>{% endblock breadcrumb_parent %}
-{% block title %}My Lessons{% endblock title %}
+{% block title-subtitle %}<span>Requests, grouped sessions, and private feedback</span>{% endblock title-subtitle %}
+{% block title %}Support Lessons{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33">
 {% endblock style %}
 
 {% block content %}
 <div class="support-shell support-stack">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>
-    {% endfor %}
-  {% endif %}
+  {% if messages %}{% for message in messages %}<div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>{% endfor %}{% endif %}
 
   <section class="support-card support-hero">
     <div class="support-hero-content">
       <div>
-        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Student Schedule</div>
-        <h1>Every support lesson, clearly organized.</h1>
-        <p>See meeting links, lesson goals, cancellation rules, and verified feedback in one place. Times are shown in {{ timezone_name }}.</p>
-        <div class="support-hero-actions">
-          <a class="support-btn support-btn-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-calendar-plus"></i> Book another lesson</a>
-        </div>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Your support plan</div>
+        <h1>Requests first. Teacher-planned sessions second.</h1>
+        <p>Your waiting topics stay here until the support teacher plans a group. When a time is created, matching requests move automatically into the scheduled section.</p>
+        <div class="support-hero-actions"><a class="support-btn support-btn-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-plus-circle"></i> Request another topic</a></div>
       </div>
       <aside class="support-next-card">
         {% if next_booking %}
-          <small>Next lesson</small>
-          <strong>{{ next_booking.teacher.name }}</strong>
-          <span>{{ next_booking.start_at|date:'D, d M · H:i' }}–{{ next_booking.end_at|date:'H:i' }}</span>
+          <small>Next lesson</small><strong>{{ next_booking.display_topic }}</strong><span>{{ next_booking.teacher.name }} · {{ next_booking.start_at|date:'D, d M · H:i' }}–{{ next_booking.end_at|date:'H:i' }}</span>
           <div style="margin-top:13px;"><span class="support-countdown" data-support-countdown="{{ next_booking.start_at|date:'c' }}"><i class="bi bi-clock"></i> Upcoming</span></div>
+        {% elif waiting_requests %}
+          <small>Current state</small><strong>{{ waiting_requests|length }} topic request{{ waiting_requests|length|pluralize }} waiting</strong><span>The teacher will choose the time.</span>
         {% else %}
-          <small>Next lesson</small>
-          <strong>Your schedule is clear</strong>
-          <span>Book a teacher whenever you need focused support.</span>
+          <small>Current state</small><strong>No active requests</strong><span>Choose a teacher and topic when you need help.</span>
         {% endif %}
       </aside>
     </div>
   </section>
 
   <div class="support-stats">
+    <div class="support-stat"><span>Waiting</span><strong>{{ waiting_requests|length }}</strong></div>
     <div class="support-stat"><span>Upcoming</span><strong>{{ upcoming_bookings|length }}</strong></div>
     <div class="support-stat"><span>Completed</span><strong>{{ completed_count }}</strong></div>
-    <div class="support-stat"><span>Total history</span><strong>{{ history_bookings|length }}</strong></div>
-    <div class="support-stat"><span>Timezone</span><strong style="font-size:15px; line-height:1.25;">{{ timezone_name }}</strong></div>
+    <div class="support-stat"><span>Timezone</span><strong style="font-size:14px;">{{ timezone_name }}</strong></div>
   </div>
+
+  {% if waiting_requests %}
+  <section class="support-card support-card-pad">
+    <div class="support-section-head"><div><h2>Waiting for teacher planning</h2><p>These requests do not have a time yet. Students requesting the same topic will be grouped together.</p></div><span class="support-status support-status-requested">{{ waiting_requests|length }} waiting</span></div>
+    <div class="support-request-grid">
+      {% for booking in waiting_requests %}
+      <article class="support-request-card">
+        <div class="support-request-card-head">
+          <div><span class="support-tag">{{ booking.display_title }}</span><h3>{{ booking.display_topic }}</h3><p>{{ booking.teacher.name }}</p></div>
+          <span class="support-status support-status-requested"><i class="bi bi-hourglass-split"></i> Waiting</span>
+        </div>
+        {% if booking.student_note %}<div class="support-note-box"><strong>Your note:</strong> {{ booking.student_note }}</div>{% endif %}
+        <div class="support-request-meta"><span><i class="bi bi-calendar-event"></i> Requested {{ booking.created_at|date:'d M Y · H:i' }}</span><span><i class="bi bi-people"></i> Same topics will be grouped</span></div>
+        <div class="support-lesson-actions"><button type="button" class="support-btn support-btn-danger" data-open-cancel-modal data-cancel-url="{% url 'cancel_support_lesson' booking.id %}" data-cancel-teacher="{{ booking.teacher.name }}" data-cancel-time="Waiting request: {{ booking.display_topic }}"><i class="bi bi-x-circle"></i> Cancel request</button></div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   <section class="support-card support-card-pad">
     <div class="support-tabs" data-support-tabs>
-      <button type="button" class="support-tab-btn is-active" data-support-tab-target="upcoming">Upcoming ({{ upcoming_bookings|length }})</button>
+      <button type="button" class="support-tab-btn is-active" data-support-tab-target="upcoming">Scheduled ({{ upcoming_bookings|length }})</button>
       <button type="button" class="support-tab-btn" data-support-tab-target="history">History ({{ history_bookings|length }})</button>
     </div>
 
@@ -61,49 +71,24 @@
         {% for booking in upcoming_bookings %}
           <article class="support-lesson-card {% if forloop.first %}is-next{% endif %}">
             <div class="support-lesson-head">
-              <div class="support-lesson-title">
-                <div class="support-avatar">{{ booking.teacher.name|first|upper }}</div>
-                <div>
-                  <h3>{{ booking.teacher.name }}</h3>
-                  <p>{{ booking.get_topic_display }} · {{ booking.duration_minutes }} minutes</p>
-                </div>
-              </div>
-              <div class="support-time-block">
-                <strong>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</strong>
-                <span>{{ booking.start_at|date:'D, d M Y' }}</span>
-              </div>
+              <div class="support-lesson-title"><div class="support-avatar">{{ booking.teacher.name|first|upper }}</div><div><h3>{{ booking.display_topic }}</h3><p>{{ booking.display_title }} · {{ booking.teacher.name }} · {{ booking.duration_minutes }} min</p></div></div>
+              <div class="support-time-block"><strong>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</strong><span>{{ booking.start_at|date:'D, d M Y' }}</span></div>
             </div>
-
             <div class="support-lesson-details">
               <div class="support-detail-chip">Status<strong>{% if booking.is_live %}Live now{% else %}{{ booking.get_status_display }}{% endif %}</strong></div>
-              <div class="support-detail-chip">Contact<strong>{% if booking.teacher.clean_telegram_username %}@{{ booking.teacher.clean_telegram_username }}{% else %}MakonBook teacher{% endif %}</strong></div>
+              <div class="support-detail-chip">Session<strong>{% if booking.session %}Grouped topic class{% else %}Legacy individual lesson{% endif %}</strong></div>
               <div class="support-detail-chip">Cancellation<strong>{{ booking.teacher.cancellation_notice_hours }}h notice</strong></div>
             </div>
-
-            {% if booking.student_note %}<div class="support-note-box"><strong>Your lesson goal:</strong> {{ booking.student_note }}</div>{% endif %}
+            {% if booking.student_note %}<div class="support-note-box"><strong>Your request note:</strong> {{ booking.student_note }}</div>{% endif %}
             {% if booking.teacher_note %}<div class="support-note-box"><strong>Teacher note:</strong> {{ booking.teacher_note }}</div>{% endif %}
-
             <div class="support-lesson-actions">
-              {% if booking.effective_meeting_link %}
-                <a class="support-btn support-btn-primary" href="{{ booking.effective_meeting_link }}" target="_blank" rel="noopener"><i class="bi bi-camera-video"></i> Join lesson</a>
-              {% endif %}
-              {% if booking.teacher.clean_telegram_username %}
-                <a class="support-btn support-btn-secondary" href="{{ booking.teacher.telegram_url }}" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> Telegram</a>
-              {% endif %}
-              {% if booking.student_can_cancel %}
-                <button type="button" class="support-btn support-btn-danger" data-open-cancel-modal data-cancel-url="{% url 'cancel_support_lesson' booking.id %}" data-cancel-teacher="{{ booking.teacher.name }}" data-cancel-time="{{ booking.start_at|date:'D, d M · H:i' }}–{{ booking.end_at|date:'H:i' }}"><i class="bi bi-x-circle"></i> Cancel</button>
-              {% else %}
-                <span class="support-status support-status-no_show"><i class="bi bi-lock"></i> Cancellation closed</span>
-              {% endif %}
+              {% if booking.effective_meeting_link %}<a class="support-btn support-btn-primary" href="{{ booking.effective_meeting_link }}" target="_blank" rel="noopener"><i class="bi bi-camera-video"></i> Join lesson</a>{% endif %}
+              {% if booking.teacher.clean_telegram_username %}<a class="support-btn support-btn-secondary" href="{{ booking.teacher.telegram_url }}" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> Telegram</a>{% endif %}
+              {% if booking.student_can_cancel %}<button type="button" class="support-btn support-btn-danger" data-open-cancel-modal data-cancel-url="{% url 'cancel_support_lesson' booking.id %}" data-cancel-teacher="{{ booking.teacher.name }}" data-cancel-time="{{ booking.start_at|date:'D, d M · H:i' }}–{{ booking.end_at|date:'H:i' }}"><i class="bi bi-x-circle"></i> Cancel</button>{% else %}<span class="support-status support-status-no_show"><i class="bi bi-lock"></i> Cancellation closed</span>{% endif %}
             </div>
           </article>
         {% empty %}
-          <div class="support-empty">
-            <div class="support-empty-icon"><i class="bi bi-calendar2-plus"></i></div>
-            <h3>No upcoming support lessons</h3>
-            <p>Choose a teacher and reserve a focused SAT support session.</p>
-            <a class="support-btn support-btn-primary" href="{% url 'support_teacher_list' %}">Find a teacher</a>
-          </div>
+          <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-calendar2-plus"></i></div><h3>No scheduled support lessons</h3><p>Your waiting requests will appear here after a support teacher plans the topic session.</p><a class="support-btn support-btn-primary" href="{% url 'support_teacher_list' %}">Request a topic</a></div>
         {% endfor %}
       </div>
     </div>
@@ -113,51 +98,26 @@
         {% for booking in history_bookings %}
           <article class="support-lesson-card">
             <div class="support-lesson-head">
-              <div class="support-lesson-title">
-                <div class="support-avatar">{{ booking.teacher.name|first|upper }}</div>
-                <div>
-                  <h3>{{ booking.teacher.name }}</h3>
-                  <p>{{ booking.get_topic_display }} · {{ booking.start_at|date:'D, d M Y · H:i' }}</p>
-                </div>
-              </div>
-              {% if booking.awaiting_confirmation %}
-                <span class="support-status support-status-no_show">Awaiting teacher confirmation</span>
-              {% else %}
-                <span class="support-status support-status-{{ booking.status }}">{{ booking.get_status_display }}</span>
-              {% endif %}
+              <div class="support-lesson-title"><div class="support-avatar">{{ booking.teacher.name|first|upper }}</div><div><h3>{{ booking.display_topic }}</h3><p>{{ booking.display_title }} · {{ booking.teacher.name }}{% if booking.start_at %} · {{ booking.start_at|date:'D, d M Y · H:i' }}{% endif %}</p></div></div>
+              {% if booking.awaiting_confirmation %}<span class="support-status support-status-no_show">Awaiting teacher confirmation</span>{% else %}<span class="support-status support-status-{{ booking.status }}">{{ booking.get_status_display }}</span>{% endif %}
             </div>
-
             {% if booking.cancellation_reason %}<div class="support-note-box"><strong>Cancellation reason:</strong> {{ booking.cancellation_reason }}</div>{% endif %}
             {% if booking.teacher_note %}<div class="support-note-box"><strong>Teacher note:</strong> {{ booking.teacher_note }}</div>{% endif %}
 
             {% if booking.review %}
-              <div class="support-note-box"><strong>Your rating:</strong> ★ {{ booking.review.rating }}/5{% if booking.review.feedback %}<br>{{ booking.review.feedback }}{% endif %}</div>
+              <div class="support-private-feedback-box"><div><i class="bi bi-lock-fill"></i><strong>Your private feedback</strong></div><p>★ {{ booking.review.rating }}/5{% if booking.review.feedback %}<br>{{ booking.review.feedback }}{% endif %}</p><small>Only teachers and managers can see this feedback.</small></div>
             {% elif booking.can_receive_feedback %}
               <form method="post" action="{% url 'leave_support_lesson_feedback' booking.id %}" data-support-lock-submit style="margin-top:16px;">
                 {% csrf_token %}
-                <div class="support-field">
-                  <label>How was the lesson?</label>
-                  <div class="support-star-input" aria-label="Lesson rating">
-                    {% for value in '54321' %}
-                      <input id="rating-{{ booking.id }}-{{ value }}" type="radio" name="rating" value="{{ value }}" {% if value == '5' %}checked{% endif %}>
-                      <label for="rating-{{ booking.id }}-{{ value }}" title="{{ value }} stars">★</label>
-                    {% endfor %}
-                  </div>
-                </div>
-                <div class="support-field" style="margin-top:12px;">
-                  <label for="feedback-{{ booking.id }}">Public comment (optional)</label>
-                  <textarea id="feedback-{{ booking.id }}" class="support-textarea" name="feedback" maxlength="1200" placeholder="What helped most? What could be improved? This comment will appear on the teacher profile."></textarea>
-                </div>
-                <button class="support-btn support-btn-primary" type="submit" data-loading-label="Saving…" style="margin-top:12px;"><i class="bi bi-send"></i> Publish rating</button>
+                <div class="support-private-note"><i class="bi bi-shield-lock"></i><span><strong>Private feedback.</strong> Your rating and comment are not shown to other students. They are visible only to teachers and managers.</span></div>
+                <div class="support-field" style="margin-top:14px;"><label>How was the lesson?</label><div class="support-star-input" aria-label="Lesson rating">{% for value in '54321' %}<input id="rating-{{ booking.id }}-{{ value }}" type="radio" name="rating" value="{{ value }}" {% if value == '5' %}checked{% endif %}><label for="rating-{{ booking.id }}-{{ value }}" title="{{ value }} stars">★</label>{% endfor %}</div></div>
+                <div class="support-field" style="margin-top:12px;"><label for="feedback-{{ booking.id }}">Private comment <span class="support-label-normal">Optional</span></label><textarea id="feedback-{{ booking.id }}" class="support-textarea" name="feedback" maxlength="1200" placeholder="What helped most? What should the support teacher improve?"></textarea></div>
+                <button class="support-btn support-btn-primary" type="submit" data-loading-label="Saving…" style="margin-top:12px;"><i class="bi bi-lock"></i> Save private feedback</button>
               </form>
             {% endif %}
           </article>
         {% empty %}
-          <div class="support-empty">
-            <div class="support-empty-icon"><i class="bi bi-clock-history"></i></div>
-            <h3>No lesson history yet</h3>
-            <p>Completed and cancelled lessons will appear here.</p>
-          </div>
+          <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-clock-history"></i></div><h3>No lesson history yet</h3><p>Completed, cancelled, and no-show lessons will appear here.</p></div>
         {% endfor %}
       </div>
     </div>
@@ -166,21 +126,11 @@
 
 <div id="supportCancelModal" class="support-modal" aria-hidden="true">
   <div class="support-modal-card" role="dialog" aria-modal="true" aria-labelledby="support-cancel-title">
-    <h3 id="support-cancel-title">Cancel this lesson?</h3>
-    <p>You are cancelling your lesson with <strong data-cancel-teacher></strong> at <strong data-cancel-time></strong>. The time will become available to another student.</p>
-    <form method="post" data-support-lock-submit>
-      {% csrf_token %}
-      <div class="support-field">
-        <label for="support-cancel-reason">Reason (optional)</label>
-        <textarea id="support-cancel-reason" class="support-textarea" name="reason" maxlength="500" placeholder="Briefly tell the teacher why you cannot attend."></textarea>
-      </div>
-      <div class="support-modal-actions">
-        <button type="button" class="support-btn support-btn-secondary" data-close-support-modal>Keep lesson</button>
-        <button type="submit" class="support-btn support-btn-danger" data-loading-label="Cancelling…">Cancel lesson</button>
-      </div>
-    </form>
+    <h3 id="support-cancel-title">Cancel this support item?</h3>
+    <p>You are cancelling your request/lesson with <strong data-cancel-teacher></strong>: <strong data-cancel-time></strong>.</p>
+    <form method="post" data-support-lock-submit>{% csrf_token %}<div class="support-field"><label for="support-cancel-reason">Reason <span class="support-label-normal">Optional</span></label><textarea id="support-cancel-reason" class="support-textarea" name="reason" maxlength="500" placeholder="Brief reason for cancelling."></textarea></div><div class="support-modal-actions"><button type="button" class="support-btn support-btn-secondary" data-close-support-modal>Keep it</button><button type="submit" class="support-btn support-btn-danger" data-loading-label="Cancelling…">Cancel</button></div></form>
   </div>
 </div>
 
-<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
+<script src="{% static 'assets/js/support-booking-v33.js' %}?v=33"></script>
 {% endblock content %}

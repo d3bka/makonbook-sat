@@ -101,7 +101,7 @@
 {% if teacher %}
 <div class="admin-card">
   <h4>Availability planner</h4>
-  <p style="color:#64748b; margin-top:-4px;">Create a weekly availability window. MakonBook automatically divides it into bookable lesson slots using the duration and buffer below.</p>
+  <p style="color:#64748b; margin-top:-4px;">Create a weekly planning window. MakonBook divides it into session slots that the support teacher can assign to topic groups.</p>
   <form method="post" action="{% url 'admin_support_teacher_availability_add' teacher.id %}" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr 1.6fr auto auto; gap:10px; align-items:end;">
     {% csrf_token %}
     <div class="form-group" style="margin-bottom:0;">
@@ -171,8 +171,8 @@
       {% for booking in recent_bookings %}
       <tr>
         <td>{{ booking.student.username }}</td>
-        <td>{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}</td>
-        <td>{{ booking.get_topic_display }}</td>
+        <td>{% if booking.start_at %}{{ booking.start_at|date:'M d, Y H:i' }} — {{ booking.end_at|date:'H:i' }}{% else %}<strong>Waiting for teacher</strong>{% endif %}</td>
+        <td>{{ booking.display_title }} → {{ booking.display_topic }}</td>
         <td>{{ booking.get_status_display }}</td>
         <td>{{ booking.student_note|default:'-'|truncatewords:10 }}</td>
       </tr>

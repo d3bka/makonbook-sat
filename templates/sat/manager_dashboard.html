@@ -1,0 +1,108 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}Manager Overview{% endblock title-main %}
+{% block title-subtitle %}<span>Teacher-side operations only</span>{% endblock title-subtitle %}
+{% block title %}Manager{% endblock title %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33">
+{% endblock style %}
+
+{% block content %}
+<div class="support-shell support-stack">
+  {% if messages %}{% for message in messages %}<div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>{% endfor %}{% endif %}
+
+  <section class="support-card support-hero manager-hero">
+    <div class="support-hero-content">
+      <div>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> MakonBook Manager</div>
+        <h1>One brief view of the teaching operation.</h1>
+        <p>This dashboard is intentionally teacher-focused: classroom teacher load, support teacher workload, topic-session activity, and private support feedback. It is not a student-management dashboard.</p>
+        <div class="support-hero-actions"><a class="support-btn support-btn-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-person-video3"></i> Open support teachers</a></div>
+      </div>
+      <aside class="support-next-card"><small>Access scope</small><strong>Manager role</strong><span>Ratings and comments are private operational data and are not exposed to student accounts.</span></aside>
+    </div>
+  </section>
+
+  <div class="support-stats support-stats-5">
+    <div class="support-stat"><span>Classroom teachers</span><strong>{{ total_classroom_teachers }}</strong></div>
+    <div class="support-stat"><span>Approved students</span><strong>{{ total_students }}</strong></div>
+    <div class="support-stat"><span>Support teachers</span><strong>{{ total_support_teachers }}</strong></div>
+    <div class="support-stat"><span>Support students</span><strong>{{ total_support_students }}</strong></div>
+    <div class="support-stat"><span>Waiting requests</span><strong>{{ waiting_requests_total }}</strong></div>
+  </div>
+
+  <section class="support-card support-card-pad">
+    <div class="support-section-head"><div><h2>Classroom teacher load</h2><p>How many active classrooms and approved students each main teacher currently carries.</p></div><span class="support-status support-status-scheduled">Aggregate only</span></div>
+    <div class="manager-table-wrap">
+      <table class="manager-table">
+        <thead><tr><th>Teacher</th><th>Active classrooms</th><th>Approved students</th><th>Pending joins</th></tr></thead>
+        <tbody>
+          {% for teacher in classroom_teachers %}
+            <tr class="manager-click-row" data-href="{% url 'manager_teacher_detail' teacher.id %}" tabindex="0" role="link" aria-label="Open {{ teacher.get_full_name|default:teacher.username }} teacher details">
+              <td><a class="manager-person manager-person-link" href="{% url 'manager_teacher_detail' teacher.id %}"><span class="support-avatar support-avatar-xs">{{ teacher.username|first|upper }}</span><div><strong>{{ teacher.get_full_name|default:teacher.username }}</strong><small>@{{ teacher.username }}</small></div><i class="bi bi-chevron-right manager-row-arrow"></i></a></td>
+              <td><strong>{{ teacher.active_classrooms_count }}</strong></td><td><strong>{{ teacher.approved_students_count }}</strong></td><td>{{ teacher.pending_students_count }}</td>
+            </tr>
+          {% empty %}<tr><td colspan="4" class="manager-empty-cell">No active classroom teachers.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="support-card support-card-pad">
+    <div class="support-section-head"><div><h2>Support teacher performance</h2><p>Student reach, queue pressure, upcoming load, completed lessons, and private rating.</p></div><span class="support-status support-status-completed"><i class="bi bi-lock-fill"></i> Private ratings</span></div>
+    <div class="manager-support-grid">
+      {% for teacher in support_teachers %}
+        <article class="manager-support-card">
+          <div class="support-profile-row"><div class="support-avatar">{{ teacher.name|first|upper }}</div><div class="support-profile-copy"><h3>{{ teacher.name }}</h3><p>{{ teacher.headline|default:'MakonBook support teacher' }}</p></div></div>
+          <div class="manager-metric-grid">
+            <div><span>Unique students</span><strong>{{ teacher.assigned_students_count }}</strong></div>
+            <div><span>Waiting</span><strong>{{ teacher.waiting_requests_count }}</strong></div>
+            <div><span>Upcoming</span><strong>{{ teacher.upcoming_students_count }}</strong></div>
+            <div><span>Completed classes</span><strong>{{ teacher.manager_completed_classes }}</strong></div>
+          </div>
+          <div class="manager-rating-row"><div><span>Private rating</span><strong>{% if teacher.manager_rating %}<i class="bi bi-star-fill"></i> {{ teacher.manager_rating }}/5{% else %}No rating{% endif %}</strong></div><small>{{ teacher.manager_reviews_count }} review{{ teacher.manager_reviews_count|pluralize }}</small></div>
+          <a class="support-btn support-btn-secondary" href="{% url 'support_teacher_detail' teacher.id %}"><i class="bi bi-eye"></i> Open teacher details</a>
+        </article>
+      {% empty %}<div class="support-empty"><h3>No support teachers configured</h3></div>{% endfor %}
+    </div>
+  </section>
+
+  <div class="support-page-grid manager-page-grid">
+    <section class="support-card support-card-pad">
+      <div class="support-section-head"><div><h2>Upcoming topic sessions</h2><p>Grouped support classes across all support teachers. Times are {{ timezone_name }}.</p></div></div>
+      <div class="support-session-list">
+        {% for session in upcoming_sessions %}
+          <article class="support-session-card manager-session-card">
+            <div><span class="support-tag">{% if session.lesson_topic %}{{ session.lesson_topic.title.name }}{% else %}Support{% endif %}</span><h3>{% if session.lesson_topic %}{{ session.lesson_topic.name }}{% else %}Support session{% endif %}</h3><p>{{ session.teacher.name }} · {{ session.start_at|date:'D, d M · H:i' }}–{{ session.end_at|date:'H:i' }}</p></div>
+            <div class="manager-session-side"><strong>{{ session.display_student_count }}</strong><span>students</span></div>
+          </article>
+        {% empty %}<div class="support-empty" style="padding:30px 8px;"><div class="support-empty-icon"><i class="bi bi-calendar2"></i></div><h3>No upcoming sessions</h3><p>Support teachers have not planned any future topic groups yet.</p></div>{% endfor %}
+      </div>
+    </section>
+
+    <aside class="support-card support-card-pad">
+      <div class="support-section-head"><div><h2>Latest private feedback</h2><p>Operational quality signal. Never displayed to students.</p></div></div>
+      {% for review in recent_reviews %}
+        <article class="support-review manager-review"><div class="support-review-head"><strong>{{ review.teacher.name }}</strong><span class="support-rating"><i class="bi bi-star-fill"></i> {{ review.rating }}/5</span></div><small>Completed lesson feedback · {{ review.booking.display_topic }} · {{ review.created_at|date:'d M' }}</small>{% if review.feedback %}<p>{{ review.feedback }}</p>{% endif %}</article>
+      {% empty %}<p class="support-muted-copy">No completed-lesson feedback yet.</p>{% endfor %}
+    </aside>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.manager-click-row[data-href]').forEach(function (row) {
+  row.addEventListener('click', function (event) {
+    if (event.target.closest('a, button, input, select, textarea')) return;
+    window.location.href = row.dataset.href;
+  });
+  row.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      window.location.href = row.dataset.href;
+    }
+  });
+});
+</script>
+<script src="{% static 'assets/js/support-booking-v33.js' %}?v=33.2"></script>
+{% endblock content %}

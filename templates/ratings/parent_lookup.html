@@ -1,10 +1,10 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="{{ parent_lang|default:'en' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Parent Rating Access</title>
+  <title>{{ parent_t.page_title }}</title>
   {% include 'base/theme_init.html' %}
   <link rel="icon" href="{% static 'assets/img/icons/original-icon-nobg.png' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,17 +28,32 @@
     <header class="site-header" data-header>
       <div class="container nav-row">
         <a href="/" class="brand"><img src="{% static 'assets/img/icons/original-icon-nobg.png' %}" alt="MakonBook logo"><span>SAT Makon</span></a>
-        <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span></button>
-        <nav class="site-nav" aria-label="Main navigation" data-nav>
-          <a href="/">Home</a>
-          <a href="{% url 'rating_home' %}">Student Rating</a>
-          <a href="{% url 'rating_parent_lookup' %}" aria-current="page">Parent access</a>
-          <div class="site-nav-mobile-actions"><a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a><a href="/" class="btn btn-primary">Landing page</a></div>
+        <button class="nav-toggle" type="button" aria-label="{{ parent_t.open_menu }}" aria-expanded="false" data-nav-toggle><span></span><span></span><span></span></button>
+        <nav class="site-nav" aria-label="{{ parent_t.main_navigation }}" data-nav>
+          <a href="/">{{ parent_t.home }}</a>
+          <a href="{% url 'rating_home' %}">{{ parent_t.student_rating }}</a>
+          <a href="{% url 'rating_parent_lookup' %}" aria-current="page">{{ parent_t.parent_access }}</a>
+
+          <div class="parent-language-mobile" aria-label="{{ parent_t.language }}">
+            <span class="parent-language-label">{{ parent_t.language }}</span>
+            <div class="parent-language-switcher">
+              {% for code, label in parent_languages %}
+                <a href="{% url 'rating_parent_lookup' %}?lang={{ code }}" class="parent-lang-option{% if parent_lang == code %} is-active{% endif %}"{% if parent_lang == code %} aria-current="true"{% endif %}>{{ label }}</a>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="site-nav-mobile-actions"><a href="{% url 'rating_home' %}" class="btn btn-ghost">{{ parent_t.leaderboard }}</a><a href="/" class="btn btn-primary">{{ parent_t.landing_page }}</a></div>
         </nav>
-        <div class="nav-actions">
+        <div class="nav-actions parent-nav-actions">
+          <div class="parent-language-switcher" aria-label="{{ parent_t.language }}">
+            {% for code, label in parent_languages %}
+              <a href="{% url 'rating_parent_lookup' %}?lang={{ code }}" class="parent-lang-option{% if parent_lang == code %} is-active{% endif %}"{% if parent_lang == code %} aria-current="true"{% endif %}>{{ code|upper }}</a>
+            {% endfor %}
+          </div>
           {% include 'base/theme_toggle.html' %}
-          <a href="{% url 'rating_home' %}" class="btn btn-ghost">Leaderboard</a>
-          <a href="/" class="btn btn-primary">Back to MakonBook</a>
+          <a href="{% url 'rating_home' %}" class="btn btn-ghost">{{ parent_t.leaderboard }}</a>
+          <a href="/" class="btn btn-primary">{{ parent_t.back_to_makonbook }}</a>
         </div>
       </div>
     </header>
@@ -46,39 +61,40 @@
       <section class="hero-section rating-public-section">
         <div class="container rating-page">
           <section class="rating-hero">
-            <h1>Parent access</h1>
-            <p>Enter the private code shown on the student's My Rating page. Search by full name stays disabled on purpose for privacy.</p>
+            <h1>{{ parent_t.parent_title }}</h1>
+            <p>{{ parent_t.parent_intro }}</p>
             <div class="rating-actions">
-              <a class="btn btn-secondary btn-large" href="{% url 'rating_home' %}">Public leaderboard</a>
+              <a class="btn btn-secondary btn-large" href="{% url 'rating_home' %}">{{ parent_t.public_leaderboard }}</a>
             </div>
           </section>
-          <section class="rating-card" style="margin-top:18px">
+          <section class="rating-card parent-code-card" style="margin-top:18px">
             <form method="post">
               {% csrf_token %}
+              <input type="hidden" name="lang" value="{{ parent_lang }}">
               <div class="rating-field">
-                <label for="code">Student access code</label>
-                <input id="code" name="code" maxlength="16" required style="max-width:360px;text-transform:uppercase">
+                <label for="code">{{ parent_t.student_access_code }}</label>
+                <input id="code" name="code" maxlength="16" required autocomplete="one-time-code" placeholder="{{ parent_t.code_placeholder }}" style="max-width:360px;text-transform:uppercase">
               </div>
-              <button class="rating-btn" style="background:#6d28d9;color:white;margin-top:14px">Open rating</button>
+              <button class="rating-btn parent-open-rating" type="submit">{{ parent_t.open_rating }}</button>
             </form>
-            {% for message in messages %}<p class="rating-help">{{ message }}</p>{% endfor %}
+            {% for message in messages %}<p class="rating-help parent-message">{{ message }}</p>{% endfor %}
           </section>
           {% if profile %}
             <section class="rating-card" style="margin-top:18px">
               <h2>{{ profile.user.get_full_name|default:profile.user.username }}</h2>
               <div class="rating-stat-grid">
-                <div class="rating-stat"><small>Rank</small><strong>{% if entry and entry.eligible %}#{{ entry.rank }}{% else %}—{% endif %}</strong></div>
-                <div class="rating-stat"><small>Rating</small><strong>{% if entry %}{{ entry.rating }}{% else %}—{% endif %}</strong></div>
-                <div class="rating-stat"><small>Assessments</small><strong>{% if entry %}{{ entry.assessment_count }}{% else %}0{% endif %}</strong></div>
-                <div class="rating-stat"><small>Classrooms</small><strong>{% if entry %}{{ entry.streams|length }}{% else %}0{% endif %}</strong></div>
+                <div class="rating-stat"><small>{{ parent_t.rank }}</small><strong>{% if entry and entry.eligible %}#{{ entry.rank }}{% else %}—{% endif %}</strong></div>
+                <div class="rating-stat"><small>{{ parent_t.rating }}</small><strong>{% if entry %}{{ entry.rating }}{% else %}—{% endif %}</strong></div>
+                <div class="rating-stat"><small>{{ parent_t.assessments }}</small><strong>{% if entry %}{{ entry.assessment_count }}{% else %}0{% endif %}</strong></div>
+                <div class="rating-stat"><small>{{ parent_t.classrooms }}</small><strong>{% if entry %}{{ entry.streams|length }}{% else %}0{% endif %}</strong></div>
               </div>
               <div class="rating-table-wrap" style="margin-top:20px">
                 <table class="rating-table">
-                  <thead><tr><th>Date</th><th>Classroom</th><th>Homework</th><th>Progress</th><th>Activity</th><th>Attendance</th><th>Behavior</th><th>Mean</th></tr></thead>
+                  <thead><tr><th>{{ parent_t.date }}</th><th>{{ parent_t.classroom }}</th><th>{{ parent_t.homework }}</th><th>{{ parent_t.progress }}</th><th>{{ parent_t.activity }}</th><th>{{ parent_t.attendance }}</th><th>{{ parent_t.behavior }}</th><th>{{ parent_t.mean }}</th></tr></thead>
                   <tbody>
                     {% for item in history %}
                       <tr>
-                        <td>{{ item.assessed_at|date:"d M" }}</td>
+                        <td>{{ item.assessed_at|date:"d.m.Y" }}</td>
                         <td>{{ item.classroom.name }}</td>
                         <td>{{ item.homework }}</td>
                         <td>{{ item.progress }}</td>
@@ -87,6 +103,8 @@
                         <td>{{ item.behavior }}</td>
                         <td>{{ item.mean_score|floatformat:2 }}</td>
                       </tr>
+                    {% empty %}
+                      <tr><td colspan="8" class="rating-empty">{{ parent_t.no_history }}</td></tr>
                     {% endfor %}
                   </tbody>
                 </table>
@@ -100,16 +118,16 @@
       <div class="container footer-row">
         <div>
           <strong>SAT Makon</strong>
-          <p>Digital SAT practice platform with tests, analytics, classrooms, and student rating.</p>
+          <p>{{ parent_t.footer_text }}</p>
         </div>
         <div class="footer-links">
-          <a href="/">Home</a>
-          <a href="{% url 'rating_home' %}">Leaderboard</a>
-          <a href="{% url 'rating_parent_lookup' %}">Parent access</a>
+          <a href="/">{{ parent_t.home }}</a>
+          <a href="{% url 'rating_home' %}">{{ parent_t.leaderboard }}</a>
+          <a href="{% url 'rating_parent_lookup' %}">{{ parent_t.parent_access }}</a>
         </div>
       </div>
     </footer>
-    <a class="back-to-top" href="#top" aria-label="Back to top" data-back-to-top><span aria-hidden="true">↑</span></a>
+    <a class="back-to-top" href="#top" aria-label="{{ parent_t.back_to_top }}" data-back-to-top><span aria-hidden="true">↑</span></a>
   </div>
   <script src="{% static 'assets/js/landing.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>

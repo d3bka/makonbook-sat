@@ -1,237 +1,200 @@
 {% extends 'template.html' %}
 {% load static %}
 
-{% block title-main %}Support Planner{% endblock title-main %}
-{% block title-subtitle %}<span>Manage lessons, students, and availability</span>{% endblock title-subtitle %}
+{% block title-main %}Support Teacher Planner{% endblock title-main %}
+{% block title-subtitle %}<span>Plan topic groups instead of reacting to individual time-slot bookings</span>{% endblock title-subtitle %}
 {% block title %}Support Planner{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33">
 {% endblock style %}
 
 {% block content %}
 <div class="support-shell support-stack">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>
-    {% endfor %}
-  {% endif %}
+  {% if messages %}{% for message in messages %}<div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>{% endfor %}{% endif %}
 
   <section class="support-card support-hero">
     <div class="support-hero-content">
       <div>
-        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Teacher Workspace</div>
-        <h1>{{ teacher.name }}’s support planner</h1>
-        <p>Review the next seven days, prepare meeting links and notes, and keep lesson statuses accurate. All times are shown in {{ timezone_name }}.</p>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Teacher-controlled scheduling</div>
+        <h1>{{ teacher.name }} · Topic Planner</h1>
+        <p>Students request a title and topic. You decide when that topic runs. Every pending student with the same topic can be grouped into one session automatically, and you can repeat the same topic later the same day.</p>
         <div class="support-hero-actions">
-          <a class="support-btn support-btn-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-people"></i> Student view</a>
-          {% if is_own_profile %}<a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_profile_edit' %}"><i class="bi bi-person-gear"></i> Edit public profile</a>{% endif %}
-          {% if is_admin %}<a class="support-btn support-btn-ghost-light" href="{% url 'admin_support_teacher_edit' teacher.id %}"><i class="bi bi-gear"></i> Admin settings</a>{% endif %}
+          {% if is_own_profile %}<a class="support-btn support-btn-light" href="{% url 'support_teacher_profile_edit' %}"><i class="bi bi-person-gear"></i> Edit profile</a>{% endif %}
+          <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-eye"></i> Support teachers</a>
         </div>
       </div>
-      <aside class="support-next-card">
-        <small>This week</small>
-        <strong>{{ week_booking_count }} booked lesson{{ week_booking_count|pluralize }}</strong>
-        <span>{{ today_booking_count }} scheduled for today</span>
-        {% if average_rating %}<div style="margin-top:12px;"><span class="support-rating" style="color:#ffd36a;"><i class="bi bi-star-fill"></i> {{ average_rating }} teacher rating</span></div>{% endif %}
-        {% if is_own_profile %}<div style="margin-top:10px; color:rgba(255,255,255,.75); font-size:12px;">Profile {{ teacher.profile_completion_percent }}% complete</div>{% endif %}
-      </aside>
+      <aside class="support-next-card"><small>Planner rule</small><strong>One session = one exact topic</strong><span>Same topic can run more than once per day. Close enrollment in the first session before directing later requests to another session.</span></aside>
     </div>
   </section>
 
   {% if is_admin and teacher_choices %}
-    <form class="support-filter-bar" method="get" style="grid-template-columns:minmax(220px,1fr) auto;">
-      <div class="support-field">
-        <label for="planner-teacher">View teacher planner</label>
-        <select id="planner-teacher" class="support-select" name="teacher">
-          {% for item in teacher_choices %}<option value="{{ item.id }}" {% if item.id == teacher.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <button class="support-btn support-btn-primary" type="submit"><i class="bi bi-arrow-repeat"></i> Open planner</button>
-    </form>
+  <form class="support-filter-bar support-filter-bar-compact" method="get">
+    <div class="support-field"><label for="planner-teacher">Admin teacher view</label><select id="planner-teacher" class="support-select" name="teacher">{% for choice in teacher_choices %}<option value="{{ choice.id }}" {% if choice.id == teacher.id %}selected{% endif %}>{{ choice.name }}</option>{% endfor %}</select></div>
+    <button class="support-btn support-btn-primary" type="submit">Open planner</button>
+  </form>
   {% endif %}
 
   <div class="support-stats">
-    <div class="support-stat"><span>Today</span><strong>{{ today_booking_count }}</strong></div>
-    <div class="support-stat"><span>Next 7 days</span><strong>{{ week_booking_count }}</strong></div>
-    <div class="support-stat"><span>Action required</span><strong>{{ action_required_count }}</strong></div>
-    <div class="support-stat"><span>Rating</span><strong>{% if average_rating %}{{ average_rating }}{% else %}—{% endif %}</strong></div>
+    <div class="support-stat"><span>Pending topic requests</span><strong>{{ pending_request_count }}</strong></div>
+    <div class="support-stat"><span>Today's sessions</span><strong>{{ today_session_count }}</strong></div>
+    <div class="support-stat"><span>Completed bookings</span><strong>{{ completed_count }}</strong></div>
+    <div class="support-stat"><span>Private rating</span><strong>{% if average_rating %}{{ average_rating }}{% else %}—{% endif %}</strong></div>
   </div>
 
-  <section class="support-card support-card-pad">
-    <div class="support-tabs" data-support-tabs>
-      <button type="button" class="support-tab-btn is-active" data-support-tab-target="schedule">Schedule</button>
-      <button type="button" class="support-tab-btn" data-support-tab-target="availability">Availability</button>
-      <button type="button" class="support-tab-btn" data-support-tab-target="history">History</button>
-      <button type="button" class="support-tab-btn" data-support-tab-target="reviews">Reviews</button>
+  {% if recommended_group %}
+  <section class="support-card support-card-pad support-recommendation-card">
+    <div class="support-recommendation-icon"><i class="bi bi-stars"></i></div>
+    <div class="support-recommendation-copy">
+      <span>Suggested next group</span>
+      <h2>{{ recommended_group.title }} → {{ recommended_group.topic }}</h2>
+      <p>{{ recommended_group.count }} student{{ recommended_group.count|pluralize }} waiting. MakonBook prioritizes the topic with the highest demand, then the oldest request.</p>
+      {% if recommended_slot %}<small>Earliest free slot: <strong>{{ recommended_slot.day_label }}, {{ recommended_slot.date_label }} · {{ recommended_slot.time_label }}</strong>. This is a suggestion only — you still choose the final time.</small>{% else %}<small>Add or free an availability window before scheduling this group.</small>{% endif %}
     </div>
+    {% if recommended_group.lesson_topic %}<a class="support-btn support-btn-secondary" href="#topic-queue-{{ recommended_group.lesson_topic.id }}"><i class="bi bi-arrow-down-circle"></i> Review group</a>{% endif %}
+  </section>
+  {% endif %}
 
-    <div class="support-tab-panel is-active" data-support-tab-panel="schedule" style="margin-top:20px;">
-      {% for day in schedule_days %}
-        <div class="support-day-group">
-          <div class="support-day-heading"><span>{{ day.day_label }}, {{ day.date_label }}</span><span>{{ day.bookings|length }} lesson{{ day.bookings|length|pluralize }}</span></div>
-          <div class="support-lesson-list">
-            {% for booking in day.bookings %}
-              <article class="support-lesson-card {% if booking.is_live %}is-next{% endif %}">
-                <div class="support-lesson-head">
-                  <div class="support-lesson-title">
-                    <div class="support-avatar">{{ booking.student.username|first|upper }}</div>
-                    <div>
-                      <h3>{{ booking.student.get_full_name|default:booking.student.username }}</h3>
-                      <p>{{ booking.get_topic_display }} · {{ booking.duration_minutes }} minutes</p>
-                    </div>
-                  </div>
-                  <div class="support-time-block">
-                    <strong>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</strong>
-                      <span>{% if booking.is_live %}Live now{% elif booking.awaiting_confirmation %}Action required{% else %}{{ booking.start_at|date:'D, d M' }}{% endif %}</span>
-                  </div>
-                </div>
-
-                <div class="support-lesson-details">
-                  <div class="support-detail-chip">Student username<strong>{{ booking.student.username }}</strong></div>
-                  <div class="support-detail-chip">Email<strong>{{ booking.student.email|default:'Not provided' }}</strong></div>
-                  <div class="support-detail-chip">Booked on<strong>{{ booking.created_at|date:'d M Y · H:i' }}</strong></div>
-                </div>
-
-                {% if booking.student_note %}<div class="support-note-box"><strong>Student goal:</strong> {{ booking.student_note }}</div>{% endif %}
-
-                <form method="post" action="{% url 'manage_support_lesson' booking.id %}" data-support-lock-submit style="margin-top:15px;">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="update">
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <div class="support-booking-form-grid">
-                    <div class="support-field">
-                      <label for="meeting-{{ booking.id }}">Meeting link</label>
-                      <input id="meeting-{{ booking.id }}" class="support-input" type="url" name="meeting_link" value="{{ booking.meeting_link }}" placeholder="https://meet.google.com/...">
-                    </div>
-                    <div class="support-field">
-                      <label for="teacher-note-{{ booking.id }}">Teacher preparation note</label>
-                      <textarea id="teacher-note-{{ booking.id }}" class="support-textarea" name="teacher_note" maxlength="1200" placeholder="Materials, homework, or preparation details">{{ booking.teacher_note }}</textarea>
-                    </div>
-                  </div>
-                  <button class="support-btn support-btn-secondary" type="submit" data-loading-label="Saving…" style="margin-top:10px;"><i class="bi bi-save"></i> Save lesson details</button>
-                </form>
-
-                <div class="support-lesson-actions">
-                  <form method="post" action="{% url 'manage_support_lesson' booking.id %}" data-support-lock-submit>
-                    {% csrf_token %}<input type="hidden" name="action" value="complete"><input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button class="support-btn support-btn-success" type="submit" data-loading-label="Updating…"><i class="bi bi-check2-circle"></i> Complete</button>
-                  </form>
-                  <form method="post" action="{% url 'manage_support_lesson' booking.id %}" data-support-lock-submit>
-                    {% csrf_token %}<input type="hidden" name="action" value="no_show"><input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button class="support-btn support-btn-secondary" type="submit" data-loading-label="Updating…"><i class="bi bi-person-x"></i> No-show</button>
-                  </form>
-                  <form method="post" action="{% url 'manage_support_lesson' booking.id %}" data-support-lock-submit onsubmit="return confirm('Cancel this scheduled lesson and release the slot?');">
-                    {% csrf_token %}<input type="hidden" name="action" value="cancel"><input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <input type="hidden" name="cancellation_reason" value="Cancelled by support teacher">
-                    <button class="support-btn support-btn-danger" type="submit" data-loading-label="Cancelling…"><i class="bi bi-x-circle"></i> Cancel</button>
-                  </form>
-                  {% if booking.effective_meeting_link %}<a class="support-btn support-btn-primary" href="{{ booking.effective_meeting_link }}" target="_blank" rel="noopener"><i class="bi bi-camera-video"></i> Open meeting</a>{% endif %}
-                </div>
-              </article>
-            {% endfor %}
-          </div>
-        </div>
-      {% empty %}
-        <div class="support-empty">
-          <div class="support-empty-icon"><i class="bi bi-calendar2-check"></i></div>
-          <h3>No lessons in the next seven days</h3>
-          <p>Your upcoming bookings will appear here automatically.</p>
-        </div>
-      {% endfor %}
-    </div>
-
-    <div class="support-tab-panel" data-support-tab-panel="availability" style="margin-top:20px;">
-      <div class="support-section-head">
-        <div><h3>Weekly availability windows</h3><p>Each window is automatically divided into bookable lessons using its duration and buffer.</p></div>
-        {% if is_admin %}<a class="support-btn support-btn-secondary" href="{% url 'admin_support_teacher_edit' teacher.id %}"><i class="bi bi-sliders"></i> Admin edit</a>{% endif %}
-      </div>
-
-      <div class="support-availability-layout">
-        <div class="support-availability-list">
-          {% for availability in availabilities %}
-            <article class="support-availability-row">
-              <div><strong>{{ availability.get_day_of_week_display }}</strong><span>{{ availability.start_time|time:'H:i' }}–{{ availability.end_time|time:'H:i' }} · {{ availability.slot_duration_minutes }} min{% if availability.buffer_minutes %} + {{ availability.buffer_minutes }} min buffer{% endif %}</span>{% if availability.note %}<small>{{ availability.note }}</small>{% endif %}</div>
-              <span class="support-status {% if availability.is_active %}support-status-completed{% else %}support-status-cancelled{% endif %}">{% if availability.is_active %}Active{% else %}Paused{% endif %}</span>
-              {% if is_own_profile %}
-                <form method="post" action="{% url 'support_teacher_availability_delete' availability.id %}" onsubmit="return confirm('Delete this availability window?');">
-                  {% csrf_token %}<button class="support-icon-btn danger" type="submit" aria-label="Delete availability"><i class="bi bi-trash"></i></button>
-                </form>
-              {% endif %}
-            </article>
-          {% empty %}
-            <div class="support-empty" style="padding:24px;"><div class="support-empty-icon"><i class="bi bi-calendar-x"></i></div><h3>No weekly windows</h3><p>Add your regular availability to publish bookable slots.</p></div>
-          {% endfor %}
+  <div class="support-planner-layout">
+    <main class="support-stack">
+      <section class="support-card support-card-pad">
+        <div class="support-section-head">
+          <div><h2>Pending requests by topic</h2><p>This is the main queue. Pick a time once and MakonBook groups matching students into the session.</p></div>
+          <span class="support-status support-status-requested">{{ pending_request_count }} request{{ pending_request_count|pluralize }}</span>
         </div>
 
-        {% if is_own_profile and availability_form %}
-          <form class="support-card support-availability-form" method="post" action="{% url 'support_teacher_availability_add' %}" data-support-lock-submit>
-            {% csrf_token %}
-            <h3>Add availability</h3>
-            <div class="support-field"><label>Day</label>{{ availability_form.day_of_week }}</div>
-            <div class="support-form-grid-2">
-              <div class="support-field"><label>Starts</label>{{ availability_form.start_time }}</div>
-              <div class="support-field"><label>Ends</label>{{ availability_form.end_time }}</div>
-              <div class="support-field"><label>Lesson length</label>{{ availability_form.slot_duration_minutes }}</div>
-              <div class="support-field"><label>Buffer</label>{{ availability_form.buffer_minutes }}</div>
+        {% for group in pending_groups %}
+          <article class="support-topic-queue-card"{% if group.lesson_topic %} id="topic-queue-{{ group.lesson_topic.id }}"{% endif %}>
+            <div class="support-topic-queue-head">
+              <div><span class="support-tag">{{ group.title }}</span><h3>{{ group.topic }}</h3><p>{{ group.count }} student{{ group.count|pluralize }} currently waiting</p></div>
+              <div class="support-queue-count">{{ group.count }}</div>
             </div>
-            <div class="support-field"><label>Public note</label>{{ availability_form.note }}</div>
-            <label class="support-check-row">{{ availability_form.is_active }} <span>Publish this window now</span></label>
-            <button class="support-btn support-btn-primary" type="submit" data-loading-label="Adding…"><i class="bi bi-plus-circle"></i> Add window</button>
-          </form>
-        {% endif %}
-      </div>
-
-      <div class="support-section-head" style="margin-top:28px;">
-        <div><h3>Generated 14-day schedule</h3><p>Green slots are bookable; red slots are booked. Dimmed slots are past or inside the booking notice window.</p></div>
-      </div>
-      {% for group in slot_groups %}
-        <div class="support-day-group">
-          <div class="support-day-heading"><span>{{ group.day_label }}, {{ group.date_label }}</span><span>{{ group.available_count }} free</span></div>
-          <div class="support-planner-slot-grid">
-            {% for slot in group.slots %}
-              <div class="support-planner-slot is-{{ slot.state }}">
-                <strong>{{ slot.time_label }}</strong>
-                {% if slot.state == 'available' %}Available{% elif slot.state == 'booked' %}Booked{% elif slot.state == 'too_soon' %}Notice window{% else %}Past{% endif %}
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% empty %}
-        <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-calendar-x"></i></div><h3>No availability configured</h3><p>Add a weekly availability window above to publish lesson times.</p></div>
-      {% endfor %}
-    </div>
-
-    <div class="support-tab-panel" data-support-tab-panel="history" style="margin-top:20px;">
-      <div class="support-lesson-list">
-        {% for booking in history_bookings %}
-          <article class="support-lesson-card">
-            <div class="support-lesson-head">
-              <div class="support-lesson-title">
-                <div class="support-avatar">{{ booking.student.username|first|upper }}</div>
-                <div><h3>{{ booking.student.get_full_name|default:booking.student.username }}</h3><p>{{ booking.get_topic_display }} · {{ booking.start_at|date:'d M Y · H:i' }}</p></div>
-              </div>
-              <span class="support-status support-status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+            <div class="support-queue-students">
+              {% for booking in group.bookings %}
+                <div class="support-queue-student">
+                  <span class="support-avatar support-avatar-xs">{{ booking.student.username|first|upper }}</span>
+                  <div><strong>{{ booking.student.get_full_name|default:booking.student.username }}</strong><small>{% if booking.student_note %}{{ booking.student_note|truncatewords:18 }}{% else %}No preparation note{% endif %}</small></div>
+                  <form method="post" action="{% url 'manage_support_lesson' booking.id %}">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button class="support-icon-btn" type="submit" title="Cancel this request"><i class="bi bi-x"></i></button></form>
+                </div>
+              {% endfor %}
             </div>
-            {% if booking.cancellation_reason %}<div class="support-note-box"><strong>Cancellation reason:</strong> {{ booking.cancellation_reason }}</div>{% endif %}
+
+            {% if group.lesson_topic %}
+              <form class="support-schedule-form" method="post" action="{% url 'schedule_support_topic_session' %}" data-support-lock-submit>
+                {% csrf_token %}
+                <input type="hidden" name="lesson_topic" value="{{ group.lesson_topic.id }}">
+                {% if is_admin %}<input type="hidden" name="teacher_id" value="{{ teacher.id }}">{% endif %}
+                <div class="support-field support-field-grow"><label>Choose group time</label><select class="support-select" name="slot" required><option value="">Choose an available slot</option>{% for day in slot_groups %}{% for slot in day.slots %}<option value="{{ slot.value }}">{{ slot.day_label }}, {{ slot.date_label }} · {{ slot.time_label }}</option>{% endfor %}{% endfor %}</select></div>
+                <div class="support-field support-field-small"><label>Capacity</label><input class="support-input" type="number" name="max_students" min="1" max="100" value="{{ group.lesson_topic.default_capacity }}"></div>
+                <div class="support-field support-field-grow"><label>Meeting link</label><input class="support-input" type="url" name="meeting_link" value="{{ teacher.meeting_link }}" placeholder="https://meet.google.com/..."></div>
+                <label class="support-check"><input type="checkbox" name="is_open_for_requests" checked><span>Keep open for later matching requests</span></label>
+                <button class="support-btn support-btn-primary" type="submit" data-loading-label="Scheduling…"><i class="bi bi-calendar2-plus"></i> Schedule & group {{ group.count }}</button>
+              </form>
+            {% else %}
+              <div class="support-alert warning"><i class="bi bi-exclamation-triangle"></i><span>This is a legacy request without a new Topic record. Handle it individually or recreate it using Title → Topic.</span></div>
+            {% endif %}
           </article>
         {% empty %}
-          <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-clock-history"></i></div><h3>No lesson history</h3><p>Completed, cancelled, and no-show lessons will appear here.</p></div>
+          <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-inbox"></i></div><h3>No pending requests</h3><p>You can still create a planned topic session below. Future matching requests will auto-join while the session is open.</p></div>
         {% endfor %}
-      </div>
-    </div>
+      </section>
 
-    <div class="support-tab-panel" data-support-tab-panel="reviews" style="margin-top:20px;">
-      {% for review in reviews %}
-        <article class="support-review">
-          <div class="support-review-head"><strong>{{ review.public_student_name }}</strong><span class="support-rating"><i class="bi bi-star-fill"></i> {{ review.rating }}/5</span></div>
-          {% if review.feedback %}<p>{{ review.feedback }}</p>{% endif %}
-        </article>
-      {% empty %}
-        <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-chat-square-heart"></i></div><h3>No verified reviews yet</h3><p>Students can review a lesson only after it is completed.</p></div>
-      {% endfor %}
-    </div>
-  </section>
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h2>Create a topic session manually</h2><p>Use this when you want to publish the first class of the day before students request it, or when you want to run the same topic a second time.</p></div><span class="support-status support-status-scheduled">Repeat topics allowed</span></div>
+        <form method="post" action="{% url 'schedule_support_topic_session' %}" data-support-topic-picker data-support-lock-submit>
+          {% csrf_token %}{% if is_admin %}<input type="hidden" name="teacher_id" value="{{ teacher.id }}">{% endif %}
+          <div class="support-booking-form-grid support-booking-form-grid-2">
+            <div class="support-field"><label>Title</label><select class="support-select" data-support-title-select required><option value="">Choose a title</option>{% for title in lesson_titles %}<option value="{{ title.id }}">{{ title.name }}</option>{% endfor %}</select></div>
+            <div class="support-field"><label>Topic</label><select class="support-select" name="lesson_topic" data-support-topic-select required disabled><option value="">Choose a title first</option>{% for title in lesson_titles %}{% for topic in title.active_topics %}<option value="{{ topic.id }}" data-title-id="{{ title.id }}" data-capacity="{{ topic.default_capacity }}" hidden>{{ topic.name }}</option>{% endfor %}{% endfor %}</select></div>
+            <div class="support-field"><label>Time</label><select class="support-select" name="slot" required><option value="">Choose an available slot</option>{% for day in slot_groups %}{% for slot in day.slots %}<option value="{{ slot.value }}">{{ slot.day_label }}, {{ slot.date_label }} · {{ slot.time_label }}</option>{% endfor %}{% endfor %}</select></div>
+            <div class="support-field"><label>Capacity</label><input class="support-input" type="number" name="max_students" min="1" max="100" value="20" data-support-capacity-input></div>
+          </div>
+          <div class="support-booking-form-grid support-booking-form-grid-2" style="margin-top:14px;">
+            <div class="support-field"><label>Meeting link</label><input class="support-input" type="url" name="meeting_link" value="{{ teacher.meeting_link }}" placeholder="https://meet.google.com/..."></div>
+            <div class="support-field"><label>Teacher note</label><input class="support-input" type="text" name="teacher_note" maxlength="1200" placeholder="Preparation, room, worksheet, or reminder"></div>
+          </div>
+          <div class="support-form-footer"><label class="support-check"><input type="checkbox" name="is_open_for_requests" checked><span>Allow later same-topic requests to auto-join this session</span></label><button class="support-btn support-btn-primary" type="submit" data-loading-label="Creating…"><i class="bi bi-plus-circle"></i> Create session</button></div>
+        </form>
+      </section>
+
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h2>Upcoming group sessions</h2><p>Manage the whole topic group here. Individual no-show remains available per student.</p></div></div>
+        <div class="support-session-list">
+          {% for session in upcoming_sessions %}
+            <article class="support-session-manage-card">
+              <div class="support-session-manage-head">
+                <div><span class="support-tag">{% if session.lesson_topic %}{{ session.lesson_topic.title.name }}{% else %}Legacy topic{% endif %}</span><h3>{% if session.lesson_topic %}{{ session.lesson_topic.name }}{% else %}Support session{% endif %}</h3><p>{{ session.start_at|date:'D, d M Y · H:i' }}–{{ session.end_at|date:'H:i' }} · {{ session.duration_minutes }} min</p></div>
+                <div class="support-session-head-actions"><span class="support-status support-status-scheduled">{{ session.student_count }}/{{ session.max_students }} students</span>{% if session.is_open_for_requests %}<span class="support-status support-status-completed">Auto-join open</span>{% else %}<span class="support-status support-status-no_show">Auto-join closed</span>{% endif %}</div>
+              </div>
+
+              <div class="support-session-students">
+                {% for booking in session.bookings.all %}
+                  {% if booking.status != 'cancelled' %}
+                  <div class="support-session-student-row">
+                    <div><strong>{{ booking.student.get_full_name|default:booking.student.username }}</strong><small>{{ booking.get_status_display }}{% if booking.student_note %} · {{ booking.student_note|truncatewords:12 }}{% endif %}</small></div>
+                    {% if booking.status == 'scheduled' %}
+                      <form method="post" action="{% url 'manage_support_lesson' booking.id %}">{% csrf_token %}<input type="hidden" name="action" value="no_show"><button class="support-btn support-btn-secondary support-btn-sm" type="submit"><i class="bi bi-person-x"></i> No-show</button></form>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                {% empty %}<p class="support-muted-copy">No students yet. Keep auto-join open and matching requests can join.</p>{% endfor %}
+              </div>
+
+              <form class="support-session-update" method="post" action="{% url 'manage_support_session' session.id %}" data-support-lock-submit>
+                {% csrf_token %}<input type="hidden" name="action" value="update">
+                <div class="support-field"><label>Meeting link</label><input class="support-input" type="url" name="meeting_link" value="{{ session.meeting_link }}"></div>
+                <div class="support-field"><label>Teacher note</label><input class="support-input" type="text" name="teacher_note" value="{{ session.teacher_note }}" maxlength="1200"></div>
+                <label class="support-check"><input type="checkbox" name="is_open_for_requests" {% if session.is_open_for_requests %}checked{% endif %}><span>Auto-join matching requests</span></label>
+                <button class="support-btn support-btn-secondary" type="submit">Save details</button>
+              </form>
+
+              <div class="support-lesson-actions">
+                {% if session.is_open_for_requests %}<form method="post" action="{% url 'manage_support_session' session.id %}">{% csrf_token %}<input type="hidden" name="action" value="close"><button class="support-btn support-btn-secondary" type="submit"><i class="bi bi-lock"></i> Close auto-join</button></form>{% else %}<form method="post" action="{% url 'manage_support_session' session.id %}">{% csrf_token %}<input type="hidden" name="action" value="open"><button class="support-btn support-btn-secondary" type="submit"><i class="bi bi-unlock"></i> Open auto-join</button></form>{% endif %}
+                <form method="post" action="{% url 'manage_support_session' session.id %}">{% csrf_token %}<input type="hidden" name="action" value="complete"><button class="support-btn support-btn-success" type="submit"><i class="bi bi-check2-circle"></i> Complete group</button></form>
+                <form method="post" action="{% url 'manage_support_session' session.id %}">{% csrf_token %}<input type="hidden" name="action" value="cancel"><button class="support-btn support-btn-danger" type="submit"><i class="bi bi-x-circle"></i> Cancel group</button></form>
+              </div>
+            </article>
+          {% empty %}<div class="support-empty"><div class="support-empty-icon"><i class="bi bi-calendar2"></i></div><h3>No upcoming sessions</h3><p>Schedule a pending topic group or create a session manually.</p></div>{% endfor %}
+        </div>
+      </section>
+
+      {% if legacy_bookings %}
+      <section class="support-card support-card-pad"><div class="support-section-head"><div><h2>Legacy individual bookings</h2><p>Old records created before group sessions remain manageable and are not lost.</p></div></div>{% for booking in legacy_bookings %}<div class="support-session-student-row"><div><strong>{{ booking.student.username }} · {{ booking.display_topic }}</strong><small>{{ booking.start_at|date:'d M Y · H:i' }}–{{ booking.end_at|date:'H:i' }}</small></div><form method="post" action="{% url 'manage_support_lesson' booking.id %}">{% csrf_token %}<input type="hidden" name="action" value="complete"><button class="support-btn support-btn-secondary support-btn-sm" type="submit">Complete</button></form></div>{% endfor %}</section>
+      {% endif %}
+    </main>
+
+    <aside class="support-stack">
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h3>Private feedback</h3><p>Students cannot see these ratings/comments.</p></div></div>
+        {% for review in reviews %}
+          <article class="support-review"><div class="support-review-head"><strong>{{ review.reviewer_name }}</strong><span class="support-rating"><i class="bi bi-star-fill"></i> {{ review.rating }}/5</span></div><small>{{ review.booking.display_topic }} · {{ review.created_at|date:'d M Y' }}</small>{% if review.feedback %}<p>{{ review.feedback }}</p>{% endif %}</article>
+        {% empty %}<p class="support-muted-copy">No completed-lesson feedback yet.</p>{% endfor %}
+      </section>
+
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h3>Weekly availability</h3><p>These windows define times you can use when creating group sessions.</p></div></div>
+        {% for availability in availabilities %}
+          <div class="support-availability-row"><div><strong>{{ availability.get_day_of_week_display }}</strong><span>{{ availability.start_time|time:'H:i' }}–{{ availability.end_time|time:'H:i' }} · {{ availability.slot_duration_minutes }} min slots</span></div>{% if is_own_profile %}<form method="post" action="{% url 'support_teacher_availability_delete' availability.id %}">{% csrf_token %}<button class="support-icon-btn" type="submit" title="Delete"><i class="bi bi-trash"></i></button></form>{% endif %}</div>
+        {% empty %}<p class="support-muted-copy">No availability configured.</p>{% endfor %}
+
+        {% if availability_form %}
+          <form method="post" action="{% url 'support_teacher_availability_add' %}" class="support-stack" style="margin-top:18px;gap:10px;">{% csrf_token %}
+            <div class="support-field"><label>Day</label>{{ availability_form.day_of_week }}</div>
+            <div class="support-booking-form-grid support-booking-form-grid-2"><div class="support-field"><label>Start</label>{{ availability_form.start_time }}</div><div class="support-field"><label>End</label>{{ availability_form.end_time }}</div></div>
+            <div class="support-booking-form-grid support-booking-form-grid-2"><div class="support-field"><label>Slot minutes</label>{{ availability_form.slot_duration_minutes }}</div><div class="support-field"><label>Buffer minutes</label>{{ availability_form.buffer_minutes }}</div></div>
+            <div class="support-field"><label>Note</label>{{ availability_form.note }}</div>
+            <label class="support-check">{{ availability_form.is_active }} <span>Active</span></label>
+            <button class="support-btn support-btn-primary" type="submit"><i class="bi bi-plus"></i> Add availability</button>
+          </form>
+        {% endif %}
+      </section>
+
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h3>Recent session history</h3><p>Grouped lesson status.</p></div></div>
+        {% for session in history_sessions %}<div class="support-history-row"><div><strong>{% if session.lesson_topic %}{{ session.lesson_topic.name }}{% else %}Support session{% endif %}</strong><span>{{ session.start_at|date:'d M · H:i' }} · {{ session.student_count }} students</span></div><span class="support-status support-status-{{ session.status }}">{{ session.get_status_display }}</span></div>{% empty %}<p class="support-muted-copy">No group-session history yet.</p>{% endfor %}
+      </section>
+    </aside>
+  </div>
 </div>
-<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
+<script src="{% static 'assets/js/support-booking-v33.js' %}?v=33"></script>
 {% endblock content %}

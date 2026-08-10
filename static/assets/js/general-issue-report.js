@@ -65,19 +65,19 @@
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!backdrop.hidden)setOpen(false)});
     form?.addEventListener('submit',async e=>{
       e.preventDefault();
-      status.textContent='Sending...';
+      status.textContent=status.dataset.sending||'Sending...';
       const submit=form.querySelector('button[type="submit"]');
       if(submit) submit.disabled=true;
       try{
         const response=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{'X-Requested-With':'XMLHttpRequest'}});
         const data=await response.json();
-        if(!response.ok||!data.ok) throw new Error(data.error||'Could not send report.');
-        status.textContent='Report sent. Thank you.';
+        if(!response.ok||!data.ok) throw new Error(data.error||status.dataset.failed||'Could not send report.');
+        status.textContent=status.dataset.sent||'Report sent. Thank you.';
         const messageField = form.querySelector('textarea[name="message"]');
         if(messageField) messageField.value='';
         setTimeout(()=>setOpen(false),900)
       }catch(err){
-        status.textContent=err.message||'Could not send report.'
+        status.textContent=err.message||status.dataset.failed||'Could not send report.'
       }finally{
         if(submit) submit.disabled=false;
       }

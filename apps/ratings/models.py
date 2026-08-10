@@ -75,7 +75,7 @@ class RatingProfile(models.Model):
 class RatingAssessment(models.Model):
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="rating_assessments")
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name="rating_assessments_received")
-    teacher = models.ForeignKey(User, on_delete=models.PROTECT, related_name="rating_assessments_given")
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name="rating_assessments_given")
 
     homework = models.DecimalField(max_digits=3, decimal_places=1, validators=[MinValueValidator(0), MaxValueValidator(10)])
     progress = models.DecimalField(max_digits=3, decimal_places=1, validators=[MinValueValidator(0), MaxValueValidator(10)])

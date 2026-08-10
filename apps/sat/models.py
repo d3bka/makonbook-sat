@@ -1202,7 +1202,9 @@ class SupportTeacherProfile(BaseModel):
         annotated = getattr(self, 'display_completed_lessons', None)
         if annotated is not None:
             return int(annotated)
-        return self.bookings.filter(status='completed').count()
+        grouped = self.sessions.filter(status='completed').count()
+        legacy = self.bookings.filter(status='completed', session__isnull=True).count()
+        return grouped + legacy
 
     @property
     def score_summary(self):
@@ -1306,18 +1308,174 @@ class SupportTeacherAvailability(BaseModel):
                 raise ValidationError("This availability window overlaps another window for the same day.")
 
 
+class SupportLessonTitle(BaseModel):
+    """Top-level category students choose before choosing a concrete topic."""
+    name = models.CharField(max_length=120, unique=True)
+    description = models.CharField(max_length=255, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Support Lesson Title'
+        verbose_name_plural = 'Support Lesson Titles'
+
+    def __str__(self):
+        return self.name
+
+
+class SupportLessonTopic(BaseModel):
+    """Concrete lesson topic nested under a support title/category."""
+    title = models.ForeignKey(
+        SupportLessonTitle,
+        on_delete=models.CASCADE,
+        related_name='topics',
+    )
+    name = models.CharField(max_length=160)
+    description = models.CharField(max_length=255, blank=True)
+    default_duration_minutes = models.PositiveSmallIntegerField(
+        default=60,
+        validators=[MinValueValidator(15), MaxValueValidator(180)],
+    )
+    default_capacity = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text='Default maximum number of students in one grouped support session.',
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['title__sort_order', 'title__name', 'sort_order', 'name']
+        constraints = [
+            models.UniqueConstraint(fields=['title', 'name'], name='unique_support_topic_in_title'),
+        ]
+        verbose_name = 'Support Lesson Topic'
+        verbose_name_plural = 'Support Lesson Topics'
+
+    def __str__(self):
+        return f'{self.title.name} · {self.name}'
+
+
+class SupportLessonSession(BaseModel):
+    """One concrete group lesson planned by a support teacher.
+
+    Students do not choose the time. They request a topic first; the support
+    teacher creates a session for that topic and pending requests are grouped
+    into the same session. The same topic may have multiple sessions per day.
+    """
+    STATUS_SCHEDULED = 'scheduled'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_SCHEDULED, 'Scheduled'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    teacher = models.ForeignKey(
+        SupportTeacherProfile,
+        on_delete=models.CASCADE,
+        related_name='sessions',
+    )
+    lesson_topic = models.ForeignKey(
+        SupportLessonTopic,
+        on_delete=models.SET_NULL,
+        related_name='sessions',
+        null=True,
+        blank=True,
+    )
+    start_at = models.DateTimeField(db_index=True)
+    end_at = models.DateTimeField(db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SCHEDULED, db_index=True)
+    meeting_link = models.URLField(blank=True)
+    teacher_note = models.TextField(blank=True)
+    max_students = models.PositiveSmallIntegerField(
+        default=20,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+    )
+    is_open_for_requests = models.BooleanField(
+        default=True,
+        help_text='If enabled, later requests for this same topic may automatically join this session.',
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_support_lesson_sessions',
+    )
+
+    class Meta:
+        ordering = ['start_at']
+        indexes = [
+            models.Index(fields=['teacher', 'status', 'start_at'], name='sat_sup_session_teacher_idx'),
+            models.Index(fields=['lesson_topic', 'status', 'start_at'], name='sat_sup_session_topic_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['teacher', 'start_at', 'end_at'],
+                condition=models.Q(status='scheduled'),
+                name='unique_support_teacher_session_slot',
+            ),
+        ]
+        verbose_name = 'Support Lesson Session'
+        verbose_name_plural = 'Support Lesson Sessions'
+
+    def __str__(self):
+        topic = self.lesson_topic.name if self.lesson_topic_id else 'Support lesson'
+        local_start = timezone.localtime(self.start_at) if self.start_at else None
+        stamp = local_start.strftime('%Y-%m-%d %H:%M') if local_start else 'unscheduled'
+        return f'{self.teacher.name} · {topic} · {stamp}'
+
+    def clean(self):
+        super().clean()
+        if self.start_at and self.end_at and self.end_at <= self.start_at:
+            raise ValidationError('End time must be later than start time.')
+
+    @property
+    def student_count(self):
+        annotated = getattr(self, 'display_student_count', None)
+        if annotated is not None:
+            return int(annotated)
+        return self.bookings.exclude(status='cancelled').count()
+
+    @property
+    def available_seats(self):
+        return max(0, int(self.max_students or 0) - self.student_count)
+
+    @property
+    def accepting_students(self):
+        return (
+            self.status == self.STATUS_SCHEDULED
+            and self.is_open_for_requests
+            and self.start_at > timezone.now()
+            and self.available_seats > 0
+        )
+
+    @property
+    def duration_minutes(self):
+        if not self.start_at or not self.end_at:
+            return 0
+        return max(0, int((self.end_at - self.start_at).total_seconds() // 60))
+
+
 class SupportLessonBooking(BaseModel):
+    STATUS_REQUESTED = 'requested'
     STATUS_SCHEDULED = 'scheduled'
     STATUS_COMPLETED = 'completed'
     STATUS_CANCELLED = 'cancelled'
     STATUS_NO_SHOW = 'no_show'
     STATUS_CHOICES = [
+        (STATUS_REQUESTED, 'Waiting for teacher'),
         (STATUS_SCHEDULED, 'Scheduled'),
         (STATUS_COMPLETED, 'Completed'),
         (STATUS_CANCELLED, 'Cancelled'),
         (STATUS_NO_SHOW, 'No-show'),
     ]
 
+    # Legacy topic values are kept for historical bookings created before the
+    # Title -> Topic workflow. New bookings use lesson_title/lesson_topic.
     TOPIC_GENERAL = 'general'
     TOPIC_MATH = 'math'
     TOPIC_READING_WRITING = 'reading_writing'
@@ -1352,9 +1510,30 @@ class SupportLessonBooking(BaseModel):
         on_delete=models.CASCADE,
         related_name='support_lesson_bookings'
     )
-    start_at = models.DateTimeField(db_index=True)
-    end_at = models.DateTimeField(db_index=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_SCHEDULED, db_index=True)
+    session = models.ForeignKey(
+        SupportLessonSession,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
+    lesson_title = models.ForeignKey(
+        SupportLessonTitle,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
+    lesson_topic = models.ForeignKey(
+        SupportLessonTopic,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
+    start_at = models.DateTimeField(db_index=True, null=True, blank=True)
+    end_at = models.DateTimeField(db_index=True, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_REQUESTED, db_index=True)
     topic = models.CharField(max_length=32, choices=TOPIC_CHOICES, default=TOPIC_GENERAL)
     student_note = models.TextField(blank=True)
     teacher_note = models.TextField(blank=True)
@@ -1365,36 +1544,69 @@ class SupportLessonBooking(BaseModel):
     marked_completed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        ordering = ['-start_at']
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['teacher', 'status', 'start_at']),
             models.Index(fields=['student', 'status', 'start_at']),
+            models.Index(fields=['teacher', 'status', 'lesson_topic'], name='sat_sup_booking_topic_idx'),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=['teacher', 'start_at', 'end_at'],
-                condition=models.Q(status='scheduled'),
-                name='unique_scheduled_support_lesson_slot'
-            )
+                fields=['student', 'session'],
+                condition=models.Q(session__isnull=False),
+                name='unique_student_per_support_session',
+            ),
+            models.UniqueConstraint(
+                fields=['student', 'teacher', 'lesson_topic'],
+                condition=models.Q(status='requested', lesson_topic__isnull=False),
+                name='unique_pending_support_topic_request',
+            ),
         ]
-        verbose_name = "Support Lesson Booking"
-        verbose_name_plural = "Support Lesson Bookings"
+        verbose_name = 'Support Lesson Booking'
+        verbose_name_plural = 'Support Lesson Bookings'
 
     def __str__(self):
-        return f"{self.student.username} → {self.teacher.name} · {self.start_at:%Y-%m-%d %H:%M}"
+        when = timezone.localtime(self.start_at).strftime('%Y-%m-%d %H:%M') if self.start_at else 'waiting for teacher'
+        return f'{self.student.username} → {self.teacher.name} · {self.display_topic} · {when}'
+
+    @property
+    def display_title(self):
+        if self.lesson_title_id:
+            return self.lesson_title.name
+        if self.lesson_topic_id:
+            return self.lesson_topic.title.name
+        return 'SAT Support'
+
+    @property
+    def display_topic(self):
+        if self.lesson_topic_id:
+            return self.lesson_topic.name
+        return self.get_topic_display()
+
+    @property
+    def is_waiting(self):
+        return self.status == self.STATUS_REQUESTED or not self.start_at or not self.end_at
 
     @property
     def is_past(self):
-        return timezone.now() >= self.end_at
+        return bool(self.end_at and timezone.now() >= self.end_at)
 
     @property
     def is_live(self):
         current = timezone.now()
-        return self.status == self.STATUS_SCHEDULED and self.start_at <= current < self.end_at
+        return bool(
+            self.start_at and self.end_at
+            and self.status == self.STATUS_SCHEDULED
+            and self.start_at <= current < self.end_at
+        )
 
     @property
     def awaiting_confirmation(self):
-        return self.status == self.STATUS_SCHEDULED and timezone.now() >= self.end_at
+        return bool(
+            self.end_at
+            and self.status == self.STATUS_SCHEDULED
+            and timezone.now() >= self.end_at
+        )
 
     @property
     def duration_minutes(self):
@@ -1404,7 +1616,9 @@ class SupportLessonBooking(BaseModel):
 
     @property
     def student_can_cancel(self):
-        if self.status != self.STATUS_SCHEDULED:
+        if self.status == self.STATUS_REQUESTED:
+            return True
+        if self.status != self.STATUS_SCHEDULED or not self.start_at:
             return False
         notice_hours = self.teacher.cancellation_notice_hours if self.teacher_id else 0
         cutoff = self.start_at - timedelta(hours=notice_hours)
@@ -1412,6 +1626,8 @@ class SupportLessonBooking(BaseModel):
 
     @property
     def effective_meeting_link(self):
+        if self.session_id and self.session.meeting_link:
+            return self.session.meeting_link.strip()
         return (self.meeting_link or self.teacher.meeting_link or '').strip()
 
     @property
@@ -1423,19 +1639,35 @@ class SupportLessonBooking(BaseModel):
         )
 
     def mark_completed_if_past(self):
-        # v28: completion is an explicit teacher/admin action. A past lesson
-        # stays scheduled ("awaiting confirmation") until it is marked
-        # completed or no-show, preventing students from reviewing sessions
-        # that may not have actually taken place.
         return False
 
     def clean(self):
         super().clean()
         if self.start_at and self.end_at and self.end_at <= self.start_at:
-            raise ValidationError("End time must be later than start time.")
+            raise ValidationError('End time must be later than start time.')
+        if self.status in {self.STATUS_SCHEDULED, self.STATUS_COMPLETED, self.STATUS_NO_SHOW}:
+            if not self.start_at or not self.end_at:
+                raise ValidationError('Scheduled/completed support lessons require a start and end time.')
+
+    def save(self, *args, **kwargs):
+        if self.lesson_topic_id and not self.lesson_title_id:
+            self.lesson_title_id = self.lesson_topic.title_id
+        if self.session_id:
+            self.teacher_id = self.session.teacher_id
+            self.lesson_topic_id = self.session.lesson_topic_id or self.lesson_topic_id
+            if self.lesson_topic_id and not self.lesson_title_id:
+                self.lesson_title_id = self.lesson_topic.title_id
+            self.start_at = self.session.start_at
+            self.end_at = self.session.end_at
+            if self.status == self.STATUS_REQUESTED:
+                self.status = self.STATUS_SCHEDULED
+            if self.session.meeting_link:
+                self.meeting_link = self.session.meeting_link
+        super().save(*args, **kwargs)
 
 
 class SupportTeacherReview(BaseModel):
+    """Private lesson feedback. It is never shown on student-facing teacher pages."""
     booking = models.OneToOneField(
         SupportLessonBooking,
         on_delete=models.CASCADE,
@@ -1456,28 +1688,22 @@ class SupportTeacherReview(BaseModel):
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = "Support Teacher Review"
-        verbose_name_plural = "Support Teacher Reviews"
+        verbose_name = 'Support Teacher Review (Private)'
+        verbose_name_plural = 'Support Teacher Reviews (Private)'
 
     def __str__(self):
-        return f"{self.teacher.name} · {self.rating}/5 by {self.student.username}"
+        return f'{self.teacher.name} · {self.rating}/5 by {self.student.username}'
 
     @property
-    def public_student_name(self):
-        first_name = (self.student.first_name or '').strip()
-        last_name = (self.student.last_name or '').strip()
-        if first_name:
-            return f"{first_name} {last_name[:1] + '.' if last_name else ''}".strip()
-        username = (self.student.username or 'Student').strip()
-        if len(username) <= 3:
-            return username[:1] + '***'
-        return username[:2] + '***' + username[-1:]
+    def reviewer_name(self):
+        return self.student.get_full_name() or self.student.username
 
     def save(self, *args, **kwargs):
         if self.booking_id:
             self.teacher = self.booking.teacher
             self.student = self.booking.student
         super().save(*args, **kwargs)
+
 
 class DreamUniversity(BaseModel):
     """Admin-managed university options shown in the student goal dashboard.
@@ -1731,6 +1957,30 @@ class StudentSectionAccess(models.Model):
 
     def __str__(self):
         return f"{self.membership.user.username} - {self.section} - {self.has_access}"
+
+
+class ClassroomSectionAccessPolicy(models.Model):
+    """Default section access inherited by current and future classroom students."""
+
+    SECTION_CHOICES = StudentSectionAccess.SECTION_CHOICES
+
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='section_access_policies'
+    )
+    section = models.CharField(max_length=50, choices=SECTION_CHOICES)
+    has_access = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('classroom', 'section')
+        ordering = ['section']
+        verbose_name = 'Classroom Section Access Policy'
+        verbose_name_plural = 'Classroom Section Access Policies'
+
+    def __str__(self):
+        return f"{self.classroom.name} - {self.section} - {self.has_access}"
 
 
 class StudentProgress(models.Model):
@@ -2024,6 +2274,41 @@ class GlobalEventAnswer(models.Model):
 
     def __str__(self):
         return f"{self.attempt} - {self.section} - Q{self.question_id}"
+
+class ClassroomPracticeTestAccessPolicy(models.Model):
+    """Class-level SAT test selection inherited by students approved later."""
+
+    ACCESS_MODE_ALL = 'all'
+    ACCESS_MODE_SELECTED = 'selected'
+    ACCESS_MODE_CHOICES = (
+        (ACCESS_MODE_ALL, 'All practice tests'),
+        (ACCESS_MODE_SELECTED, 'Selected practice tests'),
+    )
+
+    classroom = models.OneToOneField(
+        Classroom,
+        on_delete=models.CASCADE,
+        related_name='practice_test_access_policy'
+    )
+    access_mode = models.CharField(
+        max_length=20,
+        choices=ACCESS_MODE_CHOICES,
+        default=ACCESS_MODE_SELECTED,
+    )
+    selected_tests = models.ManyToManyField(
+        Test,
+        blank=True,
+        related_name='classroom_access_policies'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Classroom Practice Test Access Policy'
+        verbose_name_plural = 'Classroom Practice Test Access Policies'
+
+    def __str__(self):
+        return f"{self.classroom.name} - {self.get_access_mode_display()}"
+
 
 class StudentPracticeTestAccess(models.Model):
     membership = models.ForeignKey(

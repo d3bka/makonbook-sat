@@ -8,6 +8,7 @@
 
 <div class="stat-cards">
   <div class="stat-card"><h3>{{ summary.total|default:0 }}</h3><p>Total bookings</p></div>
+  <div class="stat-card"><h3>{{ summary.requested|default:0 }}</h3><p>Waiting</p></div>
   <div class="stat-card"><h3>{{ summary.scheduled|default:0 }}</h3><p>Scheduled</p></div>
   <div class="stat-card"><h3>{{ summary.completed|default:0 }}</h3><p>Completed</p></div>
   <div class="stat-card"><h3>{{ summary.cancelled|default:0 }}</h3><p>Cancelled</p></div>
@@ -62,12 +63,13 @@
     <tbody>
       {% for booking in bookings %}
       <tr>
-        <td style="white-space:nowrap;"><strong>{{ booking.start_at|date:'d M Y' }}</strong><br>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}</td>
+        <td style="white-space:nowrap;">{% if booking.start_at %}<strong>{{ booking.start_at|date:'d M Y' }}</strong><br>{{ booking.start_at|date:'H:i' }}–{{ booking.end_at|date:'H:i' }}{% else %}<strong>Waiting for teacher</strong><br><small>No time yet</small>{% endif %}</td>
         <td>{{ booking.teacher.name }}</td>
         <td>{{ booking.student.get_full_name|default:booking.student.username }}<br><small>{{ booking.student.username }}</small></td>
-        <td>{{ booking.get_topic_display }}{% if booking.student_note %}<br><small>{{ booking.student_note|truncatewords:10 }}</small>{% endif %}</td>
+        <td><strong>{{ booking.display_title }}</strong><br>{{ booking.display_topic }}{% if booking.student_note %}<br><small>{{ booking.student_note|truncatewords:10 }}</small>{% endif %}</td>
         <td>
-          {% if booking.awaiting_confirmation %}<span class="badge badge-warning">Awaiting confirmation</span>
+          {% if booking.status == 'requested' %}<span class="badge badge-warning">Waiting for teacher</span>
+          {% elif booking.awaiting_confirmation %}<span class="badge badge-warning">Awaiting confirmation</span>
           {% elif booking.status == 'scheduled' %}<span class="badge badge-info">Scheduled</span>
           {% elif booking.status == 'completed' %}<span class="badge badge-success">Completed</span>
           {% elif booking.status == 'cancelled' %}<span class="badge badge-danger">Cancelled</span>

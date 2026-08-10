@@ -66,3 +66,46 @@ class RatingEngineTests(TestCase):
             self.assertEqual(response.status_code, 200)
         response = self.client.post(url, {"code": "INVALID"})
         self.assertEqual(response.status_code, 429)
+
+
+class RatingTeacherDeletionTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser("admin_delete_test", "admin@example.com", "x")
+        self.teacher = User.objects.create_user("teacher_delete_test", password="x")
+        self.student = User.objects.create_user("student_delete_test", password="x")
+        self.classroom = Classroom.objects.create(teacher=self.teacher, name="Delete confirmation classroom")
+        ClassroomMembership.objects.create(
+            classroom=self.classroom,
+            user=self.student,
+            role="student",
+            status="approved",
+        )
+        self.assessment = RatingAssessment.objects.create(
+            classroom=self.classroom,
+            student=self.student,
+            teacher=self.teacher,
+            homework=Decimal("8.0"),
+            progress=Decimal("8.0"),
+            activity=Decimal("8.0"),
+            attendance=Decimal("8.0"),
+            behavior=Decimal("8.0"),
+            comment="Delete with teacher",
+        )
+        self.client.force_login(self.admin)
+
+    def test_admin_delete_page_offers_confirmation_and_lists_rating(self):
+        url = reverse("admin:auth_user_delete", args=[self.teacher.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Are you sure")
+        self.assertContains(response, "Rating assessment")
+        self.assertNotContains(response, "Cannot delete")
+
+    def test_confirming_teacher_delete_also_deletes_rating_assessment(self):
+        teacher_id = self.teacher.pk
+        assessment_id = self.assessment.pk
+        url = reverse("admin:auth_user_delete", args=[teacher_id])
+        response = self.client.post(url, {"post": "yes"}, follow=False)
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(User.objects.filter(pk=teacher_id).exists())
+        self.assertFalse(RatingAssessment.objects.filter(pk=assessment_id).exists())

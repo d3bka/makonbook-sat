@@ -6,7 +6,7 @@
 {% block title %}Public Profile{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33">
 {% endblock style %}
 
 {% block content %}
@@ -31,7 +31,7 @@
       <aside class="support-next-card">
         <small>Profile completeness</small>
         <strong>{{ teacher.profile_completion_percent }}%</strong>
-        <span>{{ teacher.reviews_count }} public review{{ teacher.reviews_count|pluralize }} · {{ teacher.completed_lessons_count }} completed lesson{{ teacher.completed_lessons_count|pluralize }}</span>
+        <span>{{ teacher.reviews_count }} private review{{ teacher.reviews_count|pluralize }} · {{ teacher.completed_lessons_count }} completed lesson{{ teacher.completed_lessons_count|pluralize }}</span>
         <div class="support-profile-progress"><span style="width:{{ teacher.profile_completion_percent }}%"></span></div>
       </aside>
     </div>
@@ -104,7 +104,7 @@
           </div>
           <div class="support-profile-meta">
             <div class="support-meta-row"><span>Experience</span><strong>{{ teacher.years_experience }} year{{ teacher.years_experience|pluralize }}</strong></div>
-            <div class="support-meta-row"><span>Rating</span><strong>{% if teacher.average_rating %}★ {{ teacher.average_rating }}{% else %}New teacher{% endif %}</strong></div>
+            <div class="support-meta-row"><span>Feedback</span><strong>Private to staff</strong></div>
           </div>
         </section>
       </aside>
@@ -116,5 +116,5 @@
     </div>
   </form>
 </div>
-<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
+<script src="{% static 'assets/js/support-booking-v33.js' %}?v=33"></script>
 {% endblock content %}

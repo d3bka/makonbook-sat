@@ -875,6 +875,21 @@ class StudentSectionAccessAdmin(admin.ModelAdmin):
     search_fields = ('membership__user__username', 'membership__classroom__name')
 
 
+@admin.register(ClassroomSectionAccessPolicy)
+class ClassroomSectionAccessPolicyAdmin(admin.ModelAdmin):
+    list_display = ('classroom', 'section', 'has_access', 'updated_at')
+    list_filter = ('section', 'has_access')
+    search_fields = ('classroom__name', 'classroom__teacher__username')
+
+
+@admin.register(ClassroomPracticeTestAccessPolicy)
+class ClassroomPracticeTestAccessPolicyAdmin(admin.ModelAdmin):
+    list_display = ('classroom', 'access_mode', 'updated_at')
+    list_filter = ('access_mode',)
+    search_fields = ('classroom__name', 'classroom__teacher__username')
+    filter_horizontal = ('selected_tests',)
+
+
 @admin.register(StudentProgress)
 class StudentProgressAdmin(admin.ModelAdmin):
     list_display = (
@@ -976,6 +991,23 @@ class SupportTeacherAvailabilityInline(admin.TabularInline):
     fields = ('day_of_week', 'start_time', 'end_time', 'slot_duration_minutes', 'buffer_minutes', 'note', 'is_active')
 
 
+@admin.register(SupportLessonTitle)
+class SupportLessonTitleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'sort_order', 'updated_at')
+    list_editable = ('is_active', 'sort_order')
+    search_fields = ('name', 'description')
+    ordering = ('sort_order', 'name')
+
+
+@admin.register(SupportLessonTopic)
+class SupportLessonTopicAdmin(admin.ModelAdmin):
+    list_display = ('name', 'title', 'default_duration_minutes', 'default_capacity', 'is_active', 'sort_order')
+    list_filter = ('title', 'is_active')
+    list_editable = ('default_duration_minutes', 'default_capacity', 'is_active', 'sort_order')
+    search_fields = ('name', 'title__name', 'description')
+    ordering = ('title__sort_order', 'title__name', 'sort_order', 'name')
+
+
 @admin.register(SupportTeacherProfile)
 class SupportTeacherProfileAdmin(admin.ModelAdmin):
     list_display = ('name', 'user', 'sat_total_score', 'scores_verified', 'average_rating_display', 'reviews_count', 'completed_lessons_count', 'is_active', 'sort_order')
@@ -986,15 +1018,32 @@ class SupportTeacherProfileAdmin(admin.ModelAdmin):
 
     def average_rating_display(self, obj):
         return obj.average_rating or '—'
-    average_rating_display.short_description = 'Avg rating'
+    average_rating_display.short_description = 'Private avg rating'
+
+
+@admin.register(SupportLessonSession)
+class SupportLessonSessionAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'lesson_topic', 'start_at', 'end_at', 'status', 'student_count_display', 'max_students', 'is_open_for_requests')
+    list_filter = ('status', 'teacher', 'lesson_topic__title', 'is_open_for_requests', 'start_at')
+    search_fields = ('teacher__display_name', 'teacher__user__username', 'lesson_topic__name', 'lesson_topic__title__name')
+    autocomplete_fields = ('teacher', 'lesson_topic', 'created_by')
+    date_hierarchy = 'start_at'
+
+    def student_count_display(self, obj):
+        return obj.student_count
+    student_count_display.short_description = 'Students'
 
 
 @admin.register(SupportLessonBooking)
 class SupportLessonBookingAdmin(admin.ModelAdmin):
-    list_display = ('student', 'teacher', 'topic', 'start_at', 'end_at', 'status', 'created_at')
-    list_filter = ('status', 'teacher', 'start_at')
-    search_fields = ('student__username', 'student__first_name', 'student__last_name', 'teacher__display_name', 'teacher__user__username')
-    autocomplete_fields = ('student', 'teacher')
+    list_display = ('student', 'teacher', 'display_topic_admin', 'status', 'start_at', 'end_at', 'session', 'created_at')
+    list_filter = ('status', 'teacher', 'lesson_title', 'lesson_topic', 'start_at')
+    search_fields = ('student__username', 'student__first_name', 'student__last_name', 'teacher__display_name', 'teacher__user__username', 'lesson_topic__name')
+    autocomplete_fields = ('student', 'teacher', 'lesson_title', 'lesson_topic', 'session')
+
+    def display_topic_admin(self, obj):
+        return obj.display_topic
+    display_topic_admin.short_description = 'Topic'
 
 
 @admin.register(SupportTeacherReview)
@@ -1003,6 +1052,11 @@ class SupportTeacherReviewAdmin(admin.ModelAdmin):
     list_filter = ('rating', 'teacher', 'created_at')
     search_fields = ('teacher__display_name', 'teacher__user__username', 'student__username', 'feedback')
     readonly_fields = ('booking', 'teacher', 'student')
+
+    def get_model_perms(self, request):
+        # Keep the model visible to administrators while making its private
+        # nature explicit in the model's verbose name.
+        return super().get_model_perms(request)
 
 
 @admin.register(DreamUniversity)

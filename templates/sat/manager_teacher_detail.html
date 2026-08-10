@@ -1,0 +1,94 @@
+{% extends 'template.html' %}
+{% load static %}
+
+{% block title-main %}{{ teacher.get_full_name|default:teacher.username }}{% endblock title-main %}
+{% block title-subtitle %}<span>Manager · Teacher overview</span>{% endblock title-subtitle %}
+{% block title %}Teacher Overview{% endblock title %}
+
+{% block style %}
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33.2">
+{% endblock style %}
+
+{% block content %}
+<div class="support-shell support-stack">
+  <div class="manager-breadcrumbs">
+    <a href="{% url 'manager_dashboard' %}"><i class="bi bi-arrow-left"></i> Manager overview</a>
+    <span>/</span>
+    <strong>{{ teacher.get_full_name|default:teacher.username }}</strong>
+  </div>
+
+  <section class="support-card support-card-pad manager-teacher-hero">
+    <div class="manager-teacher-heading">
+      <div class="manager-teacher-identity">
+        <span class="support-avatar manager-avatar-lg">{{ teacher.username|first|upper }}</span>
+        <div>
+          <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Main teacher</div>
+          <h1>{{ teacher.get_full_name|default:teacher.username }}</h1>
+          <p>@{{ teacher.username }} · Read-only classroom overview for managers.</p>
+        </div>
+      </div>
+      <span class="support-status support-status-scheduled"><i class="bi bi-eye"></i> View only</span>
+    </div>
+  </section>
+
+  <div class="support-stats support-stats-4">
+    <div class="support-stat"><span>All classrooms</span><strong>{{ total_classrooms }}</strong></div>
+    <div class="support-stat"><span>Active classrooms</span><strong>{{ active_classrooms }}</strong></div>
+    <div class="support-stat"><span>Unique students</span><strong>{{ unique_students_count }}</strong></div>
+    <div class="support-stat"><span>Pending joins</span><strong>{{ pending_joins_count }}</strong></div>
+  </div>
+
+  <section class="support-card support-card-pad">
+    <div class="support-section-head">
+      <div>
+        <h2>Classrooms & students</h2>
+        <p>Open any classroom to see its complete student list. Manager access is strictly read-only.</p>
+      </div>
+    </div>
+
+    <div class="manager-classroom-grid">
+      {% for classroom in classrooms %}
+        <article class="manager-classroom-card">
+          <div class="manager-classroom-card-head">
+            <div>
+              <div class="manager-classroom-title-row">
+                <h3>{{ classroom.name }}</h3>
+                {% if classroom.is_active %}
+                  <span class="support-status support-status-completed">Active</span>
+                {% else %}
+                  <span class="support-status">Inactive</span>
+                {% endif %}
+              </div>
+              <p>{{ classroom.get_classroom_type_display }}{% if classroom.description %} · {{ classroom.description|truncatechars:100 }}{% endif %}</p>
+            </div>
+            <a class="manager-open-icon" href="{% url 'manager_classroom_detail' classroom.id %}" aria-label="Open {{ classroom.name }}"><i class="bi bi-arrow-up-right"></i></a>
+          </div>
+
+          <div class="manager-classroom-metrics">
+            <div><span>Approved</span><strong>{{ classroom.approved_students_count }}</strong></div>
+            <div><span>Pending</span><strong>{{ classroom.pending_students_count }}</strong></div>
+          </div>
+
+          <div class="manager-student-preview">
+            {% for membership in classroom.manager_students|slice:':5' %}
+              <div class="manager-mini-student">
+                <span class="support-avatar support-avatar-xs">{{ membership.user.username|first|upper }}</span>
+                <div><strong>{{ membership.user.get_full_name|default:membership.user.username }}</strong><small>@{{ membership.user.username }}</small></div>
+              </div>
+            {% empty %}
+              <p class="support-muted-copy">No approved students in this classroom.</p>
+            {% endfor %}
+          </div>
+
+          <a class="support-btn support-btn-secondary manager-classroom-open" href="{% url 'manager_classroom_detail' classroom.id %}">
+            <i class="bi bi-people"></i> View all students
+            {% if classroom.approved_students_count > 5 %}<span>+{{ classroom.approved_students_count|add:'-5' }} more</span>{% endif %}
+          </a>
+        </article>
+      {% empty %}
+        <div class="support-empty manager-wide-empty"><div class="support-empty-icon"><i class="bi bi-mortarboard"></i></div><h3>No classrooms</h3><p>This teacher does not own any classrooms yet.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock content %}

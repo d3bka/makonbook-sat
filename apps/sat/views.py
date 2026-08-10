@@ -4069,6 +4069,13 @@ SUPPORT_LESSON_LIST_LOOKAHEAD_DAYS = 14
 SUPPORT_NOTE_MAX_LENGTH = 1200
 
 
+def is_manager(user):
+    return bool(
+        user.is_authenticated
+        and user.groups.filter(name__iexact='Manager').exists()
+    )
+
+
 def _support_teacher_admin_allowed(user):
     return user.is_authenticated and (
         user.is_superuser
@@ -4077,11 +4084,23 @@ def _support_teacher_admin_allowed(user):
     )
 
 
+def _support_feedback_view_allowed(user):
+    """Private ratings/comments are visible only to staff-side teaching roles."""
+    if not user.is_authenticated:
+        return False
+    return bool(
+        _support_teacher_admin_allowed(user)
+        or is_manager(user)
+        or is_teacher(user)
+        or hasattr(user, 'support_teacher_profile')
+    )
+
+
 def _user_can_access_support_classes(user):
     """Return whether a user belongs to the support-class ecosystem."""
     if not user.is_authenticated:
         return False
-    if _support_teacher_admin_allowed(user) or is_teacher(user):
+    if _support_teacher_admin_allowed(user) or is_manager(user) or is_teacher(user):
         return True
     if hasattr(user, 'support_teacher_profile'):
         return True
@@ -4094,14 +4113,10 @@ def _user_can_access_support_classes(user):
 
 
 def _user_can_book_support_lessons(user):
-    """Only approved students may create bookings.
-
-    Teachers, support teachers and admins can browse the module for operational
-    work, but cannot accidentally create student bookings from their accounts.
-    """
+    """Only approved classroom students may create support requests."""
     if not user.is_authenticated:
         return False
-    if _support_teacher_admin_allowed(user) or is_teacher(user):
+    if _support_teacher_admin_allowed(user) or is_manager(user) or is_teacher(user):
         return False
     if hasattr(user, 'support_teacher_profile'):
         return False
@@ -4119,8 +4134,8 @@ def _support_class_access_guard(request):
     return classroom_access_denied(
         request,
         message=(
-            "Book Support Classes becomes available after you join an active "
-            "classroom and your teacher approves the request."
+            'Book Support Classes becomes available after you join an active '
+            'classroom and your teacher approves the request.'
         ),
         status_code=403,
     )
@@ -4129,10 +4144,10 @@ def _support_class_access_guard(request):
 def _support_booking_student_guard(request):
     if _user_can_book_support_lessons(request.user):
         return None
-    messages.error(request, "Only approved classroom students can book support lessons.")
+    messages.error(request, 'Only approved classroom students can request support lessons.')
     return classroom_access_denied(
         request,
-        message="Only approved classroom students can book support lessons.",
+        message='Only approved classroom students can request support lessons.',
         status_code=403,
     )
 
@@ -4156,8 +4171,6 @@ def _support_booking_overlap_q(start_at, end_at):
 
 
 def _sync_support_booking_completion_queryset(queryset=None):
-    # Completion is explicit in v28. Kept as a compatibility helper for older
-    # call sites without mutating records.
     return 0
 
 
@@ -4190,17 +4203,19 @@ def _build_support_teacher_slots(
     teacher,
     days=SUPPORT_LESSON_LOOKAHEAD_DAYS,
     include_unavailable=False,
+    respect_notice=True,
 ):
-    """Build bookable slots from weekly windows with overlap protection.
+    """Build teacher-plannable slots from recurring weekly windows.
 
-    ``include_unavailable`` is used by the teacher planner to show booked and
-    too-soon slots. Student pages receive only slots that are currently safe to
-    book.
+    Sessions, rather than individual student bookings, own the teacher's time.
+    Legacy scheduled bookings without a session are still considered so old
+    data cannot overlap a newly planned group session.
     """
     now_value = timezone.now()
     start_date = timezone.localdate()
     end_date = start_date + timedelta(days=days)
-    notice_cutoff = now_value + timedelta(hours=teacher.min_booking_notice_hours or 0)
+    notice_hours = teacher.min_booking_notice_hours or 0 if respect_notice else 0
+    notice_cutoff = now_value + timedelta(hours=notice_hours)
 
     availability_by_day = defaultdict(list)
     for item in teacher.availabilities.filter(is_active=True).order_by('day_of_week', 'start_time'):
@@ -4208,9 +4223,19 @@ def _build_support_teacher_slots(
 
     range_start = _make_local_datetime(start_date, datetime.min.time())
     range_end = _make_local_datetime(end_date + timedelta(days=1), datetime.min.time())
+
     booked_ranges = list(
+        SupportLessonSession.objects.filter(
+            teacher=teacher,
+            status=SupportLessonSession.STATUS_SCHEDULED,
+            start_at__lt=range_end,
+            end_at__gt=range_start,
+        ).values_list('start_at', 'end_at')
+    )
+    booked_ranges += list(
         SupportLessonBooking.objects.filter(
             teacher=teacher,
+            session__isnull=True,
             status=SupportLessonBooking.STATUS_SCHEDULED,
             start_at__lt=range_end,
             end_at__gt=range_start,
@@ -4253,7 +4278,7 @@ def _build_support_teacher_slots(
                     'is_past': is_past,
                     'is_available': is_available,
                     'state': state,
-                    'value': f"{start_at.isoformat()}|{end_at.isoformat()}",
+                    'value': f'{start_at.isoformat()}|{end_at.isoformat()}',
                     'date_key': local_start.date().isoformat(),
                     'date_label': local_start.strftime('%d %b %Y'),
                     'day_label': local_start.strftime('%A'),
@@ -4292,16 +4317,14 @@ def _parse_support_lesson_slot(slot_value):
     start_at = parse_datetime(start_raw)
     end_at = parse_datetime(end_raw)
     current_tz = timezone.get_current_timezone()
-
     if start_at and timezone.is_naive(start_at):
         start_at = timezone.make_aware(start_at, current_tz)
     if end_at and timezone.is_naive(end_at):
         end_at = timezone.make_aware(end_at, current_tz)
-
     return start_at, end_at
 
 
-def _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=True):
+def _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=True, respect_notice=False):
     if not start_at or not end_at or end_at <= start_at:
         return None
     local_start = timezone.localtime(start_at)
@@ -4312,6 +4335,7 @@ def _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=Tr
         teacher,
         days=max(day_offset, 0),
         include_unavailable=include_unavailable,
+        respect_notice=respect_notice,
     )
     for slot in slots:
         if slot['start_at'] == start_at and slot['end_at'] == end_at:
@@ -4348,35 +4372,104 @@ def _support_safe_next_url(request, fallback='support_teacher_planner'):
     return reverse(fallback)
 
 
+def _active_support_titles():
+    topic_qs = SupportLessonTopic.objects.filter(is_active=True).order_by('sort_order', 'name')
+    return (
+        SupportLessonTitle.objects.filter(is_active=True, topics__is_active=True)
+        .prefetch_related(Prefetch('topics', queryset=topic_qs, to_attr='active_topics'))
+        .distinct()
+        .order_by('sort_order', 'name')
+    )
+
+
+def _student_support_conflict(student, start_at, end_at, exclude_booking_id=None):
+    if not start_at or not end_at:
+        return False
+    qs = SupportLessonBooking.objects.filter(
+        student=student,
+        status=SupportLessonBooking.STATUS_SCHEDULED,
+        start_at__lt=end_at,
+        end_at__gt=start_at,
+    )
+    if exclude_booking_id:
+        qs = qs.exclude(pk=exclude_booking_id)
+    return qs.exists()
+
+
+def _find_open_support_topic_session(teacher, lesson_topic, student):
+    sessions = (
+        SupportLessonSession.objects.filter(
+            teacher=teacher,
+            lesson_topic=lesson_topic,
+            status=SupportLessonSession.STATUS_SCHEDULED,
+            is_open_for_requests=True,
+            start_at__gt=timezone.now(),
+        )
+        .prefetch_related('bookings')
+        .order_by('start_at')
+    )
+    for session in sessions:
+        active_count = sum(
+            1 for booking in session.bookings.all()
+            if booking.status != SupportLessonBooking.STATUS_CANCELLED
+        )
+        if active_count >= session.max_students:
+            continue
+        if _student_support_conflict(student, session.start_at, session.end_at):
+            continue
+        return session
+    return None
+
+
+def _assign_booking_to_support_session(booking, session):
+    booking.session = session
+    booking.teacher = session.teacher
+    booking.lesson_topic = session.lesson_topic or booking.lesson_topic
+    booking.lesson_title = booking.lesson_topic.title if booking.lesson_topic_id else booking.lesson_title
+    booking.start_at = session.start_at
+    booking.end_at = session.end_at
+    booking.status = SupportLessonBooking.STATUS_SCHEDULED
+    booking.meeting_link = session.meeting_link or session.teacher.meeting_link
+    booking.cancelled_by = ''
+    booking.cancelled_at = None
+    booking.cancellation_reason = ''
+    booking.save()
+    return booking
+
+
 @login_required(login_url='/login/')
 def support_teacher_list(request):
     denied = _support_class_access_guard(request)
     if denied:
         return denied
 
-    _sync_support_booking_completion_queryset(
-        SupportLessonBooking.objects.filter(student=request.user)
-    )
-
     query = request.GET.get('q', '').strip()
     selected_subject = request.GET.get('subject', '').strip()
-    availability_filter = request.GET.get('availability', '').strip()
+    can_view_feedback = _support_feedback_view_allowed(request.user)
 
-    public_review_queryset = (
-        SupportTeacherReview.objects.filter(
-            booking__status=SupportLessonBooking.STATUS_COMPLETED,
-        )
-        .select_related('student', 'booking')
-        .order_by('-created_at')
-    )
     teachers = (
         SupportTeacherProfile.objects.filter(is_active=True)
         .select_related('user')
-        .prefetch_related(
-            'availabilities',
-            Prefetch('reviews', queryset=public_review_queryset, to_attr='public_reviews'),
-        )
         .annotate(
+            display_completed_lessons=(
+                Count(
+                    'sessions',
+                    filter=Q(sessions__status=SupportLessonSession.STATUS_COMPLETED),
+                    distinct=True,
+                )
+                + Count(
+                    'bookings',
+                    filter=Q(
+                        bookings__status=SupportLessonBooking.STATUS_COMPLETED,
+                        bookings__session__isnull=True,
+                    ),
+                    distinct=True,
+                )
+            ),
+        )
+    )
+    if can_view_feedback:
+        teachers = teachers.annotate(
             display_avg_rating=Avg(
                 'reviews__rating',
                 filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
@@ -4386,13 +4479,7 @@ def support_teacher_list(request):
                 filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
                 distinct=True,
             ),
-            display_completed_lessons=Count(
-                'bookings',
-                filter=Q(bookings__status=SupportLessonBooking.STATUS_COMPLETED),
-                distinct=True,
-            ),
         )
-    )
     if query:
         teachers = teachers.filter(
             Q(display_name__icontains=query)
@@ -4408,51 +4495,36 @@ def support_teacher_list(request):
     teacher_cards = []
     subject_choices = set()
     for teacher in teachers:
-        teacher.display_rating = round(float(teacher.display_avg_rating), 1) if teacher.display_avg_rating else None
         for token in _support_subject_tokens(teacher.subjects):
             subject_choices.add(token)
-        free_slots = _build_support_teacher_slots(
-            teacher,
-            days=SUPPORT_LESSON_LIST_LOOKAHEAD_DAYS,
-            include_unavailable=False,
-        )
-        if availability_filter == 'available' and not free_slots:
-            continue
+        if can_view_feedback:
+            teacher.display_rating = round(float(teacher.display_avg_rating), 1) if teacher.display_avg_rating else None
         teacher_cards.append({
             'teacher': teacher,
             'subjects': _support_subject_tokens(teacher.subjects),
-            'next_slots': free_slots[:4],
-            'next_slot': free_slots[0] if free_slots else None,
-            'free_slots_count': len(free_slots),
-            'recent_reviews': list(getattr(teacher, 'public_reviews', []))[:2],
         })
 
-    teacher_cards.sort(
-        key=lambda item: (
-            item['next_slot'] is None,
-            item['next_slot']['start_at'] if item['next_slot'] else timezone.now() + timedelta(days=3650),
-            item['teacher'].sort_order,
-            item['teacher'].name.lower(),
+    my_upcoming_bookings = []
+    next_booking = None
+    if _user_can_book_support_lessons(request.user):
+        my_upcoming_bookings = list(
+            SupportLessonBooking.objects.filter(
+                student=request.user,
+                status=SupportLessonBooking.STATUS_SCHEDULED,
+                end_at__gte=timezone.now(),
+            ).select_related('teacher', 'teacher__user', 'lesson_title', 'lesson_topic').order_by('start_at')[:5]
         )
-    )
-
-    my_upcoming_bookings = list(
-        SupportLessonBooking.objects.filter(
-            student=request.user,
-            status=SupportLessonBooking.STATUS_SCHEDULED,
-            end_at__gte=timezone.now(),
-        ).select_related('teacher', 'teacher__user').order_by('start_at')[:5]
-    )
+        next_booking = my_upcoming_bookings[0] if my_upcoming_bookings else None
 
     return render(request, 'sat/support_teacher_list.html', {
         'teacher_cards': teacher_cards,
         'my_upcoming_bookings': my_upcoming_bookings,
-        'next_booking': my_upcoming_bookings[0] if my_upcoming_bookings else None,
+        'next_booking': next_booking,
         'query': query,
         'selected_subject': selected_subject,
-        'availability_filter': availability_filter,
         'subject_choices': sorted(subject_choices, key=str.lower),
         'can_book': _user_can_book_support_lessons(request.user),
+        'can_view_private_feedback': can_view_feedback,
         'timezone_name': str(timezone.get_current_timezone()),
     })
 
@@ -4463,10 +4535,26 @@ def support_teacher_detail(request, teacher_id):
     if denied:
         return denied
 
-    teacher = get_object_or_404(
-        SupportTeacherProfile.objects.select_related('user')
-        .prefetch_related('availabilities')
-        .annotate(
+    can_view_feedback = _support_feedback_view_allowed(request.user)
+    teacher_qs = SupportTeacherProfile.objects.select_related('user').annotate(
+        display_completed_lessons=(
+            Count(
+                'sessions',
+                filter=Q(sessions__status=SupportLessonSession.STATUS_COMPLETED),
+                distinct=True,
+            )
+            + Count(
+                'bookings',
+                filter=Q(
+                    bookings__status=SupportLessonBooking.STATUS_COMPLETED,
+                    bookings__session__isnull=True,
+                ),
+                distinct=True,
+            )
+        ),
+    )
+    if can_view_feedback:
+        teacher_qs = teacher_qs.annotate(
             display_avg_rating=Avg(
                 'reviews__rating',
                 filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
@@ -4476,54 +4564,57 @@ def support_teacher_detail(request, teacher_id):
                 filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
                 distinct=True,
             ),
-            display_completed_lessons=Count(
-                'bookings',
-                filter=Q(bookings__status=SupportLessonBooking.STATUS_COMPLETED),
-                distinct=True,
-            ),
-        ),
-        id=teacher_id,
-        is_active=True,
-    )
-    _sync_support_booking_completion_queryset(
-        SupportLessonBooking.objects.filter(student=request.user, teacher=teacher)
-    )
+        )
+    teacher = get_object_or_404(teacher_qs, id=teacher_id, is_active=True)
 
-    available_slots = _build_support_teacher_slots(teacher, include_unavailable=False)
-    public_reviews_qs = teacher.reviews.filter(
-        booking__status=SupportLessonBooking.STATUS_COMPLETED,
-    ).select_related('student', 'booking').order_by('-created_at')
-    reviews = list(public_reviews_qs[:30])
-    rating_counts = {value: 0 for value in range(1, 6)}
-    for row in public_reviews_qs.values('rating').annotate(total=Count('id')):
-        rating_counts[row['rating']] = row['total']
-    total_reviews = sum(rating_counts.values())
-    rating_distribution = [
-        {
-            'rating': rating,
-            'count': rating_counts[rating],
-            'percent': round((rating_counts[rating] / total_reviews) * 100) if total_reviews else 0,
-        }
-        for rating in range(5, 0, -1)
-    ]
-    my_bookings = list(
-        SupportLessonBooking.objects.filter(
+    reviews = []
+    rating_distribution = []
+    if can_view_feedback:
+        private_reviews_qs = teacher.reviews.filter(
+            booking__status=SupportLessonBooking.STATUS_COMPLETED,
+        ).select_related('student', 'booking', 'booking__lesson_topic').order_by('-created_at')
+        reviews = list(private_reviews_qs[:30])
+        rating_counts = {value: 0 for value in range(1, 6)}
+        for row in private_reviews_qs.values('rating').annotate(total=Count('id')):
+            rating_counts[row['rating']] = row['total']
+        total_reviews = sum(rating_counts.values())
+        rating_distribution = [
+            {
+                'rating': rating,
+                'count': rating_counts[rating],
+                'percent': round((rating_counts[rating] / total_reviews) * 100) if total_reviews else 0,
+            }
+            for rating in range(5, 0, -1)
+        ]
+
+    my_bookings = []
+    if _user_can_book_support_lessons(request.user):
+        my_bookings = list(
+            SupportLessonBooking.objects.filter(
+                teacher=teacher,
+                student=request.user,
+            ).select_related('teacher', 'lesson_title', 'lesson_topic', 'session').order_by('-created_at')[:10]
+        )
+
+    upcoming_sessions = list(
+        SupportLessonSession.objects.filter(
             teacher=teacher,
-            student=request.user,
-        ).select_related('teacher', 'teacher__user').order_by('-start_at')[:10]
+            status=SupportLessonSession.STATUS_SCHEDULED,
+            is_open_for_requests=True,
+            start_at__gt=timezone.now(),
+        ).select_related('lesson_topic', 'lesson_topic__title').order_by('start_at')[:6]
     )
 
     return render(request, 'sat/support_teacher_detail.html', {
         'teacher': teacher,
         'subjects': _support_subject_tokens(teacher.subjects),
-        'slot_groups': _group_support_slots(available_slots),
-        'available_slots': available_slots,
-        'reviews': reviews,
-        'recent_reviews': reviews[:3],
-        'rating_distribution': rating_distribution,
+        'lesson_titles': _active_support_titles(),
         'my_bookings': my_bookings,
-        'topic_choices': SupportLessonBooking.TOPIC_CHOICES,
+        'upcoming_sessions': upcoming_sessions,
+        'reviews': reviews,
+        'rating_distribution': rating_distribution,
         'can_book': _user_can_book_support_lessons(request.user),
+        'can_view_private_feedback': can_view_feedback,
         'timezone_name': str(timezone.get_current_timezone()),
         'is_profile_owner': request.user == teacher.user,
     })
@@ -4539,7 +4630,7 @@ def support_teacher_profile_edit(request):
         form = SupportTeacherSelfProfileForm(request.POST, instance=profile)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Your public support teacher profile was updated.')
+            messages.success(request, 'Your support teacher profile was updated.')
             return redirect('support_teacher_profile_edit')
     else:
         form = SupportTeacherSelfProfileForm(instance=profile)
@@ -4599,71 +4690,92 @@ def book_support_lesson(request, teacher_id):
         return booking_denied
 
     teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id, is_active=True)
-    slot_value = request.POST.get('slot', '')
-    start_at, end_at = _parse_support_lesson_slot(slot_value)
     student_note = request.POST.get('student_note', '').strip()
-    topic = request.POST.get('topic', SupportLessonBooking.TOPIC_GENERAL).strip()
-    topic_values = {value for value, _label in SupportLessonBooking.TOPIC_CHOICES}
+    try:
+        title_id = int(request.POST.get('lesson_title', '0'))
+        topic_id = int(request.POST.get('lesson_topic', '0'))
+    except (TypeError, ValueError):
+        title_id = topic_id = 0
 
-    if topic not in topic_values:
-        topic = SupportLessonBooking.TOPIC_GENERAL
+    title = SupportLessonTitle.objects.filter(id=title_id, is_active=True).first()
+    topic = SupportLessonTopic.objects.select_related('title').filter(
+        id=topic_id,
+        title=title,
+        is_active=True,
+        title__is_active=True,
+    ).first()
+    if not title or not topic:
+        messages.error(request, 'Choose a valid title and topic.')
+        return redirect('support_teacher_detail', teacher_id=teacher.id)
+
     if len(student_note) > SUPPORT_NOTE_MAX_LENGTH:
-        messages.error(request, f"Your lesson goal must be {SUPPORT_NOTE_MAX_LENGTH} characters or fewer.")
+        messages.error(request, f'Your lesson goal must be {SUPPORT_NOTE_MAX_LENGTH} characters or fewer.')
         return redirect('support_teacher_detail', teacher_id=teacher.id)
 
-    slot = _find_support_teacher_slot(teacher, start_at, end_at, include_unavailable=True)
-    if not slot or not slot['is_available']:
-        messages.error(request, "That time is no longer available. Please choose another slot.")
-        return redirect('support_teacher_detail', teacher_id=teacher.id)
+    now_value = timezone.now()
+    existing = SupportLessonBooking.objects.filter(
+        student=request.user,
+        teacher=teacher,
+        lesson_topic=topic,
+    ).filter(
+        Q(status=SupportLessonBooking.STATUS_REQUESTED)
+        | Q(status=SupportLessonBooking.STATUS_SCHEDULED, end_at__gte=now_value)
+    ).first()
+    if existing:
+        messages.info(request, 'You already have an active request or upcoming lesson for this topic with this teacher.')
+        return redirect('my_support_lessons')
 
     try:
         with transaction.atomic():
             locked_teacher = SupportTeacherProfile.objects.select_for_update().get(pk=teacher.pk)
             User.objects.select_for_update().get(pk=request.user.pk)
 
-            # Rebuild the slot after obtaining locks so two simultaneous clicks
-            # cannot reserve the same time.
-            locked_slot = _find_support_teacher_slot(
-                locked_teacher,
-                start_at,
-                end_at,
-                include_unavailable=True,
-            )
-            if not locked_slot or not locked_slot['is_available']:
-                raise IntegrityError("slot unavailable")
-
-            teacher_conflict = SupportLessonBooking.objects.filter(
-                teacher=locked_teacher,
-                status=SupportLessonBooking.STATUS_SCHEDULED,
-            ).filter(_support_booking_overlap_q(start_at, end_at)).exists()
-            student_conflict = SupportLessonBooking.objects.filter(
+            # Re-check under row locks so a double-click / parallel request cannot
+            # create two active requests for the same student, teacher and topic.
+            existing = SupportLessonBooking.objects.filter(
                 student=request.user,
-                status=SupportLessonBooking.STATUS_SCHEDULED,
-            ).filter(_support_booking_overlap_q(start_at, end_at)).exists()
+                teacher=locked_teacher,
+                lesson_topic=topic,
+            ).filter(
+                Q(status=SupportLessonBooking.STATUS_REQUESTED)
+                | Q(status=SupportLessonBooking.STATUS_SCHEDULED, end_at__gte=timezone.now())
+            ).first()
+            if existing:
+                messages.info(request, 'You already have an active request or upcoming lesson for this topic with this teacher.')
+                return redirect('my_support_lessons')
 
-            if teacher_conflict:
-                raise IntegrityError("teacher conflict")
-            if student_conflict:
-                messages.error(request, "You already have another support lesson during this time.")
-                return redirect('support_teacher_detail', teacher_id=teacher.id)
-
+            session = _find_open_support_topic_session(locked_teacher, topic, request.user)
             booking = SupportLessonBooking.objects.create(
                 teacher=locked_teacher,
                 student=request.user,
-                start_at=start_at,
-                end_at=end_at,
-                topic=topic,
+                session=session,
+                lesson_title=title,
+                lesson_topic=topic,
+                start_at=session.start_at if session else None,
+                end_at=session.end_at if session else None,
+                status=(
+                    SupportLessonBooking.STATUS_SCHEDULED
+                    if session else SupportLessonBooking.STATUS_REQUESTED
+                ),
                 student_note=student_note,
-                meeting_link=locked_teacher.meeting_link,
+                meeting_link=(session.meeting_link if session else '') or locked_teacher.meeting_link,
             )
     except IntegrityError:
-        messages.error(request, "This slot was just booked by another student. Please choose another time.")
-        return redirect('support_teacher_detail', teacher_id=teacher.id)
+        # The database constraints are the final guard for concurrent submissions.
+        messages.info(request, 'That support request already exists. Your current booking was kept unchanged.')
+        return redirect('my_support_lessons')
 
-    messages.success(
-        request,
-        f"Lesson booked with {teacher.name} for {timezone.localtime(booking.start_at):%d %b, %H:%M}.",
-    )
+    if booking.status == SupportLessonBooking.STATUS_SCHEDULED:
+        local_start = timezone.localtime(booking.start_at)
+        messages.success(
+            request,
+            f'You joined the existing {topic.name} group on {local_start:%d %b at %H:%M}.',
+        )
+    else:
+        messages.success(
+            request,
+            f'Request sent for {title.name} → {topic.name}. {teacher.name} will plan the time and students with the same topic will be grouped together.',
+        )
     return redirect('my_support_lessons')
 
 
@@ -4672,34 +4784,40 @@ def my_support_lessons(request):
     denied = _support_class_access_guard(request)
     if denied:
         return denied
+    if not _user_can_book_support_lessons(request.user):
+        if hasattr(request.user, 'support_teacher_profile'):
+            return redirect('support_teacher_planner')
+        if is_manager(request.user):
+            return redirect('manager_dashboard')
 
-    _sync_support_booking_completion_queryset(
-        SupportLessonBooking.objects.filter(student=request.user)
-    )
     bookings = list(
         SupportLessonBooking.objects.filter(student=request.user)
-        .select_related('teacher', 'teacher__user')
-        .order_by('-start_at')
+        .select_related('teacher', 'teacher__user', 'lesson_title', 'lesson_topic', 'session')
+        .order_by('-created_at')
     )
-
     now_value = timezone.now()
+    waiting_requests = [b for b in bookings if b.status == SupportLessonBooking.STATUS_REQUESTED]
     upcoming_bookings = sorted(
         [
-            booking for booking in bookings
-            if booking.status == SupportLessonBooking.STATUS_SCHEDULED and booking.end_at >= now_value
+            b for b in bookings
+            if b.status == SupportLessonBooking.STATUS_SCHEDULED
+            and b.end_at
+            and b.end_at >= now_value
         ],
-        key=lambda booking: booking.start_at,
+        key=lambda b: b.start_at,
     )
     history_bookings = [
-        booking for booking in bookings
-        if booking.status != SupportLessonBooking.STATUS_SCHEDULED or booking.end_at < now_value
+        b for b in bookings
+        if b.status not in {SupportLessonBooking.STATUS_REQUESTED, SupportLessonBooking.STATUS_SCHEDULED}
+        or (b.status == SupportLessonBooking.STATUS_SCHEDULED and b.end_at and b.end_at < now_value)
     ]
 
     return render(request, 'sat/my_support_lessons.html', {
+        'waiting_requests': waiting_requests,
         'upcoming_bookings': upcoming_bookings,
         'history_bookings': history_bookings,
         'next_booking': upcoming_bookings[0] if upcoming_bookings else None,
-        'completed_count': sum(1 for booking in history_bookings if booking.status == SupportLessonBooking.STATUS_COMPLETED),
+        'completed_count': sum(1 for b in history_bookings if b.status == SupportLessonBooking.STATUS_COMPLETED),
         'timezone_name': str(timezone.get_current_timezone()),
     })
 
@@ -4715,14 +4833,13 @@ def cancel_support_lesson(request, booking_id):
         SupportLessonBooking.objects.select_related('teacher'),
         id=booking_id,
         student=request.user,
-        status=SupportLessonBooking.STATUS_SCHEDULED,
+        status__in=[SupportLessonBooking.STATUS_REQUESTED, SupportLessonBooking.STATUS_SCHEDULED],
     )
-
     if not booking.student_can_cancel:
         notice = booking.teacher.cancellation_notice_hours
         messages.error(
             request,
-            f"Online cancellation closes {notice} hour{'s' if notice != 1 else ''} before the lesson. Contact the teacher if you need help.",
+            f'Online cancellation closes {notice} hour{"s" if notice != 1 else ""} before the lesson. Contact the teacher if you need help.',
         )
         return redirect('my_support_lessons')
 
@@ -4730,10 +4847,8 @@ def cancel_support_lesson(request, booking_id):
     booking.cancellation_reason = request.POST.get('reason', '').strip()[:500]
     booking.cancelled_by = SupportLessonBooking.CANCELLED_BY_STUDENT
     booking.cancelled_at = timezone.now()
-    booking.save(update_fields=[
-        'status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'
-    ])
-    messages.success(request, "Support lesson cancelled. The slot is available again.")
+    booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'])
+    messages.success(request, 'Support request cancelled.' if not booking.start_at else 'Support lesson cancelled.')
     return redirect('my_support_lessons')
 
 
@@ -4750,16 +4865,15 @@ def leave_support_lesson_feedback(request, booking_id):
         student=request.user,
     )
     if not booking.can_receive_feedback:
-        messages.error(request, "Feedback is available once after a completed lesson.")
+        messages.error(request, 'Feedback is available once after a completed lesson.')
         return redirect('my_support_lessons')
 
     try:
         rating = int(request.POST.get('rating', '0'))
     except (TypeError, ValueError):
         rating = 0
-
     if rating < 1 or rating > 5:
-        messages.error(request, "Rating must be between 1 and 5.")
+        messages.error(request, 'Rating must be between 1 and 5.')
         return redirect('my_support_lessons')
 
     feedback = request.POST.get('feedback', '').strip()
@@ -4775,10 +4889,10 @@ def leave_support_lesson_feedback(request, booking_id):
             feedback=feedback,
         )
     except IntegrityError:
-        messages.info(request, "Feedback for this lesson has already been submitted.")
+        messages.info(request, 'Feedback for this lesson has already been submitted.')
         return redirect('my_support_lessons')
 
-    messages.success(request, "Thank you. Your feedback was saved.")
+    messages.success(request, 'Thank you. Your private feedback was saved for teachers and managers.')
     return redirect('my_support_lessons')
 
 
@@ -4794,49 +4908,30 @@ def _support_booking_manager_profile(user, booking):
 @login_required(login_url='/login/')
 @require_POST
 def manage_support_lesson(request, booking_id):
+    """Manage an individual student booking (including no-show inside a group)."""
     booking = get_object_or_404(
-        SupportLessonBooking.objects.select_related('teacher', 'student', 'teacher__user'),
+        SupportLessonBooking.objects.select_related('teacher', 'student', 'teacher__user', 'session'),
         id=booking_id,
     )
     profile = _support_booking_manager_profile(request.user, booking)
     if not profile:
-        return HttpResponseForbidden("You cannot manage this support lesson.")
+        return HttpResponseForbidden('You cannot manage this support lesson.')
 
     action = request.POST.get('action', '').strip()
     now_value = timezone.now()
-
-    if action == 'update':
-        meeting_link = _validated_support_url(request.POST.get('meeting_link', ''))
-        if meeting_link is None:
-            messages.error(request, "Enter a valid http:// or https:// meeting link.")
-            return redirect(_support_safe_next_url(request))
-        booking.meeting_link = meeting_link
-        booking.teacher_note = request.POST.get('teacher_note', '').strip()[:1200]
-        booking.save(update_fields=['meeting_link', 'teacher_note', 'updated_at'])
-        messages.success(request, "Lesson details updated.")
-    elif action == 'complete':
+    if action == 'no_show':
         if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
-            messages.error(request, "Only scheduled lessons can be completed.")
-        elif now_value < booking.start_at and not _support_teacher_admin_allowed(request.user):
-            messages.error(request, "The lesson cannot be completed before it starts.")
-        else:
-            booking.status = SupportLessonBooking.STATUS_COMPLETED
-            booking.marked_completed_at = now_value
-            booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
-            messages.success(request, "Lesson marked as completed.")
-    elif action == 'no_show':
-        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
-            messages.error(request, "Only scheduled lessons can be marked as no-show.")
-        elif now_value < booking.start_at and not _support_teacher_admin_allowed(request.user):
-            messages.error(request, "A future lesson cannot be marked as no-show.")
+            messages.error(request, 'Only scheduled lessons can be marked as no-show.')
+        elif booking.start_at and now_value < booking.start_at and not _support_teacher_admin_allowed(request.user):
+            messages.error(request, 'A future lesson cannot be marked as no-show.')
         else:
             booking.status = SupportLessonBooking.STATUS_NO_SHOW
             booking.marked_completed_at = now_value
             booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
-            messages.success(request, "Lesson marked as no-show.")
+            messages.success(request, f'{booking.student.username} marked as no-show.')
     elif action == 'cancel':
-        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
-            messages.error(request, "Only scheduled lessons can be cancelled.")
+        if booking.status not in {SupportLessonBooking.STATUS_REQUESTED, SupportLessonBooking.STATUS_SCHEDULED}:
+            messages.error(request, 'Only active requests can be cancelled.')
         else:
             booking.status = SupportLessonBooking.STATUS_CANCELLED
             booking.cancellation_reason = request.POST.get('cancellation_reason', '').strip()[:500]
@@ -4846,14 +4941,183 @@ def manage_support_lesson(request, booking_id):
                 else SupportLessonBooking.CANCELLED_BY_TEACHER
             )
             booking.cancelled_at = now_value
-            booking.save(update_fields=[
-                'status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'
-            ])
-            messages.success(request, "Lesson cancelled and the slot was released.")
+            booking.save(update_fields=['status', 'cancellation_reason', 'cancelled_by', 'cancelled_at', 'updated_at'])
+            messages.success(request, 'Student request cancelled.')
+    elif action == 'complete' and not booking.session_id:
+        if booking.status != SupportLessonBooking.STATUS_SCHEDULED:
+            messages.error(request, 'Only scheduled lessons can be completed.')
+        else:
+            booking.status = SupportLessonBooking.STATUS_COMPLETED
+            booking.marked_completed_at = now_value
+            booking.save(update_fields=['status', 'marked_completed_at', 'updated_at'])
+            messages.success(request, 'Lesson marked as completed.')
     else:
-        messages.error(request, "Unknown lesson action.")
-
+        messages.error(request, 'Use the group-session controls for this action.')
     return redirect(_support_safe_next_url(request))
+
+
+@login_required(login_url='/login/')
+@require_POST
+def schedule_support_topic_session(request):
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    is_admin = _support_teacher_admin_allowed(request.user)
+    if not profile and not is_admin:
+        return HttpResponseForbidden('Only support teachers can schedule topic sessions.')
+
+    if is_admin and request.POST.get('teacher_id'):
+        profile = get_object_or_404(SupportTeacherProfile, id=request.POST.get('teacher_id'))
+    if not profile:
+        return HttpResponseForbidden('No support teacher profile selected.')
+
+    try:
+        topic_id = int(request.POST.get('lesson_topic', '0'))
+        max_students = int(request.POST.get('max_students', '20'))
+    except (TypeError, ValueError):
+        topic_id = 0
+        max_students = 20
+    topic = get_object_or_404(SupportLessonTopic.objects.select_related('title'), id=topic_id, is_active=True)
+    max_students = max(1, min(max_students, 100))
+    start_at, end_at = _parse_support_lesson_slot(request.POST.get('slot', ''))
+    slot = _find_support_teacher_slot(profile, start_at, end_at, include_unavailable=True, respect_notice=False)
+    if not slot or not slot['is_available']:
+        messages.error(request, 'That time is not available anymore. Choose another teacher slot.')
+        return redirect('support_teacher_planner')
+
+    meeting_link = _validated_support_url(request.POST.get('meeting_link', ''))
+    if meeting_link is None:
+        messages.error(request, 'Enter a valid http:// or https:// meeting link.')
+        return redirect('support_teacher_planner')
+
+    with transaction.atomic():
+        locked_profile = SupportTeacherProfile.objects.select_for_update().get(pk=profile.pk)
+        locked_slot = _find_support_teacher_slot(
+            locked_profile,
+            start_at,
+            end_at,
+            include_unavailable=True,
+            respect_notice=False,
+        )
+        if not locked_slot or not locked_slot['is_available']:
+            messages.error(request, 'That time was just taken by another session.')
+            return redirect('support_teacher_planner')
+
+        session = SupportLessonSession.objects.create(
+            teacher=locked_profile,
+            lesson_topic=topic,
+            start_at=start_at,
+            end_at=end_at,
+            meeting_link=meeting_link or locked_profile.meeting_link,
+            teacher_note=request.POST.get('teacher_note', '').strip()[:1200],
+            max_students=max_students,
+            is_open_for_requests=request.POST.get('is_open_for_requests') in {'1', 'true', 'on', 'yes'},
+            created_by=request.user,
+        )
+
+        pending = list(
+            SupportLessonBooking.objects.select_for_update()
+            .filter(
+                teacher=locked_profile,
+                lesson_topic=topic,
+                status=SupportLessonBooking.STATUS_REQUESTED,
+            )
+            .select_related('student')
+            .order_by('created_at')
+        )
+        assigned = 0
+        skipped_conflicts = 0
+        for booking in pending:
+            if assigned >= max_students:
+                break
+            if _student_support_conflict(booking.student, start_at, end_at, exclude_booking_id=booking.id):
+                skipped_conflicts += 1
+                continue
+            _assign_booking_to_support_session(booking, session)
+            assigned += 1
+
+    message = f'{topic.name} scheduled for {timezone.localtime(start_at):%d %b, %H:%M}. {assigned} student request(s) grouped into the session.'
+    if skipped_conflicts:
+        message += f' {skipped_conflicts} request(s) stayed pending because of time conflicts.'
+    messages.success(request, message)
+    return redirect('support_teacher_planner')
+
+
+@login_required(login_url='/login/')
+@require_POST
+def manage_support_session(request, session_id):
+    session = get_object_or_404(
+        SupportLessonSession.objects.select_related('teacher', 'lesson_topic'),
+        id=session_id,
+    )
+    profile = getattr(request.user, 'support_teacher_profile', None)
+    if not _support_teacher_admin_allowed(request.user) and (not profile or profile.pk != session.teacher_id):
+        return HttpResponseForbidden('You cannot manage this support session.')
+
+    action = request.POST.get('action', '').strip()
+    now_value = timezone.now()
+    if action == 'update':
+        link = _validated_support_url(request.POST.get('meeting_link', ''))
+        if link is None:
+            messages.error(request, 'Enter a valid meeting link.')
+            return redirect('support_teacher_planner')
+        session.meeting_link = link
+        session.teacher_note = request.POST.get('teacher_note', '').strip()[:1200]
+        session.is_open_for_requests = request.POST.get('is_open_for_requests') in {'1', 'true', 'on', 'yes'}
+        session.save(update_fields=['meeting_link', 'teacher_note', 'is_open_for_requests', 'updated_at'])
+        if link:
+            session.bookings.filter(status=SupportLessonBooking.STATUS_SCHEDULED).update(meeting_link=link)
+        messages.success(request, 'Group session updated.')
+    elif action == 'complete':
+        if session.status != SupportLessonSession.STATUS_SCHEDULED:
+            messages.error(request, 'Only scheduled sessions can be completed.')
+        elif now_value < session.start_at and not _support_teacher_admin_allowed(request.user):
+            messages.error(request, 'The session cannot be completed before it starts.')
+        else:
+            session.status = SupportLessonSession.STATUS_COMPLETED
+            session.is_open_for_requests = False
+            session.save(update_fields=['status', 'is_open_for_requests', 'updated_at'])
+            session.bookings.filter(status=SupportLessonBooking.STATUS_SCHEDULED).update(
+                status=SupportLessonBooking.STATUS_COMPLETED,
+                marked_completed_at=now_value,
+                updated_at=now_value,
+            )
+            messages.success(request, 'Group session and attending bookings marked completed.')
+    elif action == 'cancel':
+        if session.status != SupportLessonSession.STATUS_SCHEDULED:
+            messages.error(request, 'Only scheduled sessions can be cancelled.')
+        else:
+            session.status = SupportLessonSession.STATUS_CANCELLED
+            session.is_open_for_requests = False
+            session.save(update_fields=['status', 'is_open_for_requests', 'updated_at'])
+            cancelled_by = (
+                SupportLessonBooking.CANCELLED_BY_ADMIN
+                if _support_teacher_admin_allowed(request.user)
+                else SupportLessonBooking.CANCELLED_BY_TEACHER
+            )
+            reason = request.POST.get('cancellation_reason', '').strip()[:500]
+            session.bookings.filter(status=SupportLessonBooking.STATUS_SCHEDULED).update(
+                status=SupportLessonBooking.STATUS_CANCELLED,
+                cancelled_by=cancelled_by,
+                cancelled_at=now_value,
+                cancellation_reason=reason,
+                updated_at=now_value,
+            )
+            messages.success(request, 'Group session cancelled.')
+    elif action == 'open':
+        if session.status != SupportLessonSession.STATUS_SCHEDULED or session.end_at <= now_value:
+            messages.error(request, 'Only an upcoming scheduled session can accept new matching requests.')
+        elif session.available_seats <= 0:
+            messages.error(request, 'This session is already full.')
+        else:
+            session.is_open_for_requests = True
+            session.save(update_fields=['is_open_for_requests', 'updated_at'])
+            messages.success(request, 'New matching requests can now join this session automatically.')
+    elif action == 'close':
+        session.is_open_for_requests = False
+        session.save(update_fields=['is_open_for_requests', 'updated_at'])
+        messages.success(request, 'Automatic enrollment for this session is closed.')
+    else:
+        messages.error(request, 'Unknown session action.')
+    return redirect('support_teacher_planner')
 
 
 @login_required(login_url='/login/')
@@ -4861,65 +5125,94 @@ def support_teacher_planner(request):
     profile = getattr(request.user, 'support_teacher_profile', None)
     is_admin = _support_teacher_admin_allowed(request.user)
     if not profile and not is_admin:
-        return HttpResponseForbidden("Only support teachers can view this planner.")
+        return HttpResponseForbidden('Only support teachers can view this planner.')
 
     teacher_id = request.GET.get('teacher')
     if is_admin and teacher_id:
         profile = get_object_or_404(SupportTeacherProfile, id=teacher_id)
-
     if not profile:
         profile = SupportTeacherProfile.objects.select_related('user').first()
         if not profile:
-            return HttpResponseForbidden("No support teacher profile exists yet.")
+            return HttpResponseForbidden('No support teacher profile exists yet.')
 
-    _sync_support_booking_completion_queryset(
-        SupportLessonBooking.objects.filter(teacher=profile)
-    )
     now_value = timezone.now()
-    today = timezone.localdate()
-    action_window_start = _make_local_datetime(today - timedelta(days=7), datetime.min.time())
-    week_end = today + timedelta(days=7)
-    range_end = _make_local_datetime(week_end + timedelta(days=1), datetime.min.time())
-
-    upcoming_bookings = list(
+    pending_requests = list(
         SupportLessonBooking.objects.filter(
             teacher=profile,
-            status=SupportLessonBooking.STATUS_SCHEDULED,
-            start_at__gte=action_window_start,
-            start_at__lt=range_end,
-        ).select_related('student').order_by('start_at')
+            status=SupportLessonBooking.STATUS_REQUESTED,
+        ).select_related('student', 'lesson_title', 'lesson_topic').order_by('lesson_topic__name', 'created_at')
     )
-    schedule_by_date = defaultdict(list)
-    for booking in upcoming_bookings:
-        schedule_by_date[timezone.localtime(booking.start_at).date()].append(booking)
-    schedule_days = [
-        {
-            'date': day,
-            'date_label': day.strftime('%d %b %Y'),
-            'day_label': day.strftime('%A'),
-            'bookings': rows,
-        }
-        for day, rows in sorted(schedule_by_date.items())
-    ]
+    pending_by_topic = {}
+    for booking in pending_requests:
+        key = booking.lesson_topic_id or f'legacy-{booking.topic}'
+        row = pending_by_topic.setdefault(key, {
+            'lesson_topic': booking.lesson_topic,
+            'title': booking.display_title,
+            'topic': booking.display_topic,
+            'bookings': [],
+        })
+        row['bookings'].append(booking)
+    pending_groups = list(pending_by_topic.values())
+    for row in pending_groups:
+        row['count'] = len(row['bookings'])
+        row['oldest_created_at'] = min(booking.created_at for booking in row['bookings'])
+    # Demand first, then oldest request. This gives the teacher a sensible
+    # recommendation for the next class without removing teacher control.
+    pending_groups.sort(key=lambda row: (-row['count'], row['oldest_created_at']))
 
-    history_bookings = list(
-        SupportLessonBooking.objects.filter(teacher=profile)
-        .exclude(status=SupportLessonBooking.STATUS_SCHEDULED)
-        .select_related('student')
-        .order_by('-start_at')[:40]
+    upcoming_sessions = list(
+        SupportLessonSession.objects.filter(
+            teacher=profile,
+            status=SupportLessonSession.STATUS_SCHEDULED,
+            end_at__gte=now_value - timedelta(hours=3),
+        )
+        .select_related('lesson_topic', 'lesson_topic__title')
+        .prefetch_related('bookings__student')
+        .order_by('start_at')
     )
-    all_slots = _build_support_teacher_slots(profile, days=14, include_unavailable=True)
+    history_sessions = list(
+        SupportLessonSession.objects.filter(teacher=profile)
+        .exclude(status=SupportLessonSession.STATUS_SCHEDULED)
+        .select_related('lesson_topic', 'lesson_topic__title')
+        .prefetch_related('bookings__student')
+        .order_by('-start_at')[:30]
+    )
+    legacy_bookings = list(
+        SupportLessonBooking.objects.filter(
+            teacher=profile,
+            session__isnull=True,
+            status=SupportLessonBooking.STATUS_SCHEDULED,
+            start_at__isnull=False,
+        ).select_related('student').order_by('start_at')[:30]
+    )
+    available_slots = _build_support_teacher_slots(
+        profile,
+        days=14,
+        include_unavailable=False,
+        respect_notice=False,
+    )
+    recommended_group = next(
+        (row for row in pending_groups if row.get('lesson_topic') is not None),
+        None,
+    )
+    recommended_slot = available_slots[0] if available_slots else None
+    reviews = profile.reviews.select_related(
+        'student', 'booking', 'booking__lesson_topic'
+    ).order_by('-created_at')[:30]
 
     return render(request, 'sat/support_teacher_planner.html', {
         'teacher': profile,
-        'slot_groups': _group_support_slots(all_slots),
-        'schedule_days': schedule_days,
-        'upcoming_bookings': upcoming_bookings,
-        'history_bookings': history_bookings,
-        'reviews': profile.reviews.select_related('student').order_by('-created_at')[:20],
-        'today_booking_count': sum(1 for booking in upcoming_bookings if timezone.localdate(booking.start_at) == today),
-        'week_booking_count': sum(1 for booking in upcoming_bookings if booking.end_at >= now_value),
-        'action_required_count': sum(1 for booking in upcoming_bookings if booking.awaiting_confirmation),
+        'pending_groups': pending_groups,
+        'pending_request_count': len(pending_requests),
+        'upcoming_sessions': upcoming_sessions,
+        'history_sessions': history_sessions,
+        'legacy_bookings': legacy_bookings,
+        'slot_groups': _group_support_slots(available_slots),
+        'recommended_group': recommended_group,
+        'recommended_slot': recommended_slot,
+        'lesson_titles': _active_support_titles(),
+        'reviews': reviews,
+        'today_session_count': sum(1 for s in upcoming_sessions if timezone.localdate(s.start_at) == timezone.localdate()),
         'completed_count': SupportLessonBooking.objects.filter(
             teacher=profile,
             status=SupportLessonBooking.STATUS_COMPLETED,
@@ -4934,12 +5227,228 @@ def support_teacher_planner(request):
     })
 
 
-def is_teacher(user):
-    return (
-        user.is_superuser
-        or user.is_staff
-        or user.groups.filter(name__iexact='teacher').exists()
+@login_required(login_url='/login/')
+def manager_dashboard(request):
+    if not (_support_teacher_admin_allowed(request.user) or is_manager(request.user)):
+        return HttpResponseForbidden('Manager access required.')
+
+    now_value = timezone.now()
+    classroom_teachers = (
+        User.objects.filter(owned_classrooms__is_active=True)
+        .annotate(
+            active_classrooms_count=Count(
+                'owned_classrooms',
+                filter=Q(owned_classrooms__is_active=True),
+                distinct=True,
+            ),
+            approved_students_count=Count(
+                'owned_classrooms__memberships__user',
+                filter=Q(
+                    owned_classrooms__is_active=True,
+                    owned_classrooms__memberships__role='student',
+                    owned_classrooms__memberships__status='approved',
+                ),
+                distinct=True,
+            ),
+            pending_students_count=Count(
+                'owned_classrooms__memberships__user',
+                filter=Q(
+                    owned_classrooms__is_active=True,
+                    owned_classrooms__memberships__role='student',
+                    owned_classrooms__memberships__status='pending',
+                ),
+                distinct=True,
+            ),
+        )
+        .order_by('-approved_students_count', 'first_name', 'username')
     )
+
+    support_teachers = (
+        SupportTeacherProfile.objects.select_related('user')
+        .annotate(
+            assigned_students_count=Count(
+                'bookings__student',
+                filter=~Q(bookings__status=SupportLessonBooking.STATUS_CANCELLED),
+                distinct=True,
+            ),
+            waiting_requests_count=Count(
+                'bookings',
+                filter=Q(bookings__status=SupportLessonBooking.STATUS_REQUESTED),
+                distinct=True,
+            ),
+            upcoming_students_count=Count(
+                'bookings__student',
+                filter=Q(
+                    bookings__status=SupportLessonBooking.STATUS_SCHEDULED,
+                    bookings__end_at__gte=now_value,
+                ),
+                distinct=True,
+            ),
+            completed_session_count=Count(
+                'sessions',
+                filter=Q(sessions__status=SupportLessonSession.STATUS_COMPLETED),
+                distinct=True,
+            ),
+            legacy_completed_booking_count=Count(
+                'bookings',
+                filter=Q(
+                    bookings__status=SupportLessonBooking.STATUS_COMPLETED,
+                    bookings__session__isnull=True,
+                ),
+                distinct=True,
+            ),
+            manager_avg_rating=Avg(
+                'reviews__rating',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+            ),
+            manager_reviews_count=Count(
+                'reviews',
+                filter=Q(reviews__booking__status=SupportLessonBooking.STATUS_COMPLETED),
+                distinct=True,
+            ),
+        )
+        .order_by('sort_order', 'display_name', 'user__username')
+    )
+    for teacher in support_teachers:
+        teacher.manager_rating = round(float(teacher.manager_avg_rating), 1) if teacher.manager_avg_rating is not None else None
+        teacher.manager_completed_classes = (
+            int(teacher.completed_session_count or 0)
+            + int(teacher.legacy_completed_booking_count or 0)
+        )
+
+    recent_reviews = list(
+        SupportTeacherReview.objects.select_related(
+            'teacher', 'teacher__user', 'student', 'booking', 'booking__lesson_topic'
+        ).filter(booking__status=SupportLessonBooking.STATUS_COMPLETED).order_by('-created_at')[:40]
+    )
+    upcoming_sessions = list(
+        SupportLessonSession.objects.filter(
+            status=SupportLessonSession.STATUS_SCHEDULED,
+            end_at__gte=now_value,
+        ).select_related('teacher', 'lesson_topic', 'lesson_topic__title').annotate(
+            display_student_count=Count(
+                'bookings',
+                filter=~Q(bookings__status=SupportLessonBooking.STATUS_CANCELLED),
+            )
+        ).order_by('start_at')[:30]
+    )
+
+    total_students = ClassroomMembership.objects.filter(
+        role='student', status='approved', classroom__is_active=True
+    ).values('user_id').distinct().count()
+    total_support_students = SupportLessonBooking.objects.exclude(
+        status=SupportLessonBooking.STATUS_CANCELLED
+    ).values('student_id').distinct().count()
+
+    return render(request, 'sat/manager_dashboard.html', {
+        'classroom_teachers': classroom_teachers,
+        'support_teachers': support_teachers,
+        'recent_reviews': recent_reviews,
+        'upcoming_sessions': upcoming_sessions,
+        'total_classroom_teachers': classroom_teachers.count(),
+        'total_students': total_students,
+        'total_support_teachers': support_teachers.count(),
+        'total_support_students': total_support_students,
+        'waiting_requests_total': SupportLessonBooking.objects.filter(status=SupportLessonBooking.STATUS_REQUESTED).count(),
+        'timezone_name': str(timezone.get_current_timezone()),
+    })
+
+
+@login_required(login_url='/login/')
+def manager_teacher_detail(request, teacher_id):
+    if not (_support_teacher_admin_allowed(request.user) or is_manager(request.user)):
+        return HttpResponseForbidden('Manager access required.')
+
+    teacher = get_object_or_404(User, pk=teacher_id)
+    classrooms = list(
+        Classroom.objects.filter(teacher=teacher)
+        .annotate(
+            approved_students_count=Count(
+                'memberships__user',
+                filter=Q(memberships__role='student', memberships__status='approved'),
+                distinct=True,
+            ),
+            pending_students_count=Count(
+                'memberships__user',
+                filter=Q(memberships__role='student', memberships__status='pending'),
+                distinct=True,
+            ),
+        )
+        .order_by('-is_active', '-created_at')
+    )
+
+    memberships = list(
+        ClassroomMembership.objects.filter(
+            classroom__teacher=teacher,
+            role='student',
+            status='approved',
+        )
+        .select_related('user', 'classroom')
+        .order_by('classroom__name', 'user__first_name', 'user__username')
+    )
+    students_by_classroom = defaultdict(list)
+    unique_student_ids = set()
+    for membership in memberships:
+        students_by_classroom[membership.classroom_id].append(membership)
+        unique_student_ids.add(membership.user_id)
+
+    for classroom in classrooms:
+        classroom.manager_students = students_by_classroom.get(classroom.id, [])
+
+    return render(request, 'sat/manager_teacher_detail.html', {
+        'teacher': teacher,
+        'classrooms': classrooms,
+        'total_classrooms': len(classrooms),
+        'active_classrooms': sum(1 for classroom in classrooms if classroom.is_active),
+        'unique_students_count': len(unique_student_ids),
+        'pending_joins_count': sum(int(classroom.pending_students_count or 0) for classroom in classrooms),
+    })
+
+
+@login_required(login_url='/login/')
+def manager_classroom_detail(request, classroom_id):
+    if not (_support_teacher_admin_allowed(request.user) or is_manager(request.user)):
+        return HttpResponseForbidden('Manager access required.')
+
+    classroom = get_object_or_404(Classroom.objects.select_related('teacher'), pk=classroom_id)
+    approved_students = list(
+        ClassroomMembership.objects.filter(
+            classroom=classroom,
+            role='student',
+            status='approved',
+        )
+        .select_related('user')
+        .order_by('user__first_name', 'user__last_name', 'user__username')
+    )
+    pending_students = list(
+        ClassroomMembership.objects.filter(
+            classroom=classroom,
+            role='student',
+            status='pending',
+        )
+        .select_related('user')
+        .order_by('requested_at')
+    )
+
+    return render(request, 'sat/manager_classroom_detail.html', {
+        'classroom': classroom,
+        'teacher': classroom.teacher,
+        'approved_students': approved_students,
+        'pending_students': pending_students,
+        'approved_students_count': len(approved_students),
+        'pending_students_count': len(pending_students),
+    })
+
+
+def is_teacher(user):
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser or user.is_staff or user.groups.filter(name__iexact='teacher').exists():
+        return True
+    # Classroom ownership is also authoritative for legacy teacher accounts that
+    # predate the Teacher group assignment. This keeps teacher-only support
+    # feedback and classroom routes available without granting Django staff access.
+    return Classroom.objects.filter(teacher=user, is_active=True).exists()
 
 
 def generate_6_digit_code():
@@ -5278,6 +5787,9 @@ def _student_global_goal_context(user):
 @login_required(login_url='/login/')
 @ensure_csrf_cookie
 def classroom_entry(request):
+    if is_manager(request.user):
+        return redirect('manager_dashboard')
+
     if is_teacher(request.user):
         return redirect('teacher_classroom_list')
 
@@ -5872,7 +6384,6 @@ def update_student_section_access(request, classroom_id, user_id):
 
     if request.method == 'POST':
         selected_sections = set(request.POST.getlist('sections'))
-
         for section in section_keys:
             access_obj, _ = StudentSectionAccess.objects.get_or_create(
                 membership=membership,
@@ -5904,7 +6415,11 @@ def update_student_section_access(request, classroom_id, user_id):
 
 @login_required(login_url='/login/')
 def update_classroom_section_access(request, classroom_id):
-    """Set section access for ALL approved students in the classroom at once."""
+    """Save classroom-wide section defaults and apply them to current students.
+
+    This is a persistent classroom policy, so students approved later inherit the
+    same section access automatically.
+    """
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
     if classroom.teacher != request.user and not request.user.is_superuser:
@@ -5923,6 +6438,18 @@ def update_classroom_section_access(request, classroom_id):
 
     if request.method == 'POST':
         selected_sections = set(request.POST.getlist('sections'))
+        previous_practice_default = ClassroomSectionAccessPolicy.objects.filter(
+            classroom=classroom,
+            section='practice_tests',
+        ).values_list('has_access', flat=True).first()
+
+        for section in section_keys:
+            ClassroomSectionAccessPolicy.objects.update_or_create(
+                classroom=classroom,
+                section=section,
+                defaults={'has_access': section in selected_sections},
+            )
+
         for membership in memberships:
             for section in section_keys:
                 access_obj, _ = StudentSectionAccess.objects.get_or_create(
@@ -5932,27 +6459,51 @@ def update_classroom_section_access(request, classroom_id):
                 )
                 access_obj.has_access = section in selected_sections
                 access_obj.save(update_fields=['has_access'])
-        messages.success(request, f"Resource access updated for all {len(memberships)} students.")
+
+        # If Practice Tests has just been enabled, materialize any test policy
+        # that may already have been configured before students joined.
+        if 'practice_tests' in selected_sections and previous_practice_default is not True:
+            from .classroom_access_policy import apply_classroom_access_policy_to_membership
+            for membership in memberships:
+                apply_classroom_access_policy_to_membership(membership)
+
+        messages.success(
+            request,
+            f"Classroom access policy saved and applied to {len(memberships)} current "
+            "student(s). New students will inherit it automatically."
+        )
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
-    # Pre-populate: a section shows as checked if more than half of students have it.
     section_counts = {s: 0 for s in section_keys}
     for membership in memberships:
         amap = get_membership_section_access_map(membership)
         for section in section_keys:
             if amap.get(section):
                 section_counts[section] += 1
+
     total = len(memberships)
-    majority_access = {
+    legacy_majority_access = {
         s: (section_counts[s] > total / 2) for s in section_keys
     } if total else {s: False for s in section_keys}
+
+    saved_policies = {
+        item.section: item.has_access
+        for item in ClassroomSectionAccessPolicy.objects.filter(
+            classroom=classroom,
+            section__in=section_keys,
+        )
+    }
+    policy_access = {
+        section: saved_policies.get(section, legacy_majority_access[section])
+        for section in section_keys
+    }
 
     section_rows = [
         {
             'key': section['key'],
             'label': section['label'],
             'count': section_counts[section['key']],
-            'checked': majority_access[section['key']],
+            'checked': policy_access[section['key']],
         }
         for section in section_options
     ]
@@ -5960,9 +6511,10 @@ def update_classroom_section_access(request, classroom_id):
     return render(request, 'sat/update_classroom_section_access.html', {
         'classroom': classroom,
         'student_count': total,
-        'majority_access': majority_access,
+        'majority_access': policy_access,
         'section_counts': section_counts,
         'section_rows': section_rows,
+        'has_saved_policy': bool(saved_policies),
     })
 
 
@@ -8051,6 +8603,7 @@ def update_classroom_ap_test_access(request, classroom_id):
 
 @login_required(login_url='/login/')
 def update_classroom_practice_test_access(request, classroom_id):
+    """Save a persistent classroom SAT-test policy and sync current students."""
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
     if classroom.teacher != request.user and not request.user.is_superuser:
@@ -8090,33 +8643,34 @@ def update_classroom_practice_test_access(request, classroom_id):
     tests = sorted(tests, key=lambda t: (get_day_number(t), str(t.name)))
     all_test_ids = {str(test.pk) for test in tests}
 
-    selected_test_ids = set()
-    access_mode = 'selected'
-
-    if eligible_memberships:
-        first_membership = eligible_memberships[0]
-        selected_test_ids = set(
-            str(pk) for pk in StudentPracticeTestAccess.objects.filter(
-                membership=first_membership,
-                has_access=True
-            ).values_list('test__pk', flat=True)
-        )
-
-        if selected_test_ids == all_test_ids and all_test_ids:
-            access_mode = 'all'
+    policy = ClassroomPracticeTestAccessPolicy.objects.filter(classroom=classroom).first()
+    if policy:
+        access_mode = policy.access_mode
+        if access_mode == ClassroomPracticeTestAccessPolicy.ACCESS_MODE_ALL:
+            selected_test_ids = set(all_test_ids)
         else:
-            access_mode = 'selected'
+            selected_test_ids = set(
+                str(pk) for pk in policy.selected_tests.values_list('pk', flat=True)
+            )
+    else:
+        selected_test_ids = set()
+        access_mode = 'selected'
+        if eligible_memberships:
+            first_membership = eligible_memberships[0]
+            selected_test_ids = set(
+                str(pk) for pk in StudentPracticeTestAccess.objects.filter(
+                    membership=first_membership,
+                    has_access=True
+                ).values_list('test__pk', flat=True)
+            )
+            if selected_test_ids == all_test_ids and all_test_ids:
+                access_mode = 'all'
 
     if request.method == 'POST':
         access_mode = request.POST.get('access_mode', 'selected')
         selected_test_ids = set(request.POST.getlist('tests'))
-
-        if not eligible_memberships:
-            messages.error(
-                request,
-                "There are no approved students with Practice Tests section enabled."
-            )
-            return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
+        if access_mode not in {'all', 'selected'}:
+            access_mode = 'selected'
 
         if access_mode == 'selected' and not selected_test_ids:
             messages.error(request, "Select at least one practice test.")
@@ -8127,45 +8681,51 @@ def update_classroom_practice_test_access(request, classroom_id):
                 'total_students_count': len(memberships),
                 'selected_test_ids': selected_test_ids,
                 'access_mode': 'selected',
+                'has_saved_policy': bool(policy),
             })
 
-        membership_ids = [membership.id for membership in eligible_memberships]
-
-        StudentPracticeTestAccess.objects.filter(
-            membership_id__in=membership_ids
-        ).delete()
+        policy, _ = ClassroomPracticeTestAccessPolicy.objects.update_or_create(
+            classroom=classroom,
+            defaults={'access_mode': access_mode},
+        )
 
         if access_mode == 'all':
+            policy.selected_tests.clear()
             selected_tests = tests
-            selected_test_ids = {str(test.pk) for test in tests}
+            selected_test_ids = set(all_test_ids)
         else:
             selected_tests = [test for test in tests if str(test.pk) in selected_test_ids]
+            policy.selected_tests.set(selected_tests)
 
-        bulk_items = []
-        for membership in eligible_memberships:
-            for test in selected_tests:
-                bulk_items.append(
-                    StudentPracticeTestAccess(
-                        membership=membership,
-                        test=test,
-                        has_access=True
+        membership_ids = [membership.id for membership in eligible_memberships]
+        if membership_ids:
+            StudentPracticeTestAccess.objects.filter(
+                membership_id__in=membership_ids
+            ).delete()
+
+            bulk_items = []
+            for membership in eligible_memberships:
+                for test in selected_tests:
+                    bulk_items.append(
+                        StudentPracticeTestAccess(
+                            membership=membership,
+                            test=test,
+                            has_access=True
+                        )
                     )
-                )
+            if bulk_items:
+                StudentPracticeTestAccess.objects.bulk_create(bulk_items)
 
-        if bulk_items:
-            StudentPracticeTestAccess.objects.bulk_create(bulk_items)
-
-        if access_mode == 'all':
-            messages.success(
-                request,
-                f'All practice tests were granted for {len(eligible_memberships)} students.'
-            )
-        else:
-            messages.success(
-                request,
-                f'Selected practice tests were granted for {len(eligible_memberships)} students.'
-            )
-
+        mode_label = (
+            'all practice tests'
+            if access_mode == 'all'
+            else f'{len(selected_tests)} selected practice test(s)'
+        )
+        messages.success(
+            request,
+            f"Classroom default saved: {mode_label}. Applied to {len(eligible_memberships)} "
+            "current student(s); future approved students will inherit it automatically."
+        )
         return redirect('teacher_classroom_dashboard', classroom_id=classroom.id)
 
     return render(request, 'sat/update_classroom_practice_test_access.html', {
@@ -8175,4 +8735,5 @@ def update_classroom_practice_test_access(request, classroom_id):
         'total_students_count': len(memberships),
         'selected_test_ids': selected_test_ids,
         'access_mode': access_mode,
+        'has_saved_policy': bool(policy),
     })

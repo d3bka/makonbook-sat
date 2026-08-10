@@ -553,8 +553,8 @@ def admin_support_teachers(request):
 @admin_panel_required
 def admin_support_bookings(request):
     bookings = SupportLessonBooking.objects.select_related(
-        'teacher', 'teacher__user', 'student'
-    ).order_by('-start_at')
+        'teacher', 'teacher__user', 'student', 'lesson_title', 'lesson_topic', 'session'
+    ).order_by('-created_at')
     query = request.GET.get('q', '').strip()
     status = request.GET.get('status', '').strip()
     teacher_id = request.GET.get('teacher', '').strip()
@@ -581,6 +581,7 @@ def admin_support_bookings(request):
 
     summary = SupportLessonBooking.objects.aggregate(
         total=Count('id'),
+        requested=Count('id', filter=Q(status=SupportLessonBooking.STATUS_REQUESTED)),
         scheduled=Count('id', filter=Q(status=SupportLessonBooking.STATUS_SCHEDULED)),
         completed=Count('id', filter=Q(status=SupportLessonBooking.STATUS_COMPLETED)),
         cancelled=Count('id', filter=Q(status=SupportLessonBooking.STATUS_CANCELLED)),
@@ -649,7 +650,7 @@ def admin_support_teacher_edit(request, teacher_id):
 
     availability_form = SupportTeacherAvailabilityForm(initial={'is_active': True})
     availabilities = teacher.availabilities.all().order_by('day_of_week', 'start_time')
-    recent_bookings = SupportLessonBooking.objects.filter(teacher=teacher).select_related('student').order_by('-start_at')[:20]
+    recent_bookings = SupportLessonBooking.objects.filter(teacher=teacher).select_related('student', 'lesson_title', 'lesson_topic', 'session').order_by('-created_at')[:20]
 
     return render(request, 'sat/admin/support_teacher_form.html', {
         'form': form,

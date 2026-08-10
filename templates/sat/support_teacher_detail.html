@@ -2,260 +2,186 @@
 {% load static %}
 
 {% block title-main %}{{ teacher.name }}{% endblock title-main %}
-{% block title-subtitle %}<span>Choose a verified lesson time</span>{% endblock title-subtitle %}
-{% block breadcrumb_parent %}<li><a href="{% url 'support_teacher_list' %}">Support Teachers</a></li>{% endblock breadcrumb_parent %}
-{% block title %}Teacher Schedule{% endblock title %}
+{% block title-subtitle %}<span>Choose a topic, not a random time slot</span>{% endblock title-subtitle %}
+{% block title %}Support Teacher{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/support-booking-v29.css' %}?v=29">
+<link rel="stylesheet" href="{% static 'assets/css/support-booking-v33.css' %}?v=33">
 {% endblock style %}
 
 {% block content %}
 <div class="support-shell support-stack">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="support-alert {{ message.tags|default:'info' }}">
-        <i class="bi bi-info-circle"></i><span>{{ message }}</span>
-      </div>
-    {% endfor %}
-  {% endif %}
+  {% if messages %}{% for message in messages %}<div class="support-alert {{ message.tags|default:'info' }}"><i class="bi bi-info-circle"></i><span>{{ message }}</span></div>{% endfor %}{% endif %}
 
-  <section class="support-card support-hero">
+  <section class="support-card support-hero support-hero-compact">
     <div class="support-hero-content">
       <div>
-        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> Support Teacher Profile</div>
-        <h1>{{ teacher.name }}</h1>
-        {% if teacher.headline %}<div class="support-hero-headline">{{ teacher.headline }}</div>{% endif %}
-        <p>{% if teacher.bio %}{{ teacher.bio }}{% else %}Focused one-to-one SAT support for difficult questions, mistake analysis, and study strategy.{% endif %}</p>
+        <div class="support-eyebrow"><span class="support-eyebrow-dot"></span> {{ teacher.name }}</div>
+        <h1>Request the exact topic you need.</h1>
+        <p>The teacher chooses the class time. If a matching group is already planned and still open, your request can join it automatically.</p>
         <div class="support-hero-actions">
           <a class="support-btn support-btn-light" href="{% url 'support_teacher_list' %}"><i class="bi bi-arrow-left"></i> All teachers</a>
-          {% if teacher.clean_telegram_username %}
-            <a class="support-btn support-btn-ghost-light" href="{{ teacher.telegram_url }}" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> @{{ teacher.clean_telegram_username }}</a>
-          {% endif %}
-          {% if is_profile_owner %}
-            <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_profile_edit' %}"><i class="bi bi-person-gear"></i> Edit profile</a>
-          {% endif %}
+          {% if can_book %}<a class="support-btn support-btn-ghost-light" href="{% url 'my_support_lessons' %}"><i class="bi bi-calendar2-check"></i> My lessons</a>{% endif %}
+          {% if is_profile_owner %}<a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_planner' %}"><i class="bi bi-grid-1x2"></i> Planner</a>{% endif %}
         </div>
       </div>
       <aside class="support-next-card">
-        <small>Teacher rating</small>
-        <strong>{% if teacher.average_rating %}★ {{ teacher.average_rating }} / 5{% else %}New teacher{% endif %}</strong>
-        <span>{{ teacher.reviews_count }} verified review{{ teacher.reviews_count|pluralize }}</span>
-        <div style="margin-top:14px; color:rgba(255,255,255,.72); font-size:12px;">
-          <i class="bi bi-clock-history"></i> Book at least {{ teacher.min_booking_notice_hours }} hour{{ teacher.min_booking_notice_hours|pluralize }} ahead
-        </div>
+        <small>Scheduling model</small>
+        <strong>Teacher-controlled group sessions</strong>
+        <span>Same topic = same session. The same topic can still be taught multiple times in one day.</span>
       </aside>
     </div>
   </section>
 
   <div class="support-page-grid">
     <div class="support-stack">
-      <section class="support-card support-card-pad support-review-overview">
-        <div class="support-section-head">
-          <div>
-            <h2>Rating and student comments</h2>
-            <p>Only students with completed lessons can publish a rating and comment.</p>
-          </div>
-          <div class="support-rating-big">{% if teacher.average_rating %}<strong>{{ teacher.average_rating }}</strong><span>★ out of 5<br>{{ teacher.reviews_count }} review{{ teacher.reviews_count|pluralize }}</span>{% else %}<strong>New</strong><span>No reviews yet</span>{% endif %}</div>
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h2>How booking works now</h2><p>No student-side time selection.</p></div></div>
+        <div class="support-process-grid support-process-grid-inline">
+          <div class="support-process-card"><span>01</span><strong>Choose title</strong><p>Math, Reading & Writing, Test Strategy, or another admin-managed category.</p></div>
+          <div class="support-process-card"><span>02</span><strong>Choose topic</strong><p>Select the exact area the support teacher should prepare.</p></div>
+          <div class="support-process-card"><span>03</span><strong>Get grouped</strong><p>The teacher schedules the topic and matching students attend together.</p></div>
         </div>
-        {% if teacher.reviews_count %}
-          <div class="support-rating-summary-grid">
-            <div class="support-rating-bars">
-              {% for row in rating_distribution %}
-                <div class="support-rating-bar"><span>{{ row.rating }}★</span><div><i style="width:{{ row.percent }}%"></i></div><strong>{{ row.count }}</strong></div>
-              {% endfor %}
-            </div>
-            <div class="support-review-preview-list support-review-preview-large">
-              {% for review in recent_reviews %}
-                <article class="support-review-preview">
-                  <div><strong>{{ review.public_student_name }}</strong><span>★ {{ review.rating }}/5</span></div>
-                  {% if review.feedback %}<p>“{{ review.feedback }}”</p>{% endif %}
-                </article>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
       </section>
 
-      <section class="support-card support-booking-panel">
+      {% if can_book %}
+      <section class="support-card support-card-pad" id="request-support">
         <div class="support-section-head">
-          <div>
-            <h2>Select a lesson time</h2>
-            <p>Times are displayed in {{ timezone_name }}. Only currently available slots are shown.</p>
-          </div>
-          <span class="support-status support-status-scheduled">{{ available_slots|length }} free</span>
+          <div><h2>Send a support request</h2><p>Choose a title first; the topic list will update automatically.</p></div>
+          <span class="support-status support-status-requested"><i class="bi bi-hourglass-split"></i> Teacher plans time</span>
         </div>
 
-        {% if can_book %}
-          {% if slot_groups %}
-          <form method="post" action="{% url 'book_support_lesson' teacher.id %}" data-support-booking-form>
+        {% if lesson_titles %}
+          <form method="post" action="{% url 'book_support_lesson' teacher.id %}" data-support-booking-form data-support-topic-picker>
             {% csrf_token %}
-            <div class="support-date-tabs" role="tablist" aria-label="Available dates">
-              {% for group in slot_groups %}
-                <button type="button" class="support-date-tab {% if forloop.first %}is-active{% endif %}" data-support-date-target="{{ group.date_key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
-                  <strong>{{ group.short_day_label }} · {{ group.date_label }}</strong>
-                  <span>{{ group.available_count }} slot{{ group.available_count|pluralize }}</span>
-                </button>
-              {% endfor %}
-            </div>
-
-            {% for group in slot_groups %}
-              <div class="support-slot-group {% if forloop.first %}is-active{% endif %}" data-support-date-panel="{{ group.date_key }}">
-                <div class="support-slot-grid">
-                  {% for slot in group.slots %}
-                    <label class="support-slot-radio">
-                      <input type="radio" name="slot" value="{{ slot.value }}" data-slot-date="{{ slot.day_label }}, {{ slot.date_label }}" data-slot-time="{{ slot.time_label }}" {% if forloop.parentloop.first and forloop.first %}checked{% endif %}>
-                      <span class="support-slot-box">
-                        <strong>{{ slot.time_label }}</strong>
-                        <small>{{ slot.duration_minutes }} min{% if slot.note %} · {{ slot.note }}{% endif %}</small>
-                      </span>
-                    </label>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endfor %}
-
-            <div class="support-booking-form-grid">
+            <div class="support-booking-form-grid support-booking-form-grid-2">
               <div class="support-field">
-                <label for="support-topic">Lesson focus</label>
-                <select id="support-topic" class="support-select" name="topic" required>
-                  {% for value, label in topic_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                <label for="lesson-title">Title</label>
+                <select id="lesson-title" class="support-select" name="lesson_title" data-support-title-select required>
+                  <option value="">Choose a title</option>
+                  {% for title in lesson_titles %}<option value="{{ title.id }}">{{ title.name }}</option>{% endfor %}
                 </select>
               </div>
               <div class="support-field">
-                <label for="support-goal">What should the teacher prepare?</label>
-                <textarea id="support-goal" class="support-textarea" name="student_note" maxlength="1200" placeholder="Example: I need help reviewing quadratic questions from DAY 3 and understanding my mistakes."></textarea>
+                <label for="lesson-topic">Topic</label>
+                <select id="lesson-topic" class="support-select" name="lesson_topic" data-support-topic-select required disabled>
+                  <option value="">Choose a title first</option>
+                  {% for title in lesson_titles %}
+                    {% for topic in title.active_topics %}
+                      <option value="{{ topic.id }}" data-title-id="{{ title.id }}" data-duration="{{ topic.default_duration_minutes }}" hidden>{{ topic.name }}</option>
+                    {% endfor %}
+                  {% endfor %}
+                </select>
               </div>
+            </div>
+            <div class="support-field" style="margin-top:14px;">
+              <label for="support-goal">What should the teacher prepare? <span class="support-label-normal">Optional</span></label>
+              <textarea id="support-goal" class="support-textarea" name="student_note" maxlength="1200" placeholder="Example: I keep missing nonlinear equation questions after simplifying radicals. Please review my approach."></textarea>
+            </div>
+
+            <div class="support-grouping-banner" style="margin-top:16px;">
+              <i class="bi bi-diagram-3-fill"></i>
+              <div><strong>You are requesting a topic, not reserving a clock time.</strong><span>If {{ teacher.name }} already has an open group for this topic, you may be added immediately. Otherwise your request waits in the teacher planner until a time is created.</span></div>
             </div>
 
             <div class="support-form-footer">
-              <div class="support-form-hint">
-                {% if teacher.booking_instructions %}<strong>{{ teacher.booking_instructions }}</strong><br>{% endif %}
-                Online cancellation closes {{ teacher.cancellation_notice_hours }} hour{{ teacher.cancellation_notice_hours|pluralize }} before the lesson.
-              </div>
-              <button class="support-btn support-btn-primary" type="submit"><i class="bi bi-calendar-check"></i> Review booking</button>
+              <div class="support-form-hint">{% if teacher.booking_instructions %}<strong>{{ teacher.booking_instructions }}</strong><br>{% endif %}All times will be shown in {{ timezone_name }} after scheduling.</div>
+              <button class="support-btn support-btn-primary" type="submit"><i class="bi bi-send"></i> Review request</button>
             </div>
           </form>
-          {% else %}
-            <div class="support-empty">
-              <div class="support-empty-icon"><i class="bi bi-calendar-x"></i></div>
-              <h3>No free slots right now</h3>
-              <p>The teacher has no bookable time in the next {{ 28 }} days. Check again later or contact the teacher.</p>
-              {% if teacher.clean_telegram_username %}<a class="support-btn support-btn-secondary" href="{{ teacher.telegram_url }}" target="_blank" rel="noopener"><i class="bi bi-telegram"></i> Contact teacher</a>{% endif %}
-            </div>
-          {% endif %}
         {% else %}
-          <div class="support-empty">
-            <div class="support-empty-icon"><i class="bi bi-eye"></i></div>
-            <h3>View-only access</h3>
-            <p>Teacher and administrator accounts can review the schedule, but bookings must be created from an approved student account.</p>
-          </div>
+          <div class="support-empty"><div class="support-empty-icon"><i class="bi bi-list-x"></i></div><h3>No topics configured yet</h3><p>An administrator needs to add support titles/topics before students can send requests.</p></div>
         {% endif %}
       </section>
+      {% else %}
+      <section class="support-card support-card-pad">
+        <div class="support-empty" style="padding:24px 8px;"><div class="support-empty-icon"><i class="bi bi-eye"></i></div><h3>View-only access</h3><p>Teacher, manager, and administrator accounts can inspect the support module, but only approved students can send requests.</p></div>
+      </section>
+      {% endif %}
 
+      {% if upcoming_sessions %}
+      <section class="support-card support-card-pad">
+        <div class="support-section-head"><div><h2>Open topic groups</h2><p>These are already planned by {{ teacher.name }}. Matching new requests may join automatically while enrollment is open.</p></div></div>
+        <div class="support-session-grid">
+          {% for session in upcoming_sessions %}
+            <article class="support-session-card">
+              <div><span class="support-tag">{{ session.lesson_topic.title.name }}</span><h3>{{ session.lesson_topic.name }}</h3><p>{{ session.start_at|date:'D, d M Y · H:i' }}–{{ session.end_at|date:'H:i' }}</p></div>
+              <span class="support-status support-status-scheduled">Open group</span>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if can_view_private_feedback %}
       <section class="support-card support-card-pad">
         <div class="support-section-head">
-          <div>
-            <h2>Verified student feedback</h2>
-            <p>Reviews can be submitted only after completed lessons.</p>
-          </div>
+          <div><h2>Private lesson feedback</h2><p>Visible only to teachers, support teachers, managers, and administrators. Students never see this section.</p></div>
+          {% if teacher.average_rating %}<span class="support-rating support-rating-lg"><i class="bi bi-star-fill"></i> {{ teacher.average_rating }}/5</span>{% endif %}
         </div>
         {% for review in reviews %}
           <article class="support-review">
-            <div class="support-review-head">
-              <strong>{{ review.public_student_name }}</strong>
-              <span class="support-rating"><i class="bi bi-star-fill"></i> {{ review.rating }}/5</span>
-            </div>
+            <div class="support-review-head"><strong>{{ review.reviewer_name }}</strong><span class="support-rating"><i class="bi bi-star-fill"></i> {{ review.rating }}/5</span></div>
+            <small>{{ review.booking.display_topic }} · {{ review.created_at|date:'d M Y' }}</small>
             {% if review.feedback %}<p>{{ review.feedback }}</p>{% endif %}
           </article>
         {% empty %}
-          <div class="support-empty" style="padding:30px 10px;">
-            <div class="support-empty-icon"><i class="bi bi-chat-square-heart"></i></div>
-            <h3>No reviews yet</h3>
-            <p>This teacher has not received completed-lesson feedback yet.</p>
-          </div>
+          <div class="support-empty" style="padding:24px 8px;"><div class="support-empty-icon"><i class="bi bi-lock"></i></div><h3>No private reviews yet</h3><p>Ratings become available after completed lessons.</p></div>
         {% endfor %}
       </section>
+      {% endif %}
     </div>
 
     <aside class="support-stack">
       <section class="support-card support-profile-card">
         <div class="support-profile-row">
           <div class="support-avatar support-avatar-lg">{{ teacher.name|first|upper }}</div>
-          <div class="support-profile-copy">
-            <h2>{{ teacher.name }}</h2>
-            <p>{% if teacher.headline %}{{ teacher.headline }}{% elif teacher.clean_telegram_username %}@{{ teacher.clean_telegram_username }}{% else %}MakonBook support teacher{% endif %}</p>
-          </div>
+          <div class="support-profile-copy"><h2>{{ teacher.name }}</h2><p>{% if teacher.headline %}{{ teacher.headline }}{% else %}MakonBook support teacher{% endif %}</p></div>
         </div>
-
-        <div class="support-tags">
-          {% for subject in subjects %}<span class="support-tag">{{ subject }}</span>{% empty %}<span class="support-tag">General SAT</span>{% endfor %}
-        </div>
-
-        {% if teacher.score_summary %}
-          <div class="support-score-grid">
-            {% for label, value in teacher.score_summary %}
-              <div><span>{{ label }}</span><strong>{{ value }}</strong>{% if teacher.scores_verified %}<i class="bi bi-patch-check-fill" title="Verified by MakonBook"></i>{% endif %}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-
+        <div class="support-tags">{% for subject in subjects %}<span class="support-tag">{{ subject }}</span>{% empty %}<span class="support-tag">General SAT</span>{% endfor %}</div>
+        {% if teacher.score_summary %}<div class="support-score-grid">{% for label, value in teacher.score_summary %}<div><span>{{ label }}</span><strong>{{ value }}</strong>{% if teacher.scores_verified %}<i class="bi bi-patch-check-fill" title="Verified by MakonBook"></i>{% endif %}</div>{% endfor %}</div>{% endif %}
         <div class="support-profile-meta">
           {% if teacher.education %}<div class="support-meta-row"><span>Education</span><strong>{{ teacher.education }}</strong></div>{% endif %}
           {% if teacher.languages %}<div class="support-meta-row"><span>Languages</span><strong>{{ teacher.languages }}</strong></div>{% endif %}
           <div class="support-meta-row"><span>Experience</span><strong>{{ teacher.years_experience }} year{{ teacher.years_experience|pluralize }}</strong></div>
           <div class="support-meta-row"><span>Completed lessons</span><strong>{{ teacher.completed_lessons_count }}</strong></div>
-          <div class="support-meta-row"><span>Minimum notice</span><strong>{{ teacher.min_booking_notice_hours }} hour{{ teacher.min_booking_notice_hours|pluralize }}</strong></div>
-          <div class="support-meta-row"><span>Cancellation window</span><strong>{{ teacher.cancellation_notice_hours }} hour{{ teacher.cancellation_notice_hours|pluralize }}</strong></div>
-          <div class="support-meta-row"><span>Lesson platform</span><strong>{% if teacher.meeting_link %}Online meeting{% else %}Shared after booking{% endif %}</strong></div>
+          <div class="support-meta-row"><span>Scheduling</span><strong>Teacher planned</strong></div>
+          <div class="support-meta-row"><span>Grouping</span><strong>By exact topic</strong></div>
           <div class="support-meta-row"><span>Timezone</span><strong>{{ timezone_name }}</strong></div>
         </div>
       </section>
 
+      {% if can_book %}
       <section class="support-card support-card-pad">
-        <div class="support-section-head">
-          <div>
-            <h3>Your lessons with {{ teacher.name }}</h3>
-            <p>Latest bookings and their current status.</p>
-          </div>
-        </div>
+        <div class="support-section-head"><div><h3>Your requests</h3><p>Latest activity with {{ teacher.name }}.</p></div></div>
         <div class="support-lesson-list">
           {% for booking in my_bookings %}
-            <article class="support-lesson-card">
-              <div class="support-lesson-head">
-                <div>
-                  <span class="support-status support-status-{{ booking.status }}">{{ booking.get_status_display }}</span>
-                  <div style="margin-top:9px; color:var(--support-text); font-size:12px; font-weight:800;">{{ booking.get_topic_display }}</div>
-                  <div style="margin-top:4px; color:var(--support-muted); font-size:11px;">{{ booking.start_at|date:'D, d M · H:i' }}–{{ booking.end_at|date:'H:i' }}</div>
-                </div>
-              </div>
+            <article class="support-mini-request">
+              <div><strong>{{ booking.display_topic }}</strong><span>{{ booking.display_title }}</span></div>
+              <span class="support-status support-status-{{ booking.status }}">{{ booking.get_status_display }}</span>
+              {% if booking.start_at %}<small>{{ booking.start_at|date:'D, d M · H:i' }}</small>{% else %}<small>Waiting for {{ teacher.name }} to plan a session</small>{% endif %}
             </article>
-          {% empty %}
-            <p style="color:var(--support-muted); font-size:12px;">You have not booked this teacher yet.</p>
-          {% endfor %}
+          {% empty %}<p class="support-muted-copy">No requests with this teacher yet.</p>{% endfor %}
         </div>
-        <a class="support-btn support-btn-secondary" style="margin-top:14px; width:100%;" href="{% url 'my_support_lessons' %}"><i class="bi bi-calendar2-week"></i> Open all lessons</a>
+        <a class="support-btn support-btn-secondary" style="margin-top:14px;width:100%;" href="{% url 'my_support_lessons' %}"><i class="bi bi-calendar2-week"></i> Open all</a>
       </section>
+      {% endif %}
     </aside>
   </div>
 </div>
 
 <div id="supportBookingConfirmModal" class="support-modal" aria-hidden="true">
   <div class="support-modal-card" role="dialog" aria-modal="true" aria-labelledby="support-confirm-title">
-    <h3 id="support-confirm-title">Confirm your support lesson</h3>
-    <p>Review the lesson details before the time is reserved.</p>
+    <h3 id="support-confirm-title">Send this support request?</h3>
+    <p>The time is not chosen here. The support teacher controls scheduling and topic grouping.</p>
     <div class="support-lesson-details" style="grid-template-columns:1fr;">
       <div class="support-detail-chip">Teacher<strong>{{ teacher.name }}</strong></div>
-      <div class="support-detail-chip">Date<strong data-confirm-date>—</strong></div>
-      <div class="support-detail-chip">Time<strong data-confirm-time>—</strong></div>
-      <div class="support-detail-chip">Focus<strong data-confirm-topic>—</strong></div>
+      <div class="support-detail-chip">Title<strong data-confirm-title>—</strong></div>
+      <div class="support-detail-chip">Topic<strong data-confirm-topic>—</strong></div>
     </div>
-    <div class="support-modal-actions">
-      <button type="button" class="support-btn support-btn-secondary" data-close-support-modal>Go back</button>
-      <button type="button" class="support-btn support-btn-primary" data-confirm-booking>Confirm booking</button>
-    </div>
+    <div class="support-modal-actions"><button type="button" class="support-btn support-btn-secondary" data-close-support-modal>Go back</button><button type="button" class="support-btn support-btn-primary" data-confirm-booking>Send request</button></div>
   </div>
 </div>
 
-<script src="{% static 'assets/js/support-booking-v29.js' %}?v=29"></script>
+<script src="{% static 'assets/js/support-booking-v33.js' %}?v=33"></script>
 {% endblock content %}
