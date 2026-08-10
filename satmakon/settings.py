@@ -58,6 +58,13 @@ _CANONICAL_CSRF_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
     env_list("CSRF_TRUSTED_ORIGINS") + _CANONICAL_CSRF_ORIGINS
 ))
+# The one hostname search engines and social-card scrapers should see. The app
+# answers on several names, so sitemap.xml, robots.txt and the og: tags all
+# build their absolute URLs from this rather than from the request host --
+# otherwise every alias advertises itself as a separate copy of the site.
+SITE_DOMAIN = env_str("SITE_DOMAIN", "makonbook.uz")
+SITE_PROTOCOL = env_str("SITE_PROTOCOL", "http" if DEBUG else "https")
+SITE_URL = f"{SITE_PROTOCOL}://{SITE_DOMAIN}"
 
 
 INSTALLED_APPS = [
@@ -68,6 +75,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
+    "django.contrib.sitemaps",
     "storages",
 
     "django.contrib.sites",
@@ -113,6 +121,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "apps.base.context_processors.site_meta",
             ],
         },
     },

@@ -1,0 +1,41 @@
+User-agent: *
+
+# Authentication and account flows. /register/ is deliberately left crawlable
+# as a landing target; the rest has no crawl value, and the activation and
+# password-reset URLs carry single-use tokens that must never be indexed.
+Disallow: /login/
+Disallow: /logout/
+Disallow: /forgot-password/
+Disallow: /reset-password/
+Disallow: /activate/
+Disallow: /edit-profile/
+Disallow: /accounts/
+
+# Admin surfaces.
+Disallow: /admin/
+Disallow: /ap-classes/admin-panel/
+
+# Desktop-client download page. ClientSoftwareMiddleware redirects it to /sat/
+# for every user agent except MakonBookClient, so there is nothing to index.
+Disallow: /software/
+
+# The SAT app is login- or guest-session-gated end to end, including the
+# practice tests, vocabulary, admissions, classroom and support-teacher
+# sections. A crawler only ever receives a redirect to /login/ here.
+Disallow: /sat/
+Disallow: /practices
+Disallow: /practice-tests
+
+# One AP exam sitting per URL, keyed by an attempt token.
+Disallow: /ap-classes/attempt/
+
+# Rating pages that name individual students, plus the lookup and teacher
+# assessment tools behind them.
+Disallow: /rating/student/
+Disallow: /rating/parent/
+Disallow: /rating/teacher/
+
+# Uploaded classroom chat files.
+Disallow: /media/
+
+Sitemap: {{ sitemap_url }}

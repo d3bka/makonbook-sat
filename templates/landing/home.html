@@ -7,6 +7,27 @@
   <title>SAT Makon | Digital SAT prep platform</title>
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <meta name="description" content="SAT Makon helps students prepare for the Digital SAT with full practice tests, targeted analytics, vocabulary, and classroom tracking.">
+
+  {# The app answers on several hostnames; point them all at the one canonical URL. #}
+  <link rel="canonical" href="{{ SITE_URL }}/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SAT Makon">
+  <meta property="og:title" content="SAT Makon | Digital SAT prep platform">
+  <meta property="og:description" content="SAT Makon helps students prepare for the Digital SAT with full practice tests, targeted analytics, vocabulary, and classroom tracking.">
+  <meta property="og:url" content="{{ SITE_URL }}/">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:image" content="{{ SITE_URL }}{% static 'assets/img/og-image.jpg' %}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="SAT Makon — top universitetlarga yo'l oching!">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SAT Makon | Digital SAT prep platform">
+  <meta name="twitter:description" content="SAT Makon helps students prepare for the Digital SAT with full practice tests, targeted analytics, vocabulary, and classroom tracking.">
+  <meta name="twitter:image" content="{{ SITE_URL }}{% static 'assets/img/og-image.jpg' %}">
+
   {% include 'base/theme_init.html' %}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
