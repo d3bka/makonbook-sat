@@ -34,6 +34,42 @@ def edit_profile(request):
         form = EditProfileForm(instance=user)
     return render(request, 'base/edit_profile.html', {'form': form})
 
+@login_required(login_url='/login/')
+@require_POST
+def complete_profile_name(request):
+    """Save the required display name from the post-login profile prompt."""
+    from django.http import JsonResponse
+
+    first_name = (request.POST.get('first_name') or '').strip()
+    last_name = (request.POST.get('last_name') or '').strip()
+
+    errors = {}
+    if not first_name:
+        errors['first_name'] = 'Enter your first name.'
+    elif len(first_name) > 150:
+        errors['first_name'] = 'First name is too long.'
+
+    if not last_name:
+        errors['last_name'] = 'Enter your last name.'
+    elif len(last_name) > 150:
+        errors['last_name'] = 'Last name is too long.'
+
+    if errors:
+        return JsonResponse({'ok': False, 'errors': errors}, status=400)
+
+    user = request.user
+    user.first_name = first_name
+    user.last_name = last_name
+    user.save(update_fields=['first_name', 'last_name'])
+
+    return JsonResponse({
+        'ok': True,
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'full_name': user.get_full_name() or user.get_username(),
+    })
+
+
 def home(request):
     """Public landing page for guests; dashboard entry for logged-in users."""
     if request.user.is_authenticated:

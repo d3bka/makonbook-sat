@@ -11,6 +11,7 @@ urlpatterns = [
     path('reset-password/', views.password_reset_confirm, name='password_reset_confirm'),
     path('activate/<uuid:token>/', views.activate, name='activate'),
     path('edit-profile/', views.edit_profile, name='edit_profile'),  # Ensure this line exists
+    path('complete-profile-name/', views.complete_profile_name, name='complete_profile_name'),
     path('software/', views.software, name='software'),
     path('report-issue/', views.submit_general_issue_report, name='submit_general_issue_report'),
 ]

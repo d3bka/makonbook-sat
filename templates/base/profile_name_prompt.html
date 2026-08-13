@@ -1,0 +1,77 @@
+{% if request.user.is_authenticated %}
+  {% if not request.user.first_name or not request.user.last_name %}
+    <div
+      class="profile-name-gate"
+      data-profile-name-gate
+      data-endpoint="{% url 'complete_profile_name' %}"
+      aria-hidden="true"
+    >
+      <div class="profile-name-gate__backdrop" aria-hidden="true"></div>
+
+      <section
+        class="profile-name-gate__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profileNameGateTitle"
+        aria-describedby="profileNameGateDescription"
+      >
+        <div class="profile-name-gate__accent"></div>
+        <div class="profile-name-gate__content">
+          <div class="profile-name-gate__icon" aria-hidden="true">
+            <i class="bi bi-person-check"></i>
+          </div>
+
+          <div class="profile-name-gate__copy">
+            <span class="profile-name-gate__eyebrow">One quick step</span>
+            <h2 id="profileNameGateTitle">Tell us your name</h2>
+            <p id="profileNameGateDescription">
+              Your name is used in classrooms, reports, ratings, and teacher dashboards.
+            </p>
+          </div>
+
+          <form class="profile-name-gate__form" data-profile-name-form novalidate>
+            {% csrf_token %}
+            <div class="profile-name-gate__fields">
+              <label class="profile-name-gate__field">
+                <span>First name</span>
+                <input
+                  type="text"
+                  name="first_name"
+                  value="{{ request.user.first_name }}"
+                  maxlength="150"
+                  autocomplete="given-name"
+                  placeholder="First name"
+                  required
+                  data-profile-first-name
+                >
+                <small data-profile-error="first_name"></small>
+              </label>
+
+              <label class="profile-name-gate__field">
+                <span>Last name</span>
+                <input
+                  type="text"
+                  name="last_name"
+                  value="{{ request.user.last_name }}"
+                  maxlength="150"
+                  autocomplete="family-name"
+                  placeholder="Last name"
+                  required
+                  data-profile-last-name
+                >
+                <small data-profile-error="last_name"></small>
+              </label>
+            </div>
+
+            <div class="profile-name-gate__status" data-profile-name-status aria-live="polite"></div>
+
+            <button class="profile-name-gate__submit" type="submit" data-profile-name-submit>
+              <span>Save &amp; continue</span>
+              <i class="bi bi-arrow-right" aria-hidden="true"></i>
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  {% endif %}
+{% endif %}
