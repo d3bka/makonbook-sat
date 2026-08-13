@@ -18,28 +18,105 @@
     last_name: gate.querySelector('[data-profile-error="last_name"]'),
   };
 
+  const touched = new Set();
+  const apostrophes = new Set(["'", '’', '‘', 'ʻ', 'ʼ', '`', '´']);
+  const punctuation = new Set([...apostrophes, '-']);
+  const separators = new Set([...punctuation, ' ']);
+
+  const isLetter = (char) => {
+    if (!char) return false;
+    return char.toLocaleUpperCase() !== char.toLocaleLowerCase();
+  };
+
+  const normalizeName = (value) => {
+    let normalized = String(value || '').trim().replace(/\s+/g, ' ');
+    if (typeof normalized.normalize === 'function') {
+      normalized = normalized.normalize('NFC');
+    }
+    return normalized;
+  };
+
+  const validateName = (rawValue, label) => {
+    const value = normalizeName(rawValue);
+
+    if (!value) return `Enter your ${label.toLowerCase()}.`;
+    if (value.length < 2 || value.length > 50) {
+      return `${label} must be between 2 and 50 characters.`;
+    }
+
+    let letters = 0;
+    for (const char of value) {
+      if (isLetter(char)) {
+        letters += 1;
+        continue;
+      }
+      if (separators.has(char)) continue;
+      return `${label} can contain only letters, spaces, hyphens, and apostrophes.`;
+    }
+
+    if (letters < 2) return `${label} must contain at least 2 letters.`;
+    if (!isLetter(value[0]) || !isLetter(value[value.length - 1])) {
+      return `${label} must start and end with a letter.`;
+    }
+
+    for (let index = 1; index < value.length; index += 1) {
+      if (punctuation.has(value[index - 1]) && punctuation.has(value[index])) {
+        return `${label} has repeated punctuation.`;
+      }
+    }
+
+    return '';
+  };
+
+  const setFieldError = (name, message = '') => {
+    const node = errorNodes[name];
+    const input = form.elements[name];
+    const field = input?.closest('.profile-name-gate__field');
+
+    if (node) node.textContent = message;
+    field?.classList.toggle('has-error', Boolean(message));
+    if (input) input.setAttribute('aria-invalid', message ? 'true' : 'false');
+  };
+
   const clearErrors = () => {
-    Object.entries(errorNodes).forEach(([name, node]) => {
-      if (node) node.textContent = '';
-      const input = form.elements[name];
-      if (input) input.closest('.profile-name-gate__field')?.classList.remove('has-error');
-    });
+    Object.keys(errorNodes).forEach((name) => setFieldError(name, ''));
     if (status) status.textContent = '';
   };
 
   const setErrors = (errors = {}) => {
     let firstInvalid = null;
     Object.entries(errors).forEach(([name, message]) => {
-      const node = errorNodes[name];
+      setFieldError(name, message || '');
       const input = form.elements[name];
-      if (node) node.textContent = message || '';
-      if (input) {
-        input.closest('.profile-name-gate__field')?.classList.add('has-error');
-        if (!firstInvalid) firstInvalid = input;
-      }
+      if (input && !firstInvalid) firstInvalid = input;
     });
     if (firstInvalid) firstInvalid.focus();
   };
+
+  const validateField = (input, force = false) => {
+    const name = input.name;
+    const label = name === 'first_name' ? 'First name' : 'Last name';
+    const message = validateName(input.value, label);
+
+    if (force || touched.has(name) || message.includes('only letters')) {
+      setFieldError(name, message);
+    } else {
+      setFieldError(name, '');
+    }
+    return message;
+  };
+
+  [firstInput, lastInput].forEach((input) => {
+    input.addEventListener('input', () => {
+      if (status) status.textContent = '';
+      validateField(input, false);
+    });
+
+    input.addEventListener('blur', () => {
+      touched.add(input.name);
+      validateField(input, true);
+    });
+  });
 
   const openGate = () => {
     gate.setAttribute('aria-hidden', 'false');
@@ -75,12 +152,19 @@
     event.preventDefault();
     clearErrors();
 
-    const firstName = firstInput.value.trim();
-    const lastName = lastInput.value.trim();
-    const clientErrors = {};
+    const firstName = normalizeName(firstInput.value);
+    const lastName = normalizeName(lastInput.value);
+    firstInput.value = firstName;
+    lastInput.value = lastName;
 
-    if (!firstName) clientErrors.first_name = 'Enter your first name.';
-    if (!lastName) clientErrors.last_name = 'Enter your last name.';
+    touched.add('first_name');
+    touched.add('last_name');
+
+    const clientErrors = {};
+    const firstError = validateName(firstName, 'First name');
+    const lastError = validateName(lastName, 'Last name');
+    if (firstError) clientErrors.first_name = firstError;
+    if (lastError) clientErrors.last_name = lastError;
 
     if (Object.keys(clientErrors).length) {
       setErrors(clientErrors);

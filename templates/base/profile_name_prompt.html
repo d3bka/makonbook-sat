@@ -38,8 +38,11 @@
                   type="text"
                   name="first_name"
                   value="{{ request.user.first_name }}"
-                  maxlength="150"
+                  minlength="2"
+                  maxlength="50"
                   autocomplete="given-name"
+                  autocapitalize="words"
+                  spellcheck="false"
                   placeholder="First name"
                   required
                   data-profile-first-name
@@ -53,8 +56,11 @@
                   type="text"
                   name="last_name"
                   value="{{ request.user.last_name }}"
-                  maxlength="150"
+                  minlength="2"
+                  maxlength="50"
                   autocomplete="family-name"
+                  autocapitalize="words"
+                  spellcheck="false"
                   placeholder="Last name"
                   required
                   data-profile-last-name

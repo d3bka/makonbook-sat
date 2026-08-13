@@ -18,6 +18,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
+import unicodedata
 
 def software(request):
     return render(request, 'software.html')
@@ -34,25 +35,70 @@ def edit_profile(request):
         form = EditProfileForm(instance=user)
     return render(request, 'base/edit_profile.html', {'form': form})
 
+PROFILE_NAME_APOSTROPHES = {"'", "’", "‘", "ʻ", "ʼ", "`", "´"}
+PROFILE_NAME_SEPARATORS = PROFILE_NAME_APOSTROPHES | {"-", " "}
+
+
+def _normalize_profile_name(value):
+    """Normalize harmless whitespace/Unicode differences without changing casing."""
+    value = unicodedata.normalize("NFC", (value or "").strip())
+    return " ".join(value.split())
+
+
+def _validate_profile_name(value, label):
+    """Return a human-readable validation error, or None when the name is valid."""
+    if not value:
+        return f"Enter your {label.lower()}."
+
+    if len(value) < 2 or len(value) > 50:
+        return f"{label} must be between 2 and 50 characters."
+
+    letter_count = 0
+    for char in value:
+        category = unicodedata.category(char)
+        if category.startswith("L"):
+            letter_count += 1
+            continue
+        if category.startswith("M"):
+            # Combining marks are safe after NFC normalization and allow names
+            # written with less-common diacritics.
+            continue
+        if char in PROFILE_NAME_SEPARATORS:
+            continue
+        return f"{label} can contain only letters, spaces, hyphens, and apostrophes."
+
+    if letter_count < 2:
+        return f"{label} must contain at least 2 letters."
+
+    first_category = unicodedata.category(value[0])
+    last_category = unicodedata.category(value[-1])
+    if not first_category.startswith("L") or not (last_category.startswith("L") or last_category.startswith("M")):
+        return f"{label} must start and end with a letter."
+
+    punctuation = PROFILE_NAME_APOSTROPHES | {"-"}
+    for previous, current in zip(value, value[1:]):
+        if previous in punctuation and current in punctuation:
+            return f"{label} has repeated punctuation."
+
+    return None
+
+
 @login_required(login_url='/login/')
 @require_POST
 def complete_profile_name(request):
     """Save the required display name from the post-login profile prompt."""
     from django.http import JsonResponse
 
-    first_name = (request.POST.get('first_name') or '').strip()
-    last_name = (request.POST.get('last_name') or '').strip()
+    first_name = _normalize_profile_name(request.POST.get('first_name'))
+    last_name = _normalize_profile_name(request.POST.get('last_name'))
 
     errors = {}
-    if not first_name:
-        errors['first_name'] = 'Enter your first name.'
-    elif len(first_name) > 150:
-        errors['first_name'] = 'First name is too long.'
-
-    if not last_name:
-        errors['last_name'] = 'Enter your last name.'
-    elif len(last_name) > 150:
-        errors['last_name'] = 'Last name is too long.'
+    first_error = _validate_profile_name(first_name, 'First name')
+    last_error = _validate_profile_name(last_name, 'Last name')
+    if first_error:
+        errors['first_name'] = first_error
+    if last_error:
+        errors['last_name'] = last_error
 
     if errors:
         return JsonResponse({'ok': False, 'errors': errors}, status=400)
