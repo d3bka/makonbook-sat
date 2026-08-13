@@ -50,6 +50,10 @@
     const feedback = deck.querySelector('[data-deck-feedback]');
     const saveState = deck.querySelector('[data-deck-save-state]');
     const markUrl = deck.dataset.markUrl;
+    const embeddedCsrfToken = deck.dataset.csrfToken || '';
+    const csrfToken = (embeddedCsrfToken && embeddedCsrfToken !== 'NOTPROVIDED')
+      ? embeddedCsrfToken
+      : (getCookie('makonbook_csrftoken_v35') || getCookie('csrftoken'));
     const controls = Array.from(deck.querySelectorAll('[data-outcome]'));
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -149,15 +153,19 @@
     };
 
     const postReview = async(wordId, outcome, attempt=0) => {
+      if(!csrfToken){
+        throw new Error('Secure session token is missing. Reload the page and try again.');
+      }
       const response = await fetch(markUrl, {
         method:'POST',
         credentials:'same-origin',
         headers:{
           'Content-Type':'application/json',
-          'X-CSRFToken':getCookie('csrftoken'),
+          'X-CSRFToken':csrfToken,
           'X-Requested-With':'XMLHttpRequest'
         },
-        body:JSON.stringify({word_id:wordId, outcome})
+        body:JSON.stringify({word_id:wordId, outcome}),
+        keepalive:true
       });
       let data = {};
       try{ data = await response.json(); }catch(error){ data = {}; }

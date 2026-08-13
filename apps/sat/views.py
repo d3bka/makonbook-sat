@@ -3725,6 +3725,7 @@ ADMISSIONS_SECTIONS = {
 
 
 @login_required(login_url='/login/')
+@ensure_csrf_cookie
 def vocabulary_section(request, slug):
     classroom_response = _redirect_or_deny_classroom_section(
         request,
@@ -6519,6 +6520,7 @@ def update_classroom_section_access(request, classroom_id):
 
 
 @login_required(login_url='/login/')
+@ensure_csrf_cookie
 def classroom_vocabulary_section(request, classroom_id, slug):
     """Classroom-aware vocabulary sub-section (word_lists / flashcards)."""
     classroom, role, membership, redirect_response = resolve_classroom_and_role(request, classroom_id)

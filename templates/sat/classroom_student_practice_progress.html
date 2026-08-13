@@ -213,6 +213,97 @@
     .detail-title { font-size: 28px; }
     .summary-grid { grid-template-columns: 1fr; }
   }
+
+  /* Mobile/tablet progress is rendered as cards instead of a 900px table.
+     This avoids legacy responsive rules making the table effectively invisible. */
+  .mk-learning.mk-progress-detail .practice-mobile-list {
+    display: none;
+    gap: 12px;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-row {
+    border: 1px solid var(--pp-summary-border) !important;
+    border-radius: 18px;
+    padding: 16px;
+    background: var(--pp-summary-bg) !important;
+    color: var(--pp-text) !important;
+    box-shadow: 0 10px 28px rgba(76, 29, 149, 0.08);
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-name {
+    margin: 0;
+    color: var(--pp-heading) !important;
+    font-size: 17px;
+    font-weight: 850;
+    line-height: 1.28;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-metric {
+    min-width: 0;
+    padding: 11px;
+    border-radius: 13px;
+    background: rgba(109, 40, 217, 0.055) !important;
+    border: 1px solid rgba(109, 40, 217, 0.10) !important;
+  }
+  html[data-theme="dark"] .mk-learning.mk-progress-detail .practice-mobile-metric {
+    background: rgba(167, 139, 250, 0.08) !important;
+    border-color: rgba(196, 181, 253, 0.13) !important;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-metric small {
+    display: block;
+    color: var(--pp-muted) !important;
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-metric strong {
+    display: block;
+    margin-top: 5px;
+    color: var(--pp-heading) !important;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+  .mk-learning.mk-progress-detail .practice-mobile-actions { margin-top: 12px; }
+  .mk-learning.mk-progress-detail .practice-mobile-empty {
+    border: 1px dashed var(--pp-summary-border) !important;
+    border-radius: 18px;
+    padding: 18px;
+    background: var(--pp-summary-bg) !important;
+    color: var(--pp-muted) !important;
+  }
+
+  /* Keep page-specific light/dark contrast stronger than generic learning CSS. */
+  .mk-learning.mk-progress-detail .detail-card,
+  .mk-learning.mk-progress-detail .summary-item,
+  .mk-learning.mk-progress-detail .progress-table-wrap {
+    background: var(--pp-card-bg) !important;
+    color: var(--pp-text) !important;
+    border-color: var(--pp-card-border) !important;
+  }
+  .mk-learning.mk-progress-detail .summary-label { color: var(--pp-accent-strong) !important; }
+  .mk-learning.mk-progress-detail .summary-value { color: var(--pp-heading) !important; }
+  .mk-learning.mk-progress-detail .summary-small { color: var(--pp-muted) !important; }
+
+  @media (max-width: 980px) {
+    .mk-learning.mk-progress-detail .progress-table-wrap { display: none !important; }
+    .mk-learning.mk-progress-detail .practice-mobile-list { display: grid !important; }
+  }
+  @media (max-width: 520px) {
+    .mk-learning.mk-progress-detail .practice-mobile-metrics { grid-template-columns: 1fr 1fr; }
+    .mk-learning.mk-progress-detail .practice-mobile-metric:last-child { grid-column: 1 / -1; }
+    .mk-learning.mk-progress-detail .practice-mobile-head { flex-direction: column; }
+  }
+
 </style>
 {% endblock style %}
 
@@ -253,6 +344,34 @@
         <div class="summary-value" style="font-size:20px;">{% if practice_progress and practice_progress.last_activity_at %}{{ practice_progress.last_activity_at|date:"M d, Y" }}{% else %}—{% endif %}</div>
         <div class="summary-small">{% if practice_progress and practice_progress.last_activity_at %}{{ practice_progress.last_activity_at|date:"H:i" }}{% else %}No activity yet{% endif %}</div>
       </div>
+    </div>
+
+
+    <div class="practice-mobile-list" aria-label="Practice test progress list">
+      {% for row in test_rows %}
+        <article class="practice-mobile-row">
+          <div class="practice-mobile-head">
+            <h3 class="practice-mobile-name">{{ row.test.name }}</h3>
+            <span class="status-pill status-{{ row.status }}">
+              {% if row.status == 'completed' %}Completed{% elif row.status == 'in_progress' %}In Progress{% else %}Not Started{% endif %}
+            </span>
+          </div>
+          <div class="practice-mobile-metrics">
+            <div class="practice-mobile-metric"><small>Answered</small><strong>{{ row.answered_questions }}</strong></div>
+            <div class="practice-mobile-metric"><small>Score</small><strong>{% if row.score is not None %}{{ row.score }}{% else %}—{% endif %}</strong></div>
+            <div class="practice-mobile-metric"><small>Last activity</small><strong>{% if row.last_activity_at %}{{ row.last_activity_at|date:"M d, H:i" }}{% else %}—{% endif %}</strong></div>
+          </div>
+          <div class="practice-mobile-actions">
+            {% if row.can_open_review %}
+              <a href="{% url 'classroom_student_review_results' classroom.id student_obj.id row.test.name %}" class="review-btn">Open Review</a>
+            {% else %}
+              <span class="review-btn disabled">Review unavailable</span>
+            {% endif %}
+          </div>
+        </article>
+      {% empty %}
+        <div class="practice-mobile-empty">No practice tests are assigned to this student yet.</div>
+      {% endfor %}
     </div>
 
     <div class="progress-table-wrap">

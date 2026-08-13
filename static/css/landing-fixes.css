@@ -1,0 +1,526 @@
+/*
+  SAT Makon landing page stability fixes
+  IMPORTANT: load this file LAST, after landing.css, makon-small-device.css
+  and responsive_css.html.
+*/
+
+:root {
+  --landing-header-height: 72px;
+}
+
+html {
+  scroll-padding-top: calc(var(--landing-header-height) + 16px);
+  scrollbar-gutter: stable;
+}
+
+/* --------------------------------------------------------------------------
+   Header stability
+   The original .is-scrolled state changed vertical padding (18px -> 10px).
+   Because the header is sticky and scrollY is used to toggle that class,
+   the height change can push the page across the threshold again and again.
+   Keep geometry identical in both states; only paint may change.
+   -------------------------------------------------------------------------- */
+.site-header,
+.site-header.is-scrolled {
+  min-height: var(--landing-header-height);
+  padding: 14px 0;
+}
+
+.site-header {
+  background: rgba(7, 2, 20, 0.32);
+  border-bottom: 1px solid transparent;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.site-header.is-scrolled {
+  background: rgba(7, 2, 20, 0.80);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 36px rgba(4, 1, 12, 0.16);
+}
+
+html[data-theme="light"] .site-header {
+  background: rgba(255, 255, 255, 0.68);
+  border-bottom-color: rgba(104, 62, 171, 0.08);
+  box-shadow: none;
+}
+
+html[data-theme="light"] .site-header.is-scrolled {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: rgba(104, 62, 171, 0.14);
+  box-shadow: 0 14px 36px rgba(76, 29, 149, 0.09);
+}
+
+/* Keep the header on its own compositor layer without using transform.
+   transform on a sticky ancestor can create fixed-position bugs on Safari. */
+.site-header {
+  isolation: isolate;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile navigation
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  :root {
+    --landing-header-height: 66px;
+  }
+
+  /* Do not change html/body scrolling when the menu opens. Toggling
+     overflow on a scrolled page can make sticky/fixed elements jump on
+     mobile browsers. The menu and its backdrop own the interaction instead. */
+
+  .landing-shell {
+    overflow-x: clip;
+  }
+
+  .site-header,
+  .site-header.is-scrolled {
+    min-height: var(--landing-header-height);
+    padding: 10px 0;
+  }
+
+  /* On mobile the header should never be visually transparent; otherwise the
+     hero leaks through the menu/header and the UI looks broken. */
+  .site-header,
+  .site-header.is-scrolled,
+  .site-header:has(.site-nav.is-open) {
+    background: rgba(11, 4, 28, 0.98);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    /* Avoid creating an extra compositing/containing context around the
+       mobile menu. This is a common source of disappearing menus after
+       scrolling on Safari/Chrome mobile. */
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+  }
+
+  html[data-theme="light"] .site-header,
+  html[data-theme="light"] .site-header.is-scrolled,
+  html[data-theme="light"] .site-header:has(.site-nav.is-open) {
+    background: rgba(255, 255, 255, 0.985);
+    border-bottom-color: rgba(104, 62, 171, 0.14);
+  }
+
+  .site-header .container.nav-row {
+    width: min(100% - 24px, var(--container));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: visible !important;
+  }
+
+  .brand {
+    min-width: 0;
+    max-width: 100%;
+    gap: 10px;
+  }
+
+  .brand img {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    border-radius: 14px;
+  }
+
+  .brand span {
+    display: inline-block !important;
+    min-width: 0;
+    max-width: calc(100vw - 118px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 1.05rem;
+  }
+
+  .nav-toggle {
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    padding: 0 !important;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+    z-index: 9003;
+  }
+
+  .nav-toggle span {
+    display: block !important;
+    width: 19px !important;
+    height: 2px !important;
+    min-height: 2px;
+    margin: 3px 0 !important;
+    border: 0 !important;
+    border-radius: 999px;
+    background: currentColor !important;
+    opacity: 1;
+  }
+
+  .nav-toggle.is-active span:nth-child(1) {
+    transform: translateY(8px) rotate(45deg);
+  }
+
+  .nav-toggle.is-active span:nth-child(2) {
+    opacity: 0 !important;
+  }
+
+  .nav-toggle.is-active span:nth-child(3) {
+    transform: translateY(-8px) rotate(-45deg);
+  }
+
+  html[data-theme="light"] .nav-toggle {
+    color: #24113e !important;
+    border-color: rgba(124, 58, 237, 0.16);
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  html[data-theme="light"] .nav-toggle.is-active {
+    color: #fff !important;
+    background: linear-gradient(135deg, #7c3aed, #d946ef);
+  }
+
+  /* A plain backdrop is more reliable than backdrop-filter on mobile.
+     It is only interactive while the real menu is open. */
+  .landing-shell::after {
+    content: "";
+    position: fixed;
+    inset: var(--landing-header-height) 0 0;
+    z-index: 8990;
+    background: rgba(3, 1, 10, 0.66);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 150ms ease, visibility 150ms ease;
+    touch-action: none;
+  }
+
+  body.landing-menu-open .landing-shell::after {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  html[data-theme="light"] .landing-shell::after {
+    background: rgba(246, 242, 255, 0.88);
+  }
+
+  /* IMPORTANT: the menu used to be `position: fixed` while nested inside a
+     sticky/backdrop-filtered header. On mobile that can change its containing
+     block after scrolling and make the menu disappear while the backdrop
+     remains. Keep it absolutely anchored to the sticky header instead. */
+  .site-nav {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: auto !important;
+    z-index: 9002 !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - var(--landing-header-height) - 20px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+      radial-gradient(circle at 88% 12%, rgba(236, 72, 153, 0.20), transparent 12rem),
+      linear-gradient(145deg, #20133f, #0f0822);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.46);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+
+    transform: translateY(-10px) scale(0.985);
+    transform-origin: top center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 150ms ease,
+      transform 180ms cubic-bezier(.2,.8,.2,1),
+      visibility 150ms ease;
+  }
+
+  html[data-theme="light"] .site-nav {
+    color: #24113e;
+    border-color: rgba(104, 62, 171, 0.16);
+    background:
+      radial-gradient(circle at 88% 12%, rgba(236, 72, 153, 0.11), transparent 12rem),
+      linear-gradient(145deg, #ffffff, #f6f1ff);
+    box-shadow: 0 28px 78px rgba(76, 29, 149, 0.20);
+  }
+
+  .site-nav.is-open {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .site-nav::before {
+    content: "Menu";
+    display: block;
+    padding: 8px 10px 4px;
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  html[data-theme="light"] .site-nav::before {
+    color: rgba(36, 17, 62, 0.52);
+  }
+
+  /* IMPORTANT: target direct navigation links only. The old `.site-nav a`
+     selector also styled Login/Start now, which is why those buttons got a
+     chevron and lost their primary-button appearance. */
+  .site-nav > a {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    border-radius: 16px;
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 0.98rem;
+    font-weight: 900;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .site-nav > a::before {
+    display: none !important;
+  }
+
+  .site-nav > a::after {
+    content: "›";
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+    transform: none;
+    color: rgba(255, 255, 255, 0.44);
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  html[data-theme="light"] .site-nav > a {
+    color: rgba(36, 17, 62, 0.86);
+    background: rgba(124, 58, 237, 0.07);
+    border-color: rgba(124, 58, 237, 0.10);
+  }
+
+  html[data-theme="light"] .site-nav > a::after {
+    color: rgba(36, 17, 62, 0.38);
+  }
+
+  .site-nav > a:hover,
+  .site-nav > a.is-active,
+  .site-nav > a[aria-current="page"] {
+    transform: none;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.96), rgba(236, 72, 153, 0.84));
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 14px 30px rgba(139, 92, 246, 0.22);
+  }
+
+  .site-nav-mobile-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  html[data-theme="light"] .site-nav-mobile-actions {
+    border-top-color: rgba(104, 62, 171, 0.12);
+  }
+
+  .site-nav-mobile-actions .btn {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 12px;
+    border-radius: 16px;
+    font-size: 0.90rem;
+    justify-content: center;
+    transform: none !important;
+  }
+
+  /* Reset pseudo-elements inherited from `.site-nav a`. */
+  .site-nav-mobile-actions .btn::after {
+    content: none !important;
+    display: none !important;
+  }
+
+  .site-nav-mobile-actions .btn::before {
+    content: "";
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(110deg, transparent 10%, rgba(255, 255, 255, 0.22) 48%, transparent 70%);
+    opacity: 1;
+    transform: translateX(-130%);
+    transition: transform 520ms ease;
+    pointer-events: none;
+  }
+
+  .site-nav-mobile-actions .btn:hover::before {
+    transform: translateX(130%);
+  }
+
+  .site-nav-mobile-actions .btn-primary,
+  html[data-theme="light"] .site-nav-mobile-actions .btn-primary {
+    color: #fff !important;
+    border-color: transparent !important;
+    background: linear-gradient(135deg, var(--purple), var(--purple-2), var(--pink)) !important;
+    box-shadow: 0 14px 28px rgba(139, 92, 246, 0.24) !important;
+  }
+
+  .site-nav-mobile-actions .btn-ghost {
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
+  }
+
+  html[data-theme="light"] .site-nav-mobile-actions .btn-ghost {
+    color: #24113e !important;
+    border-color: rgba(124, 58, 237, 0.16) !important;
+    background: #fff !important;
+  }
+
+  .nav-actions {
+    display: none !important;
+  }
+
+  .hero-section {
+    padding-top: 34px !important;
+  }
+
+  .hero-copy {
+    text-align: left;
+  }
+
+  .hero-copy h1,
+  .hero-copy p {
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  :root {
+    --landing-header-height: 64px;
+  }
+
+  .site-header .container.nav-row {
+    width: min(100% - 20px, var(--container));
+  }
+
+  .brand img {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .brand span {
+    font-size: 1rem;
+  }
+
+  .site-nav {
+    left: 10px !important;
+    right: 10px !important;
+    border-radius: 22px;
+  }
+
+  .site-nav-mobile-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-section {
+    padding-top: 28px !important;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.15rem, 10.6vw, 3.15rem);
+    line-height: 0.99;
+    letter-spacing: -0.055em;
+  }
+
+  .hero-copy p {
+    font-size: 0.98rem;
+    line-height: 1.58;
+  }
+}
+
+@media (max-width: 380px) {
+  .brand span {
+    display: none !important;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2rem, 10.8vw, 2.65rem);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Mobile performance / compositing
+   Several continuously animated blurred fixed elements + 3D tilt + glass blur
+   are expensive on phones. They do not add enough value to justify jank.
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px), (pointer: coarse) {
+  .ambient {
+    animation: none !important;
+    filter: blur(28px);
+    opacity: 0.26;
+  }
+
+  .orbit {
+    display: none !important;
+  }
+
+  .platform-preview,
+  .module-score-card {
+    animation: none !important;
+  }
+
+  [data-tilt],
+  .hero-visual,
+  .analytics-stack {
+    transform: none !important;
+  }
+
+  .back-to-top.is-visible {
+    animation: none !important;
+  }
+}
+
+/* Avoid a first-paint flash if JS has not decided yet whether the control should
+   be shown. The HTML should not contain .is-visible by default. */
+.back-to-top:not(.is-visible) {
+  opacity: 0;
+  pointer-events: none;
+}

@@ -36,6 +36,8 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
   {% include 'base/responsive_css.html' %}
+  {# Landing-only overrides MUST load last so generic mobile/responsive CSS cannot break the header/menu. #}
+  <link rel="stylesheet" href="{% static 'css/landing-fixes.css' %}">
 </head>
 <body>
   <div id="top" class="landing-shell">
@@ -65,14 +67,14 @@
 
           <div class="site-nav-mobile-actions" aria-label="Mobile account actions">
             <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
-            <a href="{% url 'guest_entry' %}" class="btn btn-primary">Start now</a>
+            <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
           </div>
         </nav>
 
         <div class="nav-actions">
           {% include 'base/theme_toggle.html' %}
           <a href="{% url 'login' %}" class="btn btn-ghost">Login</a>
-          <a href="{% url 'guest_entry' %}" class="btn btn-primary">Start now</a>
+          <a href="{% url 'register' %}" class="btn btn-primary">Start now</a>
         </div>
       </div>
     </header>
@@ -89,7 +91,7 @@
             </p>
 
             <div class="hero-actions reveal-up delay-3">
-              <a href="{% url 'guest_entry' %}" class="btn btn-primary btn-large magnetic">Start practice</a>
+              <a href="{% url 'guest_entry' %}" class="btn btn-primary btn-large magnetic">Check Your Level</a>
               <a href="#features" class="btn btn-secondary btn-large">See features</a>
               <a href="{% url 'rating_parent_lookup' %}" class="btn btn-secondary btn-large">Parent access</a>
             </div>
@@ -404,7 +406,7 @@
         </div>
       </div>
     </footer>
-    <a class="back-to-top is-visible" href="#top" aria-label="Back to top" data-back-to-top>
+    <a class="back-to-top" href="#top" aria-label="Back to top" data-back-to-top>
       <span aria-hidden="true">↑</span>
     </a>
   </div>
@@ -412,6 +414,7 @@
   <script src="{% static 'assets/js/landing.js' %}"></script>
   <script src="{% static 'assets/js/makon-theme-switcher.js' %}"></script>
   <script src="{% static 'assets/js/makon-faq-animation.js' %}"></script>
+  <script src="{% static 'assets/js/landing-fixes.js' %}"></script>
   {% include 'base/issue_report_widget.html' %}
 </body>
 </html>
