@@ -524,3 +524,76 @@ html[data-theme="light"] .site-header.is-scrolled {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   v33.6.1 — Mobile hamburger portal fix
+   The menu is portaled to <body> while open, so it cannot be clipped or
+   painted behind the landing backdrop by a sticky/filtered ancestor.
+   ========================================================================== */
+@media (max-width: 1024px) {
+  /* Reassert the header geometry after generic responsive CSS. */
+  body .landing-shell .site-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 2147482998 !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+    isolation: auto !important;
+  }
+
+  /* Keep the dim layer below both the header and the portaled menu. */
+  body.landing-menu-open .landing-shell::after {
+    z-index: 2147482990 !important;
+  }
+
+  /* While open JS moves [data-nav] directly under <body>. */
+  body > .site-nav.landing-mobile-nav-portal {
+    position: fixed !important;
+    top: var(--landing-mobile-nav-top, 74px) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    bottom: auto !important;
+    z-index: 2147483000 !important;
+
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(
+      100dvh - var(--landing-mobile-nav-top, 74px) - 12px -
+      env(safe-area-inset-bottom)
+    ) !important;
+
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translate3d(0, 0, 0) scale(1) !important;
+    transform-origin: top center !important;
+
+    /* Force an opaque menu surface. Do not depend on backdrop-filter. */
+    background:
+      radial-gradient(circle at 88% 12%, rgba(236, 72, 153, 0.20), transparent 12rem),
+      linear-gradient(145deg, #20133f, #0f0822) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.54) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    isolation: isolate;
+  }
+
+  html[data-theme="light"] body > .site-nav.landing-mobile-nav-portal {
+    color: #24113e !important;
+    background:
+      radial-gradient(circle at 88% 12%, rgba(236, 72, 153, 0.11), transparent 12rem),
+      linear-gradient(145deg, #ffffff, #f6f1ff) !important;
+    border-color: rgba(104, 62, 171, 0.18) !important;
+    box-shadow: 0 30px 90px rgba(76, 29, 149, 0.24) !important;
+  }
+}
+

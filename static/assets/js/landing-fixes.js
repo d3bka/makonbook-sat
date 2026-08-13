@@ -1,41 +1,96 @@
 /*
-  SAT Makon landing mobile-menu stability patch (V3)
-  Load AFTER landing.js.
+  SAT Makon landing mobile-menu stability patch (V4 / v33.6.1)
 
-  Why this owns the hamburger click:
-  the legacy landing.js may already have a toggle listener. A capture-phase
-  listener with stopImmediatePropagation prevents two handlers from fighting
-  each other and leaving the backdrop/menu in different states.
+  The legacy landing.js also owns a hamburger click handler. This patch takes
+  ownership in capture phase and, on mobile, portals the menu to <body> while
+  it is open. That removes the menu from the sticky header's stacking/
+  containing context, which is the source of the "backdrop visible, menu
+  missing" bug after scrolling deep into the landing page.
 */
 (() => {
   'use strict';
 
   const nav = document.querySelector('[data-nav]');
   const toggle = document.querySelector('[data-nav-toggle]');
+  const header = document.querySelector('[data-header]');
   const body = document.body;
 
   if (!nav || !toggle || !body) return;
 
   const mobileQuery = window.matchMedia('(max-width: 1024px)');
+  const originalParent = nav.parentNode;
+  const anchor = document.createComment('landing-mobile-nav-anchor');
+  originalParent.insertBefore(anchor, nav);
 
   const isOpen = () => nav.classList.contains('is-open');
 
+  const updatePortalPosition = () => {
+    if (!nav.classList.contains('landing-mobile-nav-portal')) return;
+
+    let top = 72;
+    if (header) {
+      const rect = header.getBoundingClientRect();
+      if (Number.isFinite(rect.bottom)) {
+        top = Math.max(8, Math.min(window.innerHeight - 80, rect.bottom + 8));
+      }
+    } else {
+      const rect = toggle.getBoundingClientRect();
+      top = Math.max(8, rect.bottom + 8);
+    }
+
+    nav.style.setProperty('--landing-mobile-nav-top', `${Math.round(top)}px`);
+  };
+
+  const portalMenu = () => {
+    if (!mobileQuery.matches) return;
+
+    if (nav.parentNode !== body) {
+      body.appendChild(nav);
+    }
+
+    nav.classList.add('landing-mobile-nav-portal');
+    updatePortalPosition();
+  };
+
+  const restoreMenu = () => {
+    nav.classList.remove('landing-mobile-nav-portal');
+    nav.style.removeProperty('--landing-mobile-nav-top');
+
+    if (anchor.parentNode && nav.parentNode !== originalParent) {
+      anchor.parentNode.insertBefore(nav, anchor.nextSibling);
+    }
+  };
+
   const applyState = (open, { focusToggle = false } = {}) => {
-    nav.classList.toggle('is-open', open);
-    toggle.classList.toggle('is-active', open);
-    body.classList.toggle('landing-menu-open', open);
+    const shouldOpen = Boolean(open && mobileQuery.matches);
 
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    if (shouldOpen) {
+      portalMenu();
+    }
 
-    if (!open && focusToggle) {
-      toggle.focus({ preventScroll: true });
+    nav.classList.toggle('is-open', shouldOpen);
+    toggle.classList.toggle('is-active', shouldOpen);
+    body.classList.toggle('landing-menu-open', shouldOpen);
+
+    toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    toggle.setAttribute('aria-label', shouldOpen ? 'Close menu' : 'Open menu');
+
+    if (!shouldOpen) {
+      restoreMenu();
+      if (focusToggle) {
+        try {
+          toggle.focus({ preventScroll: true });
+        } catch (_) {
+          toggle.focus();
+        }
+      }
     }
   };
 
   const closeMenu = (options) => applyState(false, options);
 
-  /* Take ownership of the hamburger on mobile. Capture phase is deliberate:\n     it prevents a second legacy click handler from instantly toggling it back. */
+  /* Capture phase prevents landing.js from immediately toggling the same
+     classes a second time. */
   toggle.addEventListener('click', (event) => {
     if (!mobileQuery.matches) return;
 
@@ -52,9 +107,11 @@
     }
   });
 
-  /* Click on the plain backdrop / anywhere outside the menu closes it. */
+  /* The backdrop is a pseudo-element, so its click target is the underlying
+     landing shell. Any click outside the portaled nav/toggle closes the menu. */
   document.addEventListener('click', (event) => {
     if (!isOpen()) return;
+
     const target = event.target;
     if (!(target instanceof Element)) return;
 
@@ -63,22 +120,23 @@
     }
   });
 
-  /* Navigation links should never leave an invisible open state behind. */
   nav.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (target.closest('a')) closeMenu();
   });
 
-  const resetMenu = () => applyState(false);
+  const resetMenu = () => closeMenu();
 
-  /* BFCache / history restore must always come back clean. */
   window.addEventListener('pageshow', resetMenu);
   window.addEventListener('pagehide', resetMenu);
 
-  /* Orientation changes and desktop transitions can invalidate menu geometry. */
   const handleViewportChange = () => {
-    if (isOpen()) closeMenu();
+    if (!mobileQuery.matches) {
+      closeMenu();
+      return;
+    }
+    if (isOpen()) updatePortalPosition();
   };
 
   if (typeof mobileQuery.addEventListener === 'function') {
@@ -87,8 +145,22 @@
     mobileQuery.addListener(handleViewportChange);
   }
 
-  window.addEventListener('orientationchange', handleViewportChange);
+  window.addEventListener('orientationchange', () => {
+    if (isOpen()) {
+      window.setTimeout(updatePortalPosition, 80);
+    }
+  });
 
-  /* Clean up any stale state from the previous patch immediately. */
-  resetMenu();
+  window.addEventListener('resize', () => {
+    if (isOpen()) updatePortalPosition();
+  }, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      if (isOpen()) updatePortalPosition();
+    }, { passive: true });
+  }
+
+  /* Never inherit stale menu state from BFCache or an older patch. */
+  applyState(false);
 })();
