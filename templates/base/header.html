@@ -43,7 +43,13 @@
                 </a>
               </li>
 
-              {% if request.user.is_staff or request.user.is_superuser %}
+              {% if request.user|has_group:"Manager" %}
+              <li>
+                <a href="{% url 'manager_dashboard' %}">
+                  <i class="fa fa-briefcase"></i> Manager Panel
+                </a>
+              </li>
+              {% elif request.user.is_staff or request.user.is_superuser %}
               <li>
                 <a href="{% url 'admin_dashboard' %}">
                   <i class="fa fa-shield"></i> Admin Panel

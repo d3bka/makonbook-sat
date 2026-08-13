@@ -192,6 +192,41 @@ class SupportBookingV33Tests(TestCase):
         self.assertContains(response, 'Private quality note that students must not see.')
         self.assertContains(response, 'Private lesson feedback')
 
+    def test_manager_teacher_account_uses_teacher_workspace_as_default(self):
+        multi_role = User.objects.create_user(
+            username='manager_teacher_v37', password='pass12345'
+        )
+        manager_group, _ = Group.objects.get_or_create(name='Manager')
+        teacher_group, _ = Group.objects.get_or_create(name='Teacher')
+        multi_role.groups.add(manager_group, teacher_group)
+        Classroom.objects.create(teacher=multi_role, name='Manager Teacher Classroom')
+
+        self.client.force_login(multi_role)
+        response = self.client.get(reverse('sat_menu'))
+        self.assertRedirects(response, reverse('teacher_classroom_list'))
+
+        manager_response = self.client.get(reverse('manager_dashboard'))
+        self.assertEqual(manager_response.status_code, 200)
+        self.assertContains(manager_response, 'Manager Overview')
+
+    def test_manager_panel_is_in_account_menu_and_replaces_admin_panel_label(self):
+        multi_role = User.objects.create_user(
+            username='manager_staff_teacher_v37',
+            password='pass12345',
+            is_staff=True,
+        )
+        manager_group, _ = Group.objects.get_or_create(name='Manager')
+        teacher_group, _ = Group.objects.get_or_create(name='Teacher')
+        multi_role.groups.add(manager_group, teacher_group)
+        Classroom.objects.create(teacher=multi_role, name='V37 Staff Classroom')
+
+        self.client.force_login(multi_role)
+        response = self.client.get(reverse('teacher_classroom_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Manager Panel')
+        self.assertContains(response, reverse('manager_dashboard'))
+        self.assertNotContains(response, '> Admin Panel')
+
     def test_manager_dashboard_is_group_scoped(self):
         manager = User.objects.create_user(username='manager_v33', password='pass12345')
         manager_group, _ = Group.objects.get_or_create(name='Manager')

@@ -5788,11 +5788,15 @@ def _student_global_goal_context(user):
 @login_required(login_url='/login/')
 @ensure_csrf_cookie
 def classroom_entry(request):
-    if is_manager(request.user):
-        return redirect('manager_dashboard')
-
+    # Multi-role accounts are allowed. When a Manager is also a Teacher, the
+    # teaching workspace remains the default operational home; Manager Overview
+    # is available explicitly from the account dropdown. This keeps day-to-day
+    # classroom work one click away without removing manager permissions.
     if is_teacher(request.user):
         return redirect('teacher_classroom_list')
+
+    if is_manager(request.user):
+        return redirect('manager_dashboard')
 
     # Support teachers use their planner as the operational home page.
     # This keeps /sat/ as the single authenticated entry point after the
