@@ -1117,10 +1117,10 @@ class StudentGoalProfileAdmin(admin.ModelAdmin):
 
 @admin.register(TestImportJob)
 class TestImportJobAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'status', 'requested_test_type', 'detected_test_type', 'created_by', 'created_at', 'processed_at', 'published_at')
+    list_display = ('id', 'name', 'status', 'progress_percent', 'requested_test_type', 'detected_test_type', 'created_by', 'created_at', 'processed_at', 'published_at')
     list_filter = ('status', 'requested_test_type', 'detected_test_type')
     search_fields = ('name', 'created_by__username', 'created_by__email')
-    readonly_fields = ('ai_model', 'page_count', 'structure_data', 'processing_log', 'error_message', 'processed_at', 'published_at', 'published_test', 'created_at', 'updated_at')
+    readonly_fields = ('ai_model', 'celery_task_id', 'progress_percent', 'progress_stage', 'progress_message', 'queued_at', 'processing_started_at', 'processing_heartbeat_at', 'page_count', 'structure_data', 'processing_log', 'error_message', 'processed_at', 'published_at', 'published_test', 'created_at', 'updated_at')
 
 
 @admin.register(TestImportQuestion)

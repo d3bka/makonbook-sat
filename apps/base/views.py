@@ -10,6 +10,7 @@ from .forms import UserRegistrationForm, EditProfileForm, ForgotPasswordRequestF
 from datetime import timedelta
 from django.utils import timezone
 from .models import EmailVerification, PasswordResetCode
+from .registration_rate_limit import check_registration_rate_limit
 from .decorators import *
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -155,6 +156,20 @@ def logoutUser(request):
 def register(request):
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)
+        rate = check_registration_rate_limit(
+            request,
+            email=request.POST.get("email", ""),
+            username=request.POST.get("username", ""),
+        )
+        if not rate.allowed:
+            messages.error(
+                request,
+                "Too many registration attempts. Please wait a little before trying again.",
+            )
+            response = render(request, 'base/register.html', {'form': form}, status=429)
+            response['Retry-After'] = str(rate.retry_after)
+            return response
+
         if form.is_valid():
             # Save the user to the database. The form hashes and normalizes the password/email.
             user = form.save()

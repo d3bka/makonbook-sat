@@ -5,6 +5,7 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+from apps.sat.roles import is_teacher as has_teacher_access
 
 try:
     from apps.sat.storages import PublicStorage
@@ -280,7 +281,7 @@ class APExamEvent(models.Model):
         if not user.is_authenticated:
             return False
 
-        if self.classrooms.filter(teacher=user, is_active=True, classroom_type='ap').exists():
+        if has_teacher_access(user) and self.classrooms.filter(teacher=user, is_active=True, classroom_type='ap').exists():
             return True
         if self.classrooms.filter(
             memberships__user=user,

@@ -1,0 +1,114 @@
+# MakonBook Structured PDF v1
+
+Use this contract when converting a source test with an external AI before uploading it to MakonBook.
+
+## Conversion prompt
+
+Convert the attached test into **MakonBook Structured PDF v1**. Do not rewrite, simplify, translate, solve differently, or invent content. Preserve question wording, passages, answer choices, mathematical notation, correct answers, and explanations exactly as supported by the source.
+
+Produce **two separate PDF files when both sections exist**:
+
+- `EBRW.pdf` with `[[SECTION:EBRW]]`
+- `Math.pdf` with `[[SECTION:MATH]]`
+
+If the source contains only one section, produce only that section's PDF.
+
+Question counts are dynamic. Do **not** force standard SAT counts. Preserve every source question even when a module contains fewer or more questions, including Placement/custom tests.
+
+All machine markers below must be plain selectable text, written exactly as shown, on their own lines. Never place a marker inside an image. Do not change marker spelling.
+
+Each PDF must begin with:
+
+```text
+[[MAKONBOOK_STRUCTURED_PDF:1]]
+[[SECTION:EBRW]]
+```
+
+or:
+
+```text
+[[MAKONBOOK_STRUCTURED_PDF:1]]
+[[SECTION:MATH]]
+```
+
+Start each module with exactly one of:
+
+```text
+[[MODULE:1]]
+[[MODULE:2]]
+```
+
+For every multiple-choice question use:
+
+```text
+[[QUESTION:1]]
+[[TYPE:MCQ]]
+[[PASSAGE]]
+Passage/source text. Leave empty if there is no passage.
+[[/PASSAGE]]
+[[PROMPT]]
+Question prompt.
+[[/PROMPT]]
+[[A]]
+Choice A
+[[/A]]
+[[B]]
+Choice B
+[[/B]]
+[[C]]
+Choice C
+[[/C]]
+[[D]]
+Choice D
+[[/D]]
+[[ANSWER]]
+B
+[[/ANSWER]]
+[[EXPLANATION]]
+Explanation if available. Leave empty if the source provides none.
+[[/EXPLANATION]]
+[[GRAPH:NO]]
+[[CHOICE_GRAPH:NO]]
+[[END_QUESTION]]
+```
+
+For a Math student-produced-response/open-response question use:
+
+```text
+[[QUESTION:1]]
+[[TYPE:SPR]]
+[[PASSAGE]]
+Optional context.
+[[/PASSAGE]]
+[[PROMPT]]
+Question prompt.
+[[/PROMPT]]
+[[A]][[/A]]
+[[B]][[/B]]
+[[C]][[/C]]
+[[D]][[/D]]
+[[ANSWER]]
+Accepted answer from the source answer key.
+[[/ANSWER]]
+[[EXPLANATION]]
+Explanation if available.
+[[/EXPLANATION]]
+[[GRAPH:NO]]
+[[CHOICE_GRAPH:NO]]
+[[END_QUESTION]]
+```
+
+Use `[[GRAPH:YES]]` when the question depends on a graph, diagram, chart, table, or other visual prompt. Keep that visual next to the question in the PDF. MakonBook will flag it for manual image verification during support-teacher review.
+
+Use `[[CHOICE_GRAPH:YES]]` when the answer choices themselves are images/graphs. Keep all choice visuals visible in the PDF. MakonBook will flag those choices for manual image verification.
+
+Rules:
+
+1. Numbering restarts only if the source itself restarts it for a new module.
+2. Do not omit a question because its layout is difficult.
+3. Do not invent an answer if no answer key exists. Leave `[[ANSWER]]...[[/ANSWER]]` empty.
+4. Do not infer an explanation when none is supplied; leave it empty.
+5. Preserve LaTeX/plain-text math notation consistently as selectable text where possible.
+6. Keep the marker blocks in reading order. A question may span PDF pages, but its `[[QUESTION:n]]` marker must appear before all fields and `[[END_QUESTION]]` after them.
+7. Do not add commentary outside the structured test content except a short human-readable title before the first module if desired.
+8. Before returning the PDFs, verify that every `[[QUESTION:n]]` has one matching `[[END_QUESTION]]` and that every opened field tag has its closing tag.

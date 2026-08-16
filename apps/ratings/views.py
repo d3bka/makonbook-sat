@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.sat.roles import is_teacher as has_teacher_access
 from apps.sat.models import Classroom, ClassroomMembership
 
 from .engine import build_board, student_rating
@@ -223,7 +224,11 @@ def _parent_context(request, **extra):
 
 
 def _is_teacher_for(user, classroom):
-    return bool(user.is_authenticated and (user.pk == classroom.teacher_id or user.is_staff or user.is_superuser))
+    if not user.is_authenticated:
+        return False
+    if user.is_staff or user.is_superuser:
+        return True
+    return bool(has_teacher_access(user) and user.pk == classroom.teacher_id)
 
 
 def rating_home(request):
@@ -335,7 +340,9 @@ def assess_student(request, classroom_id, student_id):
 @login_required
 @require_POST
 def edit_assessment(request, assessment_id):
-    assessment = get_object_or_404(RatingAssessment, pk=assessment_id)
+    assessment = get_object_or_404(RatingAssessment.objects.select_related("classroom"), pk=assessment_id)
+    if not _is_teacher_for(request.user, assessment.classroom):
+        raise PermissionDenied
     if assessment.teacher_id != request.user.pk and not (request.user.is_staff or request.user.is_superuser):
         raise PermissionDenied
     config = RatingConfig.get_solo()

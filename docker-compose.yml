@@ -17,6 +17,18 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   web:
     build: .
     restart: always
@@ -30,14 +42,43 @@ services:
       DB_ENGINE: django.db.backends.postgresql
       DB_HOST: db
       DB_PORT: 5432
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      REGISTRATION_RATE_LIMIT_CACHE_URL: ${REGISTRATION_RATE_LIMIT_CACHE_URL:-redis://redis:6379/3}
       GUNICORN_CMD_ARGS: --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 50 --worker-tmp-dir /dev/shm
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "8000"
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  celery-worker:
+    build: .
+    restart: always
+    command: celery -A satmakon worker --loglevel=INFO --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+    volumes:
+      - media_files:/app/media
+      - logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_HOST: db
+      DB_PORT: 5432
+      RUN_MIGRATIONS: 0
+      COLLECTSTATIC_ON_START: 0
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   telegram-bot:
+    profiles: ["bot"]
     build: .
     restart: always
     command: python manage.py run_telegram_bot
@@ -56,6 +97,7 @@ services:
         condition: service_healthy
 
   nginx:
+    profiles: ["edge"]
     image: nginx:alpine
     restart: always
     ports:
@@ -71,6 +113,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   static_files:
   media_files:
   logs:

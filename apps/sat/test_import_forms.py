@@ -7,8 +7,16 @@ from .test_import_service import validate_import_question
 class TestImportUploadForm(forms.ModelForm):
     class Meta:
         model = TestImportJob
-        fields = ["name", "requested_test_type", "source_pdf", "answer_pdf", "required_approvals"]
+        fields = ["name", "english_pdf", "math_pdf", "required_approvals"]
         widgets = {"required_approvals": forms.NumberInput(attrs={"min": 1, "max": 5})}
+        labels = {
+            "english_pdf": "EBRW structured PDF",
+            "math_pdf": "Math structured PDF",
+        }
+        help_texts = {
+            "english_pdf": "Optional. Upload a MakonBook Structured PDF v1 Reading & Writing file.",
+            "math_pdf": "Optional. Upload a MakonBook Structured PDF v1 Math file.",
+        }
 
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
@@ -24,23 +32,32 @@ class TestImportUploadForm(forms.ModelForm):
             raise forms.ValidationError("Required approvals must be between 1 and 5.")
         return value
 
-    def clean_source_pdf(self):
-        f = self.cleaned_data.get("source_pdf")
+    @staticmethod
+    def _clean_pdf(f, label):
         if not f:
             return f
         if not f.name.lower().endswith(".pdf"):
-            raise forms.ValidationError("Upload a PDF file.")
+            raise forms.ValidationError(f"{label} must be a PDF file.")
         if f.size > 49 * 1024 * 1024:
-            raise forms.ValidationError("PDF must be smaller than 49 MB.")
+            raise forms.ValidationError(f"{label} must be smaller than 49 MB.")
         return f
 
-    def clean_answer_pdf(self):
-        f = self.cleaned_data.get("answer_pdf")
-        if f and not f.name.lower().endswith(".pdf"):
-            raise forms.ValidationError("Answer file must be a PDF.")
-        if f and f.size > 24 * 1024 * 1024:
-            raise forms.ValidationError("Answer/reference PDF must be smaller than 24 MB.")
-        return f
+    def clean_english_pdf(self):
+        return self._clean_pdf(self.cleaned_data.get("english_pdf"), "EBRW file")
+
+    def clean_math_pdf(self):
+        return self._clean_pdf(self.cleaned_data.get("math_pdf"), "Math file")
+
+    def clean(self):
+        cleaned = super().clean()
+        if (
+            not cleaned.get("english_pdf")
+            and not cleaned.get("math_pdf")
+            and "english_pdf" not in self.errors
+            and "math_pdf" not in self.errors
+        ):
+            raise forms.ValidationError("Upload at least one structured PDF: EBRW, Math, or both.")
+        return cleaned
 
 
 class TestImportQuestionForm(forms.ModelForm):

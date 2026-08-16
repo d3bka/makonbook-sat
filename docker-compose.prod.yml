@@ -41,6 +41,9 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
       COLLECTSTATIC_ON_START: ${COLLECTSTATIC_ON_START:-1}
       DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT:-90}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      REGISTRATION_RATE_LIMIT_CACHE_URL: ${REGISTRATION_RATE_LIMIT_CACHE_URL:-redis://redis:6379/3}
       GUNICORN_CMD_ARGS: >-
         --workers ${GUNICORN_WORKERS:-3}
         --timeout ${GUNICORN_TIMEOUT:-120}
@@ -51,6 +54,47 @@ services:
       - sat_makon_network
     expose:
       - "8000"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    container_name: makonbook-redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    networks:
+      - sat_makon_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  celery-worker:
+    image: ${APP_IMAGE:-nazacd/makonbook:latest}
+    pull_policy: always
+    restart: always
+    container_name: makonbook-celery-worker
+    command: celery -A satmakon worker --loglevel=INFO --concurrency=${CELERY_WORKER_CONCURRENCY:-2}
+    volumes:
+      - media_files:/app/media
+      - logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      DB_ENGINE: django.db.backends.postgresql
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      RUN_MIGRATIONS: 0
+      COLLECTSTATIC_ON_START: 0
+      DB_WAIT_TIMEOUT: ${DB_WAIT_TIMEOUT:-90}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+    networks:
+      - sat_makon_network
+    depends_on:
+      redis:
+        condition: service_healthy
 
   telegram-bot:
     image: ${APP_IMAGE:-nazacd/makonbook:latest}
@@ -109,6 +153,7 @@ services:
       /bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'
 
 volumes:
+  redis_data:
   static_files:
   media_files:
   logs:

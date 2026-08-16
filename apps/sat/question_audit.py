@@ -132,15 +132,46 @@ def _extract_response_text(response: dict) -> str:
         for content in item.get("content", []):
             if content.get("type") in {"output_text", "text"} and isinstance(content.get("text"), str):
                 return content["text"]
-    raise ValueError("OpenAI response did not contain structured text output")
+    raise ValueError("AI response did not contain structured text output")
 
 
-def call_audit_model(batch: list[dict], *, model: str | None = None) -> list[dict]:
+def _audit_provider() -> str:
+    provider = str(getattr(settings, "QUESTION_AUDIT_PROVIDER", "openai") or "openai").strip().lower()
+    if provider not in {"openai", "deepseek"}:
+        raise RuntimeError(f"Unsupported QUESTION_AUDIT_PROVIDER: {provider}")
+    return provider
+
+
+def _audit_model(provider: str, requested: str | None = None) -> str:
+    if requested:
+        return requested
+    configured = str(getattr(settings, "QUESTION_AUDIT_MODEL", "") or "").strip()
+    if configured:
+        return configured
+    return "deepseek-v4-flash" if provider == "deepseek" else "gpt-5.6-terra"
+
+
+def _post_json(url: str, body: dict, api_key: str, *, timeout: int, provider_label: str) -> dict:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:3000]
+        raise RuntimeError(f"{provider_label} audit request failed ({exc.code}): {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"{provider_label} audit request failed: {exc.reason}") from exc
+
+
+def _call_openai_audit(batch: list[dict], *, model: str, timeout: int) -> list[dict]:
     api_key = getattr(settings, "OPENAI_API_KEY", "") or os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not configured")
-    model = model or getattr(settings, "QUESTION_AUDIT_MODEL", "gpt-5.6-terra")
-    timeout = int(getattr(settings, "QUESTION_AUDIT_TIMEOUT_SECONDS", 60))
     body = {
         "model": model,
         "instructions": SYSTEM_INSTRUCTIONS,
@@ -154,25 +185,89 @@ def call_audit_model(batch: list[dict], *, model: str | None = None) -> list[dic
             }
         },
     }
-    request = urllib.request.Request(
+    raw = _post_json(
         "https://api.openai.com/v1/responses",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        method="POST",
+        body,
+        api_key,
+        timeout=timeout,
+        provider_label="OpenAI",
     )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            raw = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:2000]
-        raise RuntimeError(f"OpenAI audit request failed ({exc.code}): {detail}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"OpenAI audit request failed: {exc.reason}") from exc
     parsed = json.loads(_extract_response_text(raw))
     return parsed["questions"]
 
 
-def audit_question_payloads(payload: list[dict], *, model: str | None = None, batch_size: int | None = None) -> AuditRun:
+def _deepseek_response_text(response: dict) -> str:
+    choices = response.get("choices") or []
+    if not choices:
+        return ""
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    return content if isinstance(content, str) else ""
+
+
+def _call_deepseek_audit(batch: list[dict], *, model: str, timeout: int) -> list[dict]:
+    api_key = getattr(settings, "DEEPSEEK_API_KEY", "") or os.getenv("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("DEEPSEEK_API_KEY is not configured")
+
+    base_url = str(getattr(settings, "DEEPSEEK_BASE_URL", "https://api.deepseek.com") or "https://api.deepseek.com").rstrip("/")
+    thinking_enabled = bool(getattr(settings, "QUESTION_AUDIT_DEEPSEEK_THINKING", False))
+    reasoning_effort = str(getattr(settings, "QUESTION_AUDIT_DEEPSEEK_REASONING_EFFORT", "low") or "low").strip().lower()
+    max_tokens = int(getattr(settings, "QUESTION_AUDIT_MAX_TOKENS", 12000))
+    retries = max(1, int(getattr(settings, "QUESTION_AUDIT_JSON_RETRIES", 2)))
+
+    schema_text = json.dumps(AUDIT_SCHEMA, ensure_ascii=False, separators=(",", ":"))
+    system_prompt = (
+        SYSTEM_INSTRUCTIONS
+        + "\nReturn JSON only. The top-level object must contain the key 'questions'. "
+        + "Follow this JSON schema exactly; do not add prose before or after the JSON:\n"
+        + schema_text
+    )
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": "Audit this JSON question batch:\n" + json.dumps({"questions": batch}, ensure_ascii=False)},
+        ],
+        "response_format": {"type": "json_object"},
+        "max_tokens": max_tokens,
+        "thinking": {"type": "enabled" if thinking_enabled else "disabled"},
+    }
+    if thinking_enabled:
+        body["reasoning_effort"] = reasoning_effort
+
+    last_error: Exception | None = None
+    for _ in range(retries):
+        try:
+            raw = _post_json(
+                f"{base_url}/chat/completions",
+                body,
+                api_key,
+                timeout=timeout,
+                provider_label="DeepSeek",
+            )
+            text = _deepseek_response_text(raw).strip()
+            if not text:
+                raise ValueError("DeepSeek returned empty JSON content")
+            parsed = json.loads(text)
+            questions = parsed.get("questions")
+            if not isinstance(questions, list):
+                raise ValueError("DeepSeek JSON did not contain a questions array")
+            return questions
+        except (ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+    raise RuntimeError(f"DeepSeek audit returned invalid JSON after {retries} attempt(s): {last_error}")
+
+
+def call_audit_model(batch: list[dict], *, model: str | None = None) -> list[dict]:
+    provider = _audit_provider()
+    resolved_model = _audit_model(provider, model)
+    timeout = int(getattr(settings, "QUESTION_AUDIT_TIMEOUT_SECONDS", 60))
+    if provider == "deepseek":
+        return _call_deepseek_audit(batch, model=resolved_model, timeout=timeout)
+    return _call_openai_audit(batch, model=resolved_model, timeout=timeout)
+
+def audit_question_payloads(payload: list[dict], *, model: str | None = None, batch_size: int | None = None, progress_callback=None) -> AuditRun:
     batch_size = batch_size or int(getattr(settings, "QUESTION_AUDIT_BATCH_SIZE", 12))
     all_findings: list[dict] = []
     expected = {(item["section"], item["id"]): item for item in payload}
@@ -191,10 +286,16 @@ def audit_question_payloads(payload: list[dict], *, model: str | None = None, ba
                     "verified_answer": "", "recommended_fix": "Review manually.",
                 }
             all_findings.append(finding)
+        if progress_callback:
+            try:
+                progress_callback(min(offset + len(batch), len(payload)), len(payload))
+            except Exception:
+                pass
     section = payload[0]["section"] if payload and len({x["section"] for x in payload}) == 1 else "all"
     tests = sorted({x["test"] for x in payload if x.get("test")})
+    provider = _audit_provider()
     return AuditRun(
-        model=model or getattr(settings, "QUESTION_AUDIT_MODEL", "gpt-5.6-terra"),
+        model=_audit_model(provider, model),
         generated_at=timezone.now(),
         test_name=tests[0] if len(tests) == 1 else (", ".join(tests[:3]) + ("..." if len(tests) > 3 else "")),
         section=section,

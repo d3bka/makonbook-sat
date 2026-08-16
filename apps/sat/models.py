@@ -2348,6 +2348,7 @@ class StudentPracticeTestAccess(models.Model):
 # ---------------------------------------------------------------------------
 class TestImportJob(models.Model):
     STATUS_UPLOADED = 'uploaded'
+    STATUS_QUEUED = 'queued'
     STATUS_PROCESSING = 'processing'
     STATUS_REVIEW_REQUIRED = 'review_required'
     STATUS_CHANGES_REQUESTED = 'changes_requested'
@@ -2357,6 +2358,7 @@ class TestImportJob(models.Model):
     STATUS_FAILED = 'failed'
     STATUS_CHOICES = (
         (STATUS_UPLOADED, 'Uploaded'),
+        (STATUS_QUEUED, 'Queued'),
         (STATUS_PROCESSING, 'Processing'),
         (STATUS_REVIEW_REQUIRED, 'Review required'),
         (STATUS_CHANGES_REQUESTED, 'Changes requested'),
@@ -2378,8 +2380,12 @@ class TestImportJob(models.Model):
     )
 
     name = models.CharField(max_length=400)
-    source_pdf = models.FileField(upload_to='sat/test_imports/source/', storage=PrivateStorage())
+    # Legacy arbitrary-PDF import fields are kept for old staging jobs.
+    source_pdf = models.FileField(upload_to='sat/test_imports/source/', storage=PrivateStorage(), blank=True, null=True)
     answer_pdf = models.FileField(upload_to='sat/test_imports/answers/', storage=PrivateStorage(), blank=True, null=True)
+    # New deterministic import path: files must follow MakonBook Structured PDF v1.
+    english_pdf = models.FileField(upload_to='sat/test_imports/structured/english/', storage=PrivateStorage(), blank=True, null=True)
+    math_pdf = models.FileField(upload_to='sat/test_imports/structured/math/', storage=PrivateStorage(), blank=True, null=True)
     requested_test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default=TYPE_AUTO)
     detected_test_type = models.CharField(max_length=20, blank=True)
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UPLOADED, db_index=True)
@@ -2389,6 +2395,13 @@ class TestImportJob(models.Model):
     page_count = models.PositiveIntegerField(default=0)
     structure_data = models.JSONField(default=dict, blank=True)
     processing_log = models.JSONField(default=list, blank=True)
+    celery_task_id = models.CharField(max_length=255, blank=True, db_index=True)
+    progress_percent = models.PositiveSmallIntegerField(default=0)
+    progress_stage = models.CharField(max_length=64, blank=True)
+    progress_message = models.CharField(max_length=500, blank=True)
+    queued_at = models.DateTimeField(blank=True, null=True)
+    processing_started_at = models.DateTimeField(blank=True, null=True)
+    processing_heartbeat_at = models.DateTimeField(blank=True, null=True)
     error_message = models.TextField(blank=True)
     processed_at = models.DateTimeField(blank=True, null=True)
     published_at = models.DateTimeField(blank=True, null=True)
@@ -2422,7 +2435,7 @@ class TestImportJob(models.Model):
         return self.questions.filter(validation_status=TestImportQuestion.VALIDATION_ERROR).exists()
 
     def refresh_review_status(self, save=True):
-        if self.status in {self.STATUS_PUBLISHED, self.STATUS_PUBLISHING, self.STATUS_PROCESSING, self.STATUS_FAILED}:
+        if self.status in {self.STATUS_PUBLISHED, self.STATUS_PUBLISHING, self.STATUS_QUEUED, self.STATUS_PROCESSING, self.STATUS_FAILED}:
             return self.status
         if self.has_blocking_errors:
             self.status = self.STATUS_CHANGES_REQUESTED

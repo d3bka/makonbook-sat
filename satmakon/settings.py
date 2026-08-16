@@ -262,6 +262,43 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MBs
 # Request timeout settings
 REQUEST_TIMEOUT = 60  # seconds
 
+# Public registration throttling. These defaults are intentionally tolerant of
+# school NATs while still stopping repeated automated submissions.
+REGISTRATION_RATE_LIMIT_ENABLED = env_bool("REGISTRATION_RATE_LIMIT_ENABLED", True)
+REGISTRATION_RATE_LIMIT_IP_MAX = int(os.getenv("REGISTRATION_RATE_LIMIT_IP_MAX", "20"))
+REGISTRATION_RATE_LIMIT_IP_WINDOW_SECONDS = int(os.getenv("REGISTRATION_RATE_LIMIT_IP_WINDOW_SECONDS", "600"))
+REGISTRATION_RATE_LIMIT_IDENTIFIER_MAX = int(os.getenv("REGISTRATION_RATE_LIMIT_IDENTIFIER_MAX", "5"))
+REGISTRATION_RATE_LIMIT_IDENTIFIER_WINDOW_SECONDS = int(os.getenv("REGISTRATION_RATE_LIMIT_IDENTIFIER_WINDOW_SECONDS", "1800"))
+
+# Shared Redis counters in production; zero-setup in-memory counters in local
+# DEBUG mode. Set REGISTRATION_RATE_LIMIT_CACHE_URL explicitly to use Redis
+# while running Django directly from a local virtualenv.
+REGISTRATION_RATE_LIMIT_CACHE_URL = os.getenv("REGISTRATION_RATE_LIMIT_CACHE_URL", "").strip()
+if REGISTRATION_RATE_LIMIT_CACHE_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REGISTRATION_RATE_LIMIT_CACHE_URL,
+            "KEY_PREFIX": "makonbook",
+        }
+    }
+elif DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "makonbook-dev",
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://redis:6379/3",
+            "KEY_PREFIX": "makonbook",
+        }
+    }
+
+
 # Logging configuration for monitoring large requests
 LOGGING = {
     'version': 1,
@@ -426,15 +463,52 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# AI is used for administrator/manager-run question-bank audits and staged PDF test imports.
-# Student answers are never sent to the model. Imported content stays in staging until human approval and publication.
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-QUESTION_AUDIT_MODEL = os.getenv("QUESTION_AUDIT_MODEL", "gpt-5.6-terra")
-QUESTION_AUDIT_TIMEOUT_SECONDS = int(os.getenv("QUESTION_AUDIT_TIMEOUT_SECONDS", "60"))
-QUESTION_AUDIT_BATCH_SIZE = max(1, min(30, int(os.getenv("QUESTION_AUDIT_BATCH_SIZE", "12"))))
+# Celery / Redis. The web process only enqueues long-running work; workers execute it.
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
+CELERY_TASK_TRACK_STARTED = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_RESULT_EXPIRES = int(os.getenv("CELERY_RESULT_EXPIRES", "86400"))
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
 
-# AI-assisted staged PDF test imports.
-TEST_IMPORT_MODEL = os.getenv("TEST_IMPORT_MODEL", QUESTION_AUDIT_MODEL)
-TEST_IMPORT_AUDIT_MODEL = os.getenv("TEST_IMPORT_AUDIT_MODEL", QUESTION_AUDIT_MODEL)
+# AI is used for administrator/manager-run question-bank audits.
+# Structured-PDF imports themselves are deterministic and do not require an AI provider.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+
+# Prefer DeepSeek automatically when its key is configured; set QUESTION_AUDIT_PROVIDER explicitly to override.
+QUESTION_AUDIT_PROVIDER = os.getenv(
+    "QUESTION_AUDIT_PROVIDER",
+    "deepseek" if DEEPSEEK_API_KEY else "openai",
+).strip().lower()
+_default_question_audit_model = "deepseek-v4-flash" if QUESTION_AUDIT_PROVIDER == "deepseek" else "gpt-5.6-terra"
+QUESTION_AUDIT_MODEL = os.getenv("QUESTION_AUDIT_MODEL", _default_question_audit_model).strip()
+# Ignore stale model names when switching providers (for example an old gpt-* value in .env).
+if QUESTION_AUDIT_PROVIDER == "deepseek" and not QUESTION_AUDIT_MODEL.startswith("deepseek-"):
+    QUESTION_AUDIT_MODEL = "deepseek-v4-flash"
+elif QUESTION_AUDIT_PROVIDER == "openai" and QUESTION_AUDIT_MODEL.startswith("deepseek-"):
+    QUESTION_AUDIT_MODEL = "gpt-5.6-terra"
+QUESTION_AUDIT_TIMEOUT_SECONDS = int(os.getenv("QUESTION_AUDIT_TIMEOUT_SECONDS", "90"))
+QUESTION_AUDIT_BATCH_SIZE = max(1, min(30, int(os.getenv("QUESTION_AUDIT_BATCH_SIZE", "12"))))
+QUESTION_AUDIT_MAX_TOKENS = max(1000, int(os.getenv("QUESTION_AUDIT_MAX_TOKENS", "12000")))
+QUESTION_AUDIT_JSON_RETRIES = max(1, min(4, int(os.getenv("QUESTION_AUDIT_JSON_RETRIES", "2"))))
+QUESTION_AUDIT_DEEPSEEK_THINKING = os.getenv("QUESTION_AUDIT_DEEPSEEK_THINKING", "0").strip().lower() in {"1", "true", "yes", "on"}
+QUESTION_AUDIT_DEEPSEEK_REASONING_EFFORT = os.getenv("QUESTION_AUDIT_DEEPSEEK_REASONING_EFFORT", "low")
+
+# Legacy arbitrary-PDF AI extraction remains OpenAI-only for old import records.
+# New MakonBook Structured PDF v1 imports never call TEST_IMPORT_MODEL.
+TEST_IMPORT_MODEL = os.getenv("TEST_IMPORT_MODEL", "gpt-5.6-terra")
+TEST_IMPORT_AUDIT_MODEL = os.getenv("TEST_IMPORT_AUDIT_MODEL", QUESTION_AUDIT_MODEL).strip()
+if QUESTION_AUDIT_PROVIDER == "deepseek" and not TEST_IMPORT_AUDIT_MODEL.startswith("deepseek-"):
+    TEST_IMPORT_AUDIT_MODEL = QUESTION_AUDIT_MODEL
+elif QUESTION_AUDIT_PROVIDER == "openai" and TEST_IMPORT_AUDIT_MODEL.startswith("deepseek-"):
+    TEST_IMPORT_AUDIT_MODEL = QUESTION_AUDIT_MODEL
 TEST_IMPORT_TIMEOUT_SECONDS = int(os.getenv("TEST_IMPORT_TIMEOUT_SECONDS", "180"))
+TEST_IMPORT_CELERY_SOFT_TIME_LIMIT = int(os.getenv("TEST_IMPORT_CELERY_SOFT_TIME_LIMIT", "3300"))
+TEST_IMPORT_CELERY_TIME_LIMIT = int(os.getenv("TEST_IMPORT_CELERY_TIME_LIMIT", "3600"))
 TEST_IMPORT_RUN_AI_AUDIT = os.getenv("TEST_IMPORT_RUN_AI_AUDIT", "1").strip().lower() not in {"0", "false", "no", "off"}

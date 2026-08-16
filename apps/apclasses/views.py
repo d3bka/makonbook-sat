@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from .models import APExamAnswer, APExamAttempt, APExamEvent, APFRQSubmission, APMultipleChoiceQuestion
 from apps.sat.models import GuestParticipant
+from apps.sat.roles import is_teacher as has_teacher_access
 
 
 AP_PART_FIELDS = {
@@ -161,7 +162,12 @@ def _visible_events_queryset(request):
         user_group_ids = list(user.groups.values_list("id", flat=True))
         return qs.filter(
             Q(is_global=True) |
-            Q(classrooms__teacher=user, classrooms__is_active=True, classrooms__classroom_type='ap') |
+            Q(
+                classrooms__teacher=user,
+                classrooms__teacher__groups__name__iexact='Teacher',
+                classrooms__is_active=True,
+                classrooms__classroom_type='ap',
+            ) |
             Q(
                 classrooms__memberships__user=user,
                 classrooms__memberships__role="student",
@@ -614,7 +620,7 @@ def ap_event_result_view(request, token):
     can_view_score = (
         attempt.event.show_score_immediately
         or _is_staff_user(request.user)
-        or (request.user.is_authenticated and attempt.event.classrooms.filter(teacher=request.user, is_active=True).exists())
+        or (has_teacher_access(request.user) and attempt.event.classrooms.filter(teacher=request.user, is_active=True).exists())
     )
 
     return render(request, "apclasses/result.html", {

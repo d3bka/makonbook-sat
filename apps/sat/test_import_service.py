@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from collections import Counter
@@ -185,6 +186,26 @@ def _log(job, message):
     job.save(update_fields=["processing_log", "updated_at"])
 
 
+def _emit_progress(job, percent, stage, message, callback=None):
+    percent = max(0, min(100, int(percent)))
+    now = timezone.now()
+    job.progress_percent = percent
+    job.progress_stage = str(stage or "")[:64]
+    job.progress_message = str(message or "")[:500]
+    job.processing_heartbeat_at = now
+    job.save(update_fields=[
+        "progress_percent", "progress_stage", "progress_message",
+        "processing_heartbeat_at", "updated_at",
+    ])
+    if callback:
+        try:
+            callback(percent, job.progress_stage, job.progress_message)
+        except Exception:
+            # Redis result-state updates are helpful but not authoritative.
+            # Database progress must keep the import alive even if result storage is transiently unavailable.
+            pass
+
+
 def validate_import_question(question: TestImportQuestion, save=True):
     errors, warnings = [], []
     if question.section not in {"english", "math"}:
@@ -238,21 +259,16 @@ def validate_job(job: TestImportJob):
             q.validation_errors = list(q.validation_errors) + ["Duplicate question number in this module."]
         q.save(update_fields=["validation_errors", "validation_status", "updated_at"])
 
-    # Standard Digital SAT counts are a warning, not a blocker, because MakonBook also hosts custom tests.
-    expected = {("english", "module_1"): 27, ("english", "module_2"): 27, ("math", "module_1"): 22, ("math", "module_2"): 22}
+    # Question counts are intentionally dynamic. Placement/custom tests may have any count.
     module_counts = Counter((q.section, q.module) for q in questions)
     structure = dict(job.structure_data or {})
-    count_warnings = []
-    for module in structure.get("modules", []):
-        key = (module.get("section"), module.get("module"))
-        if key in expected and module_counts.get(key, 0) != expected[key]:
-            count_warnings.append(f"{key[0]} {key[1]}: extracted {module_counts.get(key, 0)} questions; standard SAT normally has {expected[key]}.")
-    structure["count_warnings"] = count_warnings
+    structure["module_counts"] = {f"{section}:{module}": count for (section, module), count in module_counts.items()}
+    structure["count_warnings"] = []
     job.structure_data = structure
     job.save(update_fields=["structure_data", "updated_at"])
 
 
-def _audit_staging(job: TestImportJob):
+def _audit_staging(job: TestImportJob, progress_callback=None):
     payload = []
     for q in job.questions.all():
         payload.append({
@@ -275,7 +291,11 @@ def _audit_staging(job: TestImportJob):
         })
     if not payload:
         return
-    run = audit_question_payloads(payload, model=getattr(settings, "TEST_IMPORT_AUDIT_MODEL", None))
+    run = audit_question_payloads(
+        payload,
+        model=getattr(settings, "TEST_IMPORT_AUDIT_MODEL", None),
+        progress_callback=progress_callback,
+    )
     findings = {(f.get("section"), f.get("id")): f for f in run.findings}
     for q in job.questions.all():
         f = findings.get((q.section, q.pk))
@@ -294,7 +314,19 @@ def _audit_staging(job: TestImportJob):
 
 
 def assign_reviewers(job: TestImportJob):
-    reviewers = list(SupportTeacherProfile.objects.filter(is_active=True, user__is_active=True).values_list("user_id", flat=True))
+    reviewers = list(
+        SupportTeacherProfile.objects.filter(
+            is_active=True,
+            user__is_active=True,
+            user__groups__name__iexact="Support Teacher",
+        )
+        .distinct()
+        .values_list("user_id", flat=True)
+    )
+    if reviewers:
+        job.reviews.exclude(reviewer_id__in=reviewers).delete()
+    else:
+        job.reviews.all().delete()
     for user_id in reviewers:
         TestImportReview.objects.get_or_create(job=job, reviewer_id=user_id)
         notice, created = MakonNotification.objects.get_or_create(
@@ -302,20 +334,305 @@ def assign_reviewers(job: TestImportJob):
             type=MakonNotification.TYPE_TEST_REVIEW,
             title=f"New test requires review: {job.name}",
             url=reverse("test_import_detail", args=[job.pk]),
-            defaults={"message": f"AI extraction finished. Review {job.questions.count()} questions and approve or request changes."},
+            defaults={"message": f"Structured PDF import finished. Review {job.questions.count()} questions and approve or request changes."},
         )
         if not created:
-            notice.message = f"AI extraction finished. Review {job.questions.count()} questions and approve or request changes."
+            notice.message = f"Structured PDF import finished. Review {job.questions.count()} questions and approve or request changes."
             notice.is_read = False
             notice.save(update_fields=["message", "is_read"])
 
 
-def process_import_job(job_id: int, *, run_audit=True):
+
+
+STRUCTURED_FORMAT_HEADER_RE = re.compile(r"\[\[\s*MAKONBOOK_STRUCTURED_PDF\s*:\s*1\s*\]\]", re.I)
+STRUCTURED_SECTION_RE = re.compile(r"\[\[\s*SECTION\s*:\s*(EBRW|ENGLISH|MATH)\s*\]\]", re.I)
+STRUCTURED_MODULE_RE = re.compile(r"\[\[\s*MODULE\s*:\s*([12])\s*\]\]", re.I)
+STRUCTURED_QUESTION_RE = re.compile(
+    r"\[\[\s*QUESTION\s*:\s*(\d+)\s*\]\](.*?)\[\[\s*END_QUESTION\s*\]\]",
+    re.I | re.S,
+)
+STRUCTURED_PAGE_RE = re.compile(r"\[\[\s*MB_PAGE\s*:\s*(\d+)\s*\]\]", re.I)
+
+
+def _clean_structured_text(value):
+    value = STRUCTURED_PAGE_RE.sub("", value or "")
+    value = value.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.rstrip() for line in value.split("\n")]
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return "\n".join(lines).strip()
+
+
+def _structured_block(block, tag):
+    pattern = re.compile(
+        rf"\[\[\s*{re.escape(tag)}\s*\]\](.*?)\[\[\s*/\s*{re.escape(tag)}\s*\]\]",
+        re.I | re.S,
+    )
+    match = pattern.search(block or "")
+    return _clean_structured_text(match.group(1)) if match else ""
+
+
+def _structured_scalar(block, tag, default=""):
+    pattern = re.compile(rf"\[\[\s*{re.escape(tag)}\s*:\s*([^\]]+?)\s*\]\]", re.I)
+    match = pattern.search(block or "")
+    return (match.group(1).strip() if match else default)
+
+
+def _bool_marker(value):
+    return str(value or "").strip().lower() in {"1", "yes", "true", "y"}
+
+
+def _structured_pdf_text(data: bytes):
+    doc = fitz.open(stream=data, filetype="pdf")
+    try:
+        chunks = []
+        for page_number, page in enumerate(doc, start=1):
+            chunks.append(f"\n[[MB_PAGE:{page_number}]]\n{page.get_text('text')}\n")
+        return "\n".join(chunks), len(doc)
+    finally:
+        doc.close()
+
+
+def _parse_structured_pdf(data: bytes, expected_section: str):
+    """Parse MakonBook Structured PDF v1 without using an LLM.
+
+    The PDF is intentionally a transport format, not a visual heuristic. Exact
+    markers make custom/placement tests safe because question counts are read
+    from the file rather than assumed from Digital SAT defaults.
+    """
+    text, page_count = _structured_pdf_text(data)
+    if not STRUCTURED_FORMAT_HEADER_RE.search(text):
+        raise ValueError(
+            "This file is not MakonBook Structured PDF v1. Convert it with the supplied static-format prompt first."
+        )
+    section_match = STRUCTURED_SECTION_RE.search(text)
+    if not section_match:
+        raise ValueError("Structured PDF is missing [[SECTION:EBRW]] or [[SECTION:MATH]].")
+    section_token = section_match.group(1).upper()
+    detected_section = "math" if section_token == "MATH" else "english"
+    if detected_section != expected_section:
+        expected_label = "EBRW" if expected_section == "english" else "MATH"
+        raise ValueError(f"Expected a {expected_label} structured PDF, but the file declares {section_token}.")
+
+    modules = list(STRUCTURED_MODULE_RE.finditer(text))
+    if not modules:
+        raise ValueError("Structured PDF contains no [[MODULE:1]] / [[MODULE:2]] marker.")
+
+    parsed = []
+    module_meta = []
+    for index, module_match in enumerate(modules):
+        module_number = module_match.group(1)
+        module_name = "module_1" if module_number == "1" else "module_2"
+        start = module_match.end()
+        end = modules[index + 1].start() if index + 1 < len(modules) else len(text)
+        module_text = text[start:end]
+        count = 0
+        for question_match in STRUCTURED_QUESTION_RE.finditer(module_text):
+            number = int(question_match.group(1))
+            block = question_match.group(2)
+            absolute_question_start = start + question_match.start()
+            pages_before = STRUCTURED_PAGE_RE.findall(text[:absolute_question_start])
+            source_page = int(pages_before[-1]) if pages_before else 1
+            q_type = _structured_scalar(block, "TYPE", "MCQ").upper().replace("-", "_")
+            is_open = q_type in {"SPR", "OPEN", "OPEN_TEXT", "STUDENT_PRODUCED_RESPONSE"}
+            graph = _bool_marker(_structured_scalar(block, "GRAPH", "NO"))
+            choice_graph = _bool_marker(_structured_scalar(block, "CHOICE_GRAPH", "NO"))
+            item = {
+                "number": number,
+                "passage": _structured_block(block, "PASSAGE"),
+                "question": _structured_block(block, "PROMPT") or _structured_block(block, "QUESTION_TEXT"),
+                "a": _structured_block(block, "A"),
+                "b": _structured_block(block, "B"),
+                "c": _structured_block(block, "C"),
+                "d": _structured_block(block, "D"),
+                "answer": _structured_block(block, "ANSWER"),
+                "explanation": _structured_block(block, "EXPLANATION"),
+                "response_type": "open_text" if is_open else "multiple_choice",
+                "written": bool(expected_section == "math" and is_open),
+                "graph": graph,
+                "choice_graph": choice_graph,
+                "source_page": source_page,
+                "confidence": 1.0,
+                "format": "makonbook_structured_pdf_v1",
+                "declared_type": q_type,
+            }
+            parsed.append((module_name, item))
+            count += 1
+        if count == 0:
+            raise ValueError(f"Module {module_number} contains no complete [[QUESTION:n]] ... [[END_QUESTION]] blocks.")
+        module_meta.append({
+            "section": expected_section,
+            "module": module_name,
+            "question_count": count,
+            "page_count": page_count,
+        })
+
+    if not parsed:
+        raise ValueError("Structured PDF contains no questions.")
+    return parsed, {"page_count": page_count, "modules": module_meta}
+
+
+def _process_structured_import_job(job_id: int, *, run_audit=True, progress_callback=None):
     job = TestImportJob.objects.get(pk=job_id)
+    now = timezone.now()
+    job.status = TestImportJob.STATUS_PROCESSING
+    job.error_message = ""
+    job.ai_model = "structured-pdf-v1"
+    job.progress_percent = 2
+    job.progress_stage = "starting"
+    job.progress_message = "Worker picked up the structured-PDF import."
+    job.processing_started_at = now
+    job.processing_heartbeat_at = now
+    job.save(update_fields=[
+        "status", "error_message", "ai_model", "progress_percent", "progress_stage",
+        "progress_message", "processing_started_at", "processing_heartbeat_at", "updated_at",
+    ])
+
+    try:
+        inputs = []
+        if job.english_pdf:
+            inputs.append(("english", job.english_pdf, "EBRW"))
+        if job.math_pdf:
+            inputs.append(("math", job.math_pdf, "Math"))
+        if not inputs:
+            raise ValueError("No structured EBRW or Math PDF was uploaded.")
+
+        job.questions.all().delete()
+        job.reviews.update(verdict=TestImportReview.VERDICT_PENDING, note="", reviewed_at=None)
+        structure = {
+            "format": "makonbook_structured_pdf_v1",
+            "modules": [],
+            "files": {},
+            "count_warnings": [],
+        }
+        total_pages = 0
+        total_files = len(inputs)
+        _emit_progress(job, 5, "opening_structured_files", "Opening structured PDF file(s)...", progress_callback)
+
+        for index, (section, field, label) in enumerate(inputs, start=1):
+            start_percent = 8 + int(((index - 1) / total_files) * 42)
+            _emit_progress(job, start_percent, "parsing_structured_pdf", f"Parsing {label} structured PDF...", progress_callback)
+            data = _field_bytes(field)
+            if len(data) > 49 * 1024 * 1024:
+                raise ValueError(f"{label} structured PDF exceeds the 49 MB safety limit.")
+            parsed, meta = _parse_structured_pdf(data, section)
+            total_pages += meta["page_count"]
+            structure["files"][section] = {"page_count": meta["page_count"], "question_count": len(parsed)}
+            structure["modules"].extend(meta["modules"])
+
+            for module_name, item in parsed:
+                TestImportQuestion.objects.create(
+                    job=job,
+                    section=section,
+                    module=module_name,
+                    number=max(1, int(item["number"])),
+                    passage=item["passage"],
+                    question=item["question"],
+                    a=item["a"], b=item["b"], c=item["c"], d=item["d"],
+                    answer=item["answer"],
+                    explanation=item["explanation"],
+                    response_type=item["response_type"],
+                    written=item["written"],
+                    graph=item["graph"],
+                    choice_graph=item["choice_graph"],
+                    source_page=item["source_page"],
+                    ai_confidence=1.0,
+                    raw_payload=item,
+                )
+            _log(job, f"Parsed {label} structured PDF ({len(parsed)} questions, {meta['page_count']} pages).")
+            finish_percent = 8 + int((index / total_files) * 42)
+            _emit_progress(job, finish_percent, "parsing_structured_pdf", f"Finished {label}: {len(parsed)} question(s).", progress_callback)
+
+        if job.english_pdf and job.math_pdf:
+            detected = TestImportJob.TYPE_FULL
+        elif job.english_pdf:
+            detected = TestImportJob.TYPE_ENGLISH
+        else:
+            detected = TestImportJob.TYPE_MATH
+        job.detected_test_type = detected
+        job.requested_test_type = detected
+        job.page_count = total_pages
+        job.structure_data = structure
+        job.save(update_fields=["detected_test_type", "requested_test_type", "page_count", "structure_data", "updated_at"])
+
+        _emit_progress(job, 55, "validating", "Validating parsed question blocks and answers...", progress_callback)
+        validate_job(job)
+
+        if run_audit and getattr(settings, "TEST_IMPORT_RUN_AI_AUDIT", True):
+            _log(job, "Running independent AI answer audit on deterministic parser output.")
+            _emit_progress(job, 62, "auditing", "Independently auditing parsed answers...", progress_callback)
+
+            def audit_progress(done, total):
+                ratio = (done / total) if total else 1
+                percent = 62 + int(ratio * 29)
+                _emit_progress(job, percent, "auditing", f"AI audit: {done}/{total} questions checked.", progress_callback)
+
+            _audit_staging(job, progress_callback=audit_progress)
+            _emit_progress(job, 93, "validating", "Re-validating audit findings...", progress_callback)
+            validate_job(job)
+        else:
+            _emit_progress(job, 93, "audit_skipped", "Independent AI audit skipped.", progress_callback)
+
+        _emit_progress(job, 97, "assigning_reviewers", "Assigning support-teacher reviewers...", progress_callback)
+        assign_reviewers(job)
+        job.processed_at = timezone.now()
+        job.status = TestImportJob.STATUS_REVIEW_REQUIRED
+        job.progress_percent = 100
+        job.progress_stage = "complete"
+        job.progress_message = "Structured import complete. Ready for human review."
+        job.processing_heartbeat_at = timezone.now()
+        job.save(update_fields=[
+            "processed_at", "status", "progress_percent", "progress_stage",
+            "progress_message", "processing_heartbeat_at", "updated_at",
+        ])
+        job.refresh_review_status()
+        _log(job, "Structured import is ready for human review.")
+        if progress_callback:
+            try:
+                progress_callback(100, "complete", "Structured import complete. Ready for human review.")
+            except Exception:
+                pass
+        return job
+    except Exception as exc:
+        job.status = TestImportJob.STATUS_FAILED
+        job.error_message = str(exc)
+        job.progress_stage = "failed"
+        job.progress_message = f"Import failed: {exc}"[:500]
+        job.processing_heartbeat_at = timezone.now()
+        job.save(update_fields=[
+            "status", "error_message", "progress_stage", "progress_message",
+            "processing_heartbeat_at", "updated_at",
+        ])
+        _log(job, f"Failed: {exc}")
+        raise
+
+
+def process_import_job(job_id: int, *, run_audit=True, progress_callback=None):
+    """Use deterministic Structured PDF v1 for new jobs; keep legacy AI extraction for old staging rows."""
+    job = TestImportJob.objects.get(pk=job_id)
+    if job.english_pdf or job.math_pdf:
+        return _process_structured_import_job(job_id, run_audit=run_audit, progress_callback=progress_callback)
+    return _process_legacy_import_job(job_id, run_audit=run_audit, progress_callback=progress_callback)
+
+
+def _process_legacy_import_job(job_id: int, *, run_audit=True, progress_callback=None):
+    job = TestImportJob.objects.get(pk=job_id)
+    now = timezone.now()
     job.status = TestImportJob.STATUS_PROCESSING
     job.error_message = ""
     job.ai_model = _model()
-    job.save(update_fields=["status", "error_message", "ai_model", "updated_at"])
+    job.progress_percent = 2
+    job.progress_stage = "starting"
+    job.progress_message = "Worker picked up the import."
+    job.processing_started_at = now
+    job.processing_heartbeat_at = now
+    job.save(update_fields=[
+        "status", "error_message", "ai_model", "progress_percent", "progress_stage",
+        "progress_message", "processing_started_at", "processing_heartbeat_at", "updated_at",
+    ])
+    _emit_progress(job, 3, "opening_pdf", "Opening source PDF...", progress_callback)
     try:
         source = _field_bytes(job.source_pdf)
         if len(source) > 49 * 1024 * 1024:
@@ -326,6 +643,7 @@ def process_import_job(job_id: int, *, run_audit=True):
         job.save(update_fields=["page_count", "updated_at"])
         _log(job, f"PDF opened: {job.page_count} pages.")
 
+        _emit_progress(job, 10, "detecting_structure", "Detecting SAT sections and module page ranges...", progress_callback)
         structure = _responses_json(
             files=[_file_item(source, "source.pdf", "low")],
             prompt=(
@@ -342,9 +660,11 @@ def process_import_job(job_id: int, *, run_audit=True):
         job.structure_data = structure
         job.save(update_fields=["detected_test_type", "structure_data", "updated_at"])
         _log(job, f"Detected {len(structure['modules'])} module range(s).")
+        _emit_progress(job, 18, "structure_ready", f"Detected {len(structure['modules'])} module(s).", progress_callback)
 
         answer_reference = None
         answer_filename = "answers.pdf"
+        _emit_progress(job, 20, "answer_reference", "Preparing answer key/reference...", progress_callback)
         if job.answer_pdf:
             answer_reference = _field_bytes(job.answer_pdf)
         elif structure.get("answer_key_start") and structure.get("answer_key_end"):
@@ -353,12 +673,17 @@ def process_import_job(job_id: int, *, run_audit=True):
             raise ValueError("Answer reference PDF is too large for safe repeated extraction calls.")
 
         job.questions.all().delete()
-        job.reviews.all().delete()
-        for module in structure["modules"]:
+        job.reviews.update(verdict=TestImportReview.VERDICT_PENDING, note="", reviewed_at=None)
+        modules = structure["modules"]
+        total_modules = max(1, len(modules))
+        for index, module in enumerate(modules, start=1):
             section, module_name = module["section"], module["module"]
             start, end = int(module["page_start"]), int(module["page_end"])
             if start < 1 or end > job.page_count or end < start:
                 raise ValueError(f"AI returned invalid page range {start}-{end} for {section} {module_name}.")
+            label = f"{section.upper()} {'Module 1' if module_name == 'module_1' else 'Module 2'}"
+            before = 22 + int(((index - 1) / total_modules) * 48)
+            _emit_progress(job, before, "extracting_module", f"Extracting {label}...", progress_callback)
             module_pdf = _slice_pdf(source, start, end)
             files = [_file_item(module_pdf, f"{section}-{module_name}.pdf", "high")]
             if answer_reference:
@@ -392,25 +717,58 @@ def process_import_job(job_id: int, *, run_audit=True):
                     graph=bool(item.get("graph")), choice_graph=bool(item.get("choice_graph")),
                     source_page=page, ai_confidence=max(0.0, min(1.0, float(item.get("confidence") or 0))), raw_payload=item,
                 )
-            _log(job, f"Extracted {section} {module_name} ({len(result.get('questions', []))} questions).")
+            extracted_count = len(result.get("questions", []))
+            _log(job, f"Extracted {section} {module_name} ({extracted_count} questions).")
+            after = 22 + int((index / total_modules) * 48)
+            _emit_progress(job, after, "extracting_module", f"Finished {label}: {extracted_count} question(s).", progress_callback)
 
+        _emit_progress(job, 72, "validating", "Running structural and answer validation...", progress_callback)
         validate_job(job)
         if run_audit and getattr(settings, "TEST_IMPORT_RUN_AI_AUDIT", True):
             _log(job, "Running independent AI answer audit.")
-            _audit_staging(job)
-            validate_job(job)
+            _emit_progress(job, 76, "auditing", "Independently auditing extracted answers...", progress_callback)
 
+            def audit_progress(done, total):
+                ratio = (done / total) if total else 1
+                percent = 76 + int(ratio * 17)
+                _emit_progress(job, percent, "auditing", f"AI audit: {done}/{total} questions checked.", progress_callback)
+
+            _audit_staging(job, progress_callback=audit_progress)
+            _emit_progress(job, 94, "validating", "Re-validating AI audit findings...", progress_callback)
+            validate_job(job)
+        else:
+            _emit_progress(job, 94, "audit_skipped", "Independent AI audit skipped.", progress_callback)
+
+        _emit_progress(job, 97, "assigning_reviewers", "Assigning support-teacher reviewers...", progress_callback)
         assign_reviewers(job)
         job.processed_at = timezone.now()
         job.status = TestImportJob.STATUS_REVIEW_REQUIRED
-        job.save(update_fields=["processed_at", "status", "updated_at"])
+        job.progress_percent = 100
+        job.progress_stage = "complete"
+        job.progress_message = "Extraction complete. Ready for human review."
+        job.processing_heartbeat_at = timezone.now()
+        job.save(update_fields=[
+            "processed_at", "status", "progress_percent", "progress_stage",
+            "progress_message", "processing_heartbeat_at", "updated_at",
+        ])
         job.refresh_review_status()
         _log(job, "Import is ready for human review.")
+        if progress_callback:
+            try:
+                progress_callback(100, "complete", "Extraction complete. Ready for human review.")
+            except Exception:
+                pass
         return job
     except Exception as exc:
         job.status = TestImportJob.STATUS_FAILED
         job.error_message = str(exc)
-        job.save(update_fields=["status", "error_message", "updated_at"])
+        job.progress_stage = "failed"
+        job.progress_message = f"Import failed: {exc}"[:500]
+        job.processing_heartbeat_at = timezone.now()
+        job.save(update_fields=[
+            "status", "error_message", "progress_stage", "progress_message",
+            "processing_heartbeat_at", "updated_at",
+        ])
         _log(job, f"Failed: {exc}")
         raise
 

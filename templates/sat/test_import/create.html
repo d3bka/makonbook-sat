@@ -1,4 +1,44 @@
 {% extends 'template.html' %}{% load static %}
-{% block page_title %}Import Test PDF | MakonBook{% endblock %}{% block title-main %}Import a test{% endblock %}{% block title-subtitle %}<span>Source files stay in staging until publication</span>{% endblock %}{% block title %}New import{% endblock %}
-{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=1">{% endblock %}
-{% block content %}<div class="tic-shell narrow"><a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a><section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">Step 1</span><h2>Upload source PDF</h2><p>Answer/explanation PDF is optional. If the key is inside the source PDF, AI will try to detect it.</p></div></div><form method="post" enctype="multipart/form-data" class="tic-form">{% csrf_token %}{% for field in form %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<em>{{ error }}</em>{% endfor %}</label>{% endfor %}<button class="tic-btn primary" type="submit"><i class="bi bi-cloud-arrow-up"></i> Upload to staging</button></form></section></div>{% endblock %}
+{% block page_title %}Import Structured Test | MakonBook{% endblock %}{% block title-main %}Import a test{% endblock %}{% block title-subtitle %}<span>Structured PDFs stay in staging until publication</span>{% endblock %}{% block title %}New import{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=3">{% endblock %}
+{% block content %}
+<div class="tic-shell narrow">
+  <a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a>
+  <section class="tic-card tic-format-card">
+    <div class="tic-card-head">
+      <div><span class="tic-kicker">Before upload</span><h2>MakonBook Structured PDF v1</h2><p>Convert the original test with an external AI first. MakonBook no longer tries to understand arbitrary PDF layouts.</p></div>
+      <span class="tic-format-badge"><i class="bi bi-braces"></i> deterministic</span>
+    </div>
+    <p class="tic-format-note">Create one EBRW PDF and/or one Math PDF. Question counts are read from the file, so Placement and custom tests can contain fewer or more questions than a standard SAT.</p>
+    <a class="tic-btn ghost tic-prompt-link" href="{% static 'assets/test-import/makonbook-structured-pdf-v1-prompt.txt' %}" download><i class="bi bi-download"></i> Download AI conversion prompt</a>
+    <details class="tic-contract">
+      <summary>Required marker structure</summary>
+      <pre>[[MAKONBOOK_STRUCTURED_PDF:1]]
+[[SECTION:EBRW]]
+[[MODULE:1]]
+[[QUESTION:1]]
+[[TYPE:MCQ]]
+[[PASSAGE]]...[[/PASSAGE]]
+[[PROMPT]]...[[/PROMPT]]
+[[A]]...[[/A]]
+[[B]]...[[/B]]
+[[C]]...[[/C]]
+[[D]]...[[/D]]
+[[ANSWER]]B[[/ANSWER]]
+[[EXPLANATION]]...[[/EXPLANATION]]
+[[GRAPH:NO]]
+[[CHOICE_GRAPH:NO]]
+[[END_QUESTION]]</pre>
+    </details>
+  </section>
+
+  <section class="tic-card">
+    <div class="tic-card-head"><div><span class="tic-kicker">Step 1</span><h2>Upload standardized PDFs</h2><p>Upload EBRW, Math, or both. MakonBook parses the fixed markers in the background, then notifies support teachers.</p></div></div>
+    <form method="post" enctype="multipart/form-data" class="tic-form">{% csrf_token %}
+      {% if form.non_field_errors %}{% for error in form.non_field_errors %}<div class="tic-alert error">{{ error }}</div>{% endfor %}{% endif %}
+      {% for field in form %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<em>{{ error }}</em>{% endfor %}</label>{% endfor %}
+      <button class="tic-btn primary" type="submit"><i class="bi bi-cloud-arrow-up"></i> Upload & build staging test</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

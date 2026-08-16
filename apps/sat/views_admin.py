@@ -13,6 +13,7 @@ from django.utils.dateparse import parse_date
 from django.core.paginator import Paginator
 from .models import Test, TestReview, Mock, SecretCode, SupportTeacherProfile, SupportTeacherAvailability, SupportLessonBooking
 from .forms_admin import UserFilterForm, UserGroupEditForm, GroupCreateForm, MockCreateForm, GroupAssignedTestsForm, SupportTeacherProfileForm, SupportTeacherAvailabilityForm
+from .roles import SUPPORT_TEACHER_GROUP, TEACHER_GROUP, in_group
 
 
 def generate_password(length=12):
@@ -23,6 +24,24 @@ def generate_password(length=12):
                 and any(c.isupper() for c in password)
                 and any(c.isdigit() for c in password)):
             return password
+
+
+def _warn_about_revoked_staff_roles(request, user):
+    if user.owned_classrooms.exists() and not in_group(user, TEACHER_GROUP):
+        messages.warning(
+            request,
+            f"Teacher access is revoked for '{user.username}'. Existing classrooms were preserved but no longer grant Teacher permissions.",
+        )
+    try:
+        has_support_profile = user.support_teacher_profile is not None
+    except Exception:
+        has_support_profile = False
+    if has_support_profile and not in_group(user, SUPPORT_TEACHER_GROUP):
+        messages.warning(
+            request,
+            f"Support Teacher access is revoked for '{user.username}'. The profile/history was preserved but no longer grants permissions.",
+        )
+
 
 
 # --- Permission Check ---
@@ -46,8 +65,8 @@ def admin_dashboard(request):
         'group_count': Group.objects.count(),
         'test_count': Test.objects.count(),
         'mock_count': Mock.objects.count(),
-        'support_teacher_count': SupportTeacherProfile.objects.count(),
-        'active_support_teacher_count': SupportTeacherProfile.objects.filter(is_active=True).count(),
+        'support_teacher_count': SupportTeacherProfile.objects.filter(user__groups__name__iexact=SUPPORT_TEACHER_GROUP).distinct().count(),
+        'active_support_teacher_count': SupportTeacherProfile.objects.filter(is_active=True, user__groups__name__iexact=SUPPORT_TEACHER_GROUP).distinct().count(),
         'support_booking_count': SupportLessonBooking.objects.count(),
         'page_title': 'Admin Dashboard',
         'active_page': 'dashboard',
@@ -116,6 +135,7 @@ def admin_user_edit(request, user_id):
         if form.is_valid():
             target_user.groups.set(form.cleaned_data['groups'])
             messages.success(request, f"Groups updated for '{target_user.username}'.")
+            _warn_about_revoked_staff_roles(request, target_user)
             return redirect('admin_user_detail', user_id=target_user.pk)
     else:
         form = UserGroupEditForm(initial={'groups': target_user.groups.all()})
@@ -272,6 +292,7 @@ def admin_group_remove_user(request, group_id, user_id):
         user = get_object_or_404(User, pk=user_id)
         group.user_set.remove(user)
         messages.success(request, f"Removed '{user.username}' from '{group.name}'.")
+        _warn_about_revoked_staff_roles(request, user)
     return redirect('admin_group_detail', group_id=group_id)
 
 

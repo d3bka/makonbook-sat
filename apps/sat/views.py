@@ -50,6 +50,14 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.exceptions import ValidationError
 from .support_forms import SupportTeacherSelfAvailabilityForm, SupportTeacherSelfProfileForm
 from .student_goal_forms import StudentGoalProfileForm
+from .roles import (
+    can_manage_classroom,
+    is_manager as role_is_manager,
+    is_platform_admin as role_is_platform_admin,
+    is_support_teacher,
+    is_teacher as role_is_teacher,
+    support_teacher_profile as authoritative_support_teacher_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -970,7 +978,7 @@ def _get_classroom_context_from_id(user, classroom_id, test_obj=None):
 
     classroom = get_object_or_404(Classroom, id=classroom_id, is_active=True)
 
-    if user.is_superuser or user.is_staff or is_member(user, ['Admin', 'Tester']) or classroom.teacher_id == user.id:
+    if user.is_superuser or user.is_staff or is_member(user, ['Admin', 'Tester']) or can_manage_classroom(user, classroom):
         return classroom
 
     membership = ClassroomMembership.objects.filter(
@@ -4071,10 +4079,7 @@ SUPPORT_NOTE_MAX_LENGTH = 1200
 
 
 def is_manager(user):
-    return bool(
-        user.is_authenticated
-        and user.groups.filter(name__iexact='Manager').exists()
-    )
+    return role_is_manager(user)
 
 
 def _support_teacher_admin_allowed(user):
@@ -4093,7 +4098,7 @@ def _support_feedback_view_allowed(user):
         _support_teacher_admin_allowed(user)
         or is_manager(user)
         or is_teacher(user)
-        or hasattr(user, 'support_teacher_profile')
+        or is_support_teacher(user)
     )
 
 
@@ -4103,7 +4108,7 @@ def _user_can_access_support_classes(user):
         return False
     if _support_teacher_admin_allowed(user) or is_manager(user) or is_teacher(user):
         return True
-    if hasattr(user, 'support_teacher_profile'):
+    if is_support_teacher(user):
         return True
     return ClassroomMembership.objects.filter(
         user=user,
@@ -4119,7 +4124,7 @@ def _user_can_book_support_lessons(user):
         return False
     if _support_teacher_admin_allowed(user) or is_manager(user) or is_teacher(user):
         return False
-    if hasattr(user, 'support_teacher_profile'):
+    if is_support_teacher(user):
         return False
     return ClassroomMembership.objects.filter(
         user=user,
@@ -4449,8 +4454,12 @@ def support_teacher_list(request):
     can_view_feedback = _support_feedback_view_allowed(request.user)
 
     teachers = (
-        SupportTeacherProfile.objects.filter(is_active=True)
+        SupportTeacherProfile.objects.filter(
+            is_active=True,
+            user__groups__name__iexact='Support Teacher',
+        )
         .select_related('user')
+        .distinct()
         .annotate(
             display_completed_lessons=(
                 Count(
@@ -4525,6 +4534,7 @@ def support_teacher_list(request):
         'selected_subject': selected_subject,
         'subject_choices': sorted(subject_choices, key=str.lower),
         'can_book': _user_can_book_support_lessons(request.user),
+        'is_support_teacher_role': is_support_teacher(request.user),
         'can_view_private_feedback': can_view_feedback,
         'timezone_name': str(timezone.get_current_timezone()),
     })
@@ -4537,7 +4547,11 @@ def support_teacher_detail(request, teacher_id):
         return denied
 
     can_view_feedback = _support_feedback_view_allowed(request.user)
-    teacher_qs = SupportTeacherProfile.objects.select_related('user').annotate(
+    teacher_qs = (
+        SupportTeacherProfile.objects.filter(user__groups__name__iexact='Support Teacher')
+        .select_related('user')
+        .distinct()
+        .annotate(
         display_completed_lessons=(
             Count(
                 'sessions',
@@ -4553,7 +4567,7 @@ def support_teacher_detail(request, teacher_id):
                 distinct=True,
             )
         ),
-    )
+    ))
     if can_view_feedback:
         teacher_qs = teacher_qs.annotate(
             display_avg_rating=Avg(
@@ -4623,7 +4637,7 @@ def support_teacher_detail(request, teacher_id):
 
 @login_required(login_url='/login/')
 def support_teacher_profile_edit(request):
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     if not profile:
         return HttpResponseForbidden('Only support teachers can edit a support profile.')
 
@@ -4647,7 +4661,7 @@ def support_teacher_profile_edit(request):
 @login_required(login_url='/login/')
 @require_POST
 def support_teacher_availability_add(request):
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     if not profile:
         return HttpResponseForbidden('Only support teachers can manage availability.')
 
@@ -4671,7 +4685,7 @@ def support_teacher_availability_add(request):
 @login_required(login_url='/login/')
 @require_POST
 def support_teacher_availability_delete(request, availability_id):
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     if not profile:
         return HttpResponseForbidden('Only support teachers can manage availability.')
     availability = get_object_or_404(SupportTeacherAvailability, id=availability_id, teacher=profile)
@@ -4690,7 +4704,13 @@ def book_support_lesson(request, teacher_id):
     if booking_denied:
         return booking_denied
 
-    teacher = get_object_or_404(SupportTeacherProfile, id=teacher_id, is_active=True)
+    teacher = get_object_or_404(
+        SupportTeacherProfile.objects.filter(
+            is_active=True,
+            user__groups__name__iexact='Support Teacher',
+        ).distinct(),
+        id=teacher_id,
+    )
     student_note = request.POST.get('student_note', '').strip()
     try:
         title_id = int(request.POST.get('lesson_title', '0'))
@@ -4786,7 +4806,7 @@ def my_support_lessons(request):
     if denied:
         return denied
     if not _user_can_book_support_lessons(request.user):
-        if hasattr(request.user, 'support_teacher_profile'):
+        if is_support_teacher(request.user):
             return redirect('support_teacher_planner')
         if is_manager(request.user):
             return redirect('manager_dashboard')
@@ -4900,7 +4920,7 @@ def leave_support_lesson_feedback(request, booking_id):
 def _support_booking_manager_profile(user, booking):
     if _support_teacher_admin_allowed(user):
         return booking.teacher
-    profile = getattr(user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(user)
     if profile and profile.pk == booking.teacher_id:
         return profile
     return None
@@ -4960,7 +4980,7 @@ def manage_support_lesson(request, booking_id):
 @login_required(login_url='/login/')
 @require_POST
 def schedule_support_topic_session(request):
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     is_admin = _support_teacher_admin_allowed(request.user)
     if not profile and not is_admin:
         return HttpResponseForbidden('Only support teachers can schedule topic sessions.')
@@ -5049,7 +5069,7 @@ def manage_support_session(request, session_id):
         SupportLessonSession.objects.select_related('teacher', 'lesson_topic'),
         id=session_id,
     )
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     if not _support_teacher_admin_allowed(request.user) and (not profile or profile.pk != session.teacher_id):
         return HttpResponseForbidden('You cannot manage this support session.')
 
@@ -5123,7 +5143,7 @@ def manage_support_session(request, session_id):
 
 @login_required(login_url='/login/')
 def support_teacher_planner(request):
-    profile = getattr(request.user, 'support_teacher_profile', None)
+    profile = authoritative_support_teacher_profile(request.user)
     is_admin = _support_teacher_admin_allowed(request.user)
     if not profile and not is_admin:
         return HttpResponseForbidden('Only support teachers can view this planner.')
@@ -5223,7 +5243,7 @@ def support_teacher_planner(request):
         'is_own_profile': request.user == profile.user,
         'availabilities': profile.availabilities.order_by('day_of_week', 'start_time'),
         'availability_form': SupportTeacherSelfAvailabilityForm(initial={'is_active': True}) if request.user == profile.user else None,
-        'teacher_choices': SupportTeacherProfile.objects.select_related('user').order_by('sort_order', 'display_name') if is_admin else [],
+        'teacher_choices': SupportTeacherProfile.objects.filter(user__groups__name__iexact='Support Teacher').select_related('user').distinct().order_by('sort_order', 'display_name') if is_admin else [],
         'timezone_name': str(timezone.get_current_timezone()),
     })
 
@@ -5235,7 +5255,10 @@ def manager_dashboard(request):
 
     now_value = timezone.now()
     classroom_teachers = (
-        User.objects.filter(owned_classrooms__is_active=True)
+        User.objects.filter(
+            owned_classrooms__is_active=True,
+            groups__name__iexact='Teacher',
+        ).distinct()
         .annotate(
             active_classrooms_count=Count(
                 'owned_classrooms',
@@ -5265,7 +5288,9 @@ def manager_dashboard(request):
     )
 
     support_teachers = (
-        SupportTeacherProfile.objects.select_related('user')
+        SupportTeacherProfile.objects.filter(
+            user__groups__name__iexact='Support Teacher',
+        ).select_related('user').distinct()
         .annotate(
             assigned_students_count=Count(
                 'bookings__student',
@@ -5442,14 +5467,9 @@ def manager_classroom_detail(request, classroom_id):
 
 
 def is_teacher(user):
-    if not getattr(user, 'is_authenticated', False):
-        return False
-    if user.is_superuser or user.is_staff or user.groups.filter(name__iexact='teacher').exists():
-        return True
-    # Classroom ownership is also authoritative for legacy teacher accounts that
-    # predate the Teacher group assignment. This keeps teacher-only support
-    # feedback and classroom routes available without granting Django staff access.
-    return Classroom.objects.filter(teacher=user, is_active=True).exists()
+    # Django Groups are authoritative. Classroom ownership alone must never
+    # grant teacher privileges; removing the Teacher group revokes access now.
+    return role_is_teacher(user)
 
 
 def generate_6_digit_code():
@@ -5477,7 +5497,7 @@ def teacher_classroom_list(request):
 def update_student_practice_test_access(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     membership = get_object_or_404(
@@ -5584,7 +5604,7 @@ def create_classroom(request):
 def teacher_classroom_dashboard(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     students = ClassroomMembership.objects.filter(
@@ -5605,7 +5625,7 @@ def teacher_classroom_dashboard(request, classroom_id):
 def generate_classroom_join_code(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     old_code = ClassroomJoinCode.objects.filter(classroom=classroom).first()
@@ -5798,10 +5818,13 @@ def classroom_entry(request):
     if is_manager(request.user):
         return redirect('manager_dashboard')
 
+    if role_is_platform_admin(request.user):
+        return redirect('admin_dashboard')
+
     # Support teachers use their planner as the operational home page.
     # This keeps /sat/ as the single authenticated entry point after the
     # legacy /sat/dashboard/ route was removed.
-    if hasattr(request.user, 'support_teacher_profile'):
+    if is_support_teacher(request.user):
         return redirect('support_teacher_planner')
 
     approved_memberships = ClassroomMembership.objects.filter(
@@ -5933,7 +5956,7 @@ def classroom_join_status(request):
 def classroom_join_requests(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     requests_qs = ClassroomMembership.objects.filter(
@@ -5956,7 +5979,7 @@ def classroom_join_requests(request, classroom_id):
 def approve_join_request(request, classroom_id, membership_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     if request.method != 'POST':
@@ -5993,7 +6016,7 @@ def approve_join_request(request, classroom_id, membership_id):
 def reject_join_request(request, classroom_id, membership_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     if request.method != 'POST':
@@ -6242,8 +6265,7 @@ def student_goal_settings(request):
     ).exists()
     has_teacher_only_identity = (
         is_teacher(request.user)
-        or Classroom.objects.filter(teacher=request.user).exists()
-        or hasattr(request.user, 'support_teacher_profile')
+        or is_support_teacher(request.user)
     )
     if has_teacher_only_identity and not has_student_membership:
         return HttpResponseForbidden('Only students can manage SAT goals.')
@@ -6373,7 +6395,7 @@ def get_classroom_manageable_sections(classroom):
 def update_student_section_access(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     membership = get_object_or_404(
@@ -6427,7 +6449,7 @@ def update_classroom_section_access(request, classroom_id):
     """
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     memberships = list(
@@ -6602,7 +6624,7 @@ def classroom_vocabulary_practice_quiz_result(request, classroom_id):
 def remove_student_from_classroom(request, classroom_id, user_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     if request.method != 'POST':
@@ -6819,7 +6841,7 @@ def classroom_admissions_section(request, classroom_id, slug):
     })
 
 def _can_manage_classroom_progress(user, classroom):
-    return classroom.teacher_id == user.id or user.is_superuser
+    return can_manage_classroom(user, classroom)
 
 
 def _get_classroom_student_membership_or_404(classroom, student_id):
@@ -7546,7 +7568,7 @@ def get_classroom_access_for_user(user, classroom_id):
     if user.is_superuser:
         return classroom, 'admin', None
 
-    if classroom.teacher_id == user.id:
+    if can_manage_classroom(user, classroom):
         return classroom, 'teacher', None
 
     membership = ClassroomMembership.objects.filter(
@@ -7704,7 +7726,7 @@ def delete_classroom_message(request, classroom_id, message_id):
 def delete_classroom(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can delete only your own classrooms.")
 
     if request.method != 'POST':
@@ -7761,7 +7783,7 @@ def delete_classroom_message_file(request, classroom_id, message_id):
 def edit_classroom(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can edit only your own classrooms.")
 
     if request.method != 'POST':
@@ -7797,7 +7819,7 @@ def resolve_classroom_and_role(request, classroom_id):
     if request.user.is_superuser:
         return classroom, 'admin', None, None
 
-    if classroom.teacher_id == request.user.id:
+    if can_manage_classroom(request.user, classroom):
         return classroom, 'teacher', None, None
 
     membership = ClassroomMembership.objects.filter(
@@ -8574,7 +8596,7 @@ def classroom_ap_tests(request, classroom_id):
 def update_classroom_ap_test_access(request, classroom_id):
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     if not classroom.is_ap_classroom:
@@ -8612,7 +8634,7 @@ def update_classroom_practice_test_access(request, classroom_id):
     """Save a persistent classroom SAT-test policy and sync current students."""
     classroom = get_object_or_404(Classroom, id=classroom_id)
 
-    if classroom.teacher != request.user and not request.user.is_superuser:
+    if not can_manage_classroom(request.user, classroom):
         return HttpResponseForbidden("You can manage only your own classrooms.")
 
     if not classroom.is_sat_classroom:

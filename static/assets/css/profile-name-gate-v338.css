@@ -283,3 +283,7 @@ html[data-theme="dark"] .profile-name-gate__field input:focus {
     transition: none !important;
   }
 }
+
+/* Closed slide-down gate must be fully non-rendering; avoids a top-edge ghost on some browsers. */
+.profile-name-gate[aria-hidden="true"] .profile-name-gate__panel{visibility:hidden!important;opacity:0!important}
+.profile-name-gate.is-open .profile-name-gate__panel{visibility:visible!important;opacity:1!important}

@@ -27,7 +27,7 @@
           {% if can_book %}
             <a class="support-btn support-btn-light" href="{% url 'my_support_lessons' %}"><i class="bi bi-calendar2-check"></i> My requests & lessons</a>
           {% endif %}
-          {% if request.user.support_teacher_profile %}
+          {% if is_support_teacher_role %}
             <a class="support-btn support-btn-ghost-light" href="{% url 'support_teacher_planner' %}"><i class="bi bi-grid-1x2"></i> Teacher planner</a>
           {% endif %}
         </div>

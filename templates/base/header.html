@@ -89,10 +89,10 @@
 
     <div class="header-tools">
       {% if request.user.is_authenticated and test_import_center_allowed %}
-        <a class="makon-notice-bell" href="{% url 'test_import_list' %}" aria-label="Test review notifications">
+        <button class="makon-notice-bell" type="button" aria-label="Notifications" aria-expanded="false" data-notice-toggle>
           <i class="bi bi-bell"></i>
-          {% if test_import_unread_notifications %}<span>{{ test_import_unread_notifications }}</span>{% endif %}
-        </a>
+          {% if test_import_unread_notifications %}<span data-notice-badge>{{ test_import_unread_notifications }}</span>{% endif %}
+        </button>
       {% endif %}
       {% include 'base/theme_toggle.html' %}
     </div>
@@ -101,3 +101,33 @@
     <i class="mobile-nav-toggle mobile-nav-hide d-none bi bi-x"></i>
   </div>
 </header>
+{% if request.user.is_authenticated and test_import_center_allowed %}
+<div class="makon-notice-layer" data-notice-layer aria-hidden="true" data-read-url="{% url 'test_import_notifications_read' %}">
+  <form hidden data-notice-csrf-form>{% csrf_token %}</form>
+  <button class="makon-notice-scrim" type="button" aria-label="Close notifications" data-notice-close></button>
+  <section class="makon-notice-panel" role="dialog" aria-modal="true" aria-label="Notifications">
+    <div class="makon-notice-head">
+      <div>
+        <span>Notifications</span>
+        <strong>{% if test_import_pending_reviews %}{{ test_import_pending_reviews }} test review{{ test_import_pending_reviews|pluralize }} pending{% else %}You're up to date{% endif %}</strong>
+      </div>
+      <button type="button" class="makon-notice-close" aria-label="Close notifications" data-notice-close><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="makon-notice-list">
+      {% for notice in test_import_notifications %}
+        <a class="makon-notice-item{% if not notice.is_read %} is-unread{% endif %}" href="{{ notice.url|default:'#' }}">
+          <span class="makon-notice-icon"><i class="bi {% if notice.type == 'test_published' %}bi-check2-circle{% else %}bi-file-earmark-check{% endif %}"></i></span>
+          <span class="makon-notice-copy">
+            <strong>{{ notice.title }}</strong>
+            {% if notice.message %}<small>{{ notice.message }}</small>{% endif %}
+            <em>{{ notice.created_at|timesince }} ago</em>
+          </span>
+        </a>
+      {% empty %}
+        <div class="makon-notice-empty"><i class="bi bi-bell-slash"></i><strong>No notifications yet</strong><small>New test-review requests will appear here.</small></div>
+      {% endfor %}
+    </div>
+    <a class="makon-notice-footer" href="{% url 'test_import_list' %}">Open Test Import Center <i class="bi bi-arrow-right"></i></a>
+  </section>
+</div>
+{% endif %}

@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument("--batch-size", type=int)
         parser.add_argument("--output", default="question_audit.pdf")
         parser.add_argument("--include-ok", action="store_true")
-        parser.add_argument("--mock", action="store_true", help="Generate an offline sample PDF without calling OpenAI.")
+        parser.add_argument("--mock", action="store_true", help="Generate an offline sample PDF without calling the configured AI provider.")
 
     def handle(self, *args, **options):
         output = Path(options["output"]).expanduser().resolve()

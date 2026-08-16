@@ -1,15 +1,18 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, HttpResponseForbidden
+from django.http import FileResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.clickjacking import xframe_options_sameorigin
+from datetime import timedelta
 
 from .models import MakonNotification, TestImportJob, TestImportQuestion, TestImportReview
 from .test_import_forms import TestImportQuestionForm, TestImportUploadForm
-from .test_import_service import process_import_job, publish_import_job, validate_job
+from .test_import_service import publish_import_job, validate_job
+from .tasks import enqueue_test_import
+from .roles import is_support_teacher
 
 
 def _manager_allowed(user):
@@ -25,7 +28,7 @@ def _manager_allowed(user):
 
 
 def _reviewer_allowed(user, job):
-    return bool(user.is_authenticated and job.reviews.filter(reviewer=user).exists())
+    return bool(is_support_teacher(user) and job.reviews.filter(reviewer=user).exists())
 
 
 def _job_allowed(user, job):
@@ -36,7 +39,7 @@ def _job_allowed(user, job):
 def test_import_list(request):
     if _manager_allowed(request.user):
         jobs = TestImportJob.objects.select_related("created_by", "published_test").all()
-    elif hasattr(request.user, "support_teacher_profile"):
+    elif is_support_teacher(request.user):
         jobs = TestImportJob.objects.filter(reviews__reviewer=request.user).select_related("created_by", "published_test").distinct()
     else:
         return HttpResponseForbidden("Test review access required.")
@@ -54,7 +57,11 @@ def test_import_create(request):
         job.created_by = request.user
         job.status = TestImportJob.STATUS_UPLOADED
         job.save()
-        messages.success(request, "PDF uploaded. Start AI analysis from the import page.")
+        try:
+            enqueue_test_import(job.pk, run_audit=True)
+            messages.success(request, "Structured PDF uploaded. MakonBook parsing was queued in the background.")
+        except Exception as exc:
+            messages.error(request, str(exc))
         return redirect("test_import_detail", job_id=job.pk)
     return render(request, "sat/test_import/create.html", {"form": form})
 
@@ -97,12 +104,47 @@ def test_import_process(request, job_id):
     if job.status in {TestImportJob.STATUS_PUBLISHED, TestImportJob.STATUS_PUBLISHING}:
         messages.error(request, "A published import cannot be processed again.")
         return redirect("test_import_detail", job_id=job.pk)
+    if job.status in {TestImportJob.STATUS_QUEUED, TestImportJob.STATUS_PROCESSING}:
+        messages.info(request, "This import is already queued or processing.")
+        return redirect("test_import_detail", job_id=job.pk)
     try:
-        process_import_job(job.pk, run_audit=request.POST.get("skip_audit") != "1")
-        messages.success(request, "AI extraction and validation completed.")
+        enqueue_test_import(job.pk, run_audit=request.POST.get("skip_audit") != "1")
+        messages.success(request, "Structured import queued. You can leave this page while the worker processes it.")
     except Exception as exc:
-        messages.error(request, f"Import failed: {exc}")
+        messages.error(request, str(exc))
     return redirect("test_import_detail", job_id=job.pk)
+
+
+@login_required(login_url="/login/")
+def test_import_status(request, job_id):
+    job = get_object_or_404(TestImportJob, pk=job_id)
+    if not _job_allowed(request.user, job):
+        return JsonResponse({"detail": "Test review access required."}, status=403)
+
+    now = timezone.now()
+    stalled = False
+    worker_warning = ""
+    if job.status == TestImportJob.STATUS_QUEUED and job.queued_at and now - job.queued_at > timedelta(minutes=2):
+        stalled = True
+        worker_warning = "The task is still queued. The Celery worker may be offline; the queued job will start when the worker returns."
+    elif job.status == TestImportJob.STATUS_PROCESSING and job.processing_heartbeat_at and now - job.processing_heartbeat_at > timedelta(minutes=5):
+        stalled = True
+        worker_warning = "No progress heartbeat for more than 5 minutes. Check the Celery worker logs before retrying."
+
+    return JsonResponse({
+        "id": job.pk,
+        "status": job.status,
+        "status_label": job.get_status_display(),
+        "percent": max(0, min(100, int(job.progress_percent or 0))),
+        "stage": job.progress_stage or "",
+        "message": job.progress_message or "",
+        "error": job.error_message or "",
+        "question_count": job.questions.count(),
+        "stalled": stalled,
+        "worker_warning": worker_warning,
+        "terminal": job.status not in {TestImportJob.STATUS_QUEUED, TestImportJob.STATUS_PROCESSING},
+        "log": list(job.processing_log or [])[-12:],
+    })
 
 
 @login_required(login_url="/login/")
@@ -111,6 +153,8 @@ def test_import_question_edit(request, job_id, question_id):
     if not _job_allowed(request.user, job):
         return HttpResponseForbidden("Test review access required.")
     question = get_object_or_404(TestImportQuestion, pk=question_id, job=job)
+    if job.status in {TestImportJob.STATUS_QUEUED, TestImportJob.STATUS_PROCESSING}:
+        return HttpResponseForbidden("This staging import is locked while background processing is running.")
     if job.status == TestImportJob.STATUS_PUBLISHED:
         return HttpResponseForbidden("Published staging questions are read-only.")
     form = TestImportQuestionForm(request.POST or None, request.FILES or None, instance=question)
@@ -129,7 +173,12 @@ def test_import_question_edit(request, job_id, question_id):
 @require_POST
 def test_import_review(request, job_id):
     job = get_object_or_404(TestImportJob, pk=job_id)
+    if job.status in {TestImportJob.STATUS_QUEUED, TestImportJob.STATUS_PROCESSING}:
+        messages.error(request, "Wait for background processing to finish before reviewing this import.")
+        return redirect("test_import_detail", job_id=job.pk)
     review = job.reviews.filter(reviewer=request.user).first()
+    if not _manager_allowed(request.user) and not is_support_teacher(request.user):
+        return HttpResponseForbidden("Support Teacher group membership is required to review tests.")
     if not review and not _manager_allowed(request.user):
         return HttpResponseForbidden("You are not assigned to review this import.")
     if not review:
@@ -174,5 +223,29 @@ def test_import_pdf(request, job_id):
     job = get_object_or_404(TestImportJob, pk=job_id)
     if not _job_allowed(request.user, job):
         return HttpResponseForbidden("Test review access required.")
-    job.source_pdf.open("rb")
-    return FileResponse(job.source_pdf, content_type="application/pdf", filename=f"{job.name}.pdf")
+
+    requested_section = (request.GET.get("section") or "").strip().lower()
+    field = None
+    label = "source"
+    if requested_section in {"english", "ebrw"} and job.english_pdf:
+        field, label = job.english_pdf, "EBRW"
+    elif requested_section == "math" and job.math_pdf:
+        field, label = job.math_pdf, "Math"
+    elif job.english_pdf:
+        field, label = job.english_pdf, "EBRW"
+    elif job.math_pdf:
+        field, label = job.math_pdf, "Math"
+    elif job.source_pdf:
+        field, label = job.source_pdf, "source"
+
+    if not field:
+        return HttpResponseForbidden("No source PDF is attached to this import.")
+    field.open("rb")
+    return FileResponse(field, content_type="application/pdf", filename=f"{job.name}-{label}.pdf")
+
+
+@login_required(login_url="/login/")
+@require_POST
+def test_import_notifications_read(request):
+    MakonNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({"ok": True, "unread": 0})
