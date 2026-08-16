@@ -122,6 +122,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "apps.base.context_processors.site_meta",
+                "apps.base.context_processors.test_import_meta",
             ],
         },
     },
@@ -425,9 +426,15 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# AI is used only for an administrator-run question-bank audit.
-# Student answers are never sent to the model and the audit never edits the database.
+# AI is used for administrator/manager-run question-bank audits and staged PDF test imports.
+# Student answers are never sent to the model. Imported content stays in staging until human approval and publication.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 QUESTION_AUDIT_MODEL = os.getenv("QUESTION_AUDIT_MODEL", "gpt-5.6-terra")
 QUESTION_AUDIT_TIMEOUT_SECONDS = int(os.getenv("QUESTION_AUDIT_TIMEOUT_SECONDS", "60"))
 QUESTION_AUDIT_BATCH_SIZE = max(1, min(30, int(os.getenv("QUESTION_AUDIT_BATCH_SIZE", "12"))))
+
+# AI-assisted staged PDF test imports.
+TEST_IMPORT_MODEL = os.getenv("TEST_IMPORT_MODEL", QUESTION_AUDIT_MODEL)
+TEST_IMPORT_AUDIT_MODEL = os.getenv("TEST_IMPORT_AUDIT_MODEL", QUESTION_AUDIT_MODEL)
+TEST_IMPORT_TIMEOUT_SECONDS = int(os.getenv("TEST_IMPORT_TIMEOUT_SECONDS", "180"))
+TEST_IMPORT_RUN_AI_AUDIT = os.getenv("TEST_IMPORT_RUN_AI_AUDIT", "1").strip().lower() not in {"0", "false", "no", "off"}

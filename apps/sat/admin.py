@@ -1113,3 +1113,32 @@ class StudentGoalProfileAdmin(admin.ModelAdmin):
     def days_left(self, obj):
         value = obj.days_remaining
         return value if value is not None else '—'
+
+
+@admin.register(TestImportJob)
+class TestImportJobAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'status', 'requested_test_type', 'detected_test_type', 'created_by', 'created_at', 'processed_at', 'published_at')
+    list_filter = ('status', 'requested_test_type', 'detected_test_type')
+    search_fields = ('name', 'created_by__username', 'created_by__email')
+    readonly_fields = ('ai_model', 'page_count', 'structure_data', 'processing_log', 'error_message', 'processed_at', 'published_at', 'published_test', 'created_at', 'updated_at')
+
+
+@admin.register(TestImportQuestion)
+class TestImportQuestionAdmin(admin.ModelAdmin):
+    list_display = ('job', 'section', 'module', 'number', 'validation_status', 'ai_confidence', 'audit_verdict', 'audit_severity')
+    list_filter = ('section', 'module', 'validation_status', 'audit_verdict', 'audit_severity')
+    search_fields = ('job__name', 'question', 'passage')
+
+
+@admin.register(TestImportReview)
+class TestImportReviewAdmin(admin.ModelAdmin):
+    list_display = ('job', 'reviewer', 'verdict', 'reviewed_at')
+    list_filter = ('verdict',)
+    search_fields = ('job__name', 'reviewer__username', 'reviewer__email')
+
+
+@admin.register(MakonNotification)
+class MakonNotificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'type', 'title', 'is_read', 'created_at')
+    list_filter = ('type', 'is_read')
+    search_fields = ('user__username', 'title', 'message')

@@ -1,0 +1,14 @@
+{% extends 'template.html' %}{% load static %}
+{% block page_title %}Test Import Center | MakonBook{% endblock %}
+{% block title-main %}Test Import Center{% endblock %}{% block title-subtitle %}<span>PDF → AI → Review → Publish</span>{% endblock %}{% block title %}Test imports{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=1">{% endblock %}
+{% block content %}
+<div class="tic-shell">
+  {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="tic-toolbar"><div><h2>Publishing queue</h2><p>Only approved staging data can become a real MakonBook test.</p></div>{% if can_create %}<a class="tic-btn primary" href="{% url 'test_import_create' %}"><i class="bi bi-file-earmark-arrow-up"></i> Import PDF</a>{% endif %}</div>
+  {% if pending_count %}<div class="tic-alert info"><strong>{{ pending_count }}</strong> test import{{ pending_count|pluralize }} waiting for your review.</div>{% endif %}
+  <div class="tic-list">
+    {% for job in jobs %}<a class="tic-job" href="{% url 'test_import_detail' job.id %}"><div><span class="tic-status {{ job.status }}">{{ job.get_status_display }}</span><h3>{{ job.name }}</h3><p>{{ job.questions.count }} questions · {{ job.created_at|date:'d M Y, H:i' }}{% if job.created_by %} · {{ job.created_by.get_full_name|default:job.created_by.username }}{% endif %}</p></div><div class="tic-job-side"><strong>{{ job.approval_count }}/{{ job.approval_target }}</strong><span>approvals</span><i class="bi bi-chevron-right"></i></div></a>
+    {% empty %}<div class="tic-empty"><i class="bi bi-file-earmark-pdf"></i><h3>No imports yet</h3><p>Upload the first PDF test to start the review pipeline.</p></div>{% endfor %}
+  </div>
+</div>{% endblock %}

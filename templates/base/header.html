@@ -57,6 +57,14 @@
               </li>
               {% endif %}
 
+              {% if test_import_center_allowed %}
+              <li>
+                <a href="{% url 'test_import_list' %}">
+                  <i class="fa fa-file-pdf-o"></i> Test Import Center{% if test_import_pending_reviews %} <strong style="margin-left:6px">{{ test_import_pending_reviews }}</strong>{% endif %}
+                </a>
+              </li>
+              {% endif %}
+
               {% if request.user|has_group:"dev" %}
               <li>
                 <a href="{% url 'dev_dashboard' %}">
@@ -80,6 +88,12 @@
     </nav>
 
     <div class="header-tools">
+      {% if request.user.is_authenticated and test_import_center_allowed %}
+        <a class="makon-notice-bell" href="{% url 'test_import_list' %}" aria-label="Test review notifications">
+          <i class="bi bi-bell"></i>
+          {% if test_import_unread_notifications %}<span>{{ test_import_unread_notifications }}</span>{% endif %}
+        </a>
+      {% endif %}
       {% include 'base/theme_toggle.html' %}
     </div>
 

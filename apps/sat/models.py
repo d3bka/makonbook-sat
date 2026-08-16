@@ -146,6 +146,12 @@ class Punishment(BaseModel):
 class Test(BaseModel):
     name = models.CharField(max_length=400, unique=True, primary_key=True)
     created = models.DateTimeField(auto_now=True)
+    published_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='When this test became visible to students. Used for the NEW badge.',
+    )
     groups = models.ManyToManyField(Group, related_name='tests')
     icon = models.ImageField(
         'Icon',
@@ -158,6 +164,12 @@ class Test(BaseModel):
 
     def get_number(self):
         return int(self.name)
+
+    @property
+    def is_new(self):
+        if not self.published_at:
+            return False
+        return timezone.now() <= self.published_at + timedelta(days=7)
 
     def __str__(self):
         return self.name
@@ -2330,3 +2342,212 @@ class StudentPracticeTestAccess(models.Model):
 
     def __str__(self):
         return f"{self.membership.user.username} - {self.test.name} - {self.has_access}"
+
+# ---------------------------------------------------------------------------
+# AI-assisted test import / review staging
+# ---------------------------------------------------------------------------
+class TestImportJob(models.Model):
+    STATUS_UPLOADED = 'uploaded'
+    STATUS_PROCESSING = 'processing'
+    STATUS_REVIEW_REQUIRED = 'review_required'
+    STATUS_CHANGES_REQUESTED = 'changes_requested'
+    STATUS_READY_TO_PUBLISH = 'ready_to_publish'
+    STATUS_PUBLISHING = 'publishing'
+    STATUS_PUBLISHED = 'published'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = (
+        (STATUS_UPLOADED, 'Uploaded'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_REVIEW_REQUIRED, 'Review required'),
+        (STATUS_CHANGES_REQUESTED, 'Changes requested'),
+        (STATUS_READY_TO_PUBLISH, 'Ready to publish'),
+        (STATUS_PUBLISHING, 'Publishing'),
+        (STATUS_PUBLISHED, 'Published'),
+        (STATUS_FAILED, 'Failed'),
+    )
+
+    TYPE_AUTO = 'auto'
+    TYPE_FULL = 'full'
+    TYPE_ENGLISH = 'english'
+    TYPE_MATH = 'math'
+    TEST_TYPE_CHOICES = (
+        (TYPE_AUTO, 'Auto detect'),
+        (TYPE_FULL, 'Full SAT'),
+        (TYPE_ENGLISH, 'Reading & Writing'),
+        (TYPE_MATH, 'Math'),
+    )
+
+    name = models.CharField(max_length=400)
+    source_pdf = models.FileField(upload_to='sat/test_imports/source/', storage=PrivateStorage())
+    answer_pdf = models.FileField(upload_to='sat/test_imports/answers/', storage=PrivateStorage(), blank=True, null=True)
+    requested_test_type = models.CharField(max_length=20, choices=TEST_TYPE_CHOICES, default=TYPE_AUTO)
+    detected_test_type = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_UPLOADED, db_index=True)
+    required_approvals = models.PositiveSmallIntegerField(default=2)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_test_imports')
+    ai_model = models.CharField(max_length=80, blank=True)
+    page_count = models.PositiveIntegerField(default=0)
+    structure_data = models.JSONField(default=dict, blank=True)
+    processing_log = models.JSONField(default=list, blank=True)
+    error_message = models.TextField(blank=True)
+    processed_at = models.DateTimeField(blank=True, null=True)
+    published_at = models.DateTimeField(blank=True, null=True)
+    published_test = models.OneToOneField(
+        Test, on_delete=models.SET_NULL, null=True, blank=True, related_name='import_job'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', '-created_at'], name='sat_import_status_created')]
+
+    @property
+    def approval_count(self):
+        return self.reviews.filter(verdict=TestImportReview.VERDICT_APPROVED).count()
+
+    @property
+    def reviewer_count(self):
+        return self.reviews.count()
+
+    @property
+    def approval_target(self):
+        reviewers = self.reviewer_count
+        if reviewers <= 0:
+            return self.required_approvals
+        return min(self.required_approvals, reviewers)
+
+    @property
+    def has_blocking_errors(self):
+        return self.questions.filter(validation_status=TestImportQuestion.VALIDATION_ERROR).exists()
+
+    def refresh_review_status(self, save=True):
+        if self.status in {self.STATUS_PUBLISHED, self.STATUS_PUBLISHING, self.STATUS_PROCESSING, self.STATUS_FAILED}:
+            return self.status
+        if self.has_blocking_errors:
+            self.status = self.STATUS_CHANGES_REQUESTED
+        elif self.reviews.filter(verdict=TestImportReview.VERDICT_CHANGES).exists():
+            self.status = self.STATUS_CHANGES_REQUESTED
+        elif self.approval_target > 0 and self.approval_count >= self.approval_target:
+            self.status = self.STATUS_READY_TO_PUBLISH
+        else:
+            self.status = self.STATUS_REVIEW_REQUIRED
+        if save:
+            self.save(update_fields=['status', 'updated_at'])
+        return self.status
+
+    def __str__(self):
+        return f'{self.name} · {self.get_status_display()}'
+
+
+class TestImportQuestion(models.Model):
+    SECTION_CHOICES = (('english', 'Reading & Writing'), ('math', 'Math'))
+    MODULE_CHOICES = modules
+    VALIDATION_OK = 'ok'
+    VALIDATION_WARNING = 'warning'
+    VALIDATION_ERROR = 'error'
+    VALIDATION_CHOICES = (
+        (VALIDATION_OK, 'OK'),
+        (VALIDATION_WARNING, 'Warning'),
+        (VALIDATION_ERROR, 'Error'),
+    )
+
+    job = models.ForeignKey(TestImportJob, on_delete=models.CASCADE, related_name='questions')
+    section = models.CharField(max_length=16, choices=SECTION_CHOICES)
+    module = models.CharField(max_length=16, choices=MODULE_CHOICES)
+    number = models.PositiveIntegerField()
+    passage = models.TextField(blank=True)
+    question = models.TextField(blank=True)
+    a = models.TextField(blank=True)
+    b = models.TextField(blank=True)
+    c = models.TextField(blank=True)
+    d = models.TextField(blank=True)
+    answer = models.CharField(max_length=400, blank=True)
+    explanation = models.TextField(blank=True)
+    image = models.ImageField(upload_to='sat/test_imports/question_images/', storage=PublicStorage(), blank=True, null=True)
+    image_a = models.ImageField(upload_to='sat/test_imports/choice_images/', storage=PublicStorage(), blank=True, null=True)
+    image_b = models.ImageField(upload_to='sat/test_imports/choice_images/', storage=PublicStorage(), blank=True, null=True)
+    image_c = models.ImageField(upload_to='sat/test_imports/choice_images/', storage=PublicStorage(), blank=True, null=True)
+    image_d = models.ImageField(upload_to='sat/test_imports/choice_images/', storage=PublicStorage(), blank=True, null=True)
+    response_type = models.CharField(max_length=24, choices=(('multiple_choice', 'Multiple choice'), ('open_text', 'Open text')), default='multiple_choice')
+    written = models.BooleanField(default=False)
+    graph = models.BooleanField(default=False)
+    choice_graph = models.BooleanField(default=False)
+    source_page = models.PositiveIntegerField(blank=True, null=True)
+    ai_confidence = models.FloatField(default=0)
+    validation_status = models.CharField(max_length=12, choices=VALIDATION_CHOICES, default=VALIDATION_OK, db_index=True)
+    validation_errors = models.JSONField(default=list, blank=True)
+    audit_verdict = models.CharField(max_length=20, blank=True)
+    audit_severity = models.CharField(max_length=20, blank=True)
+    audit_confidence = models.FloatField(blank=True, null=True)
+    audit_summary = models.TextField(blank=True)
+    audit_verified_answer = models.CharField(max_length=400, blank=True)
+    audit_recommended_fix = models.TextField(blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['section', 'module', 'number', 'id']
+        indexes = [
+            models.Index(fields=['job', 'section', 'module', 'number'], name='sat_import_q_slot'),
+            models.Index(fields=['job', 'validation_status'], name='sat_import_q_validation'),
+        ]
+
+    @property
+    def display_code(self):
+        prefix = 'EBRW' if self.section == 'english' else 'MATH'
+        module_number = '1' if self.module == 'module_1' else '2'
+        return f'{prefix} M{module_number} #{self.number}'
+
+    def __str__(self):
+        return f'{self.job.name} · {self.display_code}'
+
+
+class TestImportReview(models.Model):
+    VERDICT_PENDING = 'pending'
+    VERDICT_APPROVED = 'approved'
+    VERDICT_CHANGES = 'changes_requested'
+    VERDICT_CHOICES = (
+        (VERDICT_PENDING, 'Pending'),
+        (VERDICT_APPROVED, 'Approved'),
+        (VERDICT_CHANGES, 'Changes requested'),
+    )
+
+    job = models.ForeignKey(TestImportJob, on_delete=models.CASCADE, related_name='reviews')
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='test_import_reviews')
+    verdict = models.CharField(max_length=24, choices=VERDICT_CHOICES, default=VERDICT_PENDING, db_index=True)
+    note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['job', 'reviewer'], name='unique_import_reviewer')]
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.job.name} · {self.reviewer.username} · {self.verdict}'
+
+
+class MakonNotification(models.Model):
+    TYPE_TEST_REVIEW = 'test_review'
+    TYPE_TEST_PUBLISHED = 'test_published'
+    TYPE_CHOICES = (
+        (TYPE_TEST_REVIEW, 'Test review'),
+        (TYPE_TEST_PUBLISHED, 'Test published'),
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='makon_notifications')
+    type = models.CharField(max_length=32, choices=TYPE_CHOICES)
+    title = models.CharField(max_length=180)
+    message = models.CharField(max_length=500, blank=True)
+    url = models.CharField(max_length=500, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', 'is_read', '-created_at'], name='makon_notice_user_unread')]
+
+    def __str__(self):
+        return f'{self.user.username} · {self.title}'

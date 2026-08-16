@@ -117,6 +117,7 @@
               style="--card-index:{{ forloop.counter0 }}"
             >
               <div class="practice-card-media">
+                {% if test.is_new %}<span class="practice-new-badge">NEW</span>{% endif %}
                 <img src="{{ test.card_image }}" alt="{{ test.name }}" loading="lazy" onerror="this.onerror=null;this.src='{% static 'assets/img/tests/minion.jpg' %}'">
                 <span class="practice-state-pill">{{ test.status_label }}</span>
                 <div class="practice-card-media-shade"></div>

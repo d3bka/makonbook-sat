@@ -1,5 +1,5 @@
 from django.urls import path, include
-from . import views, guest_views
+from . import views, guest_views, test_import_views
 
 urlpatterns = [
     path('', views.classroom_entry, name='sat_menu'),
@@ -42,6 +42,15 @@ urlpatterns = [
     path('manager/', views.manager_dashboard, name='manager_dashboard'),
     path('manager/teachers/<int:teacher_id>/', views.manager_teacher_detail, name='manager_teacher_detail'),
     path('manager/classrooms/<int:classroom_id>/', views.manager_classroom_detail, name='manager_classroom_detail'),
+    # AI-assisted test import / review
+    path('test-imports/', test_import_views.test_import_list, name='test_import_list'),
+    path('test-imports/new/', test_import_views.test_import_create, name='test_import_create'),
+    path('test-imports/<int:job_id>/', test_import_views.test_import_detail, name='test_import_detail'),
+    path('test-imports/<int:job_id>/process/', test_import_views.test_import_process, name='test_import_process'),
+    path('test-imports/<int:job_id>/publish/', test_import_views.test_import_publish, name='test_import_publish'),
+    path('test-imports/<int:job_id>/review/', test_import_views.test_import_review, name='test_import_review'),
+    path('test-imports/<int:job_id>/source.pdf', test_import_views.test_import_pdf, name='test_import_pdf'),
+    path('test-imports/<int:job_id>/questions/<int:question_id>/edit/', test_import_views.test_import_question_edit, name='test_import_question_edit'),
     path('support-teachers/<int:teacher_id>/', views.support_teacher_detail, name='support_teacher_detail'),
     path('support-teachers/<int:teacher_id>/book/', views.book_support_lesson, name='book_support_lesson'),
     path('support-lessons/', views.my_support_lessons, name='my_support_lessons'),
