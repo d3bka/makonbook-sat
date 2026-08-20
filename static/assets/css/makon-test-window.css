@@ -2847,3 +2847,63 @@ body.scroll-hide.mk-test-window .question-progress .progress-number {
     min-width: 1.15ch;
     justify-content: center !important;
 }
+
+/* Structured PDF v2.1 inline fidelity ------------------------------------ */
+body.scroll-hide.mk-test-window .sat-source-underline {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: auto;
+}
+
+body.scroll-hide.mk-test-window .sat-source-emphasis {
+  font-style: italic;
+}
+
+body.scroll-hide.mk-test-window .sat-inline-blank {
+  display: inline-block;
+  width: 4.6em;
+  min-width: 64px;
+  height: .9em;
+  margin: 0 .18em;
+  vertical-align: baseline;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-.08em);
+}
+
+/* Imported SVGs use PDF-point dimensions, which browsers otherwise render
+   much too literally (e.g. a 310pt geometry diagram becomes a tiny 310px
+   image).  Scale by visual shape while keeping the original aspect ratio. */
+body.scroll-hide.mk-test-window .graph img,
+body.scroll-hide.mk-test-window #graph-container img {
+  width: min(88%, 700px) !important;
+  max-width: 100% !important;
+  max-height: 56vh !important;
+  object-fit: contain;
+  background: #fff;
+}
+
+body.scroll-hide.mk-test-window .graph img[data-visual-shape="ultrawide"],
+body.scroll-hide.mk-test-window #graph-container img[data-visual-shape="ultrawide"] {
+  width: min(100%, 860px) !important;
+}
+
+body.scroll-hide.mk-test-window .graph img[data-visual-shape="wide"],
+body.scroll-hide.mk-test-window #graph-container img[data-visual-shape="wide"] {
+  width: min(92%, 760px) !important;
+}
+
+body.scroll-hide.mk-test-window .graph img[data-visual-shape="compact"],
+body.scroll-hide.mk-test-window #graph-container img[data-visual-shape="compact"] {
+  width: min(72%, 560px) !important;
+}
+
+@media (max-width: 720px) {
+  body.scroll-hide.mk-test-window .graph img,
+  body.scroll-hide.mk-test-window #graph-container img,
+  body.scroll-hide.mk-test-window .graph img[data-visual-shape],
+  body.scroll-hide.mk-test-window #graph-container img[data-visual-shape] {
+    width: 100% !important;
+    max-height: 46vh !important;
+  }
+}

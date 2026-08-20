@@ -152,6 +152,16 @@ class Test(BaseModel):
         db_index=True,
         help_text='When this test became visible to students. Used for the NEW badge.',
     )
+    is_available = models.BooleanField(
+        'Open for MakonBook users',
+        default=True,
+        db_index=True,
+        help_text=(
+            'Controls all normal MakonBook test attempts for Students, Teachers and Support Teachers, '
+            'including every Classroom attempt. Guest Mode and Manager/Admin/Tester QA access remain available when disabled. '
+            'Existing attempts, progress and results are preserved.'
+        ),
+    )
     groups = models.ManyToManyField(Group, related_name='tests')
     icon = models.ImageField(
         'Icon',

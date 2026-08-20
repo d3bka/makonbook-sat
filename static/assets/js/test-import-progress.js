@@ -4,9 +4,10 @@
 
   const statusUrl = root.dataset.statusUrl;
   const activeStatuses = new Set(['queued', 'processing']);
-  const bar = root.querySelector('[data-progress-bar]');
-  const percentEl = root.querySelector('[data-progress-percent]');
-  const messageEl = root.querySelector('[data-progress-message]');
+  const bars = [...root.querySelectorAll('[data-progress-bar]')];
+  const percentEls = [...root.querySelectorAll('[data-progress-percent]')];
+  const messageEls = [...root.querySelectorAll('[data-progress-message]')];
+  const liveTray = root.querySelector('[data-import-live-tray]');
   const warningEl = root.querySelector('[data-progress-warning]');
   const badge = document.querySelector('[data-import-status-badge]');
   const liveLog = document.querySelector('[data-live-log]');
@@ -33,9 +34,9 @@
   const render = (data) => {
     const percent = Math.max(0, Math.min(100, Number(data.percent) || 0));
     root.classList.remove('is-hidden');
-    if (bar) bar.style.width = `${percent}%`;
-    if (percentEl) percentEl.textContent = `${percent}%`;
-    if (messageEl) messageEl.textContent = data.message || data.status_label || 'Processing...';
+    bars.forEach((bar) => { bar.style.width = `${percent}%`; });
+    percentEls.forEach((el) => { el.textContent = `${percent}%`; });
+    messageEls.forEach((el) => { el.textContent = data.message || data.status_label || 'Processing...'; });
     if (badge) {
       badge.textContent = data.status_label || data.status;
       badge.className = `tic-status ${data.status || ''}`;
@@ -48,6 +49,7 @@
     }
     renderLog(data.log);
 
+    if (liveTray) liveTray.classList.toggle('is-active', activeStatuses.has(data.status));
     if (!activeStatuses.has(data.status) && activeStatuses.has(currentStatus)) {
       window.setTimeout(() => window.location.reload(), 650);
       return;

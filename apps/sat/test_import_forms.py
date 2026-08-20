@@ -14,8 +14,8 @@ class TestImportUploadForm(forms.ModelForm):
             "math_pdf": "Math structured PDF",
         }
         help_texts = {
-            "english_pdf": "Optional. Upload a MakonBook Structured PDF v1 Reading & Writing file.",
-            "math_pdf": "Optional. Upload a MakonBook Structured PDF v1 Math file.",
+            "english_pdf": "Optional. Upload a MakonBook Structured PDF v2 Reading & Writing file (v1 remains accepted for legacy imports).",
+            "math_pdf": "Optional. Upload a MakonBook Structured PDF v2 Math file (v1 remains accepted for legacy imports).",
         }
 
     def clean_name(self):

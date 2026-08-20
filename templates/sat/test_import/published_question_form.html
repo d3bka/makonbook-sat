@@ -1,0 +1,18 @@
+{% extends 'template.html' %}{% load static %}
+{% block page_title %}{{ section_label }} #{{ question.number }} | {{ test.name }}{% endblock %}
+{% block title-main %}Question {{ question.number }}{% endblock %}{% block title-subtitle %}<span>{{ test.name }} · {{ section_label }}</span>{% endblock %}{% block title %}Published question editor{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=6">{{ form.media }}{% endblock %}
+{% block content %}
+<div class="tic-shell narrow">
+  {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <a class="tic-back" href="{% url 'managed_test_edit' test.pk %}"><i class="bi bi-arrow-left"></i> Back to {{ test.name }}</a>
+  <section class="tic-card">
+    <div class="tic-card-head"><div><span class="tic-kicker">Live question</span><h2>{{ section_label }} · {% if question.module == 'module_1' %}Module 1{% else %}Module 2{% endif %} · #{{ question.number }}</h2><p>Saving changes updates the published question directly.</p></div>{% if question.graph and question.image %}<img class="tic-question-preview" src="{{ question.image.url }}" alt="Question visual">{% endif %}</div>
+    <form method="post" enctype="multipart/form-data" class="tic-form tic-published-question-form">{% csrf_token %}
+      {% if form.non_field_errors %}{% for error in form.non_field_errors %}<div class="tic-alert error">{{ error }}</div>{% endfor %}{% endif %}
+      {% for field in form %}<label class="{% if field.field.widget.input_type == 'checkbox' %}tic-check-row{% endif %}"><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small>{{ field.help_text|safe }}</small>{% endif %}{% for error in field.errors %}<em>{{ error }}</em>{% endfor %}</label>{% endfor %}
+      <button class="tic-btn primary" type="submit"><i class="bi bi-save2"></i> Save published question</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

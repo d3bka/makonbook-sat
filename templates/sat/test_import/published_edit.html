@@ -1,0 +1,36 @@
+{% extends 'template.html' %}{% load static %}
+{% block page_title %}Edit {{ test.name }} | MakonBook{% endblock %}
+{% block title-main %}Edit Test{% endblock %}{% block title-subtitle %}<span>{{ test.name }}</span>{% endblock %}{% block title %}Published test editor{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=6">{% endblock %}
+{% block content %}
+<div class="tic-shell">
+  {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="tic-toolbar"><a class="tic-back" href="{% url 'managed_test_list' %}"><i class="bi bi-arrow-left"></i> Published tests</a><div class="tic-published-actions"><form method="post" action="{% url 'managed_test_toggle_availability' test.pk %}">{% csrf_token %}<input type="hidden" name="state" value="{% if test.is_available %}closed{% else %}open{% endif %}"><input type="hidden" name="return_to" value="edit"><button class="tic-btn {% if test.is_available %}danger{% else %}primary{% endif %}" type="submit"><i class="bi {% if test.is_available %}bi-lock-fill{% else %}bi-unlock-fill{% endif %}"></i> {% if test.is_available %}Close MakonBook access{% else %}Open MakonBook access{% endif %}</button></form><a class="tic-btn danger" href="{% url 'managed_test_delete' test.pk %}"><i class="bi bi-trash3"></i> Delete test</a></div></div>
+  <div class="tic-alert {% if test.is_available %}success{% else %}warning{% endif %}">{% if test.is_available %}<strong>Open across MakonBook.</strong> Students, Teachers, Support Teachers and Classroom attempts can start or resume; Guest Mode is independent.{% else %}<strong>Closed across normal MakonBook access.</strong> Students, Teachers, Support Teachers and every Classroom attempt are blocked; existing progress is preserved. Guest Mode and Manager/Admin/Tester QA remain available.{% endif %}</div>
+  <div class="tic-layout tic-manage-layout">
+    <main>
+      <section class="tic-card">
+        <div class="tic-card-head"><div><span class="tic-kicker">Live metadata</span><h2>{{ test.name }}</h2><p>Renaming is transaction-safe even though the legacy Test primary key is the name itself.</p></div><div class="tic-score-row compact"><div><strong>{{ english_count }}</strong><span>EBRW</span></div><div><strong>{{ math_count }}</strong><span>Math</span></div></div></div>
+        <form method="post" enctype="multipart/form-data" class="tic-form tic-manage-form">{% csrf_token %}
+          {% if form.non_field_errors %}{% for error in form.non_field_errors %}<div class="tic-alert error">{{ error }}</div>{% endfor %}{% endif %}
+          {% for field in form %}<label class="{% if field.field.widget.input_type == 'checkbox' %}tic-check-row{% endif %}"><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<em>{{ error }}</em>{% endfor %}</label>{% endfor %}
+          {% if test.icon %}<div class="tic-current-icon"><img src="{{ test.icon.url }}" alt="Current test icon"><span>Current icon</span></div>{% endif %}
+          <button class="tic-btn primary" type="submit"><i class="bi bi-save2"></i> Save test settings</button>
+        </form>
+      </section>
+
+      {% for label, questions, section in question_groups %}
+      <section class="tic-card tic-module">
+        <div class="tic-card-head"><div><span class="tic-kicker">Published questions</span><h2>{{ label }}</h2></div><span>{{ questions|length }} questions</span></div>
+        <div class="tic-question-list">
+          {% for q in questions %}<a class="tic-question ok" href="{% url 'managed_test_question_edit' test.pk section q.pk %}"><span class="tic-qnum">{{ q.number }}</span><div><strong>{{ q.question|default:q.passage|truncatechars:115 }}</strong><small>{% if q.graph %}<i class="bi bi-image"></i> Visual · {% endif %}Answer: {{ q.answer|default:'—' }}</small></div><i class="bi bi-pencil-square"></i></a>{% endfor %}
+        </div>
+      </section>
+      {% empty %}<section class="tic-card tic-empty"><i class="bi bi-exclamation-circle"></i><h3>No published questions</h3><p>This test currently has no EBRW or Math questions attached.</p></section>{% endfor %}
+    </main>
+    <aside>
+      <section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">Safety</span><h2>What editing changes</h2></div></div><div class="tic-safety-list"><p><i class="bi bi-check2-circle"></i><span>Question edits apply immediately to future test loads.</span></p><p><i class="bi bi-check2-circle"></i><span>Existing historical attempts remain stored.</span></p><p><i class="bi bi-check2-circle"></i><span>Renaming repoints related database records inside one transaction.</span></p><p><i class="bi bi-shield-exclamation"></i><span>Deletion is a separate typed-confirmation action.</span></p></div></section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

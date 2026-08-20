@@ -1,26 +1,141 @@
 {% extends 'template.html' %}{% load static %}
-{% block page_title %}{{ job.name }} Import | MakonBook{% endblock %}{% block title-main %}{{ job.name }}{% endblock %}{% block title-subtitle %}<span>Import review</span>{% endblock %}{% block title %}Test import{% endblock %}
-{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=2">{% endblock %}
+{% block page_title %}{{ job.name }} Import | MakonBook{% endblock %}
+{% block title-main %}{{ job.name }}{% endblock %}
+{% block title-subtitle %}<span>Import review</span>{% endblock %}
+{% block title %}Test import{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=8">{% endblock %}
 {% block content %}
 <div class="tic-shell">
-{% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
-<div class="tic-toolbar"><a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a><div class="tic-actions">{% if job.english_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}?section=english"><i class="bi bi-file-earmark-pdf"></i> EBRW PDF</a>{% endif %}{% if job.math_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}?section=math"><i class="bi bi-file-earmark-pdf"></i> Math PDF</a>{% endif %}{% if not job.english_pdf and not job.math_pdf and job.source_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}"><i class="bi bi-file-earmark-pdf"></i> Legacy source PDF</a>{% endif %}{% if can_manage and job.status != 'published' and job.status != 'publishing' and job.status != 'queued' and job.status != 'processing' %}<form method="post" action="{% url 'test_import_process' job.id %}">{% csrf_token %}<button class="tic-btn ghost" type="submit"><i class="bi bi-arrow-repeat"></i> {% if job.questions.exists %}Re-run import{% else %}Run import{% endif %}</button></form>{% endif %}{% if can_publish %}<form method="post" action="{% url 'test_import_publish' job.id %}" onsubmit="return confirm('Publish {{ job.name }} to the live test bank?');">{% csrf_token %}<button class="tic-btn primary" type="submit"><i class="bi bi-send-check"></i> Publish</button></form>{% endif %}</div></div>
-<section class="tic-overview tic-card"><div><span class="tic-status {{ job.status }}" data-import-status-badge>{{ job.get_status_display }}</span><h2>{{ job.name }}</h2><p>MakonBook Structured PDF v1 · {{ job.detected_test_type|default:'pending'|upper }} · {{ job.page_count }} source pages</p></div><div class="tic-score-row"><div><strong>{{ questions|length }}</strong><span>Questions</span></div><div><strong>{{ validation_counts.error }}</strong><span>Errors</span></div><div><strong>{{ validation_counts.warning }}</strong><span>Warnings</span></div><div><strong>{{ job.approval_count }}/{{ job.approval_target }}</strong><span>Approvals</span></div></div></section>
-<section class="tic-card tic-progress-card{% if job.status != 'queued' and job.status != 'processing' %} is-hidden{% endif %}" data-import-progress data-status-url="{% url 'test_import_status' job.id %}" data-status="{{ job.status }}">
-  <div class="tic-progress-head">
-    <div><span class="tic-kicker">Background worker</span><h2>Structured import progress</h2></div>
-    <strong data-progress-percent>{{ job.progress_percent|default:0 }}%</strong>
+  {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+
+  <div class="tic-toolbar">
+    <a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a>
+    <div class="tic-actions">
+      {% if questions %}<a class="tic-btn primary" href="{% url 'test_import_preview' job.id %}"><i class="bi bi-play-circle"></i> Preview test</a>{% endif %}
+      {% if job.english_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}?section=english"><i class="bi bi-file-earmark-pdf"></i> EBRW PDF</a>{% endif %}
+      {% if job.math_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}?section=math"><i class="bi bi-file-earmark-pdf"></i> Math PDF</a>{% endif %}
+      {% if can_manage and job.published_test %}<a class="tic-btn ghost" href="{% url 'managed_test_edit' job.published_test.pk %}"><i class="bi bi-pencil-square"></i> Edit published test</a>{% endif %}
+      {% if not job.english_pdf and not job.math_pdf and job.source_pdf %}<a class="tic-btn ghost" target="_blank" href="{% url 'test_import_pdf' job.id %}"><i class="bi bi-file-earmark-pdf"></i> Legacy source PDF</a>{% endif %}
+      {% if can_manage and job.status != 'published' and job.status != 'publishing' and job.status != 'processing' %}
+      <form method="post" action="{% url 'test_import_process' job.id %}" data-local-rerun-form>{% csrf_token %}
+        <button class="tic-btn ghost" type="submit"><i class="bi bi-arrow-repeat"></i> {% if job.questions.exists %}Re-run parser{% else %}Run parser{% endif %}</button>
+      </form>
+      {% endif %}
+      {% if can_publish %}
+      <form method="post" action="{% url 'test_import_publish' job.id %}" onsubmit="return confirm('Publish {{ job.name|escapejs }} to the live test bank?');">{% csrf_token %}
+        <button class="tic-btn primary" type="submit"><i class="bi bi-send-check"></i> Publish</button>
+      </form>
+      {% endif %}
+      {% if can_manage and job.status != 'processing' and job.status != 'publishing' %}
+      <form method="post" action="{% url 'test_import_delete' job.id %}" onsubmit="return confirm('Delete staging draft “{{ job.name|escapejs }}”? This removes the staging questions and uploaded PDFs. A separately published test will not be deleted.');">{% csrf_token %}
+        <button class="tic-btn danger" type="submit"><i class="bi bi-trash3"></i> Delete draft</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
-  <div class="tic-progress-track" role="progressbar" aria-label="Structured import progress"><span data-progress-bar style="width:{{ job.progress_percent|default:0 }}%"></span></div>
-  <p class="tic-progress-message" data-progress-message>{{ job.progress_message|default:'Waiting for progress...' }}</p>
-  <div class="tic-worker-warning is-hidden" data-progress-warning></div>
-  <small class="tic-progress-note"><i class="bi bi-cloud-check"></i> This runs in the background. You can leave this page and come back later.</small>
-</section>
-{% if job.error_message %}<div class="tic-alert error"><strong>Processing failed.</strong> {{ job.error_message }}</div>{% endif %}
-{% if job.structure_data.count_warnings %}<div class="tic-alert warning"><strong>Question-count check:</strong><ul>{% for warning in job.structure_data.count_warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div>{% endif %}
-<div class="tic-layout"><main>
-{% for key, group in question_groups %}<section class="tic-card tic-module"><div class="tic-card-head"><div><span class="tic-kicker">{{ key.0|upper }}</span><h2>{% if key.1 == 'module_1' %}Module 1{% else %}Module 2{% endif %}</h2></div><span>{{ group|length }} questions</span></div><div class="tic-question-list">{% for q in group %}<a href="{% url 'test_import_question_edit' job.id q.id %}" class="tic-question {{ q.validation_status }}"><span class="tic-qnum">{{ q.number }}</span><div><strong>{{ q.question|default:q.passage|truncatechars:105 }}</strong><small>Page {{ q.source_page|default:'?' }} · Structured parser{% if q.audit_verdict %} · Audit: {{ q.audit_verdict }} / {{ q.audit_severity }}{% endif %}</small>{% if q.validation_errors %}<em>{{ q.validation_errors|join:' · ' }}</em>{% endif %}</div><i class="bi bi-pencil-square"></i></a>{% endfor %}</div></section>{% empty %}<section class="tic-card tic-empty"><i class="bi bi-stars"></i><h3>No extracted questions yet</h3><p>Upload or re-run the structured PDFs to build the staging question bank.</p></section>{% endfor %}
-</main><aside><section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">Human gate</span><h2>Reviewers</h2></div></div><div class="tic-reviewers">{% for review in reviews %}<div><span class="tic-avatar">{{ review.reviewer.username|first|upper }}</span><p><strong>{{ review.reviewer.get_full_name|default:review.reviewer.username }}</strong><small>{{ review.get_verdict_display }}{% if review.reviewed_at %} · {{ review.reviewed_at|date:'d M H:i' }}{% endif %}</small>{% if review.note %}<em>{{ review.note }}</em>{% endif %}</p></div>{% empty %}<p>No active support teachers were assigned.</p>{% endfor %}</div></section>
-{% if my_review or can_manage %}{% if job.status != 'published' and job.status != 'queued' and job.status != 'processing' %}<section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">Your decision</span><h2>Approve or return</h2></div></div><form class="tic-review-form" method="post" action="{% url 'test_import_review' job.id %}">{% csrf_token %}<textarea name="note" rows="4" placeholder="Required when requesting changes">{% if my_review %}{{ my_review.note }}{% endif %}</textarea><button class="tic-btn success" name="verdict" value="approved" type="submit" {% if validation_counts.error %}disabled{% endif %}><i class="bi bi-check2-circle"></i> Approve</button><button class="tic-btn danger" name="verdict" value="changes_requested" type="submit"><i class="bi bi-arrow-counterclockwise"></i> Request changes</button></form></section>{% endif %}{% endif %}
-{% if job.processing_log %}<section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">System</span><h2>Processing log</h2></div></div><div class="tic-log" data-live-log>{% for row in job.processing_log reversed %}<p><small>{{ row.at }}</small>{{ row.message }}</p>{% endfor %}</div></section>{% endif %}
-</aside></div></div><script src="{% static 'assets/js/test-import-progress.js' %}?v=2" defer></script>{% endblock %}
+
+  <section class="tic-overview tic-card">
+    <div>
+      <span class="tic-status {{ job.status }}">{{ job.get_status_display }}</span>
+      <h2>{{ job.name }}</h2>
+      <p>MakonBook Structured PDF · {{ job.ai_model|default:'pending' }} · {{ job.detected_test_type|default:'pending'|upper }} · {{ job.page_count }} source pages</p>
+    </div>
+    <div class="tic-score-row">
+      <div><strong>{{ questions|length }}</strong><span>Questions</span></div>
+      <div><strong>{{ validation_counts.error }}</strong><span>Errors</span></div>
+      <div><strong>{{ validation_counts.warning }}</strong><span>Warnings</span></div>
+      <div><strong>{{ job.approval_count }}/{{ job.approval_target }}</strong><span>Approvals</span></div>
+    </div>
+  </section>
+
+  {% if job.status == 'processing' %}
+  <div class="tic-alert warning"><strong>Local parser is running.</strong> Another request is currently parsing this staging import. Wait for it to finish before editing or reviewing.</div>
+  {% endif %}
+  {% if job.error_message %}<div class="tic-alert error"><strong>Processing failed.</strong> {{ job.error_message }}</div>{% endif %}
+  {% if job.structure_data.count_warnings %}<div class="tic-alert warning"><strong>Question-count check:</strong><ul>{% for warning in job.structure_data.count_warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div>{% endif %}
+
+  {% if can_manage and questions and job.status != 'published' and job.status != 'publishing' %}
+  <section class="tic-card tic-ai-audit-card">
+    <div class="tic-card-head">
+      <div>
+        <span class="tic-kicker">Optional quality check</span>
+        <h2>{{ audit_provider }} AI audit</h2>
+        <p>The structured PDF is already parsed. AI is not required to build or publish the test; this only independently checks answer keys before human review.</p>
+      </div>
+      <span class="tic-format-badge"><i class="bi bi-stars"></i> optional</span>
+    </div>
+    <div class="tic-audit-summary">
+      <div><strong data-audit-done>{{ audited_count }}</strong><span>Audited / {{ questions|length }}</span></div>
+      <div><strong>{{ audit_issue_count }}</strong><span>Issues</span></div>
+      <div><strong>{{ audit_uncertain_count }}</strong><span>Uncertain</span></div>
+      <div><strong>{{ audit_model|default:'configured model' }}</strong><span>Model</span></div>
+    </div>
+    <div class="tic-audit-actions">
+      <p><i class="bi bi-info-circle"></i> Starting or re-running the audit resets previous human approvals because reviewers should see the newest findings.</p>
+      <form method="post" action="{% url 'test_import_audit_batch' job.id %}" data-audit-run-form data-audit-restart="{% if audit_partial %}0{% else %}1{% endif %}">{% csrf_token %}
+        <button type="submit" class="tic-btn ghost" data-audit-run-button><i class="bi bi-stars"></i> {% if audit_partial %}Continue AI audit{% elif audit_complete %}Re-run AI audit{% else %}Run AI audit{% endif %}</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="tic-layout"><main>
+    {% for key, group in question_groups %}
+    <section class="tic-card tic-module">
+      <div class="tic-card-head"><div><span class="tic-kicker">{{ key.0|upper }}</span><h2>{% if key.1 == 'module_1' %}Module 1{% else %}Module 2{% endif %}</h2></div><span>{{ group|length }} questions</span></div>
+      <div class="tic-question-list">
+        {% for q in group %}
+        <a href="{% url 'test_import_question_edit' job.id q.id %}" class="tic-question {{ q.validation_status }}">
+          <span class="tic-qnum">{{ q.number }}</span>
+          <div>
+            <strong>{{ q.question|default:q.passage|truncatechars:105 }}</strong>
+            <small>Page {{ q.source_page|default:'?' }} · Structured parser{% if q.audit_verdict and q.audit_verdict != 'auditing' %} · Audit: {{ q.audit_verdict }} / {{ q.audit_severity }}{% endif %}</small>
+            {% if q.validation_errors %}<em>{{ q.validation_errors|join:' · ' }}</em>{% endif %}
+          </div>
+          <i class="bi bi-pencil-square"></i>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% empty %}
+    <section class="tic-card tic-empty"><i class="bi bi-stars"></i><h3>No extracted questions yet</h3><p>Upload or re-run the structured PDFs to build the staging question bank.</p></section>
+    {% endfor %}
+  </main><aside>
+    <section class="tic-card">
+      <div class="tic-card-head"><div><span class="tic-kicker">Human gate</span><h2>Reviewers</h2></div></div>
+      <div class="tic-reviewers">
+        {% for review in reviews %}
+        <div><span class="tic-avatar">{{ review.reviewer.username|first|upper }}</span><p><strong>{{ review.reviewer.get_full_name|default:review.reviewer.username }}</strong><small>{{ review.get_verdict_display }}{% if review.reviewed_at %} · {{ review.reviewed_at|date:'d M H:i' }}{% endif %}</small>{% if review.note %}<em>{{ review.note }}</em>{% endif %}</p></div>
+        {% empty %}<p>No active support teachers were assigned.</p>{% endfor %}
+      </div>
+    </section>
+    {% if my_review or can_manage %}{% if job.status != 'published' and job.status != 'processing' %}
+    <section class="tic-card">
+      <div class="tic-card-head"><div><span class="tic-kicker">Your decision</span><h2>Approve or return</h2></div></div>
+      <form class="tic-review-form" method="post" action="{% url 'test_import_review' job.id %}">{% csrf_token %}
+        <textarea name="note" rows="4" placeholder="Required when requesting changes">{% if my_review %}{{ my_review.note }}{% endif %}</textarea>
+        <button class="tic-btn success" name="verdict" value="approved" type="submit" {% if validation_counts.error %}disabled{% endif %}><i class="bi bi-check2-circle"></i> Approve</button>
+        <button class="tic-btn danger" name="verdict" value="changes_requested" type="submit"><i class="bi bi-arrow-counterclockwise"></i> Request changes</button>
+      </form>
+    </section>
+    {% endif %}{% endif %}
+    {% if job.processing_log %}
+    <section class="tic-card"><div class="tic-card-head"><div><span class="tic-kicker">System</span><h2>Processing log</h2></div></div><div class="tic-log">{% for row in job.processing_log reversed %}<p><small>{{ row.at }}</small>{{ row.message }}</p>{% endfor %}</div></section>
+    {% endif %}
+  </aside></div>
+</div>
+
+<div class="tic-upload-overlay" data-audit-overlay aria-hidden="true">
+  <div class="tic-upload-sheet" role="status" aria-live="polite">
+    <div class="tic-upload-visual" aria-hidden="true"><span class="tic-upload-core"><i class="bi bi-stars"></i></span><span class="tic-orbit orbit-a"></span><span class="tic-orbit orbit-b"></span><span class="tic-orbit orbit-c"></span></div>
+    <div class="tic-upload-copy">
+      <span class="tic-kicker">Optional AI audit</span>
+      <h2>Checking the answer key</h2>
+      <p data-audit-message>Preparing the first {{ audit_provider }} batch…</p>
+      <div class="tic-progress-track"><span data-audit-bar style="width:0%"></span></div>
+      <small data-audit-detail><i class="bi bi-shield-check"></i> Structured parsing is already complete. This step can be stopped and run again later.</small>
+    </div>
+  </div>
+</div>
+<script src="{% static 'assets/js/test-import-audit.js' %}?v=1" defer></script>
+{% endblock %}

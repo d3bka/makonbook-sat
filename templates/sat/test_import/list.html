@@ -1,14 +1,52 @@
 {% extends 'template.html' %}{% load static %}
 {% block page_title %}Test Import Center | MakonBook{% endblock %}
-{% block title-main %}Test Import Center{% endblock %}{% block title-subtitle %}<span>PDF → AI → Review → Publish</span>{% endblock %}{% block title %}Test imports{% endblock %}
-{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=2">{% endblock %}
+{% block title-main %}Test Import Center{% endblock %}{% block title-subtitle %}<span>Structured PDF → Parse → Audit → Review → Publish</span>{% endblock %}{% block title %}Test imports{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=8">{% endblock %}
 {% block content %}
 <div class="tic-shell">
   {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
-  <div class="tic-toolbar"><div><h2>Publishing queue</h2><p>Only approved staging data can become a real MakonBook test.</p></div>{% if can_create %}<a class="tic-btn primary" href="{% url 'test_import_create' %}"><i class="bi bi-file-earmark-arrow-up"></i> Import PDF</a>{% endif %}</div>
+  <div class="tic-toolbar">
+    <div><h2>Publishing queue</h2><p>Draft imports only. Published staging records are hidden from this queue.</p></div>
+    {% if can_create %}
+    <div class="tic-toolbar-actions">
+      {% if failed_count %}
+      <form method="post" action="{% url 'test_import_clear_failed' %}" data-tic-clear-failed data-failed-count="{{ failed_count }}">
+        {% csrf_token %}<button class="tic-btn danger" type="submit"><i class="bi bi-trash3"></i> Clear failed ({{ failed_count }})</button>
+      </form>
+      {% endif %}
+      <a class="tic-btn ghost" href="{% url 'managed_test_list' %}"><i class="bi bi-sliders"></i> Published tests</a>
+      <a class="tic-btn primary" href="{% url 'test_import_create' %}"><i class="bi bi-file-earmark-arrow-up"></i> Import PDF</a>
+    </div>
+    {% endif %}
+  </div>
   {% if pending_count %}<div class="tic-alert info"><strong>{{ pending_count }}</strong> test import{{ pending_count|pluralize }} waiting for your review.</div>{% endif %}
   <div class="tic-list">
-    {% for job in jobs %}<a class="tic-job" href="{% url 'test_import_detail' job.id %}"><div><span class="tic-status {{ job.status }}">{{ job.get_status_display }}</span><h3>{{ job.name }}</h3><p>{{ job.questions.count }} questions · {{ job.created_at|date:'d M Y, H:i' }}{% if job.created_by %} · {{ job.created_by.get_full_name|default:job.created_by.username }}{% endif %}</p></div><div class="tic-job-side">{% if job.status == 'queued' or job.status == 'processing' %}<strong>{{ job.progress_percent }}%</strong><span>{{ job.progress_message|default:'processing'|truncatechars:32 }}</span>{% else %}<strong>{{ job.approval_count }}/{{ job.approval_target }}</strong><span>approvals</span>{% endif %}<i class="bi bi-chevron-right"></i></div></a>
-    {% empty %}<div class="tic-empty"><i class="bi bi-file-earmark-pdf"></i><h3>No imports yet</h3><p>Upload the first PDF test to start the review pipeline.</p></div>{% endfor %}
+    {% for job in jobs %}
+    <div class="tic-job" data-import-job data-job-status="{{ job.status }}" data-job-id="{{ job.id }}">
+      <a class="tic-job-main" href="{% url 'test_import_detail' job.id %}">
+        <div class="tic-job-copy">
+          <span class="tic-status {{ job.status }}">{{ job.get_status_display }}</span>
+          <h3>{{ job.name }}</h3>
+          <p>{{ job.ui_question_count }} questions · {{ job.created_at|date:'d M Y, H:i' }}{% if job.created_by %} · {{ job.created_by.get_full_name|default:job.created_by.username }}{% endif %}</p>
+        </div>
+        <div class="tic-job-side">
+          {% if job.status == 'queued' or job.status == 'processing' %}
+            <strong>{{ job.progress_percent }}%</strong><span>{{ job.progress_message|default:'processing'|truncatechars:32 }}</span>
+          {% else %}
+            <strong>{{ job.ui_approval_count }}/{{ job.ui_approval_target }}</strong><span>approvals</span>
+          {% endif %}
+          <i class="bi bi-chevron-right"></i>
+        </div>
+      </a>
+      {% if can_manage and job.status != 'queued' and job.status != 'processing' and job.status != 'publishing' %}
+      <form class="tic-draft-delete-form" method="post" action="{% url 'test_import_delete' job.id %}" data-tic-draft-delete data-job-name="{{ job.name|escape }}" data-question-count="{{ job.ui_question_count }}">
+        {% csrf_token %}
+        <button class="tic-icon-btn danger" type="submit" title="Delete staging draft" aria-label="Delete staging draft {{ job.name }}"><i class="bi bi-trash3"></i></button>
+      </form>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="tic-empty"><i class="bi bi-file-earmark-pdf"></i><h3>No staging imports</h3><p>The publishing queue is clean. Upload a PDF when you are ready to build another test.</p></div>
+    {% endfor %}
   </div>
-</div>{% endblock %}
+</div><script src="{% static 'assets/js/test-import-center-fast.js' %}?v=1" defer></script>{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'template.html' %}{% load static %}
+{% block page_title %}Published Tests | MakonBook{% endblock %}
+{% block title-main %}Published Tests{% endblock %}{% block title-subtitle %}<span>Manager test bank</span>{% endblock %}{% block title %}Published tests{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=8">{% endblock %}
+{% block content %}
+<div class="tic-shell">
+  {% if messages %}{% for message in messages %}<div class="tic-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+  <div class="tic-toolbar">
+    <div><a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a><h2>Live test bank</h2><p>Edit a published test without rebuilding the staging import, or permanently remove it with impact confirmation.</p></div>
+    <a class="tic-btn primary" href="{% url 'test_import_create' %}"><i class="bi bi-plus-circle"></i> Import new test</a>
+  </div>
+  <div class="tic-published-grid">
+    {% for test in tests %}
+    <article class="tic-card tic-published-card" data-published-test-card>
+      <div class="tic-published-head">
+        <div>
+          <div class="tic-published-badges">{% if test.is_available %}<span class="tic-mini-badge" data-availability-badge>MAKONBOOK OPEN</span>{% else %}<span class="tic-status failed" data-availability-badge>MAKONBOOK CLOSED</span>{% endif %}{% if test.is_new %}<span class="tic-status review_required">NEW</span>{% endif %}{% if test.has_import_source %}<span class="tic-mini-badge">Imported</span>{% else %}<span class="tic-mini-badge">Legacy/manual</span>{% endif %}</div>
+          <h3>{{ test.name }}</h3>
+          <p>{{ test.total_question_count }} questions · {{ test.english_count }} EBRW · {{ test.math_count }} Math</p>
+        </div>
+        <div class="tic-published-icon">{% if test.icon %}<img src="{{ test.icon.url }}" alt="">{% else %}<i class="bi bi-journal-check"></i>{% endif %}</div>
+      </div>
+      <div class="tic-published-meta"><span><i class="bi bi-calendar3"></i> {% if test.published_at %}{{ test.published_at|date:'d M Y, H:i' }}{% else %}Legacy publication{% endif %}</span><span><i class="bi bi-people"></i> {% if test.group_count %}{{ test.group_count }} group{{ test.group_count|pluralize }}{% else %}No group restriction{% endif %}</span></div>
+      <div class="tic-published-actions">
+        <form method="post" action="{% url 'managed_test_toggle_availability' test.pk %}" data-tic-availability-form data-test-name="{{ test.name|escape }}" data-current-state="{% if test.is_available %}open{% else %}closed{% endif %}">{% csrf_token %}
+          <input type="hidden" name="state" value="{% if test.is_available %}closed{% else %}open{% endif %}">
+          <button class="tic-btn {% if test.is_available %}danger{% else %}primary{% endif %}" type="submit" data-availability-button><i class="bi {% if test.is_available %}bi-lock-fill{% else %}bi-unlock-fill{% endif %}"></i> <span>{% if test.is_available %}Close MakonBook access{% else %}Open MakonBook access{% endif %}</span></button>
+        </form>
+        <a class="tic-btn ghost" href="{% url 'managed_test_edit' test.pk %}"><i class="bi bi-pencil-square"></i> Edit</a><a class="tic-btn danger" href="{% url 'managed_test_delete' test.pk %}"><i class="bi bi-trash3"></i> Delete</a>
+      </div>
+    </article>
+    {% empty %}<div class="tic-card tic-empty"><i class="bi bi-journal-x"></i><h3>No published tests</h3><p>Publish an approved staging import first.</p></div>{% endfor %}
+  </div>
+</div>
+<script src="{% static 'assets/js/test-import-center-fast.js' %}?v=2" defer></script>
+{% endblock %}

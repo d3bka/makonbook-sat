@@ -1,0 +1,1389 @@
+/*
+ * MakonBook Exam Responsive v2
+ * Final, test-only responsive layer for standard/classroom/makeup/guest SAT flows.
+ * Loaded after legacy responsive CSS so it can neutralize conflicting fixed heights.
+ */
+
+body.mk-test-window.github-test-template-v20 {
+  --sat-vvh: 100dvh;
+  --sat-header-h: 92px;
+  --sat-footer-h: 72px;
+  --sat-safe-top: env(safe-area-inset-top, 0px);
+  --sat-safe-right: env(safe-area-inset-right, 0px);
+  --sat-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --sat-safe-left: env(safe-area-inset-left, 0px);
+  --sat-layout-header-h: var(--sat-measured-header, var(--sat-header-h));
+  --sat-layout-footer-h: var(--sat-measured-footer, var(--sat-footer-h));
+  width: 100%;
+  height: var(--sat-vvh);
+  min-height: 0 !important;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body.mk-test-window.github-test-template-v20 > .container {
+  width: 100% !important;
+  height: var(--sat-vvh) !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+body.mk-test-window.github-test-template-v20 .fm,
+body.mk-test-window.github-test-template-v20 #quiz-form,
+body.mk-test-window.github-test-template-v20 #math-quiz-form {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  overflow: hidden !important;
+}
+
+body.mk-test-window.github-test-template-v20 header {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--sat-header-h);
+  padding-top: max(10px, var(--sat-safe-top)) !important;
+  padding-left: max(16px, var(--sat-safe-left)) !important;
+  padding-right: max(16px, var(--sat-safe-right)) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+body.mk-test-window.github-test-template-v20 .github-test-heading {
+  grid-area: auto !important;
+  grid-column: 1;
+  min-width: 0;
+  justify-self: start;
+}
+
+body.mk-test-window.github-test-template-v20 .github-test-heading h1,
+body.mk-test-window.github-test-template-v20 .github-test-heading small {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.mk-test-window.github-test-template-v20 .github-test-timer-wrap {
+  grid-area: auto !important;
+  grid-column: 2;
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  justify-self: center;
+  min-width: 0;
+}
+
+body.mk-test-window.github-test-template-v20 .header-tools {
+  grid-area: auto !important;
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0 !important;
+  min-width: 0;
+  max-width: 100%;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  overflow: visible !important;
+}
+
+body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+  grid-area: auto !important;
+  grid-column: 3;
+  justify-self: end;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+body.mk-test-window.github-test-template-v20 main {
+  box-sizing: border-box;
+  width: 100%;
+  height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h)) - var(--sat-layout-footer-h, var(--sat-footer-h))) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: clamp(10px, 1.35vw, 20px) !important;
+  padding-left: max(clamp(10px, 1.35vw, 20px), var(--sat-safe-left)) !important;
+  padding-right: max(clamp(10px, 1.35vw, 20px), var(--sat-safe-right)) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  gap: 0;
+  overflow: hidden !important;
+}
+
+body.mk-test-window.github-test-template-v20 .question-container,
+body.mk-test-window.github-test-template-v20 .answers-container {
+  box-sizing: border-box;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+body.mk-test-window.github-test-template-v20 .question-container {
+  border-right: 1px dashed rgba(148, 163, 184, .45) !important;
+  border-bottom: 0 !important;
+}
+
+body.mk-test-window.github-test-template-v20 .answers-container {
+  padding-bottom: max(18px, var(--sat-safe-bottom)) !important;
+}
+
+body.mk-test-window.github-test-template-v20 #passage,
+body.mk-test-window.github-test-template-v20 #question-text,
+body.mk-test-window.github-test-template-v20 .choice-content,
+body.mk-test-window.github-test-template-v20 .katex-display {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+body.mk-test-window.github-test-template-v20 .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 3px;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.mk-test-window.github-test-template-v20 .choice-container,
+body.mk-test-window.github-test-template-v20 label.choice-container {
+  min-width: 0 !important;
+  min-height: 52px;
+  touch-action: manipulation;
+}
+
+body.mk-test-window.github-test-template-v20 button,
+body.mk-test-window.github-test-template-v20 a,
+body.mk-test-window.github-test-template-v20 input,
+body.mk-test-window.github-test-template-v20 label.choice-container {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.mk-test-window.github-test-template-v20 footer {
+  box-sizing: border-box;
+  position: fixed !important;
+  z-index: 1200 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: var(--sat-footer-h) !important;
+  min-height: var(--sat-footer-h) !important;
+  max-width: none !important;
+  margin: 0 !important;
+  transform: none !important;
+  padding: 8px max(16px, var(--sat-safe-right)) max(8px, var(--sat-safe-bottom)) max(16px, var(--sat-safe-left)) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  align-items: center;
+  gap: 10px;
+  overflow: visible !important;
+}
+
+body.mk-test-window.github-test-template-v20 .footer-left,
+body.mk-test-window.github-test-template-v20 .footer-center,
+body.mk-test-window.github-test-template-v20 .footer-right {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+body.mk-test-window.github-test-template-v20 .footer-center {
+  justify-self: center;
+}
+
+body.mk-test-window.github-test-template-v20 .footer-right {
+  justify-self: end;
+  margin-left: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px !important;
+}
+
+body.mk-test-window.github-test-template-v20 .nav-button,
+body.mk-test-window.github-test-template-v20 .question-progress,
+body.mk-test-window.github-test-template-v20 .header-tool,
+body.mk-test-window.github-test-template-v20 .crossing-options,
+body.mk-test-window.github-test-template-v20 .bookmark {
+  min-height: 44px !important;
+}
+
+body.mk-test-window.github-test-template-v20 .issue-report-fab {
+  right: max(12px, var(--sat-safe-right)) !important;
+  bottom: calc(var(--sat-layout-footer-h, var(--sat-footer-h)) + 12px) !important;
+}
+
+/* Tablet: preserve the real two-pane SAT layout instead of stacking at 768/820px. */
+@media (min-width: 701px) and (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20 {
+    --sat-header-h: 78px;
+    --sat-footer-h: 68px;
+  }
+
+  body.mk-test-window.github-test-template-v20 main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-container {
+    border-right: 1px dashed rgba(148, 163, 184, .45) !important;
+    border-bottom: 0 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-left {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 footer {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-center {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: start;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: end;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right .nav-button,
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 #backButton,
+  body.mk-test-window.github-test-template-v20 #nextButton,
+  body.mk-test-window.github-test-template-v20 #finishButton {
+    min-width: 88px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    min-width: 160px !important;
+  }
+}
+
+/* Phones and narrow foldables: two internal scrolling regions, no page-level scroll. */
+@media (max-width: 700px) and (orientation: portrait) {
+  body.mk-test-window.github-test-template-v20 {
+    --sat-header-h: 88px;
+    --sat-footer-h: 108px;
+  }
+  body.mk-test-window.github-test-template-v20.github-test-english {
+    --sat-header-h: 72px;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math {
+    --sat-header-h: 106px;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto 40px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .github-test-heading {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .github-test-timer-wrap {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .header-tools {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    justify-self: start !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-english .github-test-heading {
+    grid-column: 1 !important;
+  }
+  body.mk-test-window.github-test-template-v20.github-test-english .github-test-timer-wrap {
+    grid-column: 2 !important;
+  }
+  body.mk-test-window.github-test-template-v20.github-test-english header > a[data-test-exit]:not(.header-tool) {
+    grid-column: 3 !important;
+  }
+
+
+  body.mk-test-window.github-test-template-v20 header {
+    min-height: var(--sat-header-h) !important;
+    padding: 8px max(10px, var(--sat-safe-right)) 8px max(10px, var(--sat-safe-left)) !important;
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    gap: 7px !important;
+  }
+
+  /* Math needs one compact tool row below the title/timer on narrow portrait phones. */
+  body.mk-test-window.github-test-template-v20.github-test-math header {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: minmax(38px, auto) 40px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .github-test-heading {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .github-test-timer-wrap {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20.github-test-math .header-tools {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    justify-self: start !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading h1 {
+    font-size: clamp(13px, 3.8vw, 16px) !important;
+    line-height: 1.15 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading small {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-timer-wrap {
+    gap: 1px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .timer {
+    min-width: 66px !important;
+    padding: 7px 8px !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .test-save-status {
+    min-height: 18px !important;
+    padding: 2px 6px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .test-save-status [data-test-save-label] {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .header-tools {
+    gap: 5px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .header-tool,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 main {
+    height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h)) - var(--sat-layout-footer-h, var(--sat-footer-h))) !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(112px, 40%) minmax(0, 60%) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-container,
+  body.mk-test-window.github-test-template-v20 .answers-container {
+    height: 100% !important;
+    padding: 13px max(12px, var(--sat-safe-right)) 13px max(12px, var(--sat-safe-left)) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-container {
+    border-right: 0 !important;
+    border-bottom: 1px dashed rgba(148, 163, 184, .48) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .answers-container {
+    padding-bottom: 20px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-title {
+    min-height: 42px !important;
+    height: auto !important;
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    gap: 7px !important;
+    align-items: center !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-number {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .bookmark {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    max-width: 100%;
+    padding-inline: 8px !important;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .crossing-options {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 #passage,
+  body.mk-test-window.github-test-template-v20 #question-text,
+  body.mk-test-window.github-test-template-v20 .question-text,
+  body.mk-test-window.github-test-template-v20 .choice-container {
+    font-size: clamp(15px, 4vw, 17px) !important;
+    line-height: 1.5 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .choice-container,
+  body.mk-test-window.github-test-template-v20 label.choice-container {
+    min-height: 54px !important;
+    padding: 11px 48px 11px 11px !important;
+    border-radius: 14px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .mark {
+    flex-basis: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  body.mk-test-window.github-test-template-v20 footer {
+    height: var(--sat-footer-h) !important;
+    min-height: var(--sat-footer-h) !important;
+    padding: 7px max(9px, var(--sat-safe-right)) max(7px, var(--sat-safe-bottom)) max(9px, var(--sat-safe-left)) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: 44px 44px !important;
+    gap: 5px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-left {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-center {
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right {
+    width: 100% !important;
+    justify-self: stretch !important;
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 6px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right .nav-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 7px !important;
+    font-size: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Keep EBRW highlighter/eraser on phones; hiding controls made mobile behavior incomplete. */
+  body.mk-test-window.github-test-template-v20 #clear-button,
+  body.mk-test-window.github-test-template-v20 #pen-button {
+    display: inline-flex !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .graph img,
+  body.mk-test-window.github-test-template-v20 #graph-container img,
+  body.mk-test-window.github-test-template-v20 #graph-container svg,
+  body.mk-test-window.github-test-template-v20 .choice-image {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 42dvh !important;
+    object-fit: contain;
+  }
+
+  body.mk-test-window.github-test-template-v20 .issue-report-fab {
+    right: max(8px, var(--sat-safe-right)) !important;
+    bottom: calc(var(--sat-layout-footer-h, var(--sat-footer-h)) + 8px) !important;
+  }
+}
+
+/* Very narrow phones / Galaxy Fold cover screens. */
+@media (max-width: 350px) and (orientation: portrait) {
+  body.mk-test-window.github-test-template-v20 {
+    --sat-header-h: 84px;
+    --sat-footer-h: 104px;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading h1 {
+    font-size: 12px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .timer {
+    min-width: 60px !important;
+    font-size: 15px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .header-tool,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 footer {
+    grid-template-rows: 44px 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right .nav-button {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding-inline: 4px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* Landscape phones: the old CSS left only ~60-90px for the question. */
+@media (max-height: 560px) and (orientation: landscape) {
+  body.mk-test-window.github-test-template-v20 {
+    --sat-header-h: 54px;
+    --sat-footer-h: 58px;
+  }
+
+  body.mk-test-window.github-test-template-v20 header {
+    min-height: var(--sat-header-h) !important;
+    height: var(--sat-header-h) !important;
+    padding: max(4px, var(--sat-safe-top)) max(10px, var(--sat-safe-right)) 4px max(10px, var(--sat-safe-left)) !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading h1 {
+    font-size: 13px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading small,
+  body.mk-test-window.github-test-template-v20 .test-save-status {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .timer {
+    min-width: 62px !important;
+    padding: 6px 8px !important;
+    font-size: 15px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .header-tools {
+    width: auto !important;
+    gap: 5px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .header-tool,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 main {
+    height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h)) - var(--sat-layout-footer-h, var(--sat-footer-h))) !important;
+    padding: 6px max(8px, var(--sat-safe-right)) 6px max(8px, var(--sat-safe-left)) !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-container,
+  body.mk-test-window.github-test-template-v20 .answers-container {
+    height: 100% !important;
+    padding: 10px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-container {
+    border-right: 1px dashed rgba(148, 163, 184, .45) !important;
+    border-bottom: 0 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 #passage,
+  body.mk-test-window.github-test-template-v20 #question-text,
+  body.mk-test-window.github-test-template-v20 .question-text,
+  body.mk-test-window.github-test-template-v20 .choice-container {
+    font-size: 14px !important;
+    line-height: 1.38 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-title {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-number {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .bookmark,
+  body.mk-test-window.github-test-template-v20 .crossing-options {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 footer {
+    height: var(--sat-footer-h) !important;
+    min-height: var(--sat-footer-h) !important;
+    padding: 5px max(8px, var(--sat-safe-right)) max(5px, var(--sat-safe-bottom)) max(8px, var(--sat-safe-left)) !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    grid-template-rows: 1fr !important;
+    gap: 8px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-left {
+    display: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-center {
+    display: block !important;
+    width: auto !important;
+    justify-self: start !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right {
+    width: auto !important;
+    justify-self: end !important;
+    display: flex !important;
+    gap: 5px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .nav-button,
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    min-height: 44px !important;
+    height: 44px !important;
+    min-width: 0 !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .issue-report-fab {
+    display: none !important;
+  }
+}
+
+/* Math tools: overlays must fit dynamic mobile browser chrome and safe areas. */
+@media (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20 #calculator-popup {
+    position: fixed !important;
+    inset: max(6px, var(--sat-safe-top)) max(6px, var(--sat-safe-right)) max(6px, var(--sat-safe-bottom)) max(6px, var(--sat-safe-left)) !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    resize: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .reference-overlay {
+    inset: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .reference-sheet {
+    width: 100% !important;
+    height: var(--sat-vvh) !important;
+    max-height: none !important;
+    padding-bottom: var(--sat-safe-bottom);
+  }
+
+  body.mk-test-window.github-test-template-v20 .reference-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Full-screen question navigator on small phones; bottom-sheet behavior on tablets. */
+@media (max-width: 600px) {
+  body.github-test-template-v20 .question-overview-modal {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  body.github-test-template-v20 .question-overview-card {
+    width: 100% !important;
+    height: var(--sat-vvh) !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    padding-bottom: var(--sat-safe-bottom) !important;
+  }
+
+  body.github-test-template-v20 .question-overview-header {
+    padding: max(18px, var(--sat-safe-top)) 62px 14px 16px !important;
+  }
+
+  body.github-test-template-v20 .question-overview-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    padding: 12px 12px 2px !important;
+  }
+}
+
+/* On-screen keyboard: release the navigation bar so written Math answers stay visible. */
+body.mk-test-window.github-test-template-v20.sat-keyboard-open {
+  --sat-footer-h: 0px;
+  --sat-layout-footer-h: 0px;
+}
+body.mk-test-window.github-test-template-v20.sat-keyboard-open footer {
+  transform: translateY(110%) !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+body.mk-test-window.github-test-template-v20.sat-keyboard-open main {
+  height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h))) !important;
+}
+
+/* Review pages (normal + guest) ----------------------------------------- */
+body.review-page {
+  --review-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body.review-page .review-shell,
+body.review-page .review-main,
+body.review-page .review-header,
+body.review-page .question-container,
+body.review-page .answers-container {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+body.review-page .choice-image,
+body.review-page #graph-container img,
+body.review-page #graph-container svg {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
+@media (max-width: 900px) {
+  body.review-page .review-main {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.review-page .question-container,
+  body.review-page .answers-container {
+    overflow: visible !important;
+  }
+
+  body.review-page .review-footer {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 50;
+    padding-bottom: max(10px, var(--review-safe-bottom)) !important;
+    backdrop-filter: blur(14px);
+  }
+}
+
+@media (max-width: 520px) {
+  body.review-page .review-title-card,
+  body.review-page .review-status-card {
+    padding: 12px !important;
+  }
+
+  body.review-page .review-title-actions,
+  body.review-page .footer-nav-group {
+    width: 100%;
+  }
+
+  body.review-page .review-status-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.review-page .review-keyboard-hint {
+    display: none !important;
+  }
+
+  body.review-page .review-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.mk-test-window.github-test-template-v20 *,
+  body.review-page * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Legacy EBRW CSS targets #quiz-form > main with an !important 100% height.
+   Match the ID-level specificity so the viewport calculation actually wins. */
+body.mk-test-window.github-test-template-v20 #quiz-form > main,
+body.mk-test-window.github-test-template-v20 #math-quiz-form > main {
+  height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h)) - var(--sat-layout-footer-h, var(--sat-footer-h))) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  margin: 0 !important;
+}
+
+body.mk-test-window.github-test-template-v20.sat-keyboard-open #quiz-form > main,
+body.mk-test-window.github-test-template-v20.sat-keyboard-open #math-quiz-form > main {
+  height: calc(var(--sat-vvh) - var(--sat-layout-header-h, var(--sat-header-h))) !important;
+}
+
+/* ID-specific layout overrides for the legacy #quiz-form rules. */
+@media (min-width: 701px) and (max-width: 980px) {
+  body.mk-test-window.github-test-template-v20 #quiz-form > main,
+  body.mk-test-window.github-test-template-v20 #math-quiz-form > main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 700px) and (orientation: portrait) {
+  body.mk-test-window.github-test-template-v20 #quiz-form > main,
+  body.mk-test-window.github-test-template-v20 #math-quiz-form > main {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(112px, 40%) minmax(0, 60%) !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  body.mk-test-window.github-test-template-v20 #quiz-form > main,
+  body.mk-test-window.github-test-template-v20 #math-quiz-form > main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+}
+
+/* v2 refinements --------------------------------------------------------- */
+/* Keep all primary exam interactions at the 44px mobile accessibility floor. */
+body.mk-test-window.github-test-template-v20 .crossing-options {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  flex: 0 0 44px !important;
+}
+
+/* Legacy animations/transforms must never change viewport geometry. */
+body.mk-test-window.github-test-template-v20 > .container,
+body.mk-test-window.github-test-template-v20 > .container > header,
+body.mk-test-window.github-test-template-v20 > .container > footer {
+  transform: none !important;
+}
+
+/* Portrait tablets keep the real two-column SAT experience, but compact the
+   header into one predictable row. Older <=768px rules otherwise make it 120px+. */
+@media (min-width: 701px) and (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20 header {
+    height: 78px !important;
+    min-height: 78px !important;
+    padding: 8px max(12px, var(--sat-safe-right)) 8px max(12px, var(--sat-safe-left)) !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    align-items: center !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading,
+  body.mk-test-window.github-test-template-v20 .github-test-timer-wrap,
+  body.mk-test-window.github-test-template-v20 .header-tools,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+    grid-row: 1 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .github-test-heading { grid-column: 1 !important; }
+  body.mk-test-window.github-test-template-v20 .github-test-timer-wrap { grid-column: 2 !important; }
+  body.mk-test-window.github-test-template-v20 .header-tools,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) { grid-column: 3 !important; }
+
+  body.mk-test-window.github-test-template-v20 .header-tool,
+  body.mk-test-window.github-test-template-v20 header > a[data-test-exit]:not(.header-tool) {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+  }
+}
+
+/* Portrait phones: neutralize old ID-level button minimum widths. Only Back +
+   Next OR Back + Finish are visible, while EBRW can also show two icon tools. */
+@media (max-width: 700px) and (orientation: portrait) {
+  body.mk-test-window.github-test-template-v20 .footer-right #backButton,
+  body.mk-test-window.github-test-template-v20 .footer-right #nextButton,
+  body.mk-test-window.github-test-template-v20 .footer-right #finishButton,
+  body.mk-test-window.github-test-template-v20 .footer-right #clear-button,
+  body.mk-test-window.github-test-template-v20 .footer-right #pen-button {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right #clear-button,
+  body.mk-test-window.github-test-template-v20 .footer-right #pen-button {
+    width: 100% !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-progress,
+  body.mk-test-window.github-test-template-v20 .footer-right .nav-button {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+}
+
+/* Extreme landscape phones need every control on the single footer row. */
+@media (max-height: 560px) and (orientation: landscape) {
+  body.mk-test-window.github-test-template-v20 footer {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-center {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: start !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: end !important;
+    width: auto !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 5px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right #backButton,
+  body.mk-test-window.github-test-template-v20 .footer-right #nextButton,
+  body.mk-test-window.github-test-template-v20 .footer-right #finishButton {
+    width: auto !important;
+    min-width: 68px !important;
+    max-width: 92px !important;
+    padding-inline: 8px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .footer-right #clear-button,
+  body.mk-test-window.github-test-template-v20 .footer-right #pen-button {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 0 !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .question-progress {
+    width: auto !important;
+    min-width: 108px !important;
+    max-width: 126px !important;
+    padding-inline: 8px !important;
+  }
+
+  body.mk-test-window.github-test-template-v20 .crossing-options {
+    width: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* Review and guest-review pages: safe-area padding and touch-size guarantees. */
+body.guest-review-overview-page {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+body.guest-review-overview-page .guest-review-nav-link,
+body.guest-review-overview-page .guest-review-primary-action,
+body.guest-review-overview-page .guest-review-question-link,
+body.review-page button,
+body.review-page .nav-button,
+body.review-page a.review-action {
+  min-height: 44px;
+}
+
+@media (max-width: 360px) {
+  body.guest-review-overview-page .guest-review-question-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+/* Highlighter is a core Reading & Writing tool and must not disappear on
+   tablets or landscape phones just because older responsive CSS hid it. */
+@media (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20.github-test-english #clear-button,
+  body.mk-test-window.github-test-template-v20.github-test-english #pen-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    flex: 0 0 44px !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   v3 final mobile hardening
+   Covers shared live/guest attempts, question overview, finish confirmation,
+   review pages and Math overlays. Keep this block last: several legacy files
+   use ID selectors and !important declarations.
+   ------------------------------------------------------------------------- */
+
+/* Every close/window control is a real touch target, not just a visual icon. */
+body.mk-test-window.github-test-template-v20 .test-flow-modal-close,
+body.mk-test-window.github-test-template-v20 .question-overview-card .close-button,
+body.mk-test-window.github-test-template-v20 .reference-close-btn,
+body.mk-test-window.github-test-template-v20 .desmos-window-btn,
+body.mk-test-window.github-test-template-v20 .calculator-retry-btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+}
+
+/* Question overview: header/summary/footer stay fixed inside the dialog while
+   only the question grid scrolls. This prevents the 280px/landscape variants
+   from clipping the question list below the viewport. */
+body.mk-test-window.github-test-template-v20 .question-overview-card {
+  display: grid !important;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto !important;
+  overflow: hidden !important;
+  max-height: min(760px, calc(var(--sat-vvh) - 24px)) !important;
+}
+body.mk-test-window.github-test-template-v20 .question-overview-card .question-grid {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+body.mk-test-window.github-test-template-v20 .question-overview-footer,
+body.mk-test-window.github-test-template-v20 .question-overview-legend,
+body.mk-test-window.github-test-template-v20 .question-overview-summary,
+body.mk-test-window.github-test-template-v20 .question-overview-header {
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  body.mk-test-window.github-test-template-v20 .question-overview-modal {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card {
+    width: 100% !important;
+    height: var(--sat-vvh) !important;
+    max-height: var(--sat-vvh) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-header {
+    padding: max(14px, var(--sat-safe-top)) 62px 10px 14px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-header h2 {
+    margin-bottom: 0 !important;
+    font-size: clamp(21px, 7vw, 27px) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-header p {
+    display: none !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card .close-button {
+    top: max(10px, var(--sat-safe-top)) !important;
+    right: max(10px, var(--sat-safe-right)) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 9px 10px 4px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .overview-stat {
+    min-width: 0 !important;
+    padding: 8px 7px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere;
+  }
+  body.mk-test-window.github-test-template-v20 .overview-stat strong {
+    font-size: 18px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card .question-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    padding: 10px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card .rect-question {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    aspect-ratio: 1 !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-legend {
+    gap: 8px 12px !important;
+    padding: 8px 12px !important;
+    font-size: 10px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-footer {
+    padding: 8px 10px max(8px, var(--sat-safe-bottom)) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .overview-return-button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  body.mk-test-window.github-test-template-v20 .question-overview-modal {
+    padding: 0 !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card {
+    width: 100% !important;
+    height: var(--sat-vvh) !important;
+    max-height: var(--sat-vvh) !important;
+    border-radius: 0 !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-header {
+    padding: max(6px, var(--sat-safe-top)) 58px 6px max(10px, var(--sat-safe-left)) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-kicker,
+  body.mk-test-window.github-test-template-v20 .question-overview-header p,
+  body.mk-test-window.github-test-template-v20 .question-overview-legend {
+    display: none !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-header h2 {
+    margin: 0 !important;
+    font-size: 20px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card .close-button {
+    top: max(4px, var(--sat-safe-top)) !important;
+    right: max(8px, var(--sat-safe-right)) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 5px 10px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .overview-stat {
+    min-height: 44px !important;
+    padding: 5px 8px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-card .question-grid {
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)) !important;
+    gap: 6px !important;
+    padding: 6px 10px !important;
+  }
+  body.mk-test-window.github-test-template-v20 .question-overview-footer {
+    padding: 5px 10px max(5px, var(--sat-safe-bottom)) !important;
+  }
+}
+
+/* Finish summary remains scrollable on short screens, but its close button and
+   actions meet the same touch floor as the rest of the exam. */
+body.mk-test-window.github-test-template-v20 .test-flow-modal-card.finish-summary-card {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+body.mk-test-window.github-test-template-v20 .finish-summary-actions .nav-button {
+  min-height: 44px !important;
+}
+
+/* Reference sheet: mobile animation used to translate a 100%-wide sheet 24px
+   beyond the viewport. Keep the animation inside the overlay instead. */
+body.mk-test-window.github-test-template-v20 .reference-overlay {
+  overflow: hidden !important;
+}
+@media (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20 .reference-sheet {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    transform: none !important;
+    animation: none !important;
+    box-sizing: border-box !important;
+  }
+  body.mk-test-window.github-test-template-v20 .reference-header {
+    min-height: 60px !important;
+    padding: max(8px, var(--sat-safe-top)) max(10px, var(--sat-safe-right)) 8px max(12px, var(--sat-safe-left)) !important;
+  }
+  body.mk-test-window.github-test-template-v20 .reference-body {
+    height: calc(var(--sat-vvh) - max(60px, calc(52px + var(--sat-safe-top)))) !important;
+    padding-bottom: max(18px, var(--sat-safe-bottom)) !important;
+  }
+}
+
+/* Desmos: no transitional transform may push the window below the visible
+   browser viewport on phones. */
+body.mk-test-window.github-test-template-v20 .desmos-window-btn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+}
+@media (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20.github-test-math #calculator-popup {
+    top: max(6px, var(--sat-safe-top)) !important;
+    right: max(6px, var(--sat-safe-right)) !important;
+    bottom: max(6px, var(--sat-safe-bottom)) !important;
+    left: max(6px, var(--sat-safe-left)) !important;
+    inset: auto !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+    box-sizing: border-box !important;
+  }
+  body.mk-test-window.github-test-template-v20.github-test-math #calculator-header {
+    min-height: 58px !important;
+    flex-basis: 58px !important;
+    padding-left: 12px !important;
+    padding-right: 8px !important;
+  }
+}
+
+/* Review is a document page, not a fixed exam viewport. A sticky mobile footer
+   was covering the final answer/explanation; keep navigation in normal flow. */
+body.review-page .review-attempt-select {
+  min-height: 44px !important;
+  height: 44px !important;
+}
+body.review-page .review-footer {
+  position: static !important;
+  inset: auto !important;
+  transform: none !important;
+}
+@media (max-width: 520px) {
+  body.review-page .review-footer {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    margin-bottom: max(8px, var(--review-safe-bottom)) !important;
+  }
+  body.review-page .review-footer > .footer-nav-group,
+  body.review-page .review-footer > .nav-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+  body.review-page .footer-nav-group {
+    display: block !important;
+  }
+  body.review-page .review-footer .nav-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    padding-inline: 6px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+  }
+  body.review-page .review-keyboard-hint {
+    display: none !important;
+  }
+}
+
+/* Final pixel-rounding guard: some legacy exam wrappers apply subpixel scale
+   math, so 44px can measure as ~43.3px in Chromium. Use 46px for chrome-only
+   controls while answer/navigation surfaces stay at the 44px floor. */
+body.mk-test-window.github-test-template-v20 .test-flow-modal-close,
+body.mk-test-window.github-test-template-v20 .question-overview-card .close-button,
+body.mk-test-window.github-test-template-v20 .reference-close-btn,
+body.mk-test-window.github-test-template-v20 .desmos-window-btn {
+  width: 46px !important;
+  min-width: 46px !important;
+  height: 46px !important;
+  min-height: 46px !important;
+}
+body.mk-test-window.github-test-template-v20 .reference-sheet {
+  transform: none !important;
+  animation: none !important;
+}
+@media (max-width: 900px) {
+  body.mk-test-window.github-test-template-v20.github-test-math #calculator-popup {
+    left: max(6px, var(--sat-safe-left)) !important;
+    top: max(6px, var(--sat-safe-top)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: calc(100vw - max(6px, var(--sat-safe-left)) - max(6px, var(--sat-safe-right))) !important;
+    height: calc(var(--sat-vvh) - max(6px, var(--sat-safe-top)) - max(6px, var(--sat-safe-bottom))) !important;
+    max-width: none !important;
+    max-height: none !important;
+  }
+}
+body.mk-test-window.github-test-template-v20 .question-overview-card .close-button {
+  position: absolute !important;
+  z-index: 3 !important;
+}

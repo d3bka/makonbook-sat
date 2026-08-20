@@ -1,0 +1,999 @@
+:root {
+  --tic-preview-purple: #6f2cf4;
+  --tic-preview-purple-dark: #5320c6;
+  --tic-ok: #198754;
+  --tic-ok-soft: #e8f7ef;
+  --tic-warning: #c47a05;
+  --tic-warning-soft: #fff5d8;
+  --tic-error: #cf3d3d;
+  --tic-error-soft: #ffe8e8;
+  --tic-source-width: 38vw;
+  --tic-splitter-width: 12px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body.tic-preview-body {
+  margin: 0;
+  overflow: hidden !important;
+}
+body.tic-preview-body.tic-is-resizing,
+body.tic-preview-body.tic-is-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.tic-preview-body.tic-is-resizing iframe { pointer-events: none !important; }
+
+/* --------------------------------------------------------------------------
+   Workspace shell
+   -------------------------------------------------------------------------- */
+.tic-preview-app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+  background: var(--sat-bg, #0b0618);
+}
+.tic-preview-test-pane {
+  flex: 1 1 auto;
+  min-width: 560px;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+.tic-preview-app.source-hidden .tic-source-panel,
+.tic-preview-app.source-hidden .tic-source-resizer { display: none; }
+
+/* The real test CSS expects the whole viewport. In preview it must instead
+   behave as the left side of a split workspace. Visual styling stays native. */
+body.scroll-hide.mk-test-window .tic-preview-container {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 14px !important;
+  gap: 14px !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Real-test header with a very small reviewer layer
+   -------------------------------------------------------------------------- */
+body.scroll-hide.mk-test-window .tic-preview-test-header {
+  position: relative !important;
+  min-height: 74px;
+  margin: 0 !important;
+  padding: 14px 18px !important;
+  z-index: 20;
+}
+.tic-preview-test-header .github-test-heading { max-width: 34%; }
+.tic-reviewer-preview-center { pointer-events: none; }
+.tic-reviewer-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(216, 180, 254, .28);
+  background: rgba(124, 58, 237, .12);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.tic-reviewer-preview-badge > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a855f7;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, .16);
+}
+.tic-reviewer-preview-center .test-save-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tic-preview-header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  max-width: 46%;
+}
+.tic-test-header-btn,
+.tic-module-picker {
+  height: 42px;
+  border-radius: 13px;
+  border: 1px solid rgba(196, 181, 253, .22);
+  background: rgba(255,255,255,.07);
+  color: inherit;
+  backdrop-filter: blur(12px);
+}
+.tic-test-header-btn {
+  min-width: 42px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.tic-test-header-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(216,180,254,.48);
+  background: rgba(168,85,247,.16);
+}
+.tic-module-picker {
+  min-width: 190px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tic-module-picker i { opacity: .72; }
+.tic-module-picker select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.tic-module-picker option { color: #181223; background: #fff; }
+
+/* --------------------------------------------------------------------------
+   Real test body
+   -------------------------------------------------------------------------- */
+body.scroll-hide.mk-test-window .tic-preview-main {
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  gap: 14px !important;
+  overflow: hidden;
+}
+body.scroll-hide.mk-test-window .tic-preview-main .question-container,
+body.scroll-hide.mk-test-window .tic-preview-main .answers-container {
+  min-width: 0;
+  min-height: 0;
+  height: 100% !important;
+  overflow-y: auto !important;
+  padding: 28px !important;
+}
+.tic-preview-passage-panel #passage,
+.tic-preview-answer-panel #question-text { white-space: pre-wrap; }
+
+.tic-preview-graph { margin: 0 0 20px; }
+.tic-preview-graph:empty { display: none; }
+.tic-preview-graph .graph {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.tic-preview-graph img {
+  display: block;
+  max-width: min(100%, 760px);
+  max-height: 50vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+}
+
+/* Reviewer status is deliberately small: the question still looks like a real
+   SAT question. The state is visible without repainting the whole interface. */
+.tic-preview-answer-panel .question-title { gap: 10px; }
+.tic-preview-status-pill {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--tic-ok-soft);
+  color: var(--tic-ok);
+  border: 1px solid rgba(25,135,84,.18);
+}
+.tic-preview-status-pill.warning {
+  background: var(--tic-warning-soft);
+  color: #8b5700;
+  border-color: rgba(196,122,5,.26);
+}
+.tic-preview-status-pill.error {
+  background: var(--tic-error-soft);
+  color: #a32929;
+  border-color: rgba(207,61,61,.25);
+}
+.tic-preview-edit-link {
+  margin-left: auto;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(196,181,253,.16);
+}
+.tic-preview-edit-link:hover { background: rgba(168,85,247,.15); }
+
+.tic-preview-validation {
+  margin: 14px 0 16px;
+  padding: 10px 12px;
+  border-radius: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.tic-preview-validation[hidden] { display: none !important; }
+.tic-preview-validation[data-status="warning"] {
+  background: var(--tic-warning-soft);
+  color: #765000;
+  border: 1px solid #efd48e;
+}
+.tic-preview-validation[data-status="error"] {
+  background: var(--tic-error-soft);
+  color: #912b2b;
+  border: 1px solid #efb3b3;
+}
+.tic-preview-validation strong { display: block; margin-bottom: 2px; }
+.tic-preview-validation span { display: block; }
+
+/* Real answer markup/classes are generated by preview JS, so all normal test
+   choice styling comes from makon-eng.css and sat interaction CSS. */
+.tic-preview-answer-panel .big-container { cursor: pointer; }
+.tic-preview-answer-panel .choice-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 250px;
+  margin: 4px auto;
+  object-fit: contain;
+  background: #fff;
+}
+.tic-preview-open-input.sentence-answer-input { min-height: 130px; }
+
+.tic-preview-answer-key {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(196,181,253,.28);
+  border-radius: 14px;
+  background: rgba(124,58,237,.10);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tic-preview-answer-key[hidden] { display: none !important; }
+.tic-preview-answer-key span { opacity: .72; font-size: 11px; font-weight: 800; }
+.tic-preview-answer-key strong { font-size: 18px; color: #d8b4fe; }
+
+.tic-preview-app[data-question-status="warning"] .tic-preview-answer-panel {
+  box-shadow: inset 4px 0 0 var(--tic-warning), 0 22px 60px rgba(0,0,0,.22) !important;
+}
+.tic-preview-app[data-question-status="error"] .tic-preview-answer-panel {
+  box-shadow: inset 4px 0 0 var(--tic-error), 0 22px 60px rgba(0,0,0,.22) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Real-test footer, contained inside the left pane instead of the viewport
+   -------------------------------------------------------------------------- */
+body.scroll-hide.mk-test-window .tic-preview-footer {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  min-height: 72px;
+  height: 72px !important;
+  margin: 0 !important;
+  padding: 10px 18px !important;
+  animation: none !important;
+  z-index: 20;
+}
+.tic-preview-footer .footer-center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.tic-preview-footer .footer-right { gap: 8px; }
+.tic-preview-footer .nav-button { cursor: pointer; white-space: nowrap; }
+.tic-preview-footer .nav-button:disabled { opacity: .42; cursor: not-allowed; transform: none !important; }
+.tic-key-btn { background: rgba(255,255,255,.08) !important; }
+.tic-reviewer-label {
+  margin-left: 8px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(168,85,247,.16);
+  color: #d8b4fe;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Resizable source PDF workspace
+   -------------------------------------------------------------------------- */
+.tic-source-resizer {
+  flex: 0 0 var(--tic-splitter-width);
+  width: var(--tic-splitter-width);
+  height: 100vh;
+  position: relative;
+  z-index: 80;
+  cursor: col-resize;
+  background: rgba(12, 9, 18, .18);
+  border-left: 1px solid rgba(196,181,253,.16);
+  border-right: 1px solid rgba(196,181,253,.16);
+  outline: none;
+  touch-action: none;
+}
+.tic-source-resizer::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,.13);
+  transition: background .16s ease, width .16s ease;
+}
+.tic-source-resizer:hover::before,
+.tic-source-resizer:focus-visible::before,
+body.tic-is-resizing .tic-source-resizer::before {
+  width: 3px;
+  background: #a855f7;
+}
+.tic-source-resizer-handle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: rgba(29,23,39,.94);
+  border: 1px solid rgba(216,180,254,.30);
+  box-shadow: 0 10px 30px rgba(0,0,0,.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.tic-source-resizer-handle span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #c4b5fd;
+}
+
+.tic-source-panel {
+  flex: 0 0 var(--tic-source-width);
+  width: var(--tic-source-width);
+  min-width: 320px;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr);
+  overflow: hidden;
+  background: #2e2935;
+  box-shadow: -12px 0 38px rgba(0,0,0,.12);
+}
+.tic-source-head {
+  min-height: 64px;
+  padding: 9px 12px 9px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #fff;
+  background: #211c27;
+  border-bottom: 1px solid #48404f;
+}
+.tic-source-title-block { min-width: 0; }
+.tic-source-title-block > span {
+  display: block;
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .13em;
+  color: #bdb3c8;
+}
+.tic-source-title-block > strong {
+  display: block;
+  margin-top: 3px;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.tic-source-actions { display: flex; align-items: center; gap: 7px; }
+.tic-source-actions a,
+.tic-source-actions button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #514858;
+  border-radius: 10px;
+  background: #312a37;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tic-source-actions a:hover,
+.tic-source-actions button:hover { background: #463b50; border-color: #6f5c7d; }
+.tic-source-page { padding-right: 3px; color: #d2c8da; font-size: 11px; white-space: nowrap; }
+.tic-source-panel iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+
+/* --------------------------------------------------------------------------
+   Question overview
+   -------------------------------------------------------------------------- */
+.tic-preview-overview { position: fixed; inset: 0; z-index: 2200; visibility: hidden; pointer-events: none; }
+.tic-preview-overview.is-open { visibility: visible; pointer-events: auto; }
+.tic-overview-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgba(13,8,22,.58); backdrop-filter: blur(5px); }
+.tic-overview-sheet {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-47%) scale(.98);
+  width: min(760px, calc(100vw - 36px));
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 22px;
+  border-radius: 20px;
+  background: #fff;
+  color: #21182c;
+  box-shadow: 0 28px 90px rgba(12,7,20,.35);
+  opacity: 0;
+  transition: .18s ease;
+}
+.tic-preview-overview.is-open .tic-overview-sheet { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+.tic-overview-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
+.tic-overview-head span { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.1em; color:#7554bf; }
+.tic-overview-head h2 { margin:3px 0 0; font-size:26px; }
+.tic-overview-head button { width:38px; height:38px; border:0; border-radius:10px; cursor:pointer; background:#f0ecf7; color:#39284f; }
+.tic-overview-legend { display:flex; gap:16px; flex-wrap:wrap; margin:10px 0 18px; color:#716878; font-size:11px; }
+.tic-overview-legend span { display:flex; align-items:center; gap:6px; }
+.tic-overview-legend i { width:9px; height:9px; border-radius:50%; display:block; background:var(--tic-ok); }
+.tic-overview-legend i.warning { background:var(--tic-warning); }
+.tic-overview-legend i.error { background:var(--tic-error); }
+.tic-overview-module { margin:0 0 18px; }
+.tic-overview-module-head { display:flex; justify-content:space-between; align-items:end; gap:12px; margin-bottom:9px; }
+.tic-overview-module-head strong { font-size:14px; }
+.tic-overview-module-head span { font-size:10px; color:#81788b; }
+.tic-overview-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:8px; }
+.tic-overview-q {
+  height:44px;
+  border-radius:10px;
+  border:1px solid #cfc7db;
+  background:#fff;
+  color:#21182c;
+  font-weight:900;
+  cursor:pointer;
+  position:relative;
+}
+.tic-overview-q::after { content:""; position:absolute; right:6px; top:6px; width:7px; height:7px; border-radius:50%; background:var(--tic-ok); }
+.tic-overview-q.warning { border-color:#e8bd68; background:#fff9e9; }
+.tic-overview-q.warning::after { background:var(--tic-warning); }
+.tic-overview-q.error { border-color:#e99c9c; background:#fff0f0; }
+.tic-overview-q.error::after { background:var(--tic-error); }
+.tic-overview-q.current { box-shadow:0 0 0 3px rgba(111,44,244,.18); border-color:var(--tic-preview-purple); }
+
+/* Light theme corrections. We only override reviewer-specific pieces; the
+   actual test panels/answers continue to use MakonBook's normal theme rules. */
+html[data-theme="light"] .tic-test-header-btn,
+html[data-theme="light"] .tic-module-picker {
+  background: rgba(255,255,255,.80);
+  border-color: rgba(86,64,126,.16);
+  color: #2f2444;
+}
+html[data-theme="light"] .tic-reviewer-preview-badge {
+  background: #f4efff;
+  border-color: #ded2fa;
+  color: #37245e;
+}
+html[data-theme="light"] .tic-reviewer-preview-center .test-save-status { color: #756b84; }
+html[data-theme="light"] .tic-preview-answer-key { background: #f7f2ff; border-color: #d9cdf4; color: #35264e; }
+html[data-theme="light"] .tic-preview-answer-key strong { color: #5c27cc; }
+html[data-theme="light"] .tic-reviewer-label { background:#f0e9ff; color:#6432c9; }
+
+/* --------------------------------------------------------------------------
+   Responsive behavior
+   -------------------------------------------------------------------------- */
+@media (max-width: 1280px) {
+  .tic-preview-test-pane { min-width: 520px; }
+  .tic-preview-header-actions { max-width: 50%; }
+  .tic-module-picker { min-width: 150px; }
+  .tic-source-toggle span { display: none; }
+  .tic-test-header-btn { padding: 0 10px; }
+}
+
+@media (max-width: 980px) {
+  .tic-source-resizer { display: none; }
+  .tic-preview-test-pane { min-width: 0; width: 100%; }
+  .tic-source-panel {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    min-width: 0;
+    z-index: 2100;
+    transform: translateY(102%);
+    transition: transform .22s ease;
+  }
+  .tic-preview-app:not(.source-hidden) .tic-source-panel { transform: translateY(0); }
+  .tic-preview-app.source-hidden .tic-source-panel { display: grid; transform: translateY(102%); }
+  .tic-preview-test-header .github-test-heading { max-width: 48%; }
+  .tic-reviewer-preview-center { display: none !important; }
+  .tic-preview-header-actions { max-width: 52%; }
+  .tic-module-picker { min-width: 0; width: 154px; }
+}
+
+@media (max-width: 760px) {
+  body.scroll-hide.mk-test-window .tic-preview-container { padding: 8px !important; gap: 8px !important; }
+  body.scroll-hide.mk-test-window .tic-preview-test-header { min-height: 64px; padding: 10px 12px !important; }
+  .tic-preview-test-header .github-test-heading { max-width: 44%; }
+  .tic-preview-test-header .github-test-heading h1 { font-size: 15px !important; }
+  .tic-preview-header-actions { max-width: 56%; gap: 5px; }
+  .tic-module-picker { width: 118px; height: 38px; }
+  .tic-module-picker i { display: none; }
+  .tic-test-header-btn { min-width: 38px; height: 38px; padding: 0 9px; }
+  body.scroll-hide.mk-test-window .tic-preview-main { display: block !important; overflow-y: auto; }
+  body.scroll-hide.mk-test-window .tic-preview-main .question-container,
+  body.scroll-hide.mk-test-window .tic-preview-main .answers-container { height: auto !important; min-height: 48%; }
+  body.scroll-hide.mk-test-window .tic-preview-main .question-container { margin-bottom: 8px; }
+  body.scroll-hide.mk-test-window .tic-preview-footer { height: 68px !important; min-height: 68px; padding: 8px 10px !important; }
+  .tic-preview-footer .footer-left { display: none; }
+  .tic-preview-footer .footer-center { position: static; transform: none; margin-right: auto; }
+  .tic-preview-footer .footer-right { margin-left: auto; gap: 5px; }
+  .tic-preview-footer .nav-button { padding: 0 12px !important; min-width: 0; }
+  .tic-key-btn { display: none; }
+}
+
+@media (max-width: 480px) {
+  .tic-preview-test-header .github-test-heading small { display: none !important; }
+  .tic-module-picker { width: 98px; }
+  .tic-preview-edit-link span { display: none; }
+}
+
+/* Splitter-aware adaptations. These react to the width of the TEST pane, not
+   merely to the browser width, so dragging the divider never crushes header or
+   footer controls. */
+.tic-preview-test-pane { container-type: inline-size; }
+@container (max-width: 900px) {
+  .tic-reviewer-preview-center { display: none !important; }
+  .tic-preview-test-header .github-test-heading { max-width: 42%; }
+  .tic-preview-header-actions { max-width: 58%; }
+  .tic-source-toggle span { display: none; }
+  .tic-module-picker { min-width: 150px; }
+  .tic-key-btn { display: none !important; }
+}
+@container (max-width: 720px) {
+  .tic-preview-footer .footer-left { display: none; }
+  .tic-preview-footer .footer-center { position: static; transform: none; margin-right: auto; }
+  .tic-preview-test-header .github-test-heading small { display: none !important; }
+  .tic-module-picker { min-width: 118px; width: 118px; }
+}
+
+
+/* --------------------------------------------------------------------------
+   v2.1 — standalone theme parity
+   The GitHub compatibility layer intentionally uses white text by default.
+   In a light preview that produced white-on-white content. Reviewer preview
+   is a real SAT-flow surface, so force all test primitives back onto the
+   shared --sat-* theme variables after every compatibility stylesheet.
+   -------------------------------------------------------------------------- */
+body.tic-preview-body.sat-flow-page {
+  background: var(--sat-shell) !important;
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-app,
+body.tic-preview-body .tic-preview-test-pane,
+body.tic-preview-body .tic-preview-container {
+  background: var(--sat-shell) !important;
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-test-header,
+body.tic-preview-body .tic-preview-footer,
+body.tic-preview-body .tic-preview-main .question-container {
+  background: var(--sat-panel) !important;
+  color: var(--sat-text) !important;
+  border-color: var(--sat-border) !important;
+}
+
+body.tic-preview-body .tic-preview-main .answers-container {
+  background: var(--sat-shell) !important;
+  color: var(--sat-text) !important;
+}
+
+/* sat-github-template-v20 hard-codes white here. This file loads last. */
+body.tic-preview-body.github-test-template-v20 #passage,
+body.tic-preview-body.github-test-template-v20 #question-text,
+body.tic-preview-body.github-test-template-v20 .question-text,
+body.tic-preview-body.github-test-template-v20 .choice-container,
+body.tic-preview-body.github-test-template-v20 .choice-content,
+body.tic-preview-body .tic-preview-passage-panel,
+body.tic-preview-body .tic-preview-answer-panel {
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-test-header .github-test-heading h1,
+body.tic-preview-body .tic-preview-test-header .github-test-heading small,
+body.tic-preview-body .tic-preview-footer .footer-left,
+body.tic-preview-body .tic-preview-footer .footer-center,
+body.tic-preview-body .tic-preview-footer .footer-right {
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-test-header .github-test-heading small,
+body.tic-preview-body .tic-reviewer-preview-center .test-save-status,
+body.tic-preview-body .tic-preview-footer .footer-left {
+  color: var(--sat-muted) !important;
+}
+
+body.tic-preview-body .tic-preview-answer-panel .big-container {
+  background: var(--sat-panel) !important;
+  border-color: var(--sat-border) !important;
+}
+
+body.tic-preview-body .tic-preview-answer-panel .choice-container,
+body.tic-preview-body .tic-preview-answer-panel .choice-content,
+body.tic-preview-body .tic-preview-answer-panel .mark {
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-answer-panel .mark {
+  background: var(--sat-panel) !important;
+  border-color: var(--sat-border) !important;
+}
+
+body.tic-preview-body .tic-preview-answer-panel .big-container.selected {
+  border-color: var(--sat-purple) !important;
+  box-shadow: 0 0 0 3px rgba(79,70,229,.13) !important;
+}
+body.tic-preview-body .tic-preview-answer-panel .big-container.selected .mark {
+  background: var(--sat-purple) !important;
+  border-color: var(--sat-purple) !important;
+  color: #fff !important;
+}
+
+body.tic-preview-body .tic-test-header-btn,
+body.tic-preview-body .tic-module-picker,
+body.tic-preview-body .tic-preview-edit-link,
+body.tic-preview-body .tic-preview-footer .nav-button {
+  background: var(--sat-panel) !important;
+  border-color: var(--sat-border) !important;
+  color: var(--sat-text) !important;
+}
+
+body.tic-preview-body .tic-preview-footer .nav-button:hover:not(:disabled),
+body.tic-preview-body .tic-test-header-btn:hover {
+  background: rgba(79,70,229,.08) !important;
+  border-color: rgba(79,70,229,.42) !important;
+}
+
+html[data-theme="light"] body.tic-preview-body .tic-preview-test-header,
+html[data-theme="light"] body.tic-preview-body .tic-preview-footer {
+  box-shadow: 0 6px 24px rgba(30,24,54,.07) !important;
+}
+html[data-theme="light"] body.tic-preview-body .tic-preview-passage-panel,
+html[data-theme="light"] body.tic-preview-body .tic-preview-answer-panel {
+  text-shadow: none !important;
+}
+
+html[data-theme="dark"] body.tic-preview-body .tic-preview-test-header,
+html[data-theme="dark"] body.tic-preview-body .tic-preview-footer {
+  box-shadow: 0 8px 30px rgba(0,0,0,.28) !important;
+}
+
+/* Structured PDF v2.1 text fidelity + larger reviewer visuals ------------ */
+.tic-preview-body .sat-source-underline {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: auto;
+}
+.tic-preview-body .sat-source-emphasis { font-style: italic; }
+.tic-preview-body .sat-inline-blank {
+  display: inline-block;
+  width: 4.6em;
+  min-width: 64px;
+  height: .9em;
+  margin: 0 .18em;
+  vertical-align: baseline;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-.08em);
+}
+.tic-preview-graph img {
+  width: min(88%, 700px) !important;
+  max-width: 100% !important;
+  max-height: 58vh !important;
+}
+.tic-preview-graph img[data-visual-shape="ultrawide"] { width: min(100%, 900px) !important; }
+.tic-preview-graph img[data-visual-shape="wide"] { width: min(94%, 800px) !important; }
+.tic-preview-graph img[data-visual-shape="compact"] { width: min(76%, 600px) !important; }
+.tic-preview-answer-panel .choice-content img[data-visual-shape="ultrawide"],
+.tic-preview-answer-panel .choice-content img[data-visual-shape="wide"] {
+  width: min(100%, 620px);
+  max-height: 330px;
+}
+@media (max-width: 720px) {
+  .tic-preview-graph img,
+  .tic-preview-graph img[data-visual-shape] {
+    width: 100% !important;
+    max-height: 46vh !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   v3 mobile/app hardening
+   Reviewer Preview stays visually identical to a real test, while the small
+   reviewer controls get an app-grade 44px touch floor and a deliberate
+   two-row phone header instead of being squeezed into one line.
+   -------------------------------------------------------------------------- */
+.tic-test-header-btn,
+.tic-module-picker,
+.tic-source-actions a,
+.tic-source-actions button,
+.tic-overview-head button,
+.tic-preview-footer .nav-button,
+.tic-preview-footer .question-progress {
+  min-height: 44px !important;
+}
+.tic-test-header-btn,
+.tic-source-actions a,
+.tic-source-actions button,
+.tic-overview-head button {
+  min-width: 44px !important;
+  width: 44px;
+  height: 44px !important;
+  padding: 0 !important;
+  display: inline-grid;
+  place-items: center;
+}
+.tic-module-picker {
+  height: 44px !important;
+}
+.tic-source-toggle { width: auto; padding-inline: 11px !important; }
+.tic-source-actions { min-height: 44px; }
+
+/* Preview overview itself must also work on foldables/landscape phones. */
+.tic-overview-sheet {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+.tic-overview-sheet > [data-overview-modules] {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  body.scroll-hide.mk-test-window .tic-preview-test-header {
+    min-height: 104px !important;
+    height: auto !important;
+    padding: 8px 10px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto 44px !important;
+    gap: 7px !important;
+    align-items: center !important;
+  }
+  .tic-preview-test-header .github-test-heading {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .tic-preview-test-header .github-test-heading h1 {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tic-preview-header-actions {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 44px 44px 44px !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+  .tic-module-picker {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 9px !important;
+  }
+  .tic-module-picker select {
+    font-size: 11px !important;
+    text-overflow: ellipsis;
+  }
+  .tic-test-header-btn,
+  .tic-source-toggle {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 0 !important;
+  }
+  .tic-source-toggle span { display: none !important; }
+  body.scroll-hide.mk-test-window .tic-preview-main {
+    min-height: 0 !important;
+  }
+  .tic-overview-sheet {
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)) !important;
+    border-radius: 0 !important;
+  }
+  .tic-preview-overview.is-open .tic-overview-sheet {
+    transform: none !important;
+  }
+  .tic-overview-head h2 { font-size: 22px !important; }
+  .tic-overview-legend { margin: 4px 0 10px !important; gap: 8px 12px !important; }
+  .tic-overview-grid { grid-template-columns: repeat(5, minmax(44px, 1fr)) !important; gap: 7px !important; }
+}
+
+/* Short landscape phones: one compact test-header row fits better than a
+   100px two-row header, but targets remain full 44px. */
+@media (max-height: 560px) and (orientation: landscape) {
+  body.scroll-hide.mk-test-window .tic-preview-container {
+    padding: 5px !important;
+    gap: 5px !important;
+  }
+  body.scroll-hide.mk-test-window .tic-preview-test-header {
+    min-height: 54px !important;
+    height: 54px !important;
+    padding: 5px 8px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: 44px !important;
+    gap: 6px !important;
+  }
+  .tic-preview-test-header .github-test-heading {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+  .tic-preview-test-header .github-test-heading h1 {
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+  }
+  .tic-preview-test-header .github-test-heading small { display: none !important; }
+  .tic-preview-header-actions {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(108px, 128px) 44px 44px 44px !important;
+    gap: 5px !important;
+  }
+  .tic-module-picker {
+    width: auto !important;
+    min-width: 0 !important;
+    padding-inline: 7px !important;
+  }
+  .tic-module-picker select { font-size: 10px !important; }
+  .tic-test-header-btn,
+  .tic-source-toggle {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+  }
+  body.scroll-hide.mk-test-window .tic-preview-footer {
+    height: 54px !important;
+    min-height: 54px !important;
+    padding: 5px 8px !important;
+  }
+  .tic-preview-footer .question-progress,
+  .tic-preview-footer .nav-button {
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+  .tic-overview-sheet {
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    transform: none !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    padding: max(6px, env(safe-area-inset-top)) 10px max(6px, env(safe-area-inset-bottom)) !important;
+    border-radius: 0 !important;
+  }
+  .tic-preview-overview.is-open .tic-overview-sheet { transform: none !important; }
+  .tic-overview-head { margin-bottom: 4px !important; }
+  .tic-overview-head span { display: none; }
+  .tic-overview-head h2 { margin: 0; font-size: 18px !important; }
+  .tic-overview-legend { margin: 2px 0 5px !important; font-size: 10px !important; }
+  .tic-overview-module { margin-bottom: 8px !important; }
+  .tic-overview-module-head { margin-bottom: 4px !important; }
+  .tic-overview-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)) !important; gap: 5px !important; }
+}
+
+/* Subpixel transform/zoom rounding guard for reviewer chrome. */
+.tic-test-header-btn,
+.tic-module-picker,
+.tic-source-actions a,
+.tic-source-actions button,
+.tic-overview-head button {
+  min-height: 46px !important;
+  height: 46px !important;
+}
+.tic-test-header-btn,
+.tic-source-actions a,
+.tic-source-actions button,
+.tic-overview-head button {
+  min-width: 46px !important;
+}
+@media (max-width: 760px) and (orientation: portrait) {
+  body.scroll-hide.mk-test-window .tic-preview-test-header {
+    grid-template-rows: auto 46px !important;
+  }
+  .tic-preview-header-actions {
+    grid-template-columns: minmax(0, 1fr) 46px 46px 46px !important;
+  }
+  .tic-test-header-btn,
+  .tic-source-toggle {
+    width: 46px !important;
+    min-width: 46px !important;
+    max-width: 46px !important;
+  }
+}
+@media (max-height: 560px) and (orientation: landscape) {
+  body.scroll-hide.mk-test-window .tic-preview-test-header {
+    min-height: 56px !important;
+    height: 56px !important;
+    grid-template-rows: 46px !important;
+  }
+  .tic-preview-header-actions {
+    grid-template-columns: minmax(108px, 128px) 46px 46px 46px !important;
+  }
+  .tic-test-header-btn,
+  .tic-source-toggle {
+    width: 46px !important;
+    min-width: 46px !important;
+    max-width: 46px !important;
+  }
+}

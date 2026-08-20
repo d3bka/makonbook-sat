@@ -4,7 +4,7 @@
     {% include 'base/theme_init.html' %}
     {% load static %}
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>English Review</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
@@ -112,6 +112,9 @@
         .review-answer-box.is-wrong { border-color:color-mix(in srgb,var(--review-wrong) 45%,var(--review-border)); color:var(--review-wrong); }
         .review-keyboard-hint { color:var(--review-text-soft); font-size:12px; }
         @media (max-width: 1080px) { .review-header, .review-main { grid-template-columns: 1fr; } .question-container, .answers-container { min-height: auto; } }
+        .sat-source-underline { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+        .sat-source-emphasis { font-style: italic; }
+        .sat-inline-blank { display:inline-block; width:4.6em; min-width:64px; height:.9em; margin:0 .18em; vertical-align:baseline; border-bottom:2px solid currentColor; transform:translateY(-.08em); }
         @media (max-width: 768px) { .review-shell { padding: 0 10px 10px; } .review-title-card, .review-status-card, .question-container, .answers-container, .review-footer { border-radius: 20px; } .review-title-card, .review-status-card, .question-container, .answers-container { padding: 14px; } .review-title-card { flex-direction: column; align-items: flex-start; } .review-status-card { grid-template-columns: 1fr; } .question-text { font-size: 17px; } #passage { font-size: 16px; } .choice-container { font-size: 16px; padding: 12px; } .review-footer { justify-content: center; } .footer-nav-group { width: 100%; justify-content: center; } }
     </style>
 
@@ -241,7 +244,20 @@
 
     {{ question_payload|json_script:"review-question-data" }}
     <script>
+        function renderStructuredReviewMarkers() {
+            document.querySelectorAll('#passage, #question-text, .choice-text').forEach(function (el) {
+                if (!el || el.dataset.structuredMarkersDone === '1') return;
+                el.innerHTML = el.innerHTML
+                    .replace(/\[\[\s*U\s*\]\]/gi, '<u class="sat-source-underline">')
+                    .replace(/\[\[\s*\/\s*U\s*\]\]/gi, '</u>')
+                    .replace(/\[\[\s*EM\s*\]\]/gi, '<em class="sat-source-emphasis">')
+                    .replace(/\[\[\s*\/\s*EM\s*\]\]/gi, '</em>')
+                    .replace(/\[\[\s*BLANK\s*\]\]/gi, '<span class="sat-inline-blank" aria-label="blank"></span>');
+                el.dataset.structuredMarkersDone = '1';
+            });
+        }
         function renderReviewMath() {
+            renderStructuredReviewMarkers();
             if (typeof renderMathInElement !== 'function') return;
             try {
                 renderMathInElement(document.body, {

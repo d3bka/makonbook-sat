@@ -50,6 +50,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.core.exceptions import ValidationError
 from .support_forms import SupportTeacherSelfAvailabilityForm, SupportTeacherSelfProfileForm
 from .student_goal_forms import StudentGoalProfileForm
+from .test_icon_service import ensure_default_test_icon
 from .roles import (
     can_manage_classroom,
     is_manager as role_is_manager,
@@ -126,6 +127,8 @@ def restart(request, pk):
         return HttpResponse(f"Test '{pk}' not found")
 
     classroom = _get_classroom_context_from_id(user, request.POST.get('classroom_id'), test_obj=test)
+    if not _test_attempts_open(test, user):
+        return _redirect_closed_test(request, test, classroom=classroom)
 
     if classroom is None and not user_has_test_access(user, test):
         return HttpResponse(
@@ -946,6 +949,53 @@ def user_has_test_access(user, test):
 
 
 
+
+def _test_attempts_open(test_obj, user=None):
+    """Return whether an authenticated user may run the test.
+
+    ``Test.is_available`` is intentionally a *student portal/classroom* gate.
+    It does not control Guest Mode. Staff-side roles keep QA access so an
+    administrator/manager/teacher can verify a closed Placement Test without
+    reopening it for normal students.
+    """
+    if not test_obj:
+        return False
+    if getattr(test_obj, 'is_available', True):
+        return True
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    return bool(
+        getattr(user, 'is_superuser', False)
+        or getattr(user, 'is_staff', False)
+        or is_member(user, ['Admin', 'Tester'])
+        or is_manager(user)
+        or is_teacher(user)
+        or is_support_teacher(user)
+    )
+
+
+def _test_closed_redirect_url(classroom=None):
+    if classroom is not None:
+        return reverse('classroom_practice_tests', kwargs={'classroom_id': classroom.id})
+    return reverse('practice_tests')
+
+
+def _closed_test_json(test_obj, *, classroom=None):
+    return JsonResponse({
+        'ok': False,
+        'error': f"{test_obj.name} is currently closed by an administrator.",
+        'test_closed': True,
+        'redirect_url': _test_closed_redirect_url(classroom),
+    }, status=423)
+
+
+def _redirect_closed_test(request, test_obj, *, classroom=None):
+    messages.warning(
+        request,
+        f"{test_obj.name} is currently closed. Your existing progress is preserved and can be resumed if the test is reopened.",
+    )
+    return redirect(_test_closed_redirect_url(classroom))
+
 def _classroom_id_value(classroom):
     if not classroom:
         return None
@@ -1612,7 +1662,11 @@ def _split_tests_by_user_progress(user, tests, classroom=None):
             min(max(stage.stage, 1), total_modules) if stage and total_modules else None
         )
 
-        if not question_total:
+        if not _test_attempts_open(test, user):
+            test.card_state = 'closed'
+            test.action_label = 'Closed'
+            test.status_label = 'Closed'
+        elif not question_total:
             test.card_state = 'unavailable'
             test.action_label = 'Unavailable'
             test.status_label = 'No questions'
@@ -1638,7 +1692,7 @@ def _split_tests_by_user_progress(user, tests, classroom=None):
     return active_tests, past_tests
 
 
-DEFAULT_TEST_CARD_IMAGE = 'assets/img/tests/minion.jpg'
+DEFAULT_TEST_CARD_IMAGE = 'assets/img/tests/default.png'
 
 
 def _resolve_test_card_image(test):
@@ -1662,6 +1716,17 @@ def _resolve_test_card_image(test):
             return static_url('assets/img/tests/%s.png' % name)
         except ValueError:
             pass
+
+    # Existing tests created before automatic icons were introduced are
+    # backfilled lazily the first time their card is rendered. A storage
+    # outage must never break the tests page, so keep a branded static fallback.
+    try:
+        if ensure_default_test_icon(test):
+            test.refresh_from_db(fields=["icon"])
+        if test.icon:
+            return test.icon.url
+    except Exception:
+        pass
 
     return static_url(DEFAULT_TEST_CARD_IMAGE)
 
@@ -1733,7 +1798,7 @@ def practice_tests(request):
         'active_tests': active_tests,
         'past_tests': past_tests,
         'practice_summary': {
-            'available': len(tests),
+            'available': sum(1 for test in tests if _test_attempts_open(test, user)),
             'active': len(active_tests),
             'past': len(past_tests),
             'resumable': sum(1 for test in active_tests if test.has_active_attempt),
@@ -1838,6 +1903,8 @@ def save_test_module_draft(request):
         payload.get('classroom_id') or payload.get('classroomId'),
         test_obj=test_obj,
     )
+    if not _test_attempts_open(test_obj, request.user):
+        return _closed_test_json(test_obj, classroom=classroom)
     if classroom is None and not user_has_test_access(request.user, test_obj):
         return JsonResponse({'ok': False, 'error': 'You do not have access to this test.'}, status=403)
 
@@ -2070,6 +2137,8 @@ def check_the_answers(request):
             payload.get('classroom_id') or payload.get('classroomId'),
             test_obj=test_obj,
         )
+        if not _test_attempts_open(test_obj, request.user):
+            return _closed_test_json(test_obj, classroom=classroom)
 
         if classroom is None and not user_has_test_access(request.user, test_obj):
             return JsonResponse({'ok': False, 'error': 'You do not have access to this test.'}, status=403)
@@ -2222,6 +2291,8 @@ def check_the_answers(request):
     if not question:
         return JsonResponse({'ok': False, 'error': 'Question not found.'}, status=404)
 
+    if question.test and not _test_attempts_open(question.test, request.user):
+        return _closed_test_json(question.test)
     if question.test and not user_has_test_access(request.user, question.test):
         return JsonResponse({'ok': False, 'error': 'You do not have access to this question.'}, status=403)
 
@@ -2495,6 +2566,9 @@ def start_Practise(request, pk):
             f"Test '{pk}' does not exist.",
             status=404
         )
+
+    if not _test_attempts_open(test, user):
+        return _redirect_closed_test(request, test)
 
     if not user_has_test_access(user, test):
         return HttpResponse(
@@ -2940,6 +3014,9 @@ def module_test(request, pk):
 
     if not test:
         return HttpResponse("Test not found")
+
+    if not _test_attempts_open(test, user):
+        return _redirect_closed_test(request, test)
 
     if not user_has_test_access(user, test):
         return HttpResponse("Permission Error")
@@ -3468,6 +3545,8 @@ def restart_section(request, pk, section):
         return HttpResponse(f"Test '{pk}' not found")
 
     classroom = _get_classroom_context_from_id(user, request.POST.get('classroom_id'), test_obj=test)
+    if not _test_attempts_open(test, user):
+        return _redirect_closed_test(request, test, classroom=classroom)
 
     if classroom is None and not user_has_test_access(user, test):
         return HttpResponse(
@@ -6702,6 +6781,15 @@ def classroom_practice_tests(request, classroom_id):
     else:
         tests = Test.objects.none()
 
+    # A globally closed MakonBook test must not appear in Classroom Practice
+    # Tests at all.  The normal QA override for Manager/Admin/Tester still
+    # applies when they open a test from management/direct QA surfaces, but a
+    # classroom should reflect exactly what classroom users can actually use.
+    # This also prevents a closed Placement Test from looking READY in a
+    # teacher/admin classroom view while remaining intentionally available in
+    # Guest Mode.
+    tests = tests.filter(is_available=True)
+
     def get_day_number(test):
         try:
             name = str(test.name).strip().lower()
@@ -6730,7 +6818,7 @@ def classroom_practice_tests(request, classroom_id):
         'user': request.user,
         'show_lessons': False,
         'practice_summary': {
-            'available': len(tests),
+            'available': sum(1 for test in tests if _test_attempts_open(test, request.user)),
             'active': len(active_tests),
             'past': len(past_tests),
             'resumable': sum(1 for test in active_tests if test.has_active_attempt),
@@ -8360,6 +8448,9 @@ def classroom_start_practise(request, classroom_id, pk):
     else:
         return HttpResponseForbidden("Access denied.")
 
+    if not _test_attempts_open(test, request.user):
+        return _redirect_closed_test(request, test, classroom=classroom)
+
     resumable_stage = _get_resumable_stage(request.user, test, classroom=classroom)
     if resumable_stage:
         return redirect('classroom_test', classroom_id=classroom.id, pk=test.name)
@@ -8417,6 +8508,9 @@ def classroom_module_test(request, classroom_id, pk):
         test = get_object_or_404(allowed_tests, name=pk)
     else:
         return HttpResponseForbidden("Access denied.")
+
+    if not _test_attempts_open(test, request.user):
+        return _redirect_closed_test(request, test, classroom=classroom)
 
     user = request.user
     sequence = get_test_sequence(test)

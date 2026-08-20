@@ -1,0 +1,209 @@
+# MakonBook Structured PDF v2
+
+Use this contract when converting an original SAT / Placement / custom test with an external AI before uploading it to MakonBook.
+
+## Goal
+
+Create a deterministic transport PDF. MakonBook will parse selectable marker text locally with PyMuPDF. It will NOT use AI to guess where questions, tables, graphs, or answer choices begin and end.
+
+Produce two separate PDF files when both sections exist:
+- EBRW.pdf with [[SECTION:EBRW]]
+- Math.pdf with [[SECTION:MATH]]
+
+Question counts are dynamic. Never force 27/27 or 22/22. Preserve exactly the questions that exist in the source.
+
+## Absolute fidelity rules
+
+1. Do not rewrite, simplify, translate, solve differently, or invent content.
+2. Preserve wording, passages, answer choices, math notation, correct answers, and explanations exactly as supported by the source.
+3. Do not invent an answer or explanation if the source does not contain one.
+4. Every machine marker must be selectable text on its own line and written exactly as shown.
+5. Never rasterize the marker text.
+6. Tables, charts, scatterplots, diagrams, maps, geometry figures, coordinate planes, and other necessary visuals MUST remain visual objects. Do not flatten their data into a line of OCR text.
+7. Prefer a CLEAN VECTOR RECONSTRUCTION on a pure white background. Rebuild the visual faithfully from the source data/labels/geometry using vector text, lines, shapes, axes, and paths. Preserve every value, label, scale, tick, angle, point, and relative position that is required to answer the question. Never invent missing visual information.
+8. The transport visual must contain ONLY the academic visual itself. Do not include the question number, prompt, answer choices, selected-answer highlight, website chrome, logo, watermark, page number, or unrelated surrounding content. Do not retouch a screenshot to hide those artifacts; recreate the academic visual cleanly when the source supports an exact reconstruction.
+9. Keep reconstructed visual content as vector objects in the PDF whenever possible. MakonBook will preserve the marker region as a white-background SVG. If exact vector reconstruction is not possible without uncertainty, use a faithful clean crop; MakonBook will keep it inside an SVG wrapper and flag it for reviewer comparison.
+10. Every visual marker pair MUST be on the same PDF page. Put the visual physically between the opening and closing marker lines.
+
+
+## Text fidelity profile (IMPORTANT)
+
+The transport PDF is machine-parsed, so visual line wrapping must NOT become content. Follow these rules:
+
+- Do not insert manual line breaks just because a sentence wraps on the source page. Ordinary prose inside PASSAGE/PROMPT/A/B/C/D must be continuous text.
+- Use [[BR]] only when the source has an intentional hard line break that must remain visible.
+- Use [[PAR]] for a real paragraph boundary.
+- Preserve source emphasis with [[EM]]...[[/EM]].
+- Preserve source underlining with [[U]]...[[/U]]. This is especially important for SAT questions that ask about an underlined claim or phrase.
+- For a fill-in-the-blank line, write [[BLANK]] exactly once. Do NOT write underscores plus the word "blank" (for example, never output "______ blank"). MakonBook renders [[BLANK]] as the SAT-style blank.
+- Never use HTML tags in the transport PDF.
+
+Example:
+[[PASSAGE]]
+High-speed rail ... [[U]]The researchers claim that this survey reveals that there is strong support for building more HSR lines in the United States.[[/U]]
+[[/PASSAGE]]
+
+Example fill-in-the-blank:
+[[PASSAGE]]
+The realists rejected a romantic style that instead [[BLANK]] their subjects' positive traits.
+[[/PASSAGE]]
+
+## Math / KaTeX fidelity profile (IMPORTANT)
+
+All mathematical notation that is not part of a visual MUST be emitted as LaTeX for KaTeX rendering. Do not approximate typeset math with Unicode superscripts, plain slash fractions, or flattened OCR order when exact notation can be read from the source.
+
+- Inline math: \( ... \)
+- Display math / standalone equation: \[ ... \]
+- Fractions: \frac{a}{b}
+- Roots: \sqrt{x} and \sqrt[n]{x}
+- Powers: x^{2}, x^{-9}
+- Subscripts: a_{1}
+- Inequalities: \le, \ge, <, >
+- Multiplication: \times when the source shows a multiplication sign
+- Greek letters: \pi, \theta, etc.
+
+Examples:
+- Source: v⁴ - 450v³  ->  \(v^{4} - 450v^{3}\)
+- Source: seventh root of p^5 divided by square root of p^(t+3)  ->  \(\frac{\sqrt[7]{p^{5}}}{\sqrt{p^{t+3}}}\)
+- A system of equations should be preserved as a display block, for example:
+  \[\begin{aligned} y &= -15x + 19 \\ y &= -20x + 24 \end{aligned}\]
+
+Do not put ordinary English prose inside math delimiters. Keep punctuation outside the delimiters unless it is mathematically meaningful.
+
+## PDF header
+
+EBRW:
+[[MAKONBOOK_STRUCTURED_PDF:2]]
+[[SECTION:EBRW]]
+
+Math:
+[[MAKONBOOK_STRUCTURED_PDF:2]]
+[[SECTION:MATH]]
+
+Start modules with:
+[[MODULE:1]]
+[[MODULE:2]]
+
+## Multiple-choice question without a visual
+
+[[QUESTION:1]]
+[[TYPE:MCQ]]
+[[PASSAGE]]
+Passage/source text. Leave empty if none.
+[[/PASSAGE]]
+[[PROMPT]]
+Question prompt.
+[[/PROMPT]]
+[[A]]
+Choice A
+[[/A]]
+[[B]]
+Choice B
+[[/B]]
+[[C]]
+Choice C
+[[/C]]
+[[D]]
+Choice D
+[[/D]]
+[[ANSWER]]
+B
+[[/ANSWER]]
+[[EXPLANATION]]
+Explanation from the source, if available.
+[[/EXPLANATION]]
+[[END_QUESTION]]
+
+## Main question visual (table / chart / figure / graph)
+
+Put the visual inside PASSAGE or PROMPT where it logically belongs. Use [[VISUAL:QUESTION]] for the normal single main visual. If a question truly needs multiple separate visuals, use numeric labels such as [[VISUAL:1]], [[VISUAL:2]], etc. MakonBook will combine multiple main visuals vertically into one question image.
+
+Example:
+
+[[QUESTION:11]]
+[[TYPE:MCQ]]
+[[PASSAGE]]
+[[VISUAL:QUESTION]]
+<PLACE ONLY THE CLEAN WHITE-BACKGROUND VECTOR TABLE/CHART/FIGURE HERE>
+[[/VISUAL:QUESTION]]
+
+Elisabeth Pötzelsberger and colleagues gathered data on 23 non-native tree species...
+[[/PASSAGE]]
+[[PROMPT]]
+Which choice best describes data from the table that support the conclusion?
+[[/PROMPT]]
+[[A]]...[[/A]]
+[[B]]...[[/B]]
+[[C]]...[[/C]]
+[[D]]...[[/D]]
+[[ANSWER]]
+C
+[[/ANSWER]]
+[[EXPLANATION]][[/EXPLANATION]]
+[[END_QUESTION]]
+
+IMPORTANT: do not transcribe the table into PASSAGE text. The table remains only in the visual region. Recreate the table cleanly as vector text/lines on white when the source values are unambiguous.
+
+## Visual answer choices (Math)
+
+If an answer choice itself is an image/table/graph, use a letter-specific visual marker inside that choice:
+
+[[A]]
+[[VISUAL:A]]
+<ONLY CHOICE A VISUAL>
+[[/VISUAL:A]]
+[[/A]]
+[[B]]
+[[VISUAL:B]]
+<ONLY CHOICE B VISUAL>
+[[/VISUAL:B]]
+[[/B]]
+[[C]]
+[[VISUAL:C]]
+<ONLY CHOICE C VISUAL>
+[[/VISUAL:C]]
+[[/C]]
+[[D]]
+[[VISUAL:D]]
+<ONLY CHOICE D VISUAL>
+[[/VISUAL:D]]
+[[/D]]
+
+For EBRW, preserve answer choices as selectable text. Do not use visual choices unless the source genuinely requires them; MakonBook currently blocks EBRW visual-choice publication for manual review.
+
+## Student-produced response / open response
+
+[[QUESTION:1]]
+[[TYPE:SPR]]
+[[PASSAGE]]
+Optional context.
+[[/PASSAGE]]
+[[PROMPT]]
+Question prompt.
+[[/PROMPT]]
+[[A]][[/A]]
+[[B]][[/B]]
+[[C]][[/C]]
+[[D]][[/D]]
+[[ANSWER]]
+Accepted answer from the source.
+[[/ANSWER]]
+[[EXPLANATION]]
+Explanation from the source, if available.
+[[/EXPLANATION]]
+[[END_QUESTION]]
+
+## Final verification before returning the PDFs
+
+- Every [[QUESTION:n]] has exactly one [[END_QUESTION]].
+- Every opened PASSAGE/PROMPT/A/B/C/D/ANSWER/EXPLANATION field has its closing tag.
+- Every [[VISUAL:X]] has a matching [[/VISUAL:X]] on the same page.
+- Visual regions contain only the required academic visual, not a screenshot of the whole question.
+- Visuals use a pure white background and vector objects whenever exact reconstruction is possible. No watermark/logo/question UI is included in the reconstructed visual.
+- No required table/graph/diagram has been converted into flattened OCR text.
+- The correct answer is copied exactly from the source answer key.
+- Ordinary PDF wrapping has not been converted into extra newlines. Use [[BR]] / [[PAR]] only for intentional structure.
+- Underlined source text is wrapped in [[U]]...[[/U]]; emphasized source text uses [[EM]]...[[/EM]].
+- Fill-in-the-blank locations use [[BLANK]], never underscores followed by the literal word "blank".
+- Non-visual math is valid KaTeX-compatible LaTeX inside \( ... \) or \[ ... \].
+- Empty/missing source questions are NOT invented. Preserve the gap and flag it to the human operator outside the PDF if needed.

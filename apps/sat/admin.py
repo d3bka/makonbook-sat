@@ -67,9 +67,9 @@ class QuestionTypeAdmin(admin.ModelAdmin):
 # Enhanced Test Admin
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
-    list_display = ['name', 'icon_preview', 'groups_display', 'total_questions', 'english_questions_count', 'math_questions_count', 
+    list_display = ['name', 'is_available', 'icon_preview', 'groups_display', 'total_questions', 'english_questions_count', 'math_questions_count', 
                    'reviews_count', 'average_score', 'created']
-    list_filter = ['created', 'groups']
+    list_filter = ['is_available', 'created', 'groups']
     search_fields = ['name']
     filter_horizontal = ['groups']
     ordering = ['-created']
@@ -77,7 +77,7 @@ class TestAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('name', 'groups', 'icon')
+            'fields': ('name', 'is_available', 'groups', 'icon')
         }),
         ('Additional info', {
             'fields': ('created',)

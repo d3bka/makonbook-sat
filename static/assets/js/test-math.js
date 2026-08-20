@@ -2,11 +2,28 @@
   'use strict';
 
   function fixContent(value) {
-    return String(value == null ? '' : value)
+    let raw = String(value == null ? '' : value)
       .replace(/\\\$/g, '$')
-      .replace(/\\\\/g, '\\')
       .replace(/\\n/g, '\n')
       .replace(/\\t/g, '\t');
+
+    // Do not collapse literal double backslashes here. KaTeX uses `\\`
+    // as a semantic row break inside aligned/system expressions. JSON/escapejs
+    // already decodes transport escaping before this function receives text.
+
+    const hasStructuredMarkup = /\[\[\s*(?:\/?\s*(?:U|EM)|BLANK)\s*\]\]/i.test(raw);
+    if (!hasStructuredMarkup) return raw;
+
+    // Structured-PDF inline formatting is deliberately tiny and allowlisted.
+    // Escape everything first so uploaded content cannot inject arbitrary HTML,
+    // then restore only the markers MakonBook itself understands.
+    raw = escapeHtml(raw);
+    return raw
+      .replace(/\[\[\s*U\s*\]\]/gi, '<u class="sat-source-underline">')
+      .replace(/\[\[\s*\/\s*U\s*\]\]/gi, '</u>')
+      .replace(/\[\[\s*EM\s*\]\]/gi, '<em class="sat-source-emphasis">')
+      .replace(/\[\[\s*\/\s*EM\s*\]\]/gi, '</em>')
+      .replace(/\[\[\s*BLANK\s*\]\]/gi, '<span class="sat-inline-blank" aria-label="blank"></span>');
   }
 
   function escapeHtml(value) {
@@ -31,6 +48,19 @@
     } catch (error) {
       console.warn('Math rendering failed:', error);
     }
+  }
+
+  function sizeQuestionVisual(img) {
+    if (!img) return;
+    const apply = () => {
+      const width = Number(img.naturalWidth || 0);
+      const height = Number(img.naturalHeight || 0);
+      if (!width || !height) return;
+      const ratio = width / height;
+      img.dataset.visualShape = ratio >= 4.2 ? 'ultrawide' : ratio >= 1.55 ? 'wide' : 'compact';
+    };
+    if (img.complete) apply();
+    else img.addEventListener('load', apply, { once: true });
   }
 
   function isWritten(core) {
@@ -126,6 +156,7 @@
       graph.innerHTML = question.graph
         ? `<div class="graph"><img src="${escapeHtml(question.graph)}" alt="Question graph or table"></div>`
         : '';
+      sizeQuestionVisual(graph.querySelector('img'));
     }
 
     if (isWritten(core)) {
@@ -144,6 +175,7 @@
       answers.innerHTML = ['A', 'B', 'C', 'D']
         .map((letter) => choiceMarkup(core, letter, question[letter.toLowerCase()]))
         .join('');
+      answers.querySelectorAll('.choice-image').forEach(sizeQuestionVisual);
       answers.querySelectorAll('.choice-input').forEach((input) => {
         input.addEventListener('change', () => core.selectChoice(input.value));
       });
@@ -164,6 +196,7 @@
     }
     syncEliminateControls(core);
 
+    renderMath(passage);
     renderMath(questionText);
     renderMath(answers);
     window.setTimeout(() => document.body.classList.remove('question-enter-next', 'question-enter-prev'), 420);

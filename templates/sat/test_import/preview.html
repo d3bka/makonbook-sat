@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ job.name }} · Reviewer preview</title>
+  {% include 'base/theme_init.html' %}
+  <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/open-text-answer.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/test-math-page.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=25">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=27">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=42">
+  <link rel="stylesheet" href="{% static 'assets/css/test-import-preview.css' %}?v=6">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+</head>
+<body class="scroll-hide mk-test-window sat-flow-page github-test-template-v20 github-test-english tic-preview-body">
+  <div class="tic-preview-app" data-preview-app>
+    <section class="tic-preview-test-pane">
+      <div class="container tic-preview-container">
+        <header class="tic-preview-test-header">
+          <div class="github-test-heading">
+            <h1 data-preview-section-title>Section 1: Reading and Writing</h1>
+            <small><strong>{{ job.name }}</strong> · <span data-preview-module-label>Module 1</span></small>
+          </div>
+
+          <div class="github-test-timer-wrap tic-reviewer-preview-center" aria-label="Reviewer preview mode">
+            <div class="tic-reviewer-preview-badge"><span aria-hidden="true"></span> Reviewer Preview</div>
+            <div class="test-save-status" role="status">
+              <span class="save-status-dot" aria-hidden="true"></span><span>Untimed · answers are not saved</span>
+            </div>
+          </div>
+
+          <div class="tic-preview-header-actions">
+            <label class="tic-module-picker" title="Jump to a module">
+              <i class="fa fa-list-alt" aria-hidden="true"></i>
+              <select data-module-select aria-label="Choose test module">
+                {% for item in module_options %}
+                <option value="{{ item.key }}">{{ item.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button type="button" class="tic-test-header-btn tic-source-toggle" data-source-toggle aria-pressed="true" title="Show or hide source PDF">
+              <i class="fa fa-file-pdf-o" aria-hidden="true"></i><span>Source</span>
+            </button>
+            <button type="button" class="tic-test-header-btn" data-overview-toggle title="Question overview" aria-label="Question overview">
+              <i class="fa fa-th" aria-hidden="true"></i>
+            </button>
+            <a href="{% url 'test_import_detail' job.id %}" class="tic-test-header-btn" title="Back to import review" aria-label="Back to import review">
+              <i class="fa fa-times" aria-hidden="true"></i>
+            </a>
+          </div>
+        </header>
+
+        <main class="tic-preview-main">
+          <section class="question-container scroll-hide tic-preview-passage-panel">
+            <div class="just-div tic-preview-graph" data-preview-graph></div>
+            <p id="passage" data-preview-passage></p>
+          </section>
+
+          <section class="answers-container scroll-hide tic-preview-answer-panel">
+            <div class="question-title">
+              <div class="question-number" data-question-number>1</div>
+              <div class="tic-preview-status-pill ok" data-question-status>OK</div>
+              {% if can_manage %}
+              <a class="tic-preview-edit-link" data-edit-question href="#" title="Edit this staging question">
+                <i class="fa fa-pencil" aria-hidden="true"></i><span>Edit</span>
+              </a>
+              {% endif %}
+            </div>
+
+            <div class="tic-preview-validation" data-validation-banner data-status="ok" hidden>
+              <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+              <div><strong data-validation-title>Validation notice</strong><span data-validation-text></span></div>
+            </div>
+
+            <div class="question-text" id="question-text" data-preview-question></div>
+            <div class="answers" id="answers" data-preview-answers></div>
+            <div class="tic-preview-answer-key" data-answer-key hidden>
+              <span>Stored answer key</span><strong data-answer-key-value></strong>
+            </div>
+          </section>
+        </main>
+
+        <footer class="tic-preview-footer">
+          <div class="footer-left">
+            {{ request.user.get_full_name|default:request.user.username }}
+            <span class="tic-reviewer-label">Reviewer</span>
+          </div>
+          <div class="footer-center">
+            <button type="button" class="question-progress nav-button" data-overview-toggle>
+              Question <span data-current-index>1</span> of <span data-total-questions>0</span>
+            </button>
+          </div>
+          <div class="footer-right">
+            <button type="button" class="nav-button tic-key-btn" data-answer-key-toggle title="Reveal stored answer key">Answer key</button>
+            <button type="button" class="nav-button" data-prev>Back</button>
+            <button type="button" class="nav-button" data-next>Next</button>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <div class="tic-source-resizer" data-source-resizer role="separator" aria-label="Resize test and source PDF panels" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="60" aria-valuenow="38" tabindex="0" title="Drag to resize · double-click to reset">
+      <div class="tic-source-resizer-handle" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>
+
+    <aside class="tic-source-panel" data-source-panel>
+      <div class="tic-source-head">
+        <div class="tic-source-title-block">
+          <span>Source PDF</span>
+          <strong data-source-title>Original structured source</strong>
+        </div>
+        <div class="tic-source-actions">
+          <span class="tic-source-page">Page <strong data-source-page>1</strong></span>
+          <a href="#" target="_blank" rel="noopener" data-source-open title="Open source PDF in a new tab" aria-label="Open source PDF in a new tab"><i class="fa fa-external-link"></i></a>
+          <button type="button" data-source-close title="Hide source PDF" aria-label="Hide source PDF"><i class="fa fa-times"></i></button>
+        </div>
+      </div>
+      <iframe title="Source PDF" data-source-frame src="about:blank"></iframe>
+    </aside>
+  </div>
+
+  <div class="tic-preview-overview" data-overview aria-hidden="true">
+    <button class="tic-overview-backdrop" type="button" data-overview-close aria-label="Close question overview"></button>
+    <section class="tic-overview-sheet" role="dialog" aria-modal="true" aria-labelledby="tic-preview-overview-title">
+      <div class="tic-overview-head">
+        <div><span>Reviewer navigation</span><h2 id="tic-preview-overview-title">Questions</h2></div>
+        <button type="button" data-overview-close aria-label="Close question overview"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="tic-overview-legend">
+        <span><i class="ok"></i> OK</span>
+        <span><i class="warning"></i> Warning</span>
+        <span><i class="error"></i> Error</span>
+      </div>
+      <div data-overview-modules></div>
+    </section>
+  </div>
+
+  {{ questions_payload|json_script:"test-import-preview-questions" }}
+  {{ source_urls|json_script:"test-import-preview-sources" }}
+  <script>
+    window.TEST_IMPORT_PREVIEW = {
+      jobId: {{ job.id }},
+      editUrlTemplate: "{% url 'test_import_question_edit' job.id 999999999 %}".replace("999999999", "__QUESTION_ID__")
+    };
+  </script>
+  <script src="{% static 'assets/js/test-import-preview.js' %}?v=6" defer></script>
+</body>
+</html>

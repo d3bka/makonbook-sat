@@ -1,24 +1,27 @@
 {% extends 'template.html' %}{% load static %}
 {% block page_title %}Import Structured Test | MakonBook{% endblock %}{% block title-main %}Import a test{% endblock %}{% block title-subtitle %}<span>Structured PDFs stay in staging until publication</span>{% endblock %}{% block title %}New import{% endblock %}
-{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=3">{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=8">{% endblock %}
 {% block content %}
 <div class="tic-shell narrow">
   <a class="tic-back" href="{% url 'test_import_list' %}"><i class="bi bi-arrow-left"></i> Import Center</a>
   <section class="tic-card tic-format-card">
     <div class="tic-card-head">
-      <div><span class="tic-kicker">Before upload</span><h2>MakonBook Structured PDF v1</h2><p>Convert the original test with an external AI first. MakonBook no longer tries to understand arbitrary PDF layouts.</p></div>
+      <div><span class="tic-kicker">Before upload</span><h2>MakonBook Structured PDF v2</h2><p>Convert the original test with an external AI first. V2.1 keeps tables, graphs, and diagrams as deterministic visual regions, removes PDF-only line wrapping, and preserves underlines, blanks, emphasis, and KaTeX-ready math with explicit markers.</p></div>
       <span class="tic-format-badge"><i class="bi bi-braces"></i> deterministic</span>
     </div>
-    <p class="tic-format-note">Create one EBRW PDF and/or one Math PDF. Question counts are read from the file, so Placement and custom tests can contain fewer or more questions than a standard SAT.</p>
-    <a class="tic-btn ghost tic-prompt-link" href="{% static 'assets/test-import/makonbook-structured-pdf-v1-prompt.txt' %}" download><i class="bi bi-download"></i> Download AI conversion prompt</a>
+    <p class="tic-format-note">Create one EBRW PDF and/or one Math PDF. Question counts are read from the file, so Placement and custom tests can contain fewer or more questions than a standard SAT. <strong>The downloadable conversion prompt is the authoritative text/math contract.</strong> Ordinary PDF line wraps must not be encoded as semantic line breaks.</p>
+    <div class="tic-published-actions"><a class="tic-btn ghost tic-prompt-link" href="{% static 'assets/test-import/makonbook-structured-pdf-v2-prompt.txt' %}" download><i class="bi bi-download"></i> Download AI conversion prompt</a><a class="tic-btn ghost tic-prompt-link" href="{% static 'assets/test-import/makonbook-structured-pdf-v2-spec.pdf' %}" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Open v2 visual spec</a><a class="tic-btn ghost tic-prompt-link" href="{% static 'assets/test-import/makonbook-structured-pdf-v2-example.pdf' %}" download><i class="bi bi-download"></i> Download v2 example PDF</a></div>
     <details class="tic-contract">
       <summary>Required marker structure</summary>
-      <pre>[[MAKONBOOK_STRUCTURED_PDF:1]]
+      <pre>[[MAKONBOOK_STRUCTURED_PDF:2]]
 [[SECTION:EBRW]]
 [[MODULE:1]]
 [[QUESTION:1]]
 [[TYPE:MCQ]]
-[[PASSAGE]]...[[/PASSAGE]]
+[[PASSAGE]]Normal prose with no PDF-only line wraps.
+[[PAR]] starts a real paragraph.
+Use [[U]]underlined source text[[/U]], [[EM]]emphasis[[/EM]], and [[BLANK]].
+Inline math: \(x^2 + 3x\).  Display math: \[\frac{x+1}{2}\].[[/PASSAGE]]
 [[PROMPT]]...[[/PROMPT]]
 [[A]]...[[/A]]
 [[B]]...[[/B]]
@@ -26,19 +29,39 @@
 [[D]]...[[/D]]
 [[ANSWER]]B[[/ANSWER]]
 [[EXPLANATION]]...[[/EXPLANATION]]
-[[GRAPH:NO]]
-[[CHOICE_GRAPH:NO]]
-[[END_QUESTION]]</pre>
+[[END_QUESTION]]
+
+Visual example:
+[[VISUAL:QUESTION]]
+<cropped table/chart/figure only>
+[[/VISUAL:QUESTION]]</pre>
     </details>
   </section>
 
   <section class="tic-card">
-    <div class="tic-card-head"><div><span class="tic-kicker">Step 1</span><h2>Upload standardized PDFs</h2><p>Upload EBRW, Math, or both. MakonBook parses the fixed markers in the background, then notifies support teachers.</p></div></div>
-    <form method="post" enctype="multipart/form-data" class="tic-form">{% csrf_token %}
+    <div class="tic-card-head"><div><span class="tic-kicker">Step 1</span><h2>Upload standardized PDFs</h2><p>Upload EBRW, Math, or both. MakonBook parses the fixed markers locally in this request, validates the staging data, and then notifies support teachers. Redis/Celery are not required for Test Import.</p></div></div>
+    <form method="post" enctype="multipart/form-data" class="tic-form" data-import-upload-form>{% csrf_token %}
       {% if form.non_field_errors %}{% for error in form.non_field_errors %}<div class="tic-alert error">{{ error }}</div>{% endfor %}{% endif %}
       {% for field in form %}<label><span>{{ field.label }}</span>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<em>{{ error }}</em>{% endfor %}</label>{% endfor %}
-      <button class="tic-btn primary" type="submit"><i class="bi bi-cloud-arrow-up"></i> Upload & build staging test</button>
+      <button class="tic-btn primary" type="submit" data-import-submit-button><i class="bi bi-cloud-arrow-up"></i> <span>Upload & build staging test</span></button>
     </form>
   </section>
 </div>
+
+<div class="tic-upload-overlay" data-import-upload-overlay aria-hidden="true">
+  <div class="tic-upload-sheet" role="status" aria-live="polite">
+    <div class="tic-upload-visual" aria-hidden="true">
+      <span class="tic-upload-core"><i class="bi bi-file-earmark-check"></i></span>
+      <span class="tic-orbit orbit-a"></span><span class="tic-orbit orbit-b"></span><span class="tic-orbit orbit-c"></span>
+    </div>
+    <div class="tic-upload-copy">
+      <span class="tic-kicker">Building staging import</span>
+      <h2>Handing the test to MakonBook</h2>
+      <p data-import-upload-message>Uploading the structured PDFs securely…</p>
+      <div class="tic-upload-wave"><span></span><span></span><span></span><span></span><span></span></div>
+      <small><i class="bi bi-shield-check"></i> Duplicate clicks are locked. The parser runs directly in MakonBook. Keep this tab open until the review page appears.</small>
+    </div>
+  </div>
+</div>
+<script src="{% static 'assets/js/test-import-submit.js' %}?v=2" defer></script>
 {% endblock %}

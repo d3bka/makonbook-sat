@@ -1,0 +1,23 @@
+{% extends 'template.html' %}{% load static %}
+{% block page_title %}Delete {{ test.name }} | MakonBook{% endblock %}
+{% block title-main %}Delete Test{% endblock %}{% block title-subtitle %}<span>Permanent action</span>{% endblock %}{% block title %}Delete published test{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'assets/css/test-import-center.css' %}?v=8">{% endblock %}
+{% block content %}
+<div class="tic-shell narrow">
+  <a class="tic-back" href="{% url 'managed_test_edit' test.pk %}"><i class="bi bi-arrow-left"></i> Back to test editor</a>
+  <section class="tic-card tic-danger-zone">
+    <div class="tic-danger-icon"><i class="bi bi-exclamation-triangle"></i></div>
+    <span class="tic-kicker">Danger zone</span><h2>Delete “{{ test.name }}”?</h2>
+    <p>This removes the live test and its published question rows. Historical review/attempt records whose models use SET_NULL are preserved. If this test has guest/global events, those events use CASCADE and require an extra acknowledgement below.</p>
+    <div class="tic-impact-grid"><div><strong>{{ impact.total_questions }}</strong><span>questions</span></div><div><strong>{{ impact.student_access_rows }}</strong><span>student access rows</span></div><div><strong>{{ impact.global_events }}</strong><span>guest events</span></div><div><strong>{{ impact.guest_attempts }}</strong><span>guest attempts</span></div></div>
+    {% if error %}<div class="tic-alert error">{{ error }}</div>{% endif %}
+    <form method="post" class="tic-form tic-delete-form" data-tic-published-delete>{% csrf_token %}
+      <label><span>Type the exact test name</span><input name="confirm_name" autocomplete="off" placeholder="{{ test.name }}" required></label>
+      <label><span>Type DELETE</span><input name="confirm_word" autocomplete="off" placeholder="DELETE" required></label>
+      {% if impact.global_events %}<label class="tic-check-row critical"><span>I understand that {{ impact.global_events }} linked guest/global event{{ impact.global_events|pluralize }} and {{ impact.guest_attempts }} attempt{{ impact.guest_attempts|pluralize }} may also be deleted.</span><input type="checkbox" name="delete_linked_events" value="1"></label>{% endif %}
+      <button class="tic-btn danger full" type="submit"><i class="bi bi-trash3"></i> Permanently delete test</button>
+    </form>
+  </section>
+</div>
+<script src="{% static 'assets/js/test-import-center-fast.js' %}?v=1" defer></script>
+{% endblock %}

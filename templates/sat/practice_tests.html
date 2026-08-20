@@ -7,7 +7,7 @@
 {% block title %}Practice Tests{% endblock title %}
 
 {% block style %}
-<link rel="stylesheet" href="{% static 'assets/css/makon-practice-tests.css' %}?v=12">
+<link rel="stylesheet" href="{% static 'assets/css/makon-practice-tests.css' %}?v=13">
 {% endblock style %}
 
 {% block content %}
@@ -117,8 +117,7 @@
               style="--card-index:{{ forloop.counter0 }}"
             >
               <div class="practice-card-media">
-                {% if test.is_new %}<span class="practice-new-badge">NEW</span>{% endif %}
-                <img src="{{ test.card_image }}" alt="{{ test.name }}" loading="lazy" onerror="this.onerror=null;this.src='{% static 'assets/img/tests/minion.jpg' %}'">
+                <img src="{{ test.card_image }}" alt="{{ test.name }}" loading="lazy" onerror="this.onerror=null;this.src='{% static 'assets/img/tests/default.png' %}'">
                 <span class="practice-state-pill">{{ test.status_label }}</span>
                 <div class="practice-card-media-shade"></div>
               </div>
@@ -139,7 +138,12 @@
                   <span><i class="bi bi-grid-1x2" aria-hidden="true"></i>{{ test.module_count }} module{{ test.module_count|pluralize }}</span>
                 </div>
 
-                {% if test.has_active_attempt %}
+                {% if test.card_state == 'closed' %}
+                  <div class="practice-progress-note is-closed">
+                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                    <span>Closed by an administrator for normal MakonBook access. Existing progress is preserved.</span>
+                  </div>
+                {% elif test.has_active_attempt %}
                   <div class="practice-progress-block">
                     <div>
                       <span>Attempt progress</span>
@@ -157,13 +161,16 @@
                   </div>
                 {% else %}
                   <div class="practice-progress-note is-ready">
+                    {% if test.is_new %}<span class="practice-inline-new-badge">NEW</span>{% endif %}
                     <i class="bi bi-lightning-charge" aria-hidden="true"></i>
-                    Ready for a fresh attempt.
+                    <span>Ready for a fresh attempt.</span>
                   </div>
                 {% endif %}
 
                 <div class="practice-card-actions">
-                  {% if test.card_state == 'unavailable' %}
+                  {% if test.card_state == 'closed' %}
+                    <button type="button" class="practice-action is-disabled" disabled><i class="bi bi-lock-fill" aria-hidden="true"></i> Closed in MakonBook</button>
+                  {% elif test.card_state == 'unavailable' %}
                     <button type="button" class="practice-action is-disabled" disabled>Unavailable</button>
                   {% elif classroom %}
                     <a

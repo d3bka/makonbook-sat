@@ -21,11 +21,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ test.name|default:'SAT' }} · Mathematics · {{ module|upper }}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.15.3/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
     <link rel="stylesheet" href="{% static 'font-awesome-4.7.0/css/font-awesome.min.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/makon-eng.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/test-eng-page.css' %}">
@@ -34,7 +34,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-responsive.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/sat-test-flow-v13.css' %}?v=25">
-  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=25">
+  <link rel="stylesheet" href="{% static 'assets/css/sat-github-template-v20.css' %}?v=27">
   <link rel="stylesheet" href="{% static 'assets/css/sat-test-interactions-v21.css' %}?v=25">
   {% include 'base/responsive_css.html' %}
 </head>
@@ -293,7 +293,7 @@
     {% if test_session_state %}{{ test_session_state|json_script:"sat-test-session-state" }}{% else %}<script id="sat-test-session-state" type="application/json">{}</script>{% endif %}
     <script src="{% static 'assets/js/sat-test-core-v13.js' %}?v=25"></script>
     <script src="{% static 'assets/js/sat-math-tools-v13.js' %}?v=25"></script>
-    <script src="{% static 'assets/js/test-math.js' %}?v=25"></script>
+    <script src="{% static 'assets/js/test-math.js' %}?v=27"></script>
   {% include 'base/issue_report_widget.html' %}
 </body>
 </html>

@@ -270,6 +270,14 @@ REGISTRATION_RATE_LIMIT_IP_WINDOW_SECONDS = int(os.getenv("REGISTRATION_RATE_LIM
 REGISTRATION_RATE_LIMIT_IDENTIFIER_MAX = int(os.getenv("REGISTRATION_RATE_LIMIT_IDENTIFIER_MAX", "5"))
 REGISTRATION_RATE_LIMIT_IDENTIFIER_WINDOW_SECONDS = int(os.getenv("REGISTRATION_RATE_LIMIT_IDENTIFIER_WINDOW_SECONDS", "1800"))
 
+# Test Import Center upload/queue throttling. The short cooldown is primarily
+# an idempotency guard against double-clicks; the wider window protects the
+# expensive upload + background-audit pipeline from repeated requests.
+TEST_IMPORT_RATE_LIMIT_ENABLED = env_bool("TEST_IMPORT_RATE_LIMIT_ENABLED", True)
+TEST_IMPORT_SUBMIT_COOLDOWN_SECONDS = int(os.getenv("TEST_IMPORT_SUBMIT_COOLDOWN_SECONDS", "15"))
+TEST_IMPORT_RATE_LIMIT_MAX = int(os.getenv("TEST_IMPORT_RATE_LIMIT_MAX", "6"))
+TEST_IMPORT_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("TEST_IMPORT_RATE_LIMIT_WINDOW_SECONDS", "600"))
+
 # Shared Redis counters in production; zero-setup in-memory counters in local
 # DEBUG mode. Set REGISTRATION_RATE_LIMIT_CACHE_URL explicitly to use Redis
 # while running Django directly from a local virtualenv.
@@ -463,7 +471,8 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-# Celery / Redis. The web process only enqueues long-running work; workers execute it.
+# Celery / Redis remain available for unrelated background tasks (for example video conversion).
+# Structured Test Import does NOT enqueue Celery jobs and does not require Redis.
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/1")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
 CELERY_TASK_TRACK_STARTED = True
@@ -501,7 +510,7 @@ QUESTION_AUDIT_DEEPSEEK_THINKING = os.getenv("QUESTION_AUDIT_DEEPSEEK_THINKING",
 QUESTION_AUDIT_DEEPSEEK_REASONING_EFFORT = os.getenv("QUESTION_AUDIT_DEEPSEEK_REASONING_EFFORT", "low")
 
 # Legacy arbitrary-PDF AI extraction remains OpenAI-only for old import records.
-# New MakonBook Structured PDF v1 imports never call TEST_IMPORT_MODEL.
+# New MakonBook Structured PDF v1/v2 imports never call TEST_IMPORT_MODEL.
 TEST_IMPORT_MODEL = os.getenv("TEST_IMPORT_MODEL", "gpt-5.6-terra")
 TEST_IMPORT_AUDIT_MODEL = os.getenv("TEST_IMPORT_AUDIT_MODEL", QUESTION_AUDIT_MODEL).strip()
 if QUESTION_AUDIT_PROVIDER == "deepseek" and not TEST_IMPORT_AUDIT_MODEL.startswith("deepseek-"):
@@ -509,6 +518,4 @@ if QUESTION_AUDIT_PROVIDER == "deepseek" and not TEST_IMPORT_AUDIT_MODEL.startsw
 elif QUESTION_AUDIT_PROVIDER == "openai" and TEST_IMPORT_AUDIT_MODEL.startswith("deepseek-"):
     TEST_IMPORT_AUDIT_MODEL = QUESTION_AUDIT_MODEL
 TEST_IMPORT_TIMEOUT_SECONDS = int(os.getenv("TEST_IMPORT_TIMEOUT_SECONDS", "180"))
-TEST_IMPORT_CELERY_SOFT_TIME_LIMIT = int(os.getenv("TEST_IMPORT_CELERY_SOFT_TIME_LIMIT", "3300"))
-TEST_IMPORT_CELERY_TIME_LIMIT = int(os.getenv("TEST_IMPORT_CELERY_TIME_LIMIT", "3600"))
-TEST_IMPORT_RUN_AI_AUDIT = os.getenv("TEST_IMPORT_RUN_AI_AUDIT", "1").strip().lower() not in {"0", "false", "no", "off"}
+TEST_IMPORT_RUN_AI_AUDIT = os.getenv("TEST_IMPORT_RUN_AI_AUDIT", "1").strip().lower() not in {"0", "false", "no", "off"}  # CLI/legacy opt-in only; web import never auto-audits.
