@@ -22,8 +22,11 @@ docs/
 docker-compose*.yml
 .dockerignore
 Dockerfile
-.env
+.env*
 *.backup
 *.dump
 *.sql
 db_backups/
+apps/telegram_bot/requests/
+.sixth/
+backups/

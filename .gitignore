@@ -124,3 +124,9 @@ backups/
 # =========================
 gunicorn.pid
 celerybeat-schedule
+# Runtime-generated Telegram credential export files
+apps/telegram_bot/requests/
+
+# Local tool/runtime metadata
+.sixth/
+
