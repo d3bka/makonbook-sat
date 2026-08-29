@@ -1,0 +1,19 @@
+# Normalize all text files to LF in the repository. This repo is often checked
+# out on a Windows-mounted path, which was silently rewriting every line ending
+# to CRLF and producing huge no-op diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.mp4 binary
+*.zip binary
+*.sqlite3 binary
