@@ -124,6 +124,7 @@
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
   {% include 'base/responsive_css.html' %}
 </head>
+<<<<<<< HEAD
 <body class="scroll-hide review-page">
     <div class="review-shell">
         {% if attempt_options and attempt_options|length > 1 %}
@@ -158,6 +159,20 @@
                     <strong>{{ answered|default_if_none:"—"|default:"—" }}</strong>
                 </div>
             </div>
+=======
+<body class="scroll-hide">
+    <div class="container">
+        <header>
+            {% if is_guest_review %}
+            <a href="{{ guest_result_url }}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            {% elif is_teacher_review %}
+            <a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            {% else %}
+            <a href="/sat/results/{{ test }}" style="text-decoration: none; color:black;"><h1>Question Review</h1></a>
+            {% endif %}
+            <h1 style="color: green;">Answer: {{ question.answer }}</h1>
+            <h1 style="color: gray;">Your Answer: {{ answered|default_if_none:"" }}</h1>
+>>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
         </header>
 
         <main class="review-main">
@@ -222,6 +237,7 @@
                 </div>
             </section>
         </main>
+<<<<<<< HEAD
 
         <footer class="review-footer">
             <div class="footer-nav-group">
@@ -239,6 +255,23 @@
                     <button type="button" class="nav-button disabled" disabled>Next</button>
                 {% endif %}
             </div>
+=======
+        <footer>
+            {% if prev %}
+            <a href="{{ prev }}"><button type="button" class="nav-button">Back</button></a>
+            {% else %}
+            {% if is_guest_review %}
+            <a href="{{ guest_result_url }}"><button type="button" class="nav-button">Back</button></a>
+            {% elif is_teacher_review %}
+            <a href="{% url 'classroom_student_review_results' classroom.id review_student.id test.name %}"><button type="button" class="nav-button">Back</button></a>
+            {% else %}
+            <a href="/sat/results/{{ test }}"><button type="button" class="nav-button">Back</button></a>
+            {% endif %}
+            {% endif %}
+            {% if next %}
+            <a href="{{ next }}"><button type="button" class="nav-button">Next</button></a>
+            {% endif %}
+>>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
         </footer>
     </div>
 

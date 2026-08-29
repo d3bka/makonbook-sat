@@ -9,10 +9,97 @@
   <link href="{% static 'assets/img/icons/original-icon-nobg.png' %}" rel="icon">
   <link rel="stylesheet" href="{% static 'assets/css/makon-style.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme.css' %}">
+<<<<<<< HEAD
   <link rel="stylesheet" href="{% static 'assets/css/makon-auth.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-theme-switcher.css' %}">
   <link rel="stylesheet" href="{% static 'assets/css/makon-small-device.css' %}">
   {% include 'base/responsive_css.html' %}
+=======
+  <style>
+    .page-wrap {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .result-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    .score-box {
+      margin: 24px 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .actions {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .review-section {
+      margin-top: 26px;
+      text-align: left;
+      border-top: 1px solid #eee;
+      padding-top: 22px;
+    }
+    .review-section h2 {
+      text-align: center;
+      margin: 0 0 18px;
+      font-size: 24px;
+      color: #11002b;
+    }
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    .review-module h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: #22004d;
+    }
+    .navigation {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .rect-question {
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+      text-align: center;
+      border-radius: 6px;
+      border: 1px solid #111;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .rect-question a {
+      display: block;
+      width: 100%;
+      height: 100%;
+      color: inherit;
+      text-decoration: none;
+    }
+    .rect-question.correct {
+      background: #15803d;
+      color: #fff;
+      border-color: #15803d;
+    }
+    .rect-question.incorrect {
+      background: #dc2626;
+      color: #fff;
+      border-color: #dc2626;
+    }
+    @media (max-width: 720px) {
+      .review-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+>>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
 </head>
 <body class="public-page">
   <div class="public-shell">
@@ -48,6 +135,70 @@
 
       <p><strong>Answered:</strong> {{ attempt.answered_questions }} / {{ attempt.total_questions }}</p>
       <p><strong>Status:</strong> {{ attempt.status|title }}</p>
+
+
+      {% if show_score %}
+      <div class="review-section">
+        <h2>Question Review</h2>
+        <div class="review-grid">
+          {% if has_english %}
+            {% if review_questions.english.m1 %}
+            <div class="review-module">
+              <h3>English Module 1</h3>
+              <div class="navigation">
+                {% for q in review_questions.english.m1 %}
+                <div class="rect-question {{ q.status }}">
+                  <a href="{% url 'global_event_review_question' attempt.guest_token 'english' 'm1' q.id %}">{{ q.number }}</a>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            {% if review_questions.english.m2 %}
+            <div class="review-module">
+              <h3>English Module 2</h3>
+              <div class="navigation">
+                {% for q in review_questions.english.m2 %}
+                <div class="rect-question {{ q.status }}">
+                  <a href="{% url 'global_event_review_question' attempt.guest_token 'english' 'm2' q.id %}">{{ q.number }}</a>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          {% endif %}
+
+          {% if has_math %}
+            {% if review_questions.math.m1 %}
+            <div class="review-module">
+              <h3>Math Module 1</h3>
+              <div class="navigation">
+                {% for q in review_questions.math.m1 %}
+                <div class="rect-question {{ q.status }}">
+                  <a href="{% url 'global_event_review_question' attempt.guest_token 'math' 'm1' q.id %}">{{ q.number }}</a>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            {% if review_questions.math.m2 %}
+            <div class="review-module">
+              <h3>Math Module 2</h3>
+              <div class="navigation">
+                {% for q in review_questions.math.m2 %}
+                <div class="rect-question {{ q.status }}">
+                  <a href="{% url 'global_event_review_question' attempt.guest_token 'math' 'm2' q.id %}">{{ q.number }}</a>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
 
       <div class="actions">
         <a href="{% url 'global_event_list' %}" class="primary-btn">Back to events</a>

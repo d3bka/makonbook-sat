@@ -34,6 +34,7 @@ if not SECRET_KEY:
 
 DEBUG = env_bool("DEBUG", False)
 
+<<<<<<< HEAD
 # Keep the canonical production hosts available even when an older .env is
 # accidentally mounted during deployment. A stale host/origin list causes
 # valid authenticated POST requests to fail before they reach the view.
@@ -65,6 +66,11 @@ CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(
 SITE_DOMAIN = env_str("SITE_DOMAIN", "makonbook.uz")
 SITE_PROTOCOL = env_str("SITE_PROTOCOL", "http" if DEBUG else "https")
 SITE_URL = f"{SITE_PROTOCOL}://{SITE_DOMAIN}"
+=======
+ALLOWED_HOSTS = ["*"]
+
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+>>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
 
 
 INSTALLED_APPS = [
@@ -429,6 +435,7 @@ LOGGING = {
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = 'sat_menu'
 LOGOUT_REDIRECT_URL = '/login/'
+<<<<<<< HEAD
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
@@ -519,3 +526,5 @@ elif QUESTION_AUDIT_PROVIDER == "openai" and TEST_IMPORT_AUDIT_MODEL.startswith(
     TEST_IMPORT_AUDIT_MODEL = QUESTION_AUDIT_MODEL
 TEST_IMPORT_TIMEOUT_SECONDS = int(os.getenv("TEST_IMPORT_TIMEOUT_SECONDS", "180"))
 TEST_IMPORT_RUN_AI_AUDIT = os.getenv("TEST_IMPORT_RUN_AI_AUDIT", "1").strip().lower() not in {"0", "false", "no", "off"}  # CLI/legacy opt-in only; web import never auto-audits.
+=======
+>>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
