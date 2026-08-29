@@ -144,16 +144,12 @@ urlpatterns = [
     path("global-events/attempt/<uuid:guest_token>/submit/", guest_views.submit_global_event_view, name="submit_global_event"),
     path("global-events/attempt/<uuid:guest_token>/submit/status/", guest_views.global_event_submit_status_view, name="global_event_submit_status"),
     path("global-events/attempt/<uuid:guest_token>/result/", guest_views.global_event_result_view, name="global_event_result"),
-<<<<<<< HEAD
     path("global-events/attempt/<uuid:guest_token>/review/", guest_views.global_event_review_view, name="global_event_review"),
     path(
         "global-events/attempt/<uuid:guest_token>/review/<str:section>/<str:module>/<int:id>/",
         guest_views.global_event_review_question_view,
         name="global_event_review_question",
     ),
-=======
-    path("global-events/attempt/<uuid:guest_token>/review/<str:section>/<str:module>/<int:question_id>/", guest_views.global_event_review_question_view, name="global_event_review_question"),
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
 
     path("global-events/<slug:slug>/leaderboard/", guest_views.global_event_leaderboard_view, name="global_event_leaderboard"),
 

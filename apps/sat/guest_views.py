@@ -592,117 +592,6 @@ RAW_TO_EQUIV = [
 ]
 
 
-
-PLACEMENT_TEST_NAMES = {"placement test"}
-
-PLACEMENT_EBRW_SCORE_TABLE = {
-    27: 700,
-    26: 690,
-    25: 680,
-    24: 670,
-    23: 660,
-    22: 640,
-    21: 630,
-    20: 620,
-    19: 610,
-    18: 600,
-    17: 590,
-    16: 580,
-    15: 570,
-    14: 560,
-    13: 540,
-    12: 530,
-    11: 520,
-    10: 500,
-    9: 470,
-    8: 440,
-    7: 410,
-    6: 380,
-    5: 350,
-    4: 320,
-    3: 290,
-    2: 260,
-    1: 230,
-    0: 200,
-}
-
-PLACEMENT_MATH_SCORE_TABLE = {
-    38: 750,
-    37: 740,
-    36: 730,
-    35: 710,
-    34: 700,
-    33: 690,
-    32: 680,
-    31: 660,
-    30: 650,
-    29: 640,
-    28: 630,
-    27: 610,
-    26: 600,
-    25: 590,
-    24: 580,
-    23: 580,
-    22: 570,
-    21: 560,
-    20: 550,
-    19: 540,
-    18: 530,
-    17: 520,
-    16: 520,
-    15: 510,
-    14: 500,
-    13: 490,
-    12: 460,
-    11: 440,
-    10: 410,
-    9: 390,
-    8: 370,
-    7: 350,
-    6: 330,
-    5: 310,
-    4: 290,
-    3: 260,
-    2: 240,
-    1: 220,
-    0: 200,
-}
-
-
-def is_placement_test(test_obj):
-    return bool(test_obj and str(getattr(test_obj, "name", "")).strip().lower() in PLACEMENT_TEST_NAMES)
-
-
-def placement_score_from_table(correct, score_table):
-    try:
-        correct = int(correct or 0)
-    except (TypeError, ValueError):
-        correct = 0
-
-    min_correct = min(score_table.keys())
-    max_correct = max(score_table.keys())
-    correct = max(min_correct, min(max_correct, correct))
-    return score_table[correct]
-
-
-def placement_section_scores(test_mode, ebrw_raw, math_raw):
-    ebrw_score = None
-    math_score = None
-
-    if test_mode in ["full", "ebrw_only"]:
-        ebrw_score = placement_score_from_table(ebrw_raw, PLACEMENT_EBRW_SCORE_TABLE)
-
-    if test_mode in ["full", "math_only"]:
-        math_score = placement_score_from_table(math_raw, PLACEMENT_MATH_SCORE_TABLE)
-
-    if test_mode == "full":
-        range_total = {"lower": 400, "upper": 1600}
-    else:
-        range_total = {"lower": 200, "upper": 800}
-
-    return ebrw_score, math_score, (ebrw_score or 0) + (math_score or 0), range_total
-
-
 def convert_raw_to_equiv(raw_score):
     try:
         raw_score = int(raw_score)
@@ -771,7 +660,6 @@ def section_has_two_modules(totals, section):
 def get_event_scoring_type(test):
     """Return the Guest Mode SAT scoring strategy for *test*.
 
-<<<<<<< HEAD
     A complete two-module section can use the same adaptive SAT-style calculator
     as regular practice tests.  Short/imported Guest tests often contain only
     one module (or a non-standard number of questions).  Those tests still need
@@ -781,14 +669,7 @@ def get_event_scoring_type(test):
 
     This distinction is important: ``sat_estimated`` is an SAT-style normalized
     estimate, not an official College Board equated score.
-=======
-    Placement Test is a special guest/global event: it must use the fixed
-    27-question EBRW and 38-question Math conversion tables, not Level Check.
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
     """
-    if is_placement_test(test):
-        return "placement_test"
-
     totals = get_event_question_totals(test)
     test_mode = get_test_mode(test)
 
@@ -834,11 +715,6 @@ def is_standard_sat_question_count(test):
 def get_event_scoring_label(test):
     scoring_type = get_event_scoring_type(test)
     test_mode = get_test_mode(test)
-
-    if scoring_type == "placement_test":
-        if test_mode == "full":
-            return "Placement Test table scale 400–1600"
-        return "Placement Test table scale 200–800"
 
     if scoring_type == "sat_standard":
         normalized = "" if is_standard_sat_question_count(test) else " normalized"
@@ -1071,17 +947,7 @@ def calculate_attempt_breakdown(attempt):
     if not placement_total_questions:
         placement_total_questions = attempt.total_questions or 0
 
-<<<<<<< HEAD
     if scoring_type in {"sat_standard", "sat_estimated"}:
-=======
-    if scoring_type == "placement_test":
-        ebrw_score, math_score, total_score, range_total = placement_section_scores(
-            test_mode,
-            ebrw_raw,
-            math_raw,
-        )
-    elif scoring_type == "sat_standard":
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
         score_result = regular_score_from_counts(test_mode, correct_counts, totals)
         english_section = score_result["sections"].get("english")
         math_section = score_result["sections"].get("math")
@@ -1629,12 +1495,7 @@ def global_event_result_view(request, guest_token):
             apply_attempt_score(attempt, submit=False)
 
     breakdown = calculate_attempt_breakdown(attempt)
-<<<<<<< HEAD
     test_mode = get_test_mode(attempt.event.test)
-=======
-    review_questions, has_english, has_math = get_guest_review_questions(attempt)
-
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
     return render(request, "sat/guest/result.html", {
         "attempt": attempt,
         "event": attempt.event,
@@ -1652,124 +1513,6 @@ def global_event_result_view(request, guest_token):
         "total_raw": breakdown["total_raw"],
         "ebrw_raw": breakdown["ebrw_raw"],
         "math_raw": breakdown["math_raw"],
-
-        "review_questions": review_questions,
-        "has_english": has_english,
-        "has_math": has_math,
-    })
-
-
-def get_guest_review_questions(attempt):
-    """Build the same green/red question boxes used by regular SAT results."""
-    mark_answers_and_count_correct(attempt)
-
-    test = attempt.event.test
-    answer_map = {
-        (answer.section, module_key(answer.module), answer.question_id): answer
-        for answer in attempt.answers.all()
-    }
-
-    review_questions = {
-        "english": {"m1": [], "m2": []},
-        "math": {"m1": [], "m2": []},
-    }
-
-    for section, module in get_test_sequence(test):
-        module_db = module_query_name(module)
-
-        if section == "english":
-            queryset = English_Question.objects.filter(test=test, module=module_db).order_by("number")
-        elif section == "math":
-            queryset = Math_Question.objects.filter(test=test, module=module_db).order_by("number")
-        else:
-            continue
-
-        for question in queryset:
-            answer = answer_map.get((section, module, question.id))
-            status = "correct" if answer and answer.is_correct is True else "incorrect"
-            review_questions[section][module].append({
-                "id": question.id,
-                "number": question.number,
-                "status": status,
-            })
-
-    has_english = bool(review_questions["english"]["m1"] or review_questions["english"]["m2"])
-    has_math = bool(review_questions["math"]["m1"] or review_questions["math"]["m2"])
-
-    return review_questions, has_english, has_math
-
-
-@guest_required
-def global_event_review_question_view(request, guest_token, section, module, question_id):
-    attempt = get_object_or_404(
-        GlobalEventAttempt.objects.select_related("event", "guest", "event__test"),
-        guest_token=guest_token,
-    )
-
-    guest = get_guest_from_session(request)
-    if not guest or attempt.guest_id != guest.id:
-        return redirect("global_event_list")
-
-    if attempt.status != "submitted" or not attempt.event.show_score_immediately:
-        return redirect("global_event_result", guest_token=attempt.guest_token)
-
-    finalize_attempt(attempt)
-
-    section = str(section).lower().strip()
-    module = module_key(module)
-    if section not in ["english", "math"] or module not in ["m1", "m2"]:
-        return redirect("global_event_result", guest_token=attempt.guest_token)
-
-    test = attempt.event.test
-    module_db = module_query_name(module)
-
-    if section == "english":
-        question = English_Question.objects.filter(id=question_id, test=test, module=module_db).first()
-        module_questions = list(English_Question.objects.filter(test=test, module=module_db).order_by("number"))
-    else:
-        question = Math_Question.objects.filter(id=question_id, test=test, module=module_db).first()
-        module_questions = list(Math_Question.objects.filter(test=test, module=module_db).order_by("number"))
-
-    if not question:
-        return redirect("global_event_result", guest_token=attempt.guest_token)
-
-    answer_obj = attempt.answers.filter(
-        section=section,
-        module=module,
-        question_id=question.id,
-    ).first()
-    answered = answer_obj.selected_answer if answer_obj else ""
-
-    ids = [q.id for q in module_questions]
-    try:
-        current_index = ids.index(question.id)
-    except ValueError:
-        current_index = 0
-
-    def review_url(target_question_id):
-        return reverse("global_event_review_question", kwargs={
-            "guest_token": attempt.guest_token,
-            "section": section,
-            "module": module,
-            "question_id": target_question_id,
-        })
-
-    prev_url = review_url(ids[current_index - 1]) if current_index > 0 else ""
-    next_url = review_url(ids[current_index + 1]) if current_index < len(ids) - 1 else ""
-    result_url = reverse("global_event_result", kwargs={"guest_token": attempt.guest_token})
-
-    template_name = "test/review/test_eng.html" if section == "english" else "test/review/test_math.html"
-    return render(request, template_name, {
-        "question": question,
-        "answered": answered,
-        "prev": prev_url,
-        "next": next_url,
-        "test": test,
-        "attempt": attempt,
-        "event": attempt.event,
-        "is_guest_review": True,
-        "guest_result_url": result_url,
-        "results_url": result_url,
     })
 
 

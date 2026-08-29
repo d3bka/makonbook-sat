@@ -846,7 +846,6 @@ def _required_modules_for_test(test_obj):
     return get_test_sequence(test_obj)
 
 
-<<<<<<< HEAD
 def _section_submission_status(required_modules, missing_modules):
     """Return completion flags for only the modules a test actually contains.
 
@@ -875,158 +874,6 @@ def _section_submission_status(required_modules, missing_modules):
 
 
 def _score_from_counts(test_mode, correct_counts):
-=======
-PLACEMENT_TEST_NAMES = {'placement test'}
-
-PLACEMENT_EBRW_SCORE_TABLE = {
-    27: 700,
-    26: 690,
-    25: 680,
-    24: 670,
-    23: 660,
-    22: 640,
-    21: 630,
-    20: 620,
-    19: 610,
-    18: 600,
-    17: 590,
-    16: 580,
-    15: 570,
-    14: 560,
-    13: 540,
-    12: 530,
-    11: 520,
-    10: 500,
-    9: 470,
-    8: 440,
-    7: 410,
-    6: 380,
-    5: 350,
-    4: 320,
-    3: 290,
-    2: 260,
-    1: 230,
-    0: 200,
-}
-
-PLACEMENT_MATH_SCORE_TABLE = {
-    38: 750,
-    37: 740,
-    36: 730,
-    35: 710,
-    34: 700,
-    33: 690,
-    32: 680,
-    31: 660,
-    30: 650,
-    29: 640,
-    28: 630,
-    27: 610,
-    26: 600,
-    25: 590,
-    24: 580,
-    23: 580,
-    22: 570,
-    21: 560,
-    20: 550,
-    19: 540,
-    18: 530,
-    17: 520,
-    16: 520,
-    15: 510,
-    14: 500,
-    13: 490,
-    12: 460,
-    11: 440,
-    10: 410,
-    9: 390,
-    8: 370,
-    7: 350,
-    6: 330,
-    5: 310,
-    4: 290,
-    3: 260,
-    2: 240,
-    1: 220,
-    0: 200,
-}
-
-
-def _is_placement_test(test_obj):
-    return bool(test_obj and str(getattr(test_obj, 'name', '')).strip().lower() in PLACEMENT_TEST_NAMES)
-
-
-def _score_from_table(correct, score_table):
-    if correct is None:
-        correct = 0
-    try:
-        correct = int(correct)
-    except (TypeError, ValueError):
-        correct = 0
-
-    min_correct = min(score_table.keys())
-    max_correct = max(score_table.keys())
-    correct = max(min_correct, min(max_correct, correct))
-    return score_table[correct]
-
-
-def _placement_score_from_counts(test_mode, correct_counts):
-    english_correct = (
-        correct_counts.get('english', {}).get('m1', 0) +
-        correct_counts.get('english', {}).get('m2', 0)
-    )
-    math_correct = (
-        correct_counts.get('math', {}).get('m1', 0) +
-        correct_counts.get('math', {}).get('m2', 0)
-    )
-
-    english_score = _score_from_table(english_correct, PLACEMENT_EBRW_SCORE_TABLE)
-    math_score = _score_from_table(math_correct, PLACEMENT_MATH_SCORE_TABLE)
-
-    english_section = {
-        'score': english_score,
-        'range': {'lower': 200, 'upper': 800},
-        'correct': english_correct,
-        'max_correct': 27,
-        'scoring': 'placement',
-    }
-    math_section = {
-        'score': math_score,
-        'range': {'lower': 200, 'upper': 800},
-        'correct': math_correct,
-        'max_correct': 38,
-        'scoring': 'placement',
-    }
-
-    if test_mode == 'ebrw_only':
-        return {
-            'total': english_score,
-            'range_total': {'lower': 200, 'upper': 800},
-            'sections': {'english': english_section, 'math': None},
-        }
-
-    if test_mode == 'math_only':
-        return {
-            'total': math_score,
-            'range_total': {'lower': 200, 'upper': 800},
-            'sections': {'english': None, 'math': math_section},
-        }
-
-    return {
-        'total': english_score + math_score,
-        'range_total': {'lower': 400, 'upper': 1600},
-        'sections': {
-            'english': english_section,
-            'math': math_section,
-        },
-    }
-
-
-def _score_from_counts(test_mode, correct_counts, test_obj=None):
-    if _is_placement_test(test_obj):
-        return _placement_score_from_counts(test_mode, correct_counts)
-
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
     if test_mode == 'full':
         return calculator.get_total(
             correct_counts['english']['m1'],
@@ -1424,7 +1271,7 @@ def _calculate_attempt_score(user, test_obj, attempt_id, classroom=None):
             if is_correct:
                 correct_counts[sec][mod] += 1
 
-    return _score_from_counts(get_test_mode(test_obj), correct_counts, test_obj=test_obj)
+    return _score_from_counts(get_test_mode(test_obj), correct_counts)
 
 
 def _completed_attempt_ids_from_modules(user, test_obj, classroom=None):
@@ -1490,13 +1337,6 @@ def _ensure_scored_review_for_attempt(user, test_obj, attempt_id, classroom=None
         **_classroom_scope_filter(classroom),
     ).order_by('-created_at').first()
     if existing_scored:
-        if _is_placement_test(test_obj):
-            score = _calculate_attempt_score(user, test_obj, attempt_id, classroom=classroom)
-            if isinstance(score, dict):
-                updated_score = score.get('total', 0)
-                if existing_scored.score != updated_score:
-                    existing_scored.score = updated_score
-                    existing_scored.save(update_fields=['score'])
         if not existing_scored.key:
             existing_scored.update_key()
         return existing_scored
@@ -2595,7 +2435,7 @@ def results(request, test):
             except Exception:
                 continue
 
-    score = _score_from_counts(test_mode, correct_counts, test_obj=test_obj)
+    score = _score_from_counts(test_mode, correct_counts)
 
     current_stage = _latest_regular_test_stage(user, test_obj, classroom=classroom)
     current_attempt_id = attempt_id or (current_stage.attempt_id if current_stage else None)
@@ -2624,20 +2464,11 @@ def results(request, test):
                 testreview.duration = timedelta(days=3)
                 testreview.save(update_fields=['duration'])
 
-<<<<<<< HEAD
     if not review_key:
         testreview.score = score['total'] if isinstance(score, dict) else 0
         testreview.save(update_fields=['score'])
         if classroom:
             recalculate_practice_tests_progress(classroom, user)
-=======
-    should_update_review_score = not review_key or _is_placement_test(test_obj)
-    if should_update_review_score:
-        new_review_score = score['total'] if isinstance(score, dict) else 0
-        if testreview.score != new_review_score:
-            testreview.score = new_review_score
-            testreview.save(update_fields=['score'])
->>>>>>> 8bac338a46e0ea29b051683a0812ace0f67efd8d
 
     key = testreview.key
     selected_review = testreview
@@ -3443,7 +3274,7 @@ def results_by_user(request, test, username):
             except Exception:
                 continue
 
-    score = _score_from_counts(test_mode, correct_counts, test_obj=test_obj)
+    score = _score_from_counts(test_mode, correct_counts)
 
     english_total_correct = correct_counts['english']['m1'] + correct_counts['english']['m2']
     math_total_correct = correct_counts['math']['m1'] + correct_counts['math']['m2']
@@ -3562,7 +3393,7 @@ def _generate_certificate_response(user, test_obj, testreview):
             except Exception:
                 continue
 
-    score = _score_from_counts(test_mode, correct_counts, test_obj=test_obj)
+    score = _score_from_counts(test_mode, correct_counts)
 
     counts = [7, 7, 7, 7, 7, 7, 7, 7]
     wrongs = [questions['wrongs'].get(name, 0) for name in domain_names]
@@ -7324,7 +7155,7 @@ def _build_test_results_context_for_user(test_obj, user, review_key=None, classr
             except Exception:
                 continue
 
-    score = _score_from_counts(test_mode, correct_counts, test_obj=test_obj)
+    score = _score_from_counts(test_mode, correct_counts)
 
     testreview = selected_review
     if not testreview:
